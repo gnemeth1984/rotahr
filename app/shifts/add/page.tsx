@@ -1,149 +1,113 @@
-"use client"
-
-import { useEffect, useState } from "react"
+// app/shifts/page.tsx
+import React from "react"
+import Link from "next/link"
 import { supabase } from "@/lib/supabaseClient"
-import { useRouter } from "next/navigation"
 
-export default function AddShiftPage() {
-  const router = useRouter()
+type Employee = {
+  id: string
+  first_name?: string | null
+  last_name?: string | null
+}
 
-  const [employees, setEmployees] = useState([])
-  const [employeeId, setEmployeeId] = useState("")
-  const [date, setDate] = useState("")
-  const [start, setStart] = useState("")
-  const [end, setEnd] = useState("")
-  const [role, setRole] = useState("")
-  const [notes, setNotes] = useState("")
-  const [breakMinutes, setBreakMinutes] = useState("")
-  const [location, setLocation] = useState("")
+type ShiftRow = {
+  id: string
+  week_id?: string | null
+  day?: string | null
+  start_time?: string | null
+  end_time?: string | null
+  break_minutes?: number | null
+  role?: string | null
+  employee_id?: string | null
+  // When selecting related employees from Supabase, it may come back as an array
+  employees?: Employee[] | null
+}
 
-  useEffect(() => {
-    async function loadEmployees() {
-      const { data } = await supabase
-        .from("employees")
-        .select("id, first_name, last_name")
-        .order("last_name", { ascending: true })
-      setEmployees(data || [])
-    }
-    loadEmployees()
-  }, [])
+async function fetchShifts(): Promise<ShiftRow[]> {
+  const { data, error } = await supabase
+    .from("shifts")
+    .select(
+      `id, week_id, day, start_time, end_time, break_minutes, role, employee_id,
+       employees(id, first_name, last_name)`
+    )
+    .order("day", { ascending: true })
+    .order("start_time", { ascending: true })
 
-  async function handleSubmit(e) {
-    e.preventDefault()
-
-    await supabase.from("shifts").insert({
-      employee_id: employeeId || null,
-      shift_date: date,
-      start_time: start,
-      end_time: end,
-      role,
-      notes,
-      break_minutes: breakMinutes ? Number(breakMinutes) : null,
-      location,
-      published: false,
-    })
-
-    router.push("/shifts")
+  if (error) {
+    console.error("Failed to load shifts", error)
+    return []
   }
+  return (data ?? []) as ShiftRow[]
+}
+
+export default async function ShiftsPage() {
+  const shifts = await fetchShifts()
 
   return (
-    <div className="p-6 space-y-6">
-      <h1 className="text-2xl font-bold">Add Shift</h1>
+    <main className="p-6">
+      <header className="mb-4 flex items-center justify-between">
+        <h1 className="text-2xl font-bold">Shifts</h1>
+        <Link href="/shifts/add" className="px-3 py-1 bg-green-600 text-white rounded">
+          Add shift
+        </Link>
+      </header>
 
-      <form onSubmit={handleSubmit} className="space-y-4 max-w-lg">
-        <div>
-          <label className="block mb-1">Employee</label>
-          <select
-            className="border p-2 rounded w-full"
-            value={employeeId}
-            onChange={(e) => setEmployeeId(e.target.value)}
-          >
-            <option value="">Unassigned</option>
-            {employees.map((emp) => (
-              <option key={emp.id} value={emp.id}>
-                {emp.first_name} {emp.last_name}
-              </option>
-            ))}
-          </select>
-        </div>
+      <div className="overflow-x-auto">
+        <table className="w-full border-collapse">
+          <thead>
+            <tr>
+              <th className="border p-2 text-left">Day</th>
+              <th className="border p-2 text-left">Time</th>
+              <th className="border p-2 text-left">Role</th>
+              <th className="border p-2 text-left">Employee</th>
+              <th className="border p-2 text-left">Actions</th>
+            </tr>
+          </thead>
 
-        <div>
-          <label className="block mb-1">Date</label>
-          <input
-            type="date"
-            className="border p-2 rounded w-full"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            required
-          />
-        </div>
+          <tbody>
+            {shifts.length === 0 && (
+              <tr>
+                <td colSpan={5} className="p-4 text-center text-gray-500">
+                  No shifts found
+                </td>
+              </tr>
+            )}
 
-        <div>
-          <label className="block mb-1">Start Time</label>
-          <input
-            type="time"
-            className="border p-2 rounded w-full"
-            value={start}
-            onChange={(e) => setStart(e.target.value)}
-            required
-          />
-        </div>
+            {shifts.map((shift) => {
+              // shift.employees may be an array (from Supabase relation) or null/undefined
+              const empFromRelation = Array.isArray(shift.employees) && shift.employees.length > 0
+                ? shift.employees[0]
+                : undefined
 
-        <div>
-          <label className="block mb-1">End Time</label>
-          <input
-            type="time"
-            className="border p-2 rounded w-full"
-            value={end}
-            onChange={(e) => setEnd(e.target.value)}
-            required
-          />
-        </div>
+              // Prefer the related employee record if present, otherwise fall back to employee_id
+              const employeeName =
+                empFromRelation
+                  ? `${empFromRelation.first_name ?? ""} ${empFromRelation.last_name ?? ""}`.trim() || "Employee"
+                  : shift.employee_id
+                    ? shift.employee_id
+                    : "Unassigned"
 
-        <div>
-          <label className="block mb-1">Break (minutes)</label>
-          <input
-            type="number"
-            className="border p-2 rounded w-full"
-            value={breakMinutes}
-            onChange={(e) => setBreakMinutes(e.target.value)}
-          />
-        </div>
-
-        <div>
-          <label className="block mb-1">Role</label>
-          <input
-            className="border p-2 rounded w-full"
-            value={role}
-            onChange={(e) => setRole(e.target.value)}
-          />
-        </div>
-
-        <div>
-          <label className="block mb-1">Location</label>
-          <input
-            className="border p-2 rounded w-full"
-            value={location}
-            onChange={(e) => setLocation(e.target.value)}
-          />
-        </div>
-
-        <div>
-          <label className="block mb-1">Notes</label>
-          <textarea
-            className="border p-2 rounded w-full"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-          />
-        </div>
-
-        <button
-          type="submit"
-          className="px-4 py-2 bg-blue-600 text-white rounded"
-        >
-          Save Shift
-        </button>
-      </form>
-    </div>
+              return (
+                <tr key={shift.id}>
+                  <td className="border p-2">{shift.day ?? "—"}</td>
+                  <td className="border p-2">
+                    {shift.start_time ?? "—"} — {shift.end_time ?? "—"}
+                  </td>
+                  <td className="border p-2">{shift.role ?? "General"}</td>
+                  <td className="border p-2">{employeeName}</td>
+                  <td className="border p-2">
+                    <Link
+                      href={`/shifts/${shift.id}`}
+                      className="text-blue-600 hover:underline"
+                    >
+                      Edit
+                    </Link>
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+    </main>
   )
 }

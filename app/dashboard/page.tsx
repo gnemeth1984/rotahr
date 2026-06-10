@@ -1,29 +1,19 @@
-import MinimalDashboard from "@/components/dashboard/MinimalDashboard"
-import ModernDashboard from "@/components/dashboard/ModernDashboard"
-import ColorfulDashboard from "@/components/dashboard/ColorfulDashboard"
-import { supabase } from "@/lib/supabaseClient"
+import { supabase } from '@/lib/supabaseClient'
+import { redirect } from 'next/navigation'
 
-export default async function Dashboard() {
-  // Get logged-in user
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+export const dynamic = 'force-dynamic'
 
-  if (!user) {
-    return <div className="p-6">Not logged in</div>
+export default async function DashboardPage() {
+  const { data: { session } } = await supabase.auth.getSession()
+
+  if (!session) {
+    redirect('/login')
   }
 
-  // Fetch theme from profiles table
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("theme")
-    .eq("id", user.id)
-    .single()
-
-  const theme = profile?.theme || "minimal"
-
-  // Load the correct dashboard
-  if (theme === "modern") return <ModernDashboard />
-  if (theme === "colorful") return <ColorfulDashboard />
-  return <MinimalDashboard />
+  return (
+    <div className="p-6">
+      <h1 className="text-2xl font-bold">Dashboard</h1>
+      <p>Welcome back, {session.user.email}</p>
+    </div>
+  )
 }

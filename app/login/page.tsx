@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 
 export default function LoginPage() {
@@ -8,7 +8,8 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
 
-  async function handleLogin() {
+  async function handleLogin(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
     setError('')
 
     const { error } = await supabase.auth.signInWithPassword({
@@ -21,12 +22,16 @@ export default function LoginPage() {
       return
     }
 
+    // Session is now stored correctly
     window.location.href = '/dashboard'
   }
 
   return (
     <div className="flex items-center justify-center h-screen bg-gray-100">
-      <div className="bg-white p-8 rounded shadow w-80">
+      <form
+        onSubmit={handleLogin}
+        className="bg-white p-8 rounded shadow w-80"
+      >
         <h1 className="text-xl font-bold mb-4 text-center">Rotahr Login</h1>
 
         {error && (
@@ -36,6 +41,7 @@ export default function LoginPage() {
         <input
           className="border p-2 w-full mb-3 rounded"
           placeholder="Email"
+          value={email}
           onChange={(e) => setEmail(e.target.value)}
         />
 
@@ -43,16 +49,17 @@ export default function LoginPage() {
           className="border p-2 w-full mb-3 rounded"
           placeholder="Password"
           type="password"
+          value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
 
         <button
-          onClick={handleLogin}
+          type="submit"
           className="bg-blue-600 text-white w-full py-2 rounded hover:bg-blue-700"
         >
           Login
         </button>
-      </div>
+      </form>
     </div>
   )
 }

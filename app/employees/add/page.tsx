@@ -13,18 +13,31 @@ export default function AddEmployeePage() {
   const [phone, setPhone] = useState("")
   const [role, setRole] = useState("")
   const [hourlyRate, setHourlyRate] = useState("")
+  const [ppsNumber, setPpsNumber] = useState("")
 
-  async function handleSubmit(e) {
+  const [loading, setLoading] = useState(false)
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
+    setLoading(true)
 
-    await supabase.from("employees").insert({
+    const { error } = await supabase.from("employees").insert({
       first_name: firstName,
       last_name: lastName,
       email,
       phone,
       role,
-      hourly_rate: hourlyRate ? Number(hourlyRate) : null,
+      pps_number: ppsNumber,
+      hourly_rate: hourlyRate ? parseFloat(hourlyRate) : null,
     })
+
+    setLoading(false)
+
+    if (error) {
+      console.error(error)
+      alert("Failed to save employee: " + error.message)
+      return
+    }
 
     router.push("/employees")
   }
@@ -34,6 +47,7 @@ export default function AddEmployeePage() {
       <h1 className="text-2xl font-bold">Add Employee</h1>
 
       <form onSubmit={handleSubmit} className="space-y-4 max-w-lg">
+
         <div>
           <label className="block mb-1">First Name</label>
           <input
@@ -85,6 +99,16 @@ export default function AddEmployeePage() {
         </div>
 
         <div>
+          <label className="block mb-1">PPS Number</label>
+          <input
+            className="border p-2 rounded w-full"
+            value={ppsNumber}
+            onChange={(e) => setPpsNumber(e.target.value)}
+            required
+          />
+        </div>
+
+        <div>
           <label className="block mb-1">Hourly Rate (€)</label>
           <input
             type="number"
@@ -97,9 +121,10 @@ export default function AddEmployeePage() {
 
         <button
           type="submit"
-          className="px-4 py-2 bg-blue-600 text-white rounded"
+          disabled={loading}
+          className="px-4 py-2 bg-blue-600 text-white rounded disabled:opacity-50"
         >
-          Save Employee
+          {loading ? "Saving..." : "Save Employee"}
         </button>
       </form>
     </div>

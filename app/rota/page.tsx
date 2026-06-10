@@ -1,154 +1,142 @@
 // app/rota/page.tsx
+import React from "react"
+import RotaGrid from "./RotaGrid"
 import { supabase } from "@/lib/supabaseClient"
 import Link from "next/link"
-import { startOfWeek, addDays, format } from "date-fns"
-import RotaGrid from "./RotaGrid"
 
-export default async function RotaPage({ searchParams }) {
-  const params = await searchParams
+type SearchParams = Record<string, string | string[] | undefined>
 
-  const weekStart = params.week
-    ? new Date(params.week)
-    : startOfWeek(new Date(), { weekStartsOn: 1 })
+type Props = {
+  searchParams: SearchParams
+}
 
-  const days = [...Array(7)].map((_, i) => addDays(weekStart, i))
+type Employee = {
+  id: string
+  name?: string
+  first_name?: string
+  last_name?: string
+  role?: string
+  hourly_rate?: number
+}
 
-  // Employees (with overtime fields)
-  const { data: employeesRaw } = await supabase
+type Shift = {
+  id: string
+  week_id: string
+  day: string
+  start_time: string
+  end_time: string
+  break_minutes: number
+  role?: string
+  employee_id?: string | null
+}
+
+async function fetchEmployees(): Promise<Employee[]> {
+  const { data, error } = await supabase
     .from("employees")
-    .select("*")
-    .order("last_name")
+    .select("id, name, first_name, last_name, role, hourly_rate")
 
-  // Shifts
-  const { data: shiftsRaw } = await supabase
+  if (error) {
+    console.error("Failed to load employees", error)
+    return []
+  }
+  return data ?? []
+}
+
+async function fetchShifts(weekStart: string): Promise<Shift[]> {
+  const { data, error } = await supabase
     .from("shifts")
     .select("*")
-    .gte("shift_date", format(weekStart, "yyyy-MM-dd"))
-    .lte("shift_date", format(addDays(weekStart, 6), "yyyy-MM-dd"))
+    .eq("week_id", weekStart)
 
-  // Availability
-  const { data: availabilityRaw } = await supabase
-    .from("availability")
-    .select("*")
+  if (error) {
+    console.error("Failed to load shifts", error)
+    return []
+  }
+  return data ?? []
+}
 
-  // Templates
-  const { data: templatesRaw } = await supabase
-    .from("shift_templates")
-    .select("*")
-    .order("name")
+function isoDateAddDays(iso: string, days: number) {
+  const d = new Date(iso + "T00:00:00")
+  d.setDate(d.getDate() + days)
+  return d.toISOString().slice(0, 10)
+}
 
-  // Time-off (approved only for this week)
-  const { data: timeOffRaw } = await supabase
-    .from("time_off_requests")
-    .select("*")
-    .eq("status", "approved")
+export default async function RotaPage({ searchParams }: Props) {
+  // Normalize week param to a single string (YYYY-MM-DD) or undefined
+  const rawWeek = searchParams.week
+  const weekStart = Array.isArray(rawWeek) ? rawWeek[0] : rawWeek ?? undefined
 
-  // Publish status
-  const { data: rotaWeek } = await supabase
-    .from("rota_weeks")
-    .select("*")
-    .eq("week_start", format(weekStart, "yyyy-MM-dd"))
-    .single()
+  // Default to today's date if none provided
+  const defaultWeekIso = new Date().toISOString().slice(0, 10)
+  const week = weekStart ?? defaultWeekIso
 
-  const isPublished = rotaWeek?.published ?? false
+  // Server-side fetch data for the grid
+  const [employees, shifts] = await Promise.all([fetchEmployees(), fetchShifts(week)])
 
-  const employees = employeesRaw ?? []
-  const shifts = shiftsRaw ?? []
-  const availability = availabilityRaw ?? []
-  const templates = templatesRaw ?? []
-  const timeOff = timeOffRaw ?? []
-  // send days as ISO date strings (yyyy-MM-dd) for safe serialization
-  const safeDays = days.map((d) => format(d, "yyyy-MM-dd"))
+  // Compute previous/next week links (7-day steps)
+  const prevWeek = isoDateAddDays(week, -7)
+  const nextWeek = isoDateAddDays(week, 7)
 
-  const roles = ["All", ...new Set(employees.map((e) => e.role || "Unassigned"))]
+  // Basic stats
+  const totalShifts = shifts.length
+  const assignedShifts = shifts.filter(s => !!s.employee_id).length
+  const unassignedShifts = totalShifts - assignedShifts
 
   return (
-    <div className="p-6 space-y-6">
-      <h1 className="text-2xl font-bold">Weekly Rota</h1>
-
-      {/* Week Navigation */}
-      <div className="flex gap-4 items-center">
-        <Link
-          href={`/rota?week=${format(addDays(weekStart, -7), "yyyy-MM-dd")}`}
-          className="px-3 py-1 bg-gray-200 rounded"
-        >
-          ← Previous
-        </Link>
-
-        <div className="font-semibold">
-          Week of {format(weekStart, "dd MMM yyyy")}
+    <main className="p-6">
+      <header className="mb-6 flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Rota</h1>
+          <p className="text-sm text-gray-600">Week starting: <strong>{week}</strong></p>
         </div>
 
-        <Link
-          href={`/rota?week=${format(addDays(weekStart, 7), "yyyy-MM-dd")}`}
-          className="px-3 py-1 bg-gray-200 rounded"
-        >
-          Next →
-        </Link>
-      </div>
-
-      {/* Actions */}
-      <div className="flex items-center gap-4">
-        {isPublished ? (
-          <>
-            <span className="px-3 py-1 bg-green-200 text-green-800 rounded">
-              Published
-            </span>
-            <Link
-              href={`/rota/unpublish?week=${format(weekStart, "yyyy-MM-dd")}`}
-              className="px-3 py-1 bg-red-500 text-white rounded"
-            >
-              Unpublish
-            </Link>
-          </>
-        ) : (
-          <Link
-            href={`/rota/publish?week=${format(weekStart, "yyyy-MM-dd")}`}
-            className="px-3 py-1 bg-blue-600 text-white rounded"
-          >
-            Publish Rota
+        <div className="flex gap-3 items-center">
+          <Link href={`/rota?week=${prevWeek}`} className="px-3 py-1 bg-gray-100 rounded">
+            ← Prev week
           </Link>
-        )}
 
-        <Link
-          href={`/rota/copy?week=${format(weekStart, "yyyy-MM-dd")}`}
-          className="px-3 py-1 bg-purple-600 text-white rounded"
-        >
-          Copy Previous Week
-        </Link>
+          <Link href={`/rota?week=${nextWeek}`} className="px-3 py-1 bg-gray-100 rounded">
+            Next week →
+          </Link>
 
-        <Link
-          href={`/rota/payroll?week=${format(weekStart, "yyyy-MM-dd")}`}
-          className="px-3 py-1 bg-emerald-600 text-white rounded"
-        >
-          Export Payroll CSV
-        </Link>
+          <form action={`/rota/autoassign`} method="post">
+            <input type="hidden" name="week_id" value={week} />
+            <input type="hidden" name="mode" value="week" />
+            <button
+              type="submit"
+              className="px-3 py-1 bg-blue-600 text-white rounded"
+            >
+              Auto‑assign week
+            </button>
+          </form>
 
-        <Link
-          href={`/timeoff/request`}
-          className="px-3 py-1 bg-orange-600 text-white rounded"
-        >
-          Request Time Off
-        </Link>
+          <Link href="/rota/new-shift" className="px-3 py-1 bg-green-600 text-white rounded">
+            Add shift
+          </Link>
+        </div>
+      </header>
 
-        <Link
-          href={`/timeoff/manage`}
-          className="px-3 py-1 bg-gray-800 text-white rounded"
-        >
-          Manage Time Off
-        </Link>
-      </div>
+      <section className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="p-4 border rounded">
+          <div className="text-sm text-gray-500">Employees</div>
+          <div className="text-lg font-medium">{employees.length}</div>
+        </div>
 
-      {/* GRID */}
-      <RotaGrid
-        employees={employees}
-        shifts={shifts}
-        days={safeDays}
-        availability={availability}
-        roles={roles}
-        templates={templates}
-        timeOff={timeOff}
-      />
-    </div>
+        <div className="p-4 border rounded">
+          <div className="text-sm text-gray-500">Total shifts</div>
+          <div className="text-lg font-medium">{totalShifts}</div>
+        </div>
+
+        <div className="p-4 border rounded">
+          <div className="text-sm text-gray-500">Unassigned</div>
+          <div className="text-lg font-medium text-red-600">{unassignedShifts}</div>
+        </div>
+      </section>
+
+      <section>
+        {/* RotaGrid should accept props: weekStart, shifts, employees */}
+        <RotaGrid weekStart={week} shifts={shifts} employees={employees} />
+      </section>
+    </main>
   )
 }

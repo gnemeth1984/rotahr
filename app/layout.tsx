@@ -1,17 +1,15 @@
+// app/layout.tsx
 import "./globals.css"
-import Sidebar from "@/components/Sidebar"
+import Nav from "./components/Nav"
 
-export const metadata = {
-  title: "RotaHR",
-  description: "HR & Rota Management System",
-}
+export const metadata = { title: "Rotahr", description: "Rota management" }
 
-export default function RootLayout({ children }) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className="flex">
-        <Sidebar />
-        <main className="flex-1">{children}</main>
+      <body className="bg-gray-50 text-gray-900">
+        <Nav />
+        <div>{children}</div>
       </body>
     </html>
   )

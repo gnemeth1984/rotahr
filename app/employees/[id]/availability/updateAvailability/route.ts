@@ -1,24 +1,61 @@
+// app/employees/[id]/availability/updateAvailability/route.ts
+import { NextResponse } from "next/server"
 import { supabase } from "@/lib/supabaseClient"
-import { redirect } from "next/navigation"
 
-export async function POST(req) {
-  const form = await req.formData()
-  const employeeId = form.get("employee_id")
+/**
+ * POST handler to create or update an availability row.
+ *
+ * Expects a form POST with fields:
+ * - employee_id (string)
+ * - date (yyyy-MM-dd)
+ * - available ("true" | "false")
+ * - notes (optional string)
+ *
+ * Returns JSON { success: true, data } on success or an error object with appropriate status.
+ */
 
-  const rows = []
+export async function POST(req: Request) {
+  try {
+    const form = await req.formData()
 
-  for (let i = 0; i < 7; i++) {
-    rows.push({
-      employee_id: employeeId,
-      day_of_week: i,
-      available: form.get(`available_${i}`) === "on",
-      start_time: form.get(`start_${i}`) || null,
-      end_time: form.get(`end_${i}`) || null,
-    })
+    const employeeId = form.get("employee_id")?.toString() ?? ""
+    const date = form.get("date")?.toString() ?? ""
+    const availableRaw = form.get("available")?.toString()
+    const notes = form.get("notes")?.toString() ?? null
+
+    if (!employeeId || !date) {
+      return NextResponse.json(
+        { error: "Missing required fields: employee_id and date" },
+        { status: 400 }
+      )
+    }
+
+    const available = availableRaw === "true" || availableRaw === "1"
+
+    // Upsert by employee_id + date
+    const { data, error } = await supabase
+      .from("availability")
+      .upsert(
+        {
+          employee_id: employeeId,
+          date,
+          available,
+          notes,
+        },
+        // Supabase client typing in your project expects a string here.
+        // Provide a comma-separated string of columns to use for onConflict.
+        { onConflict: "employee_id,date" }
+      )
+      .select()
+
+    if (error) {
+      console.error("Supabase upsert availability error:", error)
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
+    return NextResponse.json({ success: true, data }, { status: 200 })
+  } catch (err: any) {
+    console.error("Unexpected error in availability POST:", err)
+    return NextResponse.json({ error: err?.message ?? "Unknown error" }, { status: 500 })
   }
-
-  await supabase.from("availability").delete().eq("employee_id", employeeId)
-  await supabase.from("availability").insert(rows)
-
-  redirect(`/employees/${employeeId}`)
 }

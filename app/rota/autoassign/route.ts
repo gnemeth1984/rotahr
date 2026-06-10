@@ -1,217 +1,169 @@
-import { supabase } from "@/lib/supabaseClient"
+// app/rota/autoassign/route.ts
 import { NextResponse } from "next/server"
+import { supabase } from "@/lib/supabaseClient"
+
+// Calculate hours from HH:MM strings
+function hours(start: string, end: string, breakMin: number): number {
+  const [sh, sm] = start.split(":").map(Number)
+  const [eh, em] = end.split(":").map(Number)
+
+  let diff = (eh + em / 60) - (sh + sm / 60)
+  diff -= breakMin / 60
+
+  return diff
+}
 
 export async function POST(req: Request) {
-  const body = await req.json()
-  const { mode, date, role, generateMissing, weekStart, weekEnd } = body
+  try {
+    const body = await req.json()
 
-  // Load all required data
-  const { data: employees } = await supabase.from("employees").select("*")
-  const { data: shifts } = await supabase
-    .from("shifts")
-    .select("*")
-    .gte("shift_date", weekStart)
-    .lte("shift_date", weekEnd)
+    const {
+      week_id,
+      mode, // "day" | "role" | "week"
+      day,
+      role,
+      useTemplates // boolean
+    } = body
 
-  const { data: templates } = await supabase
-    .from("shift_templates")
-    .select("*")
+    if (!week_id) {
+      return NextResponse.json({ error: "Missing week_id" }, { status: 400 })
+    }
 
-  const { data: availability } = await supabase
-    .from("availability")
-    .select("*")
+    // Load employees
+    const { data: employees, error: empErr } = await supabase
+      .from("employees")
+      .select("id, role, hourly_rate")
 
-  const { data: timeOff } = await supabase
-    .from("time_off_requests")
-    .select("*")
-    .eq("status", "approved")
+    if (empErr) throw empErr
 
-  // Helper: calculate hours
-  function hours(start, end, breakMin) {
-    const [sh, sm] = start.split(":").map(Number)
-    const [eh, em] = end.split(":").map(Number)
-    let diff = (eh + em / 60) - (sh + sm / 60)
-    if (breakMin) diff -= breakMin / 60
-    return diff
-  }
+    // Load availability
+    const { data: availability, error: availErr } = await supabase
+      .from("availability")
+      .select("*")
+      .eq("week_id", week_id)
 
-  // Helper: check time-off
-  function isBlocked(empId, d) {
-    return timeOff.some(
-      (t) =>
-        t.employee_id === empId &&
-        d >= t.start_date &&
-        d <= t.end_date
-    )
-  }
+    if (availErr) throw availErr
 
-  // Helper: check availability
-  function isAvailable(empId, d, start, end) {
-    const dow = new Date(d).getDay()
-    const a = availability.find(
-      (x) => x.employee_id === empId && x.day_of_week === dow
-    )
-    if (!a) return true
-    if (!a.available) return false
-    if (a.start_time && start < a.start_time) return false
-    if (a.end_time && end > a.end_time) return false
-    return true
-  }
+    // Load existing shifts
+    const { data: shifts, error: shiftErr } = await supabase
+      .from("shifts")
+      .select("*")
+      .eq("week_id", week_id)
 
-  // Helper: weekly hours
-  function weeklyHours(empId) {
-    return shifts
-      .filter((s) => s.employee_id === empId)
-      .reduce((sum, s) => sum + hours(s.start_time, s.end_time, s.break_minutes), 0)
-  }
+    if (shiftErr) throw shiftErr
 
-  // Helper: daily hours
-  function dailyHours(empId, d) {
-    return shifts
-      .filter((s) => s.employee_id === empId && s.shift_date === d)
-      .reduce((sum, s) => sum + hours(s.start_time, s.end_time, s.break_minutes), 0)
-  }
+    // Load templates if needed
+    let templates: any[] = []
+    if (useTemplates) {
+      const { data: tmpl, error: tmplErr } = await supabase
+        .from("shift_templates")
+        .select("*")
 
-  // Fair distribution sort
-  function sortEmployees(d, start, end, role) {
-    return employees
-      .filter((e) => !isBlocked(e.id, d))
-      .filter((e) => isAvailable(e.id, d, start, end))
-      .filter((e) => !role || e.role === role)
-      .sort((a, b) => {
-        const wa = weeklyHours(a.id)
-        const wb = weeklyHours(b.id)
-        if (wa !== wb) return wa - wb
-        const da = dailyHours(a.id, d)
-        const db = dailyHours(b.id, d)
-        return da - db
+      if (tmplErr) throw tmplErr
+      templates = tmpl
+    }
+
+    // Build employee hour totals
+    const hourTotals: Record<string, number> = {}
+    for (const emp of employees ?? []) {
+      hourTotals[emp.id] = 0
+    }
+
+    for (const s of shifts ?? []) {
+      // guard in case employee_id is undefined
+      if (s.employee_id) {
+        hourTotals[s.employee_id] = (hourTotals[s.employee_id] ?? 0) + hours(s.start_time, s.end_time, s.break_minutes)
+      }
+    }
+
+    // Helper: find available employees (null-safe)
+    function availableFor(day: string, role: string | null) {
+      return (employees ?? []).filter(emp => {
+        if (role && emp.role !== role) return false
+
+        const avail = (availability ?? []).find(
+          a => a.employee_id === emp.id && a.day === day
+        )
+        if (!avail) return false
+
+        return avail.available === true
       })
-  }
+    }
 
-  const newShifts = []
+    // Helper: pick employee with lowest hours
+    function pickEmployee(candidates: any[]) {
+      return candidates.sort((a, b) => (hourTotals[a.id] ?? 0) - (hourTotals[b.id] ?? 0))[0]
+    }
 
-  // MODE: DAY
-  if (mode === "day") {
-    const dayTemplates = templates.filter((t) => !role || t.role === role)
+    const newShifts: any[] = []
 
-    for (const t of dayTemplates) {
-      const existing = shifts.find(
-        (s) =>
-          s.shift_date === date &&
-          s.start_time === t.start_time &&
-          s.end_time === t.end_time &&
-          s.role === t.role
-      )
+    // Auto-assign logic
+    if (mode === "day") {
+      const dayShifts = (shifts ?? []).filter(s => s.day === day)
 
-      if (!existing && !generateMissing) continue
+      for (const s of dayShifts) {
+        if (s.employee_id) continue // don't overwrite
 
-      if (!existing && generateMissing) {
-        const candidates = sortEmployees(date, t.start_time, t.end_time, t.role)
+        const candidates = availableFor(day, s.role)
         if (candidates.length === 0) continue
 
-        const emp = candidates[0]
+        const chosen = pickEmployee(candidates)
+        hourTotals[chosen.id] = (hourTotals[chosen.id] ?? 0) + hours(s.start_time, s.end_time, s.break_minutes)
 
-        const { data } = await supabase
-          .from("shifts")
-          .insert({
-            employee_id: emp.id,
-            shift_date: date,
-            start_time: t.start_time,
-            end_time: t.end_time,
-            break_minutes: t.break_minutes,
-            role: t.role,
-          })
-          .select()
-          .single()
-
-        if (data) newShifts.push(data)
+        newShifts.push({
+          id: s.id,
+          employee_id: chosen.id
+        })
       }
     }
-  }
 
-  // MODE: ROLE
-  if (mode === "role") {
-    const roleTemplates = templates.filter((t) => t.role === role)
+    if (mode === "role") {
+      const roleShifts = (shifts ?? []).filter(s => s.role === role)
 
-    for (let d = new Date(weekStart); d <= new Date(weekEnd); d.setDate(d.getDate() + 1)) {
-      const ds = d.toISOString().slice(0, 10)
+      for (const s of roleShifts) {
+        if (s.employee_id) continue
 
-      for (const t of roleTemplates) {
-        const existing = shifts.find(
-          (s) =>
-            s.shift_date === ds &&
-            s.start_time === t.start_time &&
-            s.end_time === t.end_time &&
-            s.role === t.role
-        )
+        const candidates = availableFor(s.day, role)
+        if (candidates.length === 0) continue
 
-        if (!existing && !generateMissing) continue
+        const chosen = pickEmployee(candidates)
+        hourTotals[chosen.id] = (hourTotals[chosen.id] ?? 0) + hours(s.start_time, s.end_time, s.break_minutes)
 
-        if (!existing && generateMissing) {
-          const candidates = sortEmployees(ds, t.start_time, t.end_time, t.role)
-          if (candidates.length === 0) continue
-
-          const emp = candidates[0]
-
-          const { data } = await supabase
-            .from("shifts")
-            .insert({
-              employee_id: emp.id,
-              shift_date: ds,
-              start_time: t.start_time,
-              end_time: t.end_time,
-              break_minutes: t.break_minutes,
-              role: t.role,
-            })
-            .select()
-            .single()
-
-          if (data) newShifts.push(data)
-        }
+        newShifts.push({
+          id: s.id,
+          employee_id: chosen.id
+        })
       }
     }
-  }
 
-  // MODE: WEEK
-  if (mode === "week") {
-    for (let d = new Date(weekStart); d <= new Date(weekEnd); d.setDate(d.getDate() + 1)) {
-      const ds = d.toISOString().slice(0, 10)
+    if (mode === "week") {
+      for (const s of shifts ?? []) {
+        if (s.employee_id) continue
 
-      for (const t of templates) {
-        const existing = shifts.find(
-          (s) =>
-            s.shift_date === ds &&
-            s.start_time === t.start_time &&
-            s.end_time === t.end_time &&
-            s.role === t.role
-        )
+        const candidates = availableFor(s.day, s.role)
+        if (candidates.length === 0) continue
 
-        if (!existing && !generateMissing) continue
+        const chosen = pickEmployee(candidates)
+        hourTotals[chosen.id] = (hourTotals[chosen.id] ?? 0) + hours(s.start_time, s.end_time, s.break_minutes)
 
-        if (!existing && generateMissing) {
-          const candidates = sortEmployees(ds, t.start_time, t.end_time, t.role)
-          if (candidates.length === 0) continue
-
-          const emp = candidates[0]
-
-          const { data } = await supabase
-            .from("shifts")
-            .insert({
-              employee_id: emp.id,
-              shift_date: ds,
-              start_time: t.start_time,
-              end_time: t.end_time,
-              break_minutes: t.break_minutes,
-              role: t.role,
-            })
-            .select()
-            .single()
-
-          if (data) newShifts.push(data)
-        }
+        newShifts.push({
+          id: s.id,
+          employee_id: chosen.id
+        })
       }
     }
-  }
 
-  return NextResponse.json({ newShifts })
+    // Apply updates
+    for (const s of newShifts) {
+      await supabase
+        .from("shifts")
+        .update({ employee_id: s.employee_id })
+        .eq("id", s.id)
+    }
+
+    return NextResponse.json({ success: true, assigned: newShifts.length })
+  } catch (err: any) {
+    console.error("Auto-assign failed", err)
+    return NextResponse.json({ error: err.message }, { status: 500 })
+  }
 }
