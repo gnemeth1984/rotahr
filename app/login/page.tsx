@@ -1,65 +1,39 @@
-'use client'
+"use client"
 
-import React, { useState } from 'react'
-import { supabase } from '@/lib/supabaseClient'
+import { signIn } from "next-auth/react"
+import { useState } from "react"
 
-export default function LoginPage() {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
+export default function Login() {
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
 
-  async function handleLogin(e: React.ChangeEvent<HTMLFormElement>) {
-    e.preventDefault()
-    setError('')
-
-    const { error } = await supabase.auth.signInWithPassword({
+  async function handleLogin() {
+    await signIn("credentials", {
       email,
-      password
+      password,
+      callbackUrl: "/dashboard"
     })
-
-    if (error) {
-      setError(error.message)
-      return
-    }
-
-    // Session is now stored correctly
-    window.location.href = '/dashboard'
   }
 
   return (
-    <div className="flex items-center justify-center h-screen bg-gray-100">
-      <form
-        onSubmit={handleLogin}
-        className="bg-white p-8 rounded shadow w-80"
+    <div className="p-6 max-w-sm mx-auto">
+      <input
+        className="border p-2 w-full mb-3 rounded"
+        placeholder="Email"
+        onChange={e => setEmail(e.target.value)}
+      />
+      <input
+        className="border p-2 w-full mb-3 rounded"
+        placeholder="Password"
+        type="password"
+        onChange={e => setPassword(e.target.value)}
+      />
+      <button
+        className="bg-blue-600 text-white p-2 rounded w-full"
+        onClick={handleLogin}
       >
-        <h1 className="text-xl font-bold mb-4 text-center">Rotahr Login</h1>
-
-        {error && (
-          <p className="text-red-600 text-sm mb-3">{error}</p>
-        )}
-
-        <input
-          className="border p-2 w-full mb-3 rounded"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
-
-        <input
-          className="border p-2 w-full mb-3 rounded"
-          placeholder="Password"
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
-
-        <button
-          type="submit"
-          className="bg-blue-600 text-white w-full py-2 rounded hover:bg-blue-700"
-        >
-          Login
-        </button>
-      </form>
+        Login
+      </button>
     </div>
   )
 }
