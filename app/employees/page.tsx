@@ -19,7 +19,7 @@ export default async function EmployeesPage() {
           </tr>
         </thead>
         <tbody>
-          {employees.map((e) => (
+          {employees.map((e: any) => (
             <tr key={e.id} className="border-t border-slate-800">
               <td className="px-3 py-2">
                 {e.firstName} {e.lastName}
