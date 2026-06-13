@@ -22,7 +22,7 @@ export default async function ShiftsPage() {
           </tr>
         </thead>
         <tbody>
-          {shifts.map((s) => (
+          {shifts.map((s: any) => (
             <tr key={s.id} className="border-t border-slate-800">
               <td className="px-3 py-2">
                 {format(s.date, "EEE dd MMM")}
