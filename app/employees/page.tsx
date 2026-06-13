@@ -1,81 +1,31 @@
-"use client"
+import { prisma } from "@/lib/prisma"
 
-import { useEffect, useState } from "react"
-import { supabase } from "@/lib/supabaseClient"
-import Link from "next/link"
+export const dynamic = "force-dynamic"
 
-export default function EmployeesPage() {
-  const [employees, setEmployees] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    async function loadEmployees() {
-      const { data, error } = await supabase
-        .from("employees")
-        .select("*")
-        .order("first_name", { ascending: true })
-
-      if (error) {
-        console.error(error)
-      } else {
-        setEmployees(data || [])
-      }
-
-      setLoading(false)
-    }
-
-    loadEmployees()
-  }, [])
-
-  function maskPps(pps: string | null) {
-    if (!pps) return ""
-    if (pps.length <= 3) return "***"
-    return "*".repeat(pps.length - 3) + pps.slice(-3)
-  }
-
-  if (loading) {
-    return <div className="p-6">Loading employees…</div>
-  }
+export default async function EmployeesPage() {
+  const employees = await prisma.employee.findMany({
+    orderBy: { lastName: "asc" }
+  })
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Employees</h1>
-        <Link
-          href="/employees/add"
-          className="px-4 py-2 bg-blue-600 text-white rounded"
-        >
-          Add Employee
-        </Link>
-      </div>
-
-      <table className="w-full border-collapse">
-        <thead>
-          <tr className="bg-gray-100 text-left">
-            <th className="p-2 border">Name</th>
-            <th className="p-2 border">Email</th>
-            <th className="p-2 border">Phone</th>
-            <th className="p-2 border">Role</th>
-            <th className="p-2 border">PPS Number</th>
-            <th className="p-2 border">Hourly Rate (€)</th>
+    <div className="space-y-4">
+      <h1 className="text-2xl font-semibold">Employees</h1>
+      <table className="w-full text-sm border border-slate-800 rounded-lg overflow-hidden">
+        <thead className="bg-slate-900">
+          <tr>
+            <th className="px-3 py-2 text-left">Name</th>
+            <th className="px-3 py-2 text-left">Email</th>
+            <th className="px-3 py-2 text-left">Active</th>
           </tr>
         </thead>
-
         <tbody>
-          {employees.map((emp) => (
-            <tr key={emp.id} className="border-b">
-              <td className="p-2 border">
-                {emp.first_name} {emp.last_name}
+          {employees.map((e) => (
+            <tr key={e.id} className="border-t border-slate-800">
+              <td className="px-3 py-2">
+                {e.firstName} {e.lastName}
               </td>
-              <td className="p-2 border">{emp.email}</td>
-              <td className="p-2 border">{emp.phone || "-"}</td>
-              <td className="p-2 border">{emp.role}</td>
-              <td className="p-2 border font-mono">
-                {maskPps(emp.pps_number)}
-              </td>
-              <td className="p-2 border">
-                {emp.hourly_rate ? emp.hourly_rate.toFixed(2) : "-"}
-              </td>
+              <td className="px-3 py-2">{e.email}</td>
+              <td className="px-3 py-2">{e.active ? "Yes" : "No"}</td>
             </tr>
           ))}
         </tbody>

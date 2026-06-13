@@ -1,35 +1,31 @@
-// app/page.tsx
-import Link from "next/link"
+import { prisma } from "@/lib/prisma"
 
-export default function HomePage() {
+export const dynamic = "force-dynamic"
+
+export default async function DashboardPage() {
+  const [employeeCount, shiftCount, pendingTimeOff] = await Promise.all([
+    prisma.employee.count(),
+    prisma.shift.count(),
+    prisma.timeOffRequest.count({ where: { status: "pending" } })
+  ])
+
   return (
-    <main className="min-h-screen p-8 bg-gray-50">
-      <header className="max-w-4xl mx-auto mb-8">
-        <h1 className="text-3xl font-bold">Rotahr</h1>
-        <p className="text-sm text-gray-600 mt-1">Quick links to the rota app</p>
-      </header>
-
-      <section className="max-w-4xl mx-auto grid gap-4 sm:grid-cols-2">
-        <Link href="/rota" className="p-4 bg-white border rounded hover:shadow">
-          <h2 className="font-semibold">Rota</h2>
-          <p className="text-sm text-gray-500">View and manage weekly rotas</p>
-        </Link>
-
-        <Link href="/shifts" className="p-4 bg-white border rounded hover:shadow">
-          <h2 className="font-semibold">Shifts</h2>
-          <p className="text-sm text-gray-500">List and edit shifts</p>
-        </Link>
-
-        <Link href="/employees" className="p-4 bg-white border rounded hover:shadow">
-          <h2 className="font-semibold">Employees</h2>
-          <p className="text-sm text-gray-500">Manage employee records</p>
-        </Link>
-
-        <Link href="/settings/theme" className="p-4 bg-white border rounded hover:shadow">
-          <h2 className="font-semibold">Settings</h2>
-          <p className="text-sm text-gray-500">App settings and theme</p>
-        </Link>
-      </section>
-    </main>
+    <div className="space-y-4">
+      <h1 className="text-2xl font-semibold">Dashboard</h1>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="rounded-lg border border-slate-800 p-4">
+          <div className="text-sm text-slate-400">Employees</div>
+          <div className="text-3xl font-bold mt-2">{employeeCount}</div>
+        </div>
+        <div className="rounded-lg border border-slate-800 p-4">
+          <div className="text-sm text-slate-400">Shifts</div>
+          <div className="text-3xl font-bold mt-2">{shiftCount}</div>
+        </div>
+        <div className="rounded-lg border border-slate-800 p-4">
+          <div className="text-sm text-slate-400">Pending time off</div>
+          <div className="text-3xl font-bold mt-2">{pendingTimeOff}</div>
+        </div>
+      </div>
+    </div>
   )
 }
