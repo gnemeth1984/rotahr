@@ -1,0 +1,4 @@
+{
+  "buildCommand": "prisma db push && next build",
+  "framework": "nextjs"
+}
