@@ -12,6 +12,7 @@ import {
   Menu,
   X,
   Briefcase,
+  BookOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -37,6 +38,12 @@ const navItems = [
     href: "/timeoff",
     label: "Time Off",
     icon: Clock,
+    roles: [Role.EMPLOYEE, Role.MANAGER, Role.ADMIN],
+  },
+  {
+    href: "/bookings",
+    label: "Bookings",
+    icon: BookOpen,
     roles: [Role.EMPLOYEE, Role.MANAGER, Role.ADMIN],
   },
   {
