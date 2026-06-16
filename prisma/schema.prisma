@@ -50,6 +50,8 @@ model Employee {
   firstName    String
   lastName     String
   email        String  @unique
+  phone        String?
+  ppsNumber    String?
   role         String  @default("staff")
   active       Boolean @default(true)
   businessId   String
@@ -58,6 +60,12 @@ model Employee {
   department   Department? @relation(fields: [departmentId], references: [id])
   userId       String?
   user         User?   @relation(fields: [userId], references: [id])
+
+  // Emergency contact
+  emergencyName     String?
+  emergencyPhone    String?
+  emergencyRelation String?
+
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

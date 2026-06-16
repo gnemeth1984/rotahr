@@ -6,18 +6,28 @@ export const addEmployeeSchema = z.object({
   firstName: z.string().min(1).max(50),
   lastName: z.string().min(1).max(50),
   email: z.string().email(),
+  phone: z.string().optional(),
+  ppsNumber: z.string().optional(),
   role: z.string().default("staff"),
   departmentId: z.string().optional(),
   businessId: z.string().min(1),
+  emergencyName: z.string().optional(),
+  emergencyPhone: z.string().optional(),
+  emergencyRelation: z.string().optional(),
 });
 
 export const updateEmployeeSchema = z.object({
   firstName: z.string().min(1).max(50).optional(),
   lastName: z.string().min(1).max(50).optional(),
   email: z.string().email().optional(),
+  phone: z.string().nullable().optional(),
+  ppsNumber: z.string().nullable().optional(),
   role: z.string().optional(),
   departmentId: z.string().nullable().optional(),
   active: z.boolean().optional(),
+  emergencyName: z.string().nullable().optional(),
+  emergencyPhone: z.string().nullable().optional(),
+  emergencyRelation: z.string().nullable().optional(),
 });
 
 export const employeeService = {
@@ -30,9 +40,14 @@ export const employeeService = {
         firstName: data.firstName,
         lastName: data.lastName,
         email: data.email,
+        phone: data.phone ?? null,
+        ppsNumber: data.ppsNumber ?? null,
         role: data.role,
         businessId: data.businessId,
         departmentId: data.departmentId ?? null,
+        emergencyName: data.emergencyName ?? null,
+        emergencyPhone: data.emergencyPhone ?? null,
+        emergencyRelation: data.emergencyRelation ?? null,
       },
       include: { department: true },
     });

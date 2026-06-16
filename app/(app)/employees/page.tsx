@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { getInitials } from "@/lib/utils";
-import { Users, Search, Pencil, Plus, Loader2, Trash2 } from "lucide-react";
+import { Users, Search, Pencil, Plus, Loader2, Phone, ShieldAlert } from "lucide-react";
 import { UserRole as Role } from "@/types/roles";
 
 interface Employee {
@@ -32,10 +32,15 @@ interface Employee {
   firstName: string;
   lastName: string;
   email: string;
+  phone: string | null;
+  ppsNumber: string | null;
   role: string;
   active: boolean;
   departmentId: string | null;
   department?: { id: string; name: string } | null;
+  emergencyName: string | null;
+  emergencyPhone: string | null;
+  emergencyRelation: string | null;
   _count?: { shifts: number };
 }
 
@@ -44,7 +49,11 @@ interface Department {
   name: string;
 }
 
-const EMPTY_ADD = { firstName: "", lastName: "", email: "", role: "staff", departmentId: "" };
+const EMPTY_ADD = {
+  firstName: "", lastName: "", email: "", phone: "", ppsNumber: "",
+  role: "staff", departmentId: "",
+  emergencyName: "", emergencyPhone: "", emergencyRelation: "",
+};
 
 export default function EmployeesPage() {
   const { data: session } = useSession();
@@ -53,24 +62,20 @@ export default function EmployeesPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
 
-  // Add dialog
   const [addOpen, setAddOpen] = useState(false);
   const [addForm, setAddForm] = useState(EMPTY_ADD);
   const [addError, setAddError] = useState("");
   const [addSaving, setAddSaving] = useState(false);
 
-  // Edit dialog
   const [editEmployee, setEditEmployee] = useState<Employee | null>(null);
-  const [editForm, setEditForm] = useState({ firstName: "", lastName: "", email: "", role: "staff", departmentId: "" });
+  const [editForm, setEditForm] = useState(EMPTY_ADD);
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState("");
 
   const isManager =
     session?.user?.role === Role.MANAGER || session?.user?.role === Role.ADMIN;
 
-  useEffect(() => {
-    fetchAll();
-  }, []);
+  useEffect(() => { fetchAll(); }, []);
 
   const fetchAll = async () => {
     setLoading(true);
@@ -97,24 +102,25 @@ export default function EmployeesPage() {
     setAddError("");
     setAddSaving(true);
     try {
-      const body: Record<string, string> = {
+      const body: Record<string, string | undefined> = {
         firstName: addForm.firstName,
         lastName: addForm.lastName,
         email: addForm.email,
         role: addForm.role,
+        phone: addForm.phone || undefined,
+        ppsNumber: addForm.ppsNumber || undefined,
+        departmentId: addForm.departmentId || undefined,
+        emergencyName: addForm.emergencyName || undefined,
+        emergencyPhone: addForm.emergencyPhone || undefined,
+        emergencyRelation: addForm.emergencyRelation || undefined,
       };
-      if (addForm.departmentId) body.departmentId = addForm.departmentId;
-
       const res = await fetch("/api/employee/add", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
       const data = await res.json();
-      if (!res.ok) {
-        setAddError(data.error ?? "Failed to add employee");
-        return;
-      }
+      if (!res.ok) { setAddError(data.error ?? "Failed to add employee"); return; }
       setAddOpen(false);
       setAddForm(EMPTY_ADD);
       fetchAll();
@@ -131,8 +137,13 @@ export default function EmployeesPage() {
       firstName: emp.firstName,
       lastName: emp.lastName,
       email: emp.email,
+      phone: emp.phone ?? "",
+      ppsNumber: emp.ppsNumber ?? "",
       role: emp.role,
       departmentId: emp.departmentId ?? "",
+      emergencyName: emp.emergencyName ?? "",
+      emergencyPhone: emp.emergencyPhone ?? "",
+      emergencyRelation: emp.emergencyRelation ?? "",
     });
     setEditError("");
   };
@@ -143,12 +154,17 @@ export default function EmployeesPage() {
     setEditError("");
     setEditSaving(true);
     try {
-      const body: Record<string, string | null> = {
+      const body = {
         firstName: editForm.firstName,
         lastName: editForm.lastName,
         email: editForm.email,
+        phone: editForm.phone || null,
+        ppsNumber: editForm.ppsNumber || null,
         role: editForm.role,
         departmentId: editForm.departmentId || null,
+        emergencyName: editForm.emergencyName || null,
+        emergencyPhone: editForm.emergencyPhone || null,
+        emergencyRelation: editForm.emergencyRelation || null,
       };
       const res = await fetch(`/api/employee/${editEmployee.id}`, {
         method: "PATCH",
@@ -156,10 +172,7 @@ export default function EmployeesPage() {
         body: JSON.stringify(body),
       });
       const data = await res.json();
-      if (!res.ok) {
-        setEditError(data.error ?? "Failed to update");
-        return;
-      }
+      if (!res.ok) { setEditError(data.error ?? "Failed to update"); return; }
       setEditEmployee(null);
       fetchAll();
     } finally {
@@ -167,7 +180,7 @@ export default function EmployeesPage() {
     }
   };
 
-  const handleDeactivate = async () => {
+  const handleToggleActive = async () => {
     if (!editEmployee) return;
     setEditSaving(true);
     try {
@@ -183,12 +196,9 @@ export default function EmployeesPage() {
     }
   };
 
-  // ── Filter ───────────────────────────────────────────────────────────────
-
-  const filtered = employees.filter(
-    (e) =>
-      `${e.firstName} ${e.lastName}`.toLowerCase().includes(search.toLowerCase()) ||
-      e.email?.toLowerCase().includes(search.toLowerCase())
+  const filtered = employees.filter((e) =>
+    `${e.firstName} ${e.lastName}`.toLowerCase().includes(search.toLowerCase()) ||
+    e.email?.toLowerCase().includes(search.toLowerCase())
   );
 
   const roleColor = (role: string) => {
@@ -196,6 +206,97 @@ export default function EmployeesPage() {
     if (role === "manager") return "secondary";
     return "outline";
   };
+
+  // ── Shared form fields ────────────────────────────────────────────────────
+
+  const renderFormFields = (
+    form: typeof EMPTY_ADD,
+    setForm: (f: typeof EMPTY_ADD) => void
+  ) => (
+    <div className="space-y-5">
+      {/* Basic info */}
+      <div>
+        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Basic Info</p>
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>First name</Label>
+              <Input value={form.firstName} onChange={(e) => setForm({ ...form, firstName: e.target.value })} required />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Last name</Label>
+              <Input value={form.lastName} onChange={(e) => setForm({ ...form, lastName: e.target.value })} required />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Email</Label>
+            <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>Phone</Label>
+              <Input type="tel" placeholder="+353..." value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>PPS Number</Label>
+              <Input placeholder="1234567A" value={form.ppsNumber} onChange={(e) => setForm({ ...form, ppsNumber: e.target.value })} />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>Role</Label>
+              <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="staff">Staff</SelectItem>
+                  <SelectItem value="manager">Manager</SelectItem>
+                  <SelectItem value="admin">Admin</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {departments.length > 0 && (
+              <div className="space-y-1.5">
+                <Label>Department</Label>
+                <Select
+                  value={form.departmentId || "none"}
+                  onValueChange={(v) => setForm({ ...form, departmentId: v === "none" ? "" : v })}
+                >
+                  <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    {departments.map((d) => (
+                      <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Emergency contact */}
+      <div>
+        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Emergency Contact</p>
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>Name</Label>
+              <Input placeholder="Jane Doe" value={form.emergencyName} onChange={(e) => setForm({ ...form, emergencyName: e.target.value })} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Relationship</Label>
+              <Input placeholder="Spouse, Parent..." value={form.emergencyRelation} onChange={(e) => setForm({ ...form, emergencyRelation: e.target.value })} />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Phone</Label>
+            <Input type="tel" placeholder="+353..." value={form.emergencyPhone} onChange={(e) => setForm({ ...form, emergencyPhone: e.target.value })} />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -216,18 +317,11 @@ export default function EmployeesPage() {
         )}
       </div>
 
-      {/* Search */}
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-        <Input
-          placeholder="Search by name or email…"
-          className="pl-9"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
+        <Input placeholder="Search by name or email…" className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
       </div>
 
-      {/* List */}
       {loading ? (
         <div className="flex justify-center py-20">
           <Loader2 className="h-8 w-8 animate-spin text-slate-300" />
@@ -240,9 +334,7 @@ export default function EmployeesPage() {
               {search ? "No employees match your search" : "No employees yet"}
             </p>
             {!search && isManager && (
-              <p className="text-slate-400 text-sm mt-1">
-                Click "Add Employee" to get started.
-              </p>
+              <p className="text-slate-400 text-sm mt-1">Click "Add Employee" to get started.</p>
             )}
           </CardContent>
         </Card>
@@ -259,18 +351,26 @@ export default function EmployeesPage() {
                   </Avatar>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <p className="font-semibold text-slate-900">
-                        {emp.firstName} {emp.lastName}
-                      </p>
-                      <Badge variant={roleColor(emp.role)} className="capitalize text-xs">
-                        {emp.role}
-                      </Badge>
+                      <p className="font-semibold text-slate-900">{emp.firstName} {emp.lastName}</p>
+                      <Badge variant={roleColor(emp.role)} className="capitalize text-xs">{emp.role}</Badge>
                       {!emp.active && <Badge variant="destructive" className="text-xs">Inactive</Badge>}
                     </div>
                     <p className="text-sm text-slate-500 mt-0.5">{emp.email}</p>
-                    {emp.department && (
-                      <p className="text-xs text-slate-400 mt-0.5">{emp.department.name}</p>
-                    )}
+                    <div className="flex items-center gap-3 mt-0.5 flex-wrap">
+                      {emp.department && (
+                        <span className="text-xs text-slate-400">{emp.department.name}</span>
+                      )}
+                      {emp.phone && (
+                        <span className="text-xs text-slate-400 flex items-center gap-1">
+                          <Phone className="h-3 w-3" />{emp.phone}
+                        </span>
+                      )}
+                      {emp.emergencyName && (
+                        <span className="text-xs text-amber-600 flex items-center gap-1">
+                          <ShieldAlert className="h-3 w-3" />{emp.emergencyName}
+                        </span>
+                      )}
+                    </div>
                   </div>
                   {emp._count !== undefined && (
                     <p className="text-xs text-slate-400 hidden sm:block flex-shrink-0">
@@ -291,76 +391,13 @@ export default function EmployeesPage() {
 
       {/* Add Dialog */}
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Add Employee</DialogTitle>
             <DialogDescription>Add a new team member to your business.</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleAdd} className="space-y-4 py-1">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="fn">First name</Label>
-                <Input
-                  id="fn"
-                  value={addForm.firstName}
-                  onChange={(e) => setAddForm((f) => ({ ...f, firstName: e.target.value }))}
-                  required
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="ln">Last name</Label>
-                <Input
-                  id="ln"
-                  value={addForm.lastName}
-                  onChange={(e) => setAddForm((f) => ({ ...f, lastName: e.target.value }))}
-                  required
-                />
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="em">Email</Label>
-              <Input
-                id="em"
-                type="email"
-                value={addForm.email}
-                onChange={(e) => setAddForm((f) => ({ ...f, email: e.target.value }))}
-                required
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label>Role</Label>
-                <Select value={addForm.role} onValueChange={(v) => setAddForm((f) => ({ ...f, role: v }))}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="staff">Staff</SelectItem>
-                    <SelectItem value="manager">Manager</SelectItem>
-                    <SelectItem value="admin">Admin</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              {departments.length > 0 && (
-                <div className="space-y-1.5">
-                  <Label>Department</Label>
-                  <Select
-                    value={addForm.departmentId || "none"}
-                    onValueChange={(v) => setAddForm((f) => ({ ...f, departmentId: v === "none" ? "" : v }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="None" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">None</SelectItem>
-                      {departments.map((d) => (
-                        <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-            </div>
+            {renderFormFields(addForm, setAddForm)}
             {addError && <p className="text-sm text-red-500">{addError}</p>}
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setAddOpen(false)}>Cancel</Button>
@@ -375,80 +412,15 @@ export default function EmployeesPage() {
 
       {/* Edit Dialog */}
       <Dialog open={!!editEmployee} onOpenChange={(o) => !o && setEditEmployee(null)}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Employee</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleEdit} className="space-y-4 py-1">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="efn">First name</Label>
-                <Input
-                  id="efn"
-                  value={editForm.firstName}
-                  onChange={(e) => setEditForm((f) => ({ ...f, firstName: e.target.value }))}
-                  required
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="eln">Last name</Label>
-                <Input
-                  id="eln"
-                  value={editForm.lastName}
-                  onChange={(e) => setEditForm((f) => ({ ...f, lastName: e.target.value }))}
-                  required
-                />
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="eem">Email</Label>
-              <Input
-                id="eem"
-                type="email"
-                value={editForm.email}
-                onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))}
-                required
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label>Role</Label>
-                <Select value={editForm.role} onValueChange={(v) => setEditForm((f) => ({ ...f, role: v }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="staff">Staff</SelectItem>
-                    <SelectItem value="manager">Manager</SelectItem>
-                    <SelectItem value="admin">Admin</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              {departments.length > 0 && (
-                <div className="space-y-1.5">
-                  <Label>Department</Label>
-                  <Select
-                    value={editForm.departmentId || "none"}
-                    onValueChange={(v) => setEditForm((f) => ({ ...f, departmentId: v === "none" ? "" : v }))}
-                  >
-                    <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">None</SelectItem>
-                      {departments.map((d) => (
-                        <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-            </div>
+            {renderFormFields(editForm, setEditForm)}
             {editError && <p className="text-sm text-red-500">{editError}</p>}
             <DialogFooter className="gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={handleDeactivate}
-                disabled={editSaving}
-              >
+              <Button type="button" variant="outline" size="sm" onClick={handleToggleActive} disabled={editSaving}>
                 {editEmployee?.active ? "Deactivate" : "Reactivate"}
               </Button>
               <div className="flex-1" />
