@@ -5,9 +5,6 @@ import { useSession } from "next-auth/react";
 import {
   Card,
   CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -22,40 +19,36 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { formatDate, getInitials } from "@/lib/utils";
 import { Calendar, Plus, Trash2, Pencil, Loader2 } from "lucide-react";
 import { UserRole as Role } from "@/types/roles";
 
-interface Booking {
+interface Shift {
   id: string;
   date: string;
   startTime: string;
   endTime: string;
-  title: string;
-  notes?: string;
-  status: string;
-  user: {
+  role: string | null;
+  published: boolean;
+  employee?: {
     id: string;
-    name: string | null;
-    email: string | null;
-    image: string | null;
-  };
+    firstName: string;
+    lastName: string;
+    email: string;
+  } | null;
 }
 
 export default function ShiftsPage() {
   const { data: session } = useSession();
-  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [shifts, setShifts] = useState<Shift[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editBooking, setEditBooking] = useState<Booking | null>(null);
+  const [editShift, setEditShift] = useState<Shift | null>(null);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     date: "",
     startTime: "",
     endTime: "",
-    title: "Shift",
-    notes: "",
+    role: "",
   });
 
   const isManager =
@@ -63,31 +56,36 @@ export default function ShiftsPage() {
     session?.user?.role === Role.ADMIN;
 
   useEffect(() => {
-    fetchBookings();
+    fetchShifts();
   }, []);
 
-  const fetchBookings = async () => {
+  const fetchShifts = async () => {
     setLoading(true);
-    const res = await fetch("/api/bookings");
-    const data = await res.json();
-    setBookings(Array.isArray(data) ? data : []);
-    setLoading(false);
+    try {
+      const res = await fetch("/api/shifts/list");
+      if (!res.ok) throw new Error("Failed");
+      const data = await res.json();
+      setShifts(Array.isArray(data.shifts) ? data.shifts : []);
+    } catch {
+      setShifts([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const openNew = () => {
-    setEditBooking(null);
-    setForm({ date: "", startTime: "", endTime: "", title: "Shift", notes: "" });
+    setEditShift(null);
+    setForm({ date: "", startTime: "", endTime: "", role: "" });
     setDialogOpen(true);
   };
 
-  const openEdit = (booking: Booking) => {
-    setEditBooking(booking);
+  const openEdit = (shift: Shift) => {
+    setEditShift(shift);
     setForm({
-      date: booking.date.split("T")[0],
-      startTime: booking.startTime,
-      endTime: booking.endTime,
-      title: booking.title,
-      notes: booking.notes ?? "",
+      date: shift.date.split("T")[0],
+      startTime: new Date(shift.startTime).toTimeString().slice(0, 5),
+      endTime: new Date(shift.endTime).toTimeString().slice(0, 5),
+      role: shift.role ?? "",
     });
     setDialogOpen(true);
   };
@@ -96,44 +94,44 @@ export default function ShiftsPage() {
     e.preventDefault();
     setSaving(true);
     try {
-      if (editBooking) {
-        await fetch(`/api/bookings/${editBooking.id}`, {
+      const body = {
+        date: form.date,
+        startTime: `${form.date}T${form.startTime}:00.000Z`,
+        endTime: `${form.date}T${form.endTime}:00.000Z`,
+        role: form.role || null,
+      };
+
+      if (editShift) {
+        await fetch(`/api/shifts/${editShift.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(form),
+          body: JSON.stringify(body),
         });
       } else {
-        await fetch("/api/bookings", {
+        await fetch("/api/shifts/create", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(form),
+          body: JSON.stringify(body),
         });
       }
       setDialogOpen(false);
-      fetchBookings();
+      fetchShifts();
     } finally {
       setSaving(false);
     }
   };
 
-  const handleCancel = async (id: string) => {
-    if (!confirm("Cancel this shift?")) return;
-    await fetch(`/api/bookings/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: "CANCELLED" }),
-    });
-    fetchBookings();
-  };
-
   const handleDelete = async (id: string) => {
-    if (!confirm("Delete this shift permanently?")) return;
-    await fetch(`/api/bookings/${id}`, { method: "DELETE" });
-    fetchBookings();
+    if (!confirm("Delete this shift?")) return;
+    await fetch(`/api/shifts/${id}`, { method: "DELETE" });
+    fetchShifts();
   };
 
-  const statusVariant = (s: string) =>
-    s === "CONFIRMED" ? "success" : s === "PENDING" ? "warning" : "destructive";
+  const formatDateTime = (iso: string) =>
+    new Date(iso).toLocaleTimeString("en-IE", { hour: "2-digit", minute: "2-digit" });
+
+  const formatDate = (iso: string) =>
+    new Date(iso).toLocaleDateString("en-IE", { weekday: "short", day: "numeric", month: "short" });
 
   return (
     <div className="space-y-6">
@@ -144,17 +142,19 @@ export default function ShiftsPage() {
             {isManager ? "Manage all team shifts" : "Your shift schedule"}
           </p>
         </div>
-        <Button onClick={openNew} className="gap-2">
-          <Plus className="h-4 w-4" />
-          New Shift
-        </Button>
+        {isManager && (
+          <Button onClick={openNew} className="gap-2">
+            <Plus className="h-4 w-4" />
+            New Shift
+          </Button>
+        )}
       </div>
 
       {loading ? (
         <div className="flex justify-center py-20">
           <Loader2 className="h-8 w-8 animate-spin text-slate-300" />
         </div>
-      ) : bookings.length === 0 ? (
+      ) : shifts.length === 0 ? (
         <Card>
           <CardContent className="py-16 text-center">
             <Calendar className="h-12 w-12 mx-auto mb-3 text-slate-200" />
@@ -166,59 +166,48 @@ export default function ShiftsPage() {
         </Card>
       ) : (
         <div className="grid gap-3">
-          {bookings.map((booking) => (
-            <Card key={booking.id} className="hover:shadow-md transition-shadow">
+          {shifts.map((shift) => (
+            <Card key={shift.id} className="hover:shadow-md transition-shadow">
               <CardContent className="p-5">
                 <div className="flex items-center gap-4">
-                  {isManager && (
-                    <Avatar className="h-9 w-9 flex-shrink-0">
-                      <AvatarImage src={booking.user.image ?? ""} />
-                      <AvatarFallback className="bg-blue-100 text-blue-700 text-xs">
-                        {getInitials(booking.user.name)}
-                      </AvatarFallback>
-                    </Avatar>
-                  )}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <p className="font-semibold text-slate-900">{booking.title}</p>
-                      {isManager && (
+                      <p className="font-semibold text-slate-900">
+                        {shift.role ?? "Shift"}
+                      </p>
+                      {shift.employee && (
                         <span className="text-slate-400 text-sm">
-                          — {booking.user.name ?? booking.user.email}
+                          — {shift.employee.firstName} {shift.employee.lastName}
                         </span>
                       )}
+                      <Badge variant={shift.published ? "default" : "secondary"}>
+                        {shift.published ? "Published" : "Draft"}
+                      </Badge>
                     </div>
                     <p className="text-sm text-slate-500 mt-0.5">
-                      {formatDate(booking.date)} · {booking.startTime} — {booking.endTime}
+                      {formatDate(shift.date)} · {formatDateTime(shift.startTime)} — {formatDateTime(shift.endTime)}
                     </p>
-                    {booking.notes && (
-                      <p className="text-xs text-slate-400 mt-1 truncate">{booking.notes}</p>
-                    )}
                   </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <Badge variant={statusVariant(booking.status) as any}>
-                      {booking.status.charAt(0) + booking.status.slice(1).toLowerCase()}
-                    </Badge>
-                    {booking.status !== "CANCELLED" && (
+                  {isManager && (
+                    <div className="flex items-center gap-2 flex-shrink-0">
                       <Button
                         size="icon"
                         variant="ghost"
                         className="h-8 w-8"
-                        onClick={() => openEdit(booking)}
+                        onClick={() => openEdit(shift)}
                       >
                         <Pencil className="h-3.5 w-3.5" />
                       </Button>
-                    )}
-                    {(isManager || booking.user.id === session?.user?.id) && (
                       <Button
                         size="icon"
                         variant="ghost"
                         className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
-                        onClick={() => handleDelete(booking.id)}
+                        onClick={() => handleDelete(shift.id)}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -226,23 +215,22 @@ export default function ShiftsPage() {
         </div>
       )}
 
-      {/* Create / Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{editBooking ? "Edit Shift" : "New Shift"}</DialogTitle>
+            <DialogTitle>{editShift ? "Edit Shift" : "New Shift"}</DialogTitle>
             <DialogDescription>
-              {editBooking ? "Update shift details" : "Book a new shift"}
+              {editShift ? "Update shift details" : "Create a new shift"}
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="title">Title</Label>
+              <Label htmlFor="role">Role / Title</Label>
               <Input
-                id="title"
-                value={form.title}
-                onChange={(e) => setForm({ ...form, title: e.target.value })}
-                placeholder="Shift title"
+                id="role"
+                value={form.role}
+                onChange={(e) => setForm({ ...form, role: e.target.value })}
+                placeholder="e.g. Bartender, Floor Staff"
               />
             </div>
             <div className="space-y-2">
@@ -277,23 +265,13 @@ export default function ShiftsPage() {
                 />
               </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="notes">Notes (optional)</Label>
-              <Textarea
-                id="notes"
-                value={form.notes}
-                onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                placeholder="Any additional notes..."
-                rows={3}
-              />
-            </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
                 Cancel
               </Button>
               <Button type="submit" disabled={saving}>
                 {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                {editBooking ? "Save Changes" : "Book Shift"}
+                {editShift ? "Save Changes" : "Create Shift"}
               </Button>
             </DialogFooter>
           </form>
