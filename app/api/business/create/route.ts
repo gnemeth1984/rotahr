@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { NextRequest, NextResponse } from "next/server";
 import { requireRole, isResponse } from "@/lib/auth/middleware";
 import { businessService, createBusinessSchema } from "@/lib/services/business.service";

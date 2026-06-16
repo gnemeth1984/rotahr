@@ -2,17 +2,23 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth/options";
 import { prisma } from "@/lib/db";
 import { redirect } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/utils";
-import { Role } from "@prisma/client";
+import { UserRole as Role } from "@/types/roles";
 import {
   Calendar,
   Clock,
   Users,
+  AlertCircle,
   CheckCircle,
   XCircle,
-  AlertCircle,
   TrendingUp,
 } from "lucide-react";
 
@@ -23,35 +29,33 @@ export default async function DashboardPage() {
   const isManager =
     session.user.role === Role.MANAGER || session.user.role === Role.ADMIN;
 
-  // Fetch data
-  const [upcomingBookings, myTimeOff, allBookings, pendingTimeOff, employeeCount] =
+  const [upcomingShifts, myTimeOff, allShiftsCount, pendingTimeOff, employeeCount] =
     await Promise.all([
-      prisma.booking.findMany({
+      prisma.shift.findMany({
         where: {
-          userId: session.user.id,
           date: { gte: new Date() },
-          status: "CONFIRMED",
         },
         orderBy: { date: "asc" },
         take: 5,
+        include: { employee: true },
       }),
       prisma.timeOffRequest.findMany({
-        where: { userId: session.user.id },
         orderBy: { createdAt: "desc" },
         take: 3,
+        include: { employee: true },
       }),
       isManager
-        ? prisma.booking.count({ where: { date: { gte: new Date() } } })
-        : null,
+        ? prisma.shift.count({ where: { date: { gte: new Date() } } })
+        : Promise.resolve(null),
       isManager
-        ? prisma.timeOffRequest.count({ where: { status: "PENDING" } })
-        : null,
-      isManager ? prisma.user.count() : null,
+        ? prisma.timeOffRequest.count({ where: { status: "pending" } })
+        : Promise.resolve(null),
+      isManager ? prisma.employee.count() : Promise.resolve(null),
     ]);
 
   const statusBadgeVariant = (status: string) => {
-    if (status === "APPROVED" || status === "CONFIRMED") return "success";
-    if (status === "PENDING") return "warning";
+    if (status === "approved") return "success";
+    if (status === "pending") return "warning";
     return "destructive";
   };
 
@@ -63,7 +67,7 @@ export default async function DashboardPage() {
           Good {getGreeting()}, {session.user.name?.split(" ")[0] ?? "there"} 👋
         </h1>
         <p className="text-slate-500 mt-1">
-          Here&apos;s what&apos;s happening with your schedule today.
+          Here&apos;s what&apos;s happening today.
         </p>
       </div>
 
@@ -75,7 +79,7 @@ export default async function DashboardPage() {
               <div>
                 <p className="text-sm text-slate-500">Upcoming Shifts</p>
                 <p className="text-3xl font-bold text-slate-900 mt-1">
-                  {upcomingBookings.length}
+                  {upcomingShifts.length}
                 </p>
               </div>
               <div className="h-12 w-12 bg-blue-50 rounded-xl flex items-center justify-center">
@@ -143,36 +147,37 @@ export default async function DashboardPage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">Upcoming Shifts</CardTitle>
-            <CardDescription>Your next confirmed shifts</CardDescription>
+            <CardDescription>Next scheduled shifts</CardDescription>
           </CardHeader>
           <CardContent>
-            {upcomingBookings.length === 0 ? (
+            {upcomingShifts.length === 0 ? (
               <div className="text-center py-8 text-slate-400">
                 <Calendar className="h-10 w-10 mx-auto mb-2 opacity-30" />
                 <p className="text-sm">No upcoming shifts</p>
-                <p className="text-xs mt-1">Use the AI assistant to book one!</p>
               </div>
             ) : (
               <div className="space-y-3">
-                {upcomingBookings.map((booking) => (
+                {upcomingShifts.map((shift) => (
                   <div
-                    key={booking.id}
+                    key={shift.id}
                     className="flex items-center justify-between p-3 bg-slate-50 rounded-lg"
                   >
                     <div>
                       <p className="text-sm font-medium text-slate-900">
-                        {booking.title}
+                        {shift.employee
+                          ? `${shift.employee.firstName} ${shift.employee.lastName}`
+                          : "Unassigned"}
                       </p>
                       <p className="text-xs text-slate-500 mt-0.5">
-                        {formatDate(booking.date)}
+                        {formatDate(shift.date)}
                       </p>
                     </div>
                     <div className="text-right">
                       <p className="text-xs font-medium text-slate-700">
-                        {booking.startTime} — {booking.endTime}
+                        {shift.role ?? "—"}
                       </p>
-                      <Badge variant="success" className="mt-1 text-xs">
-                        Confirmed
+                      <Badge className="mt-1 text-xs bg-blue-100 text-blue-700">
+                        {shift.published ? "Published" : "Draft"}
                       </Badge>
                     </div>
                   </div>
@@ -182,18 +187,17 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Time off status */}
+        {/* Time off */}
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">Time Off Requests</CardTitle>
-            <CardDescription>Your recent requests</CardDescription>
+            <CardDescription>Recent requests</CardDescription>
           </CardHeader>
           <CardContent>
             {myTimeOff.length === 0 ? (
               <div className="text-center py-8 text-slate-400">
                 <Clock className="h-10 w-10 mx-auto mb-2 opacity-30" />
                 <p className="text-sm">No time off requests</p>
-                <p className="text-xs mt-1">Submit one from the Time Off page</p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -203,21 +207,24 @@ export default async function DashboardPage() {
                     className="flex items-center justify-between p-3 bg-slate-50 rounded-lg"
                   >
                     <div className="flex items-center gap-2">
-                      {req.status === "APPROVED" ? (
+                      {req.status === "approved" ? (
                         <CheckCircle className="h-4 w-4 text-green-500" />
-                      ) : req.status === "REJECTED" ? (
+                      ) : req.status === "rejected" ? (
                         <XCircle className="h-4 w-4 text-red-500" />
                       ) : (
                         <AlertCircle className="h-4 w-4 text-orange-500" />
                       )}
                       <div>
                         <p className="text-sm font-medium text-slate-900">
+                          {req.employee.firstName} {req.employee.lastName}
+                        </p>
+                        <p className="text-xs text-slate-500">
                           {formatDate(req.startDate)} — {formatDate(req.endDate)}
                         </p>
                       </div>
                     </div>
                     <Badge variant={statusBadgeVariant(req.status) as any}>
-                      {req.status.charAt(0) + req.status.slice(1).toLowerCase()}
+                      {req.status.charAt(0).toUpperCase() + req.status.slice(1)}
                     </Badge>
                   </div>
                 ))}
@@ -227,8 +234,7 @@ export default async function DashboardPage() {
         </Card>
       </div>
 
-      {/* Manager: all active bookings overview */}
-      {isManager && allBookings !== null && allBookings > 0 && (
+      {isManager && allShiftsCount !== null && allShiftsCount > 0 && (
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center gap-4">
@@ -237,10 +243,14 @@ export default async function DashboardPage() {
               </div>
               <div>
                 <p className="text-lg font-semibold text-slate-900">
-                  {allBookings} upcoming shift{allBookings !== 1 ? "s" : ""} across the team
+                  {allShiftsCount} upcoming shift{allShiftsCount !== 1 ? "s" : ""} across the team
                 </p>
                 <p className="text-sm text-slate-500">
-                  Go to <a href="/shifts" className="text-blue-600 hover:underline">Shifts</a> to manage all bookings
+                  Go to{" "}
+                  <a href="/shifts" className="text-blue-600 hover:underline">
+                    Shifts
+                  </a>{" "}
+                  to manage them
                 </p>
               </div>
             </div>

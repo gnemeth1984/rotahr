@@ -1,21 +1,17 @@
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "./options";
 import { NextResponse } from "next/server";
-import type { UserRole } from "@prisma/client";
 
 export interface AuthSession {
   user: {
     id: string;
     email: string;
     name?: string | null;
-    role: UserRole;
+    role: string;
     businessId: string | null;
   };
 }
 
-/**
- * Require authentication. Returns session or a 401 response.
- */
 export async function requireAuth(): Promise<AuthSession | NextResponse> {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
@@ -24,11 +20,8 @@ export async function requireAuth(): Promise<AuthSession | NextResponse> {
   return session as AuthSession;
 }
 
-/**
- * Require one of the given roles.
- */
 export async function requireRole(
-  ...roles: UserRole[]
+  ...roles: string[]
 ): Promise<AuthSession | NextResponse> {
   const result = await requireAuth();
   if (result instanceof NextResponse) return result;
@@ -38,12 +31,9 @@ export async function requireRole(
   return result;
 }
 
-/**
- * Require session + businessId match (data isolation).
- */
 export async function requireBusiness(
   businessId: string,
-  ...roles: UserRole[]
+  ...roles: string[]
 ): Promise<AuthSession | NextResponse> {
   const result = await requireRole(...roles);
   if (result instanceof NextResponse) return result;

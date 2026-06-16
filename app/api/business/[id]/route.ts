@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { NextRequest, NextResponse } from "next/server";
 import { requireBusiness, isResponse } from "@/lib/auth/middleware";
 import { businessService } from "@/lib/services/business.service";

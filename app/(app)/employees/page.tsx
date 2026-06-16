@@ -26,7 +26,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getInitials } from "@/lib/utils";
 import { Users, Search, Pencil, Loader2, Calendar, Clock } from "lucide-react";
-import { Role } from "@prisma/client";
+import { UserRole as Role } from "@/types/roles";
 
 interface Employee {
   id: string;
@@ -50,7 +50,7 @@ export default function EmployeesPage() {
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     name: "",
-    role: Role.EMPLOYEE as string,
+    role: "STAFF" as string,
     department: "",
     phone: "",
   });

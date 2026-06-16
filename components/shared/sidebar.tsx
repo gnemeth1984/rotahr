@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { getInitials } from "@/lib/utils";
-import { Role } from "@prisma/client";
+import { Role } from "@/types/roles";
 import { useState } from "react";
 
 const navItems = [

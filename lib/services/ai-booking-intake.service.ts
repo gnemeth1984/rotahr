@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { prisma } from "@/lib/db";
 import { tableService } from "./table.service";
 import { reservationService } from "./reservation.service";

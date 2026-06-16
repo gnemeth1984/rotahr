@@ -25,7 +25,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatDate, getInitials } from "@/lib/utils";
 import { Calendar, Plus, Trash2, Pencil, Loader2 } from "lucide-react";
-import { Role } from "@prisma/client";
+import { UserRole as Role } from "@/types/roles";
 
 interface Booking {
   id: string;
