@@ -14,6 +14,7 @@ import {
   Briefcase,
   BookOpen,
   TableProperties,
+  BookMarked,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -52,6 +53,12 @@ const navItems = [
     label: "Rota",
     icon: TableProperties,
     roles: [Role.EMPLOYEE, Role.MANAGER, Role.ADMIN],
+  },
+  {
+    href: "/bookkeeping",
+    label: "Bookkeeping",
+    icon: BookMarked,
+    roles: [Role.MANAGER, Role.ADMIN],
   },
   {
     href: "/employees",

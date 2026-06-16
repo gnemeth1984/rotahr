@@ -18,6 +18,7 @@ model Business {
   employees   Employee[]
   tables      Table[]
   reservations Reservation[]
+  expenses    Expense[]
 }
 
 model User {
@@ -79,6 +80,7 @@ model Employee {
 
   shifts          Shift[]
   timeOffRequests TimeOffRequest[]
+  expenses        Expense[]
 }
 
 model Shift {
@@ -118,6 +120,35 @@ model Table {
   updatedAt  DateTime @updatedAt
 
   reservations Reservation[]
+}
+
+model Expense {
+  id            String    @id @default(cuid())
+  businessId    String
+  business      Business  @relation(fields: [businessId], references: [id])
+
+  // Core fields
+  amount        Float
+  vatAmount     Float     @default(0)
+  currency      String    @default("EUR")
+  vendor        String?
+  category      String    // wages, supplier, utilities, equipment, food_beverage, general
+  date          DateTime
+  description   String?
+  paymentMethod String?   // cash, card, bank_transfer
+  status        String    @default("confirmed") // draft, confirmed
+
+  // Receipt image
+  receiptUrl    String?
+  aiRawText     String?   // raw AI extraction output
+
+  // Optional employee link (for staff cost expenses)
+  employeeId    String?
+  employee      Employee? @relation(fields: [employeeId], references: [id])
+
+  createdById   String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 }
 
 model Reservation {
