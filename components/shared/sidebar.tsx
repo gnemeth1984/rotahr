@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import {
-  LayoutDashboard,
   Calendar,
   Users,
   Clock,
@@ -25,12 +24,6 @@ import { useState } from "react";
 import { BellButton } from "@/components/shared/BellButton";
 
 const navItems = [
-  {
-    href: "/dashboard",
-    label: "Dashboard",
-    icon: LayoutDashboard,
-    roles: [Role.EMPLOYEE, Role.MANAGER, Role.ADMIN],
-  },
   {
     href: "/shifts",
     label: "Shifts",
