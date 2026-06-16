@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { getInitials } from "@/lib/utils";
-import { Users, Search, Pencil, Plus, Loader2, Phone, ShieldAlert } from "lucide-react";
+import { Users, Search, Pencil, Plus, Loader2, Phone, ShieldAlert, HeartPulse } from "lucide-react";
 import { UserRole as Role } from "@/types/roles";
 
 interface Employee {
@@ -41,6 +41,12 @@ interface Employee {
   emergencyName: string | null;
   emergencyPhone: string | null;
   emergencyRelation: string | null;
+  medicalConditions: string | null;
+  medications: string | null;
+  bloodType: string | null;
+  doctorName: string | null;
+  doctorPhone: string | null;
+  medicalNotes: string | null;
   _count?: { shifts: number };
 }
 
@@ -53,6 +59,8 @@ const EMPTY_ADD = {
   firstName: "", lastName: "", email: "", phone: "", ppsNumber: "",
   role: "staff", departmentId: "",
   emergencyName: "", emergencyPhone: "", emergencyRelation: "",
+  medicalConditions: "", medications: "", bloodType: "",
+  doctorName: "", doctorPhone: "", medicalNotes: "",
 };
 
 export default function EmployeesPage() {
@@ -113,6 +121,12 @@ export default function EmployeesPage() {
         emergencyName: addForm.emergencyName || undefined,
         emergencyPhone: addForm.emergencyPhone || undefined,
         emergencyRelation: addForm.emergencyRelation || undefined,
+        medicalConditions: addForm.medicalConditions || undefined,
+        medications: addForm.medications || undefined,
+        bloodType: addForm.bloodType || undefined,
+        doctorName: addForm.doctorName || undefined,
+        doctorPhone: addForm.doctorPhone || undefined,
+        medicalNotes: addForm.medicalNotes || undefined,
       };
       const res = await fetch("/api/employee/add", {
         method: "POST",
@@ -144,6 +158,12 @@ export default function EmployeesPage() {
       emergencyName: emp.emergencyName ?? "",
       emergencyPhone: emp.emergencyPhone ?? "",
       emergencyRelation: emp.emergencyRelation ?? "",
+      medicalConditions: emp.medicalConditions ?? "",
+      medications: emp.medications ?? "",
+      bloodType: emp.bloodType ?? "",
+      doctorName: emp.doctorName ?? "",
+      doctorPhone: emp.doctorPhone ?? "",
+      medicalNotes: emp.medicalNotes ?? "",
     });
     setEditError("");
   };
@@ -165,6 +185,12 @@ export default function EmployeesPage() {
         emergencyName: editForm.emergencyName || null,
         emergencyPhone: editForm.emergencyPhone || null,
         emergencyRelation: editForm.emergencyRelation || null,
+        medicalConditions: editForm.medicalConditions || null,
+        medications: editForm.medications || null,
+        bloodType: editForm.bloodType || null,
+        doctorName: editForm.doctorName || null,
+        doctorPhone: editForm.doctorPhone || null,
+        medicalNotes: editForm.medicalNotes || null,
       };
       const res = await fetch(`/api/employee/${editEmployee.id}`, {
         method: "PATCH",
@@ -295,6 +321,45 @@ export default function EmployeesPage() {
           </div>
         </div>
       </div>
+
+      {/* Medical info */}
+      <div>
+        <div className="flex items-center gap-2 mb-3">
+          <HeartPulse className="h-3.5 w-3.5 text-rose-500" />
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Medical Info</p>
+          <span className="text-[10px] text-slate-400 normal-case tracking-normal">— confidential, manager only</span>
+        </div>
+        <div className="space-y-3 bg-rose-50/50 border border-rose-100 rounded-lg p-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>Blood Type</Label>
+              <Input placeholder="A+, O-, B+…" value={form.bloodType} onChange={(e) => setForm({ ...form, bloodType: e.target.value })} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Allergies / Conditions</Label>
+              <Input placeholder="e.g. Penicillin allergy, Asthma" value={form.medicalConditions} onChange={(e) => setForm({ ...form, medicalConditions: e.target.value })} />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Current Medications</Label>
+            <Input placeholder="e.g. Ventolin inhaler" value={form.medications} onChange={(e) => setForm({ ...form, medications: e.target.value })} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>Doctor / GP Name</Label>
+              <Input placeholder="Dr. Murphy" value={form.doctorName} onChange={(e) => setForm({ ...form, doctorName: e.target.value })} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Doctor Phone</Label>
+              <Input type="tel" placeholder="+353..." value={form.doctorPhone} onChange={(e) => setForm({ ...form, doctorPhone: e.target.value })} />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Additional Medical Notes</Label>
+            <Input placeholder="Any other relevant information…" value={form.medicalNotes} onChange={(e) => setForm({ ...form, medicalNotes: e.target.value })} />
+          </div>
+        </div>
+      </div>
     </div>
   );
 
@@ -368,6 +433,11 @@ export default function EmployeesPage() {
                       {emp.emergencyName && (
                         <span className="text-xs text-amber-600 flex items-center gap-1">
                           <ShieldAlert className="h-3 w-3" />{emp.emergencyName}
+                        </span>
+                      )}
+                      {emp.medicalConditions && (
+                        <span className="text-xs text-rose-500 flex items-center gap-1">
+                          <HeartPulse className="h-3 w-3" />Medical info on file
                         </span>
                       )}
                     </div>

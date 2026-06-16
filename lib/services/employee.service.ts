@@ -14,6 +14,13 @@ export const addEmployeeSchema = z.object({
   emergencyName: z.string().optional(),
   emergencyPhone: z.string().optional(),
   emergencyRelation: z.string().optional(),
+  // Medical
+  medicalConditions: z.string().optional(),
+  medications: z.string().optional(),
+  bloodType: z.string().optional(),
+  doctorName: z.string().optional(),
+  doctorPhone: z.string().optional(),
+  medicalNotes: z.string().optional(),
 });
 
 export const updateEmployeeSchema = z.object({
@@ -28,6 +35,13 @@ export const updateEmployeeSchema = z.object({
   emergencyName: z.string().nullable().optional(),
   emergencyPhone: z.string().nullable().optional(),
   emergencyRelation: z.string().nullable().optional(),
+  // Medical
+  medicalConditions: z.string().nullable().optional(),
+  medications: z.string().nullable().optional(),
+  bloodType: z.string().nullable().optional(),
+  doctorName: z.string().nullable().optional(),
+  doctorPhone: z.string().nullable().optional(),
+  medicalNotes: z.string().nullable().optional(),
 });
 
 export const employeeService = {
@@ -48,6 +62,12 @@ export const employeeService = {
         emergencyName: data.emergencyName ?? null,
         emergencyPhone: data.emergencyPhone ?? null,
         emergencyRelation: data.emergencyRelation ?? null,
+        medicalConditions: data.medicalConditions ?? null,
+        medications: data.medications ?? null,
+        bloodType: data.bloodType ?? null,
+        doctorName: data.doctorName ?? null,
+        doctorPhone: data.doctorPhone ?? null,
+        medicalNotes: data.medicalNotes ?? null,
       },
       include: { department: true },
     });

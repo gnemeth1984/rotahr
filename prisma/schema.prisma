@@ -66,6 +66,14 @@ model Employee {
   emergencyPhone    String?
   emergencyRelation String?
 
+  // Medical info
+  medicalConditions String?   // allergies, chronic conditions
+  medications       String?   // current medications
+  bloodType         String?   // A+, B-, O+, etc.
+  doctorName        String?
+  doctorPhone       String?
+  medicalNotes      String?   // any other relevant info
+
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
