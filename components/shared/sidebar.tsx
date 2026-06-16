@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { getInitials } from "@/lib/utils";
 import { Role } from "@/types/roles";
 import { useState } from "react";
+import { BellButton } from "@/components/shared/BellButton";
 
 const navItems = [
   {
@@ -81,9 +82,12 @@ export function Sidebar() {
   const SidebarContent = () => (
     <div className="flex h-full flex-col">
       {/* Logo */}
-      <div className="flex items-center gap-2 px-6 py-5 border-b border-slate-700">
-        <Briefcase className="h-6 w-6 text-blue-400" />
-        <span className="text-xl font-bold text-white">Rotahr</span>
+      <div className="flex items-center justify-between px-6 py-5 border-b border-slate-700">
+        <div className="flex items-center gap-2">
+          <Briefcase className="h-6 w-6 text-blue-400" />
+          <span className="text-xl font-bold text-white">Rotahr</span>
+        </div>
+        <BellButton />
       </div>
 
       {/* Nav */}

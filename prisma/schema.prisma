@@ -81,6 +81,8 @@ model Employee {
   shifts          Shift[]
   timeOffRequests TimeOffRequest[]
   expenses        Expense[]
+  notifications   BookingNotification[]
+  flags           BookingFlag[]
 }
 
 model Shift {
@@ -168,4 +170,31 @@ model Reservation {
   business     Business @relation(fields: [businessId], references: [id])
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+
+  notifications BookingNotification[]
+  flags         BookingFlag[]
+}
+
+// Notification sent to a specific employee about a booking
+model BookingNotification {
+  id            String      @id @default(cuid())
+  reservationId String
+  reservation   Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  employeeId    String
+  employee      Employee    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  message       String?     // optional note from manager
+  read          Boolean     @default(false)
+  createdAt     DateTime    @default(now())
+}
+
+// Employee flags a booking with a note for management
+model BookingFlag {
+  id            String      @id @default(cuid())
+  reservationId String
+  reservation   Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  employeeId    String
+  employee      Employee    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  note          String
+  resolved      Boolean     @default(false)
+  createdAt     DateTime    @default(now())
 }
