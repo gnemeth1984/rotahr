@@ -7,8 +7,8 @@ export const addEmployeeSchema = z.object({
   lastName: z.string().min(1).max(50),
   email: z.string().email(),
   role: z.string().default("staff"),
-  departmentId: z.string().cuid().optional(),
-  businessId: z.string().cuid(),
+  departmentId: z.string().optional(),
+  businessId: z.string().min(1),
 });
 
 export const updateEmployeeSchema = z.object({
@@ -16,7 +16,7 @@ export const updateEmployeeSchema = z.object({
   lastName: z.string().min(1).max(50).optional(),
   email: z.string().email().optional(),
   role: z.string().optional(),
-  departmentId: z.string().cuid().nullable().optional(),
+  departmentId: z.string().nullable().optional(),
   active: z.boolean().optional(),
 });
 

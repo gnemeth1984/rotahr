@@ -15,6 +15,7 @@ model Business {
 
   users       User[]
   departments Department[]
+  employees   Employee[]
   tables      Table[]
   reservations Reservation[]
 }
@@ -49,7 +50,10 @@ model Employee {
   firstName    String
   lastName     String
   email        String  @unique
+  role         String  @default("staff")
   active       Boolean @default(true)
+  businessId   String
+  business     Business @relation(fields: [businessId], references: [id])
   departmentId String?
   department   Department? @relation(fields: [departmentId], references: [id])
   userId       String?
