@@ -13,6 +13,7 @@ import {
   X,
   Briefcase,
   BookOpen,
+  TableProperties,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -44,6 +45,12 @@ const navItems = [
     href: "/bookings",
     label: "Bookings",
     icon: BookOpen,
+    roles: [Role.EMPLOYEE, Role.MANAGER, Role.ADMIN],
+  },
+  {
+    href: "/rota",
+    label: "Rota",
+    icon: TableProperties,
     roles: [Role.EMPLOYEE, Role.MANAGER, Role.ADMIN],
   },
   {
