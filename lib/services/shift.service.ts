@@ -9,6 +9,7 @@ export const createShiftSchema = z.object({
   endTime: z.string().refine((v) => !isNaN(Date.parse(v)), "Invalid endTime"),
   role: z.string().optional(),
   published: z.boolean().default(false),
+  overtimeHours: z.number().min(0).default(0),
 });
 
 export const updateShiftSchema = z.object({
@@ -17,6 +18,7 @@ export const updateShiftSchema = z.object({
   endTime: z.string().optional(),
   role: z.string().optional(),
   published: z.boolean().optional(),
+  overtimeHours: z.number().min(0).optional(),
 });
 
 export const shiftService = {
@@ -29,6 +31,7 @@ export const shiftService = {
         endTime: new Date(data.endTime),
         role: data.role ?? null,
         published: data.published,
+        overtimeHours: data.overtimeHours ?? 0,
       },
       include: {
         employee: { select: { id: true, firstName: true, lastName: true, email: true } },
@@ -71,6 +74,7 @@ export const shiftService = {
         ...(data.endTime ? { endTime: new Date(data.endTime) } : {}),
         ...(data.role !== undefined ? { role: data.role } : {}),
         ...(data.published !== undefined ? { published: data.published } : {}),
+        ...(data.overtimeHours !== undefined ? { overtimeHours: data.overtimeHours } : {}),
       },
     });
   },

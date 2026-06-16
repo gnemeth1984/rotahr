@@ -12,15 +12,12 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import {
   ChevronLeft,
   ChevronRight,
-  Plus,
   Trash2,
   Download,
   Loader2,
-  CalendarDays,
   UserPlus,
 } from "lucide-react";
 import { UserRole as Role } from "@/types/roles";
@@ -48,6 +45,7 @@ interface Shift {
   endTime: string;
   role: string | null;
   published: boolean;
+  overtimeHours: number;
   employeeId?: string | null;
   employee?: { id: string; firstName: string; lastName: string } | null;
 }
@@ -101,6 +99,27 @@ function fmtTime(iso: string): string {
   return new Date(iso).toLocaleTimeString("en-IE", { hour: "2-digit", minute: "2-digit", hour12: false });
 }
 
+/** Returns scheduled hours (not counting overtime) for a shift */
+function shiftHours(shift: Shift): number {
+  return (new Date(shift.endTime).getTime() - new Date(shift.startTime).getTime()) / 3600000;
+}
+
+/** Returns total hours for an employee across the week (scheduled + overtime) */
+function empWeekHours(empId: string, weekDates: Date[], getShift: (id: string, d: string) => Shift | undefined): number {
+  return weekDates.reduce((sum, date) => {
+    const shift = getShift(empId, toDateStr(date));
+    if (!shift) return sum;
+    return sum + shiftHours(shift) + (shift.overtimeHours ?? 0);
+  }, 0);
+}
+
+function fmtHours(h: number): string {
+  if (h === 0) return "0h";
+  // Show .5 if fractional, strip trailing .0
+  const rounded = Math.round(h * 2) / 2;
+  return rounded % 1 === 0 ? `${rounded}h` : `${rounded}h`;
+}
+
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function RotaPage() {
@@ -118,7 +137,13 @@ export default function RotaPage() {
   const [shiftDialog, setShiftDialog] = useState(false);
   const [editingShift, setEditingShift] = useState<Shift | null>(null);
   const [cellContext, setCellContext] = useState<{ employeeId: string; date: string } | null>(null);
-  const [shiftForm, setShiftForm] = useState({ startTime: "09:00", endTime: "17:00", role: "", published: false });
+  const [shiftForm, setShiftForm] = useState({
+    startTime: "09:00",
+    endTime: "17:00",
+    role: "",
+    published: false,
+    overtimeHours: 0,
+  });
   const [saving, setSaving] = useState(false);
 
   // Publish all
@@ -166,10 +191,11 @@ export default function RotaPage() {
         endTime: fmtTime(existing.endTime),
         role: existing.role ?? "",
         published: existing.published,
+        overtimeHours: existing.overtimeHours ?? 0,
       });
     } else {
       setEditingShift(null);
-      setShiftForm({ startTime: "09:00", endTime: "17:00", role: "", published: false });
+      setShiftForm({ startTime: "09:00", endTime: "17:00", role: "", published: false, overtimeHours: 0 });
     }
     setCellContext({ employeeId: empId, date: dateStr });
     setShiftDialog(true);
@@ -189,6 +215,7 @@ export default function RotaPage() {
         endTime: `${date}T${shiftForm.endTime}:00.000Z`,
         role: shiftForm.role || null,
         published: shiftForm.published,
+        overtimeHours: shiftForm.overtimeHours,
       };
       if (editingShift) {
         await fetch(`/api/shifts/${editingShift.id}`, {
@@ -245,15 +272,20 @@ export default function RotaPage() {
   // ── Export CSV ────────────────────────────────────────────────────────────
 
   function exportCSV() {
-    const rows = [["Employee", "Date", "Start", "End", "Role", "Published"]];
+    const rows = [["Employee", "Date", "Start", "End", "Role", "Scheduled Hrs", "Overtime Hrs", "Total Hrs", "Published"]];
     shifts.forEach((s) => {
       const emp = employees.find((e) => e.id === s.employeeId);
+      const scheduled = shiftHours(s);
+      const ot = s.overtimeHours ?? 0;
       rows.push([
         emp ? `${emp.firstName} ${emp.lastName}` : "—",
         s.date.split("T")[0],
         fmtTime(s.startTime),
         fmtTime(s.endTime),
         s.role ?? "",
+        scheduled.toString(),
+        ot.toString(),
+        (scheduled + ot).toString(),
         s.published ? "Yes" : "No",
       ]);
     });
@@ -455,6 +487,23 @@ export default function RotaPage() {
               />
             </div>
 
+            {/* Overtime */}
+            <div className="space-y-1.5">
+              <Label htmlFor="ot">Overtime hrs</Label>
+              <Input
+                id="ot"
+                type="number"
+                min={0}
+                step={0.5}
+                placeholder="0"
+                value={shiftForm.overtimeHours === 0 ? "" : shiftForm.overtimeHours}
+                onChange={(e) => {
+                  const val = parseFloat(e.target.value);
+                  setShiftForm((f) => ({ ...f, overtimeHours: isNaN(val) ? 0 : Math.max(0, val) }));
+                }}
+              />
+            </div>
+
             <div className="flex items-center gap-2">
               <input
                 type="checkbox"
@@ -513,18 +562,9 @@ function DeptBlock({
   isManager: boolean;
   onCellClick: (empId: string, dateStr: string, existing?: Shift) => void;
 }) {
+  // Department total hours (scheduled + overtime)
   const totalHours = employees.reduce((acc, emp) => {
-    return (
-      acc +
-      weekDates.reduce((sum, date) => {
-        const shift = getShift(emp.id, toDateStr(date));
-        if (!shift) return sum;
-        const h =
-          (new Date(shift.endTime).getTime() - new Date(shift.startTime).getTime()) /
-          3600000;
-        return sum + h;
-      }, 0)
-    );
+    return acc + empWeekHours(emp.id, weekDates, getShift);
   }, 0);
 
   return (
@@ -535,18 +575,21 @@ function DeptBlock({
           <span className={cn("h-2.5 w-2.5 rounded-full flex-shrink-0", colors.dot)} />
           <span className={cn("font-semibold text-sm", colors.text)}>{dept.name}</span>
           <span className="text-xs text-slate-400">
-            {employees.length} staff · {totalHours > 0 ? `${totalHours}h` : "0h"}
+            {employees.length} staff · {fmtHours(totalHours)}
           </span>
         </div>
       </div>
 
       {/* Table */}
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[640px]">
+        <table className="w-full min-w-[700px]">
           <thead>
             <tr className="border-b border-slate-100">
-              <th className="text-left px-4 py-2.5 text-xs font-medium text-slate-500 w-36">
+              <th className="text-left px-4 py-2.5 text-xs font-medium text-slate-500 w-40">
                 Employee
+              </th>
+              <th className="text-center px-2 py-2.5 text-xs font-medium text-slate-400 w-14">
+                Hrs
               </th>
               {weekDates.map((date, i) => {
                 const isToday = toDateStr(date) === toDateStr(new Date());
@@ -554,7 +597,7 @@ function DeptBlock({
                   <th
                     key={i}
                     className={cn(
-                      "text-center px-1 py-2.5 text-xs font-medium w-[calc((100%-144px)/7)]",
+                      "text-center px-1 py-2.5 text-xs font-medium",
                       isToday ? "text-blue-600" : "text-slate-500"
                     )}
                   >
@@ -571,59 +614,79 @@ function DeptBlock({
             </tr>
           </thead>
           <tbody>
-            {employees.map((emp, ri) => (
-              <tr
-                key={emp.id}
-                className={cn("border-b border-slate-50", ri % 2 === 0 ? "bg-white" : "bg-slate-50/40")}
-              >
-                <td className="px-4 py-2 text-sm font-medium text-slate-700 truncate max-w-[144px]">
-                  {emp.firstName} {emp.lastName}
-                </td>
-                {weekDates.map((date, di) => {
-                  const dateStr = toDateStr(date);
-                  const shift = getShift(emp.id, dateStr);
-                  const isToday = dateStr === toDateStr(new Date());
-                  return (
-                    <td
-                      key={di}
-                      className={cn(
-                        "px-1 py-1.5 text-center align-middle",
-                        isToday && "bg-blue-50/40"
-                      )}
-                    >
-                      {shift ? (
-                        <button
-                          onClick={() => onCellClick(emp.id, dateStr, shift)}
-                          className={cn(
-                            "w-full rounded-md px-1.5 py-1.5 text-[11px] font-medium leading-tight transition-all",
-                            shift.published
-                              ? "bg-blue-100 text-blue-700 hover:bg-blue-200"
-                              : "bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100"
-                          )}
-                        >
-                          <div>{fmtTime(shift.startTime)}</div>
-                          <div className="opacity-70">–{fmtTime(shift.endTime)}</div>
-                          {shift.role && (
-                            <div className="text-[10px] opacity-60 truncate mt-0.5">
-                              {shift.role}
-                            </div>
-                          )}
-                        </button>
-                      ) : isManager ? (
-                        <button
-                          onClick={() => onCellClick(emp.id, dateStr)}
-                          className="w-full h-10 rounded-md border border-dashed border-slate-200 text-slate-300 hover:border-blue-300 hover:text-blue-400 hover:bg-blue-50/50 transition-all text-lg leading-none"
-                        >
-                          +
-                        </button>
-                      ) : (
-                        <div className="h-10" />
-                      )}
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
+            {employees.map((emp, ri) => {
+              const weekHrs = empWeekHours(emp.id, weekDates, getShift);
+              return (
+                <tr
+                  key={emp.id}
+                  className={cn("border-b border-slate-50", ri % 2 === 0 ? "bg-white" : "bg-slate-50/40")}
+                >
+                  <td className="px-4 py-2 text-sm font-medium text-slate-700 truncate max-w-[160px]">
+                    {emp.firstName} {emp.lastName}
+                  </td>
+                  {/* Per-employee weekly hours */}
+                  <td className="px-2 py-2 text-center">
+                    <span className={cn(
+                      "text-xs font-semibold tabular-nums",
+                      weekHrs === 0 ? "text-slate-300" : "text-slate-600"
+                    )}>
+                      {fmtHours(weekHrs)}
+                    </span>
+                  </td>
+                  {weekDates.map((date, di) => {
+                    const dateStr = toDateStr(date);
+                    const shift = getShift(emp.id, dateStr);
+                    const isToday = dateStr === toDateStr(new Date());
+                    return (
+                      <td
+                        key={di}
+                        className={cn(
+                          "px-1 py-1.5 text-center align-middle",
+                          isToday && "bg-blue-50/40"
+                        )}
+                      >
+                        {shift ? (
+                          <button
+                            onClick={() => onCellClick(emp.id, dateStr, shift)}
+                            className={cn(
+                              "w-full rounded-md px-1.5 py-1.5 text-[11px] font-medium leading-tight transition-all",
+                              shift.published
+                                ? "bg-blue-100 text-blue-700 hover:bg-blue-200"
+                                : "bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100"
+                            )}
+                          >
+                            <div>{fmtTime(shift.startTime)}</div>
+                            <div className="opacity-70">–{fmtTime(shift.endTime)}</div>
+                            {shift.role && (
+                              <div className="text-[10px] opacity-60 truncate mt-0.5">
+                                {shift.role}
+                              </div>
+                            )}
+                            {/* Overtime badge */}
+                            {(shift.overtimeHours ?? 0) > 0 && (
+                              <div className="mt-0.5">
+                                <span className="inline-block bg-orange-500 text-white text-[9px] font-bold px-1 py-0.5 rounded leading-none">
+                                  +{shift.overtimeHours}h OT
+                                </span>
+                              </div>
+                            )}
+                          </button>
+                        ) : isManager ? (
+                          <button
+                            onClick={() => onCellClick(emp.id, dateStr)}
+                            className="w-full h-10 rounded-md border border-dashed border-slate-200 text-slate-300 hover:border-blue-300 hover:text-blue-400 hover:bg-blue-50/50 transition-all text-lg leading-none"
+                          >
+                            +
+                          </button>
+                        ) : (
+                          <div className="h-10" />
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

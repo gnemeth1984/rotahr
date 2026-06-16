@@ -74,16 +74,17 @@ model Employee {
 }
 
 model Shift {
-  id         String    @id @default(cuid())
-  date       DateTime
-  startTime  DateTime
-  endTime    DateTime
-  role       String?
-  published  Boolean   @default(false)
-  employeeId String?
-  employee   Employee? @relation(fields: [employeeId], references: [id])
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  id            String    @id @default(cuid())
+  date          DateTime
+  startTime     DateTime
+  endTime       DateTime
+  role          String?
+  published     Boolean   @default(false)
+  overtimeHours Float     @default(0)
+  employeeId    String?
+  employee      Employee? @relation(fields: [employeeId], references: [id])
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 }
 
 model TimeOffRequest {
