@@ -7,49 +7,71 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  password  String? // only if you want credentials auth
-  role      String   @default("staff")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+model Business {
+  id          String       @id @default(cuid())
+  name        String
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
 
-  employees Employee[]
+  users       User[]
+  departments Department[]
+  tables      Table[]
+  reservations Reservation[]
+}
+
+model User {
+  id         String   @id @default(cuid())
+  email      String   @unique
+  name       String?
+  password   String?
+  role       String   @default("STAFF")
+  businessId String?
+  business   Business? @relation(fields: [businessId], references: [id])
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  employees  Employee[]
+}
+
+model Department {
+  id         String   @id @default(cuid())
+  name       String
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id])
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  employees  Employee[]
 }
 
 model Employee {
-  id        String  @id @default(cuid())
-  firstName String
-  lastName  String
-  email     String  @unique
-  active    Boolean @default(true)
+  id           String  @id @default(cuid())
+  firstName    String
+  lastName     String
+  email        String  @unique
+  active       Boolean @default(true)
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id])
+  userId       String?
+  user         User?   @relation(fields: [userId], references: [id])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  userId String?
-  user   User?   @relation(fields: [userId], references: [id])
-
-  shifts Shift[]
-
-  timeOffRequests TimeOffRequest[] // <-- added back-relation
+  shifts          Shift[]
+  timeOffRequests TimeOffRequest[]
 }
 
 model Shift {
-  id        String   @id @default(cuid())
-  date      DateTime
-  startTime DateTime
-  endTime   DateTime
-  role      String?
-  published Boolean  @default(false)
-
+  id         String    @id @default(cuid())
+  date       DateTime
+  startTime  DateTime
+  endTime    DateTime
+  role       String?
+  published  Boolean   @default(false)
   employeeId String?
   employee   Employee? @relation(fields: [employeeId], references: [id])
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 }
 
 model TimeOffRequest {
@@ -58,9 +80,40 @@ model TimeOffRequest {
   employee   Employee @relation(fields: [employeeId], references: [id])
   startDate  DateTime
   endDate    DateTime
-  status     String   @default("pending") // pending/approved/rejected
+  status     String   @default("pending")
   reason     String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+model Table {
+  id         String   @id @default(cuid())
+  name       String
+  capacity   Int
+  location   String?
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id])
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  reservations Reservation[]
+}
+
+model Reservation {
+  id           String   @id @default(cuid())
+  customerName String
+  customerEmail String?
+  customerPhone String?
+  partySize    Int
+  date         DateTime
+  time         String
+  duration     Int      @default(90)
+  status       String   @default("confirmed")
+  notes        String?
+  tableId      String?
+  table        Table?   @relation(fields: [tableId], references: [id])
+  businessId   String
+  business     Business @relation(fields: [businessId], references: [id])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }
