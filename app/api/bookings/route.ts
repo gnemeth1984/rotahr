@@ -3,7 +3,8 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth/options";
 import { prisma } from "@/lib/db";
 import { createBookingSchema } from "@/lib/validators/booking";
-import { Role } from "@prisma/client";
+import { UserRole as Role } from "@/types/roles";
+
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
