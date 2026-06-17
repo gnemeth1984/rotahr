@@ -36,7 +36,7 @@ export async function PATCH(
   const request = await prisma.timeOffRequest.findUnique({
     where: { id },
     include: {
-      user: { select: { email: true, name: true } },
+      employee: { select: { email: true, firstName: true, lastName: true } },
     },
   });
 
@@ -51,19 +51,24 @@ export async function PATCH(
       managedById: session.user.id,
     },
     include: {
-      user: { select: { id: true, name: true, email: true } },
+      employee: { select: { id: true, firstName: true, lastName: true, email: true } },
     },
   });
 
   // Send notification email
+  const employeeEmail = updated.employee?.email;
+  const employeeName = updated.employee
+    ? `${updated.employee.firstName} ${updated.employee.lastName}`
+    : "Team Member";
+
   if (
-    updated.user.email &&
+    employeeEmail &&
     (result.data.status === "APPROVED" || result.data.status === "REJECTED")
   ) {
     try {
       await sendTimeOffStatusEmail({
-        to: updated.user.email,
-        name: updated.user.name ?? "Team Member",
+        to: employeeEmail,
+        name: employeeName,
         status: result.data.status,
         startDate: updated.startDate,
         endDate: updated.endDate,
@@ -86,7 +91,10 @@ export async function DELETE(
   }
 
   const { id } = await params;
-  const request = await prisma.timeOffRequest.findUnique({ where: { id } });
+  const request = await prisma.timeOffRequest.findUnique({
+    where: { id },
+    include: { employee: { select: { userId: true } } },
+  });
 
   if (!request) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -94,7 +102,9 @@ export async function DELETE(
 
   const isManager =
     session.user.role === Role.MANAGER || session.user.role === Role.ADMIN;
-  if (!isManager && request.userId !== session.user.id) {
+  const isOwner = request.employee?.userId === session.user.id;
+
+  if (!isManager && !isOwner) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

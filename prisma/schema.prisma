@@ -100,15 +100,16 @@ model Shift {
 }
 
 model TimeOffRequest {
-  id         String   @id @default(cuid())
-  employeeId String
-  employee   Employee @relation(fields: [employeeId], references: [id])
-  startDate  DateTime
-  endDate    DateTime
-  status     String   @default("pending")
-  reason     String?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id          String   @id @default(cuid())
+  employeeId  String
+  employee    Employee @relation(fields: [employeeId], references: [id])
+  startDate   DateTime
+  endDate     DateTime
+  status      String   @default("pending")
+  reason      String?
+  managedById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 model Table {
@@ -164,6 +165,12 @@ model Reservation {
   duration     Int      @default(90)
   status       String   @default("confirmed")
   notes        String?
+  dietary      String?
+  occasion     String?
+  kitchenNotes String?
+  upsellNotes  String?
+  aiWarnings   String?
+  createdById  String?
   tableId      String?
   table        Table?   @relation(fields: [tableId], references: [id])
   businessId   String

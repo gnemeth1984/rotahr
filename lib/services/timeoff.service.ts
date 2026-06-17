@@ -16,7 +16,7 @@ export const timeOffService = {
     });
     if (!employee) throw new Error("Employee not found in this business");
 
-    return prisma.employeeTimeOff.create({
+    return prisma.timeOffRequest.create({
       data: {
         employeeId: data.employeeId,
         startDate: new Date(data.startDate),
@@ -29,7 +29,7 @@ export const timeOffService = {
   },
 
   async pending(businessId: string) {
-    return prisma.employeeTimeOff.findMany({
+    return prisma.timeOffRequest.findMany({
       where: {
         status: "PENDING",
         employee: { businessId },
@@ -49,13 +49,12 @@ export const timeOffService = {
   },
 
   async updateStatus(id: string, businessId: string, status: "APPROVED" | "REJECTED") {
-    // Verify belongs to business
-    const req = await prisma.employeeTimeOff.findFirst({
+    const req = await prisma.timeOffRequest.findFirst({
       where: { id, employee: { businessId } },
     });
     if (!req) throw new Error("Request not found");
 
-    return prisma.employeeTimeOff.update({
+    return prisma.timeOffRequest.update({
       where: { id },
       data: { status },
       include: { employee: { select: { id: true, firstName: true, lastName: true } } },

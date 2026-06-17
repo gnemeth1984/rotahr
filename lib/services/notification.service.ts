@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/db";
 
 export async function getEmployeeByEmail(email: string, businessId: string) {
   return prisma.employee.findFirst({

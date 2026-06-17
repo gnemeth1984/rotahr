@@ -15,27 +15,36 @@ export async function POST(req: NextRequest) {
 
   switch (event) {
     case "booking.create": {
-      const { userId, date, startTime, endTime, title } = data;
-      const booking = await prisma.booking.create({
-        data: { userId, date: new Date(date), startTime, endTime, title },
+      const { customerName, customerPhone, customerEmail, partySize, date, time, businessId, tableId } = data;
+      const reservation = await prisma.reservation.create({
+        data: {
+          customerName: customerName ?? "Webhook Guest",
+          customerPhone: customerPhone ?? null,
+          customerEmail: customerEmail ?? null,
+          partySize: partySize ?? 1,
+          date: new Date(date),
+          time: time ?? "19:00",
+          businessId,
+          tableId: tableId ?? null,
+        },
       });
-      return NextResponse.json({ success: true, booking });
+      return NextResponse.json({ success: true, reservation });
     }
 
     case "booking.cancel": {
-      const { bookingId } = data;
-      await prisma.booking.update({
-        where: { id: bookingId },
+      const { reservationId } = data;
+      await prisma.reservation.update({
+        where: { id: reservationId },
         data: { status: "CANCELLED" },
       });
       return NextResponse.json({ success: true });
     }
 
     case "timeoff.approve": {
-      const { requestId, managerId } = data;
+      const { requestId } = data;
       await prisma.timeOffRequest.update({
         where: { id: requestId },
-        data: { status: "APPROVED", managedById: managerId },
+        data: { status: "APPROVED" },
       });
       return NextResponse.json({ success: true });
     }

@@ -8,7 +8,7 @@ export const createReservationSchema = z.object({
   customerEmail: z.string().email().optional(),
   partySize: z.number().int().min(1).max(100),
   date: z.string().refine((v) => !isNaN(Date.parse(v)), "Invalid date"),
-  time: z.string().refine((v) => !isNaN(Date.parse(v)), "Invalid time"),
+  time: z.string().min(1, "Time is required"),
   notes: z.string().max(1000).optional(),
   dietary: z.string().max(500).optional(),
   occasion: z.string().max(100).optional(),
@@ -26,18 +26,18 @@ export const reservationService = {
   async create(
     data: z.infer<typeof createReservationSchema>,
     businessId: string,
-    createdById: string
+    createdById?: string
   ) {
     return prisma.reservation.create({
       data: {
         businessId,
-        createdById,
+        createdById: createdById ?? null,
         customerName: data.customerName,
         customerPhone: data.customerPhone,
         customerEmail: data.customerEmail,
         partySize: data.partySize,
         date: new Date(data.date),
-        time: new Date(data.time),
+        time: data.time,
         notes: data.notes,
         dietary: data.dietary,
         occasion: data.occasion,
@@ -48,7 +48,6 @@ export const reservationService = {
       },
       include: {
         table: true,
-        createdBy: { select: { id: true, name: true } },
       },
     });
   },
@@ -69,7 +68,6 @@ export const reservationService = {
       },
       include: {
         table: { select: { id: true, name: true, capacity: true } },
-        createdBy: { select: { id: true, name: true } },
       },
       orderBy: [{ date: "asc" }, { time: "asc" }],
     });
@@ -80,7 +78,6 @@ export const reservationService = {
       where: { id, businessId },
       include: {
         table: true,
-        createdBy: { select: { id: true, name: true } },
       },
     });
   },
@@ -101,7 +98,7 @@ export const reservationService = {
         ...(data.customerEmail !== undefined ? { customerEmail: data.customerEmail } : {}),
         ...(data.partySize !== undefined ? { partySize: data.partySize } : {}),
         ...(data.date !== undefined ? { date: new Date(data.date) } : {}),
-        ...(data.time !== undefined ? { time: new Date(data.time) } : {}),
+        ...(data.time !== undefined ? { time: data.time } : {}),
         ...(data.notes !== undefined ? { notes: data.notes } : {}),
         ...(data.dietary !== undefined ? { dietary: data.dietary } : {}),
         ...(data.occasion !== undefined ? { occasion: data.occasion } : {}),

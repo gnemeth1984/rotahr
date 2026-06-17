@@ -16,10 +16,23 @@ export async function GET(req: NextRequest) {
   const isManager =
     session.user.role === Role.MANAGER || session.user.role === Role.ADMIN;
 
+  // Find the employee record linked to this user (for non-managers)
+  let employeeId: string | undefined;
+  if (!isManager) {
+    const employee = await prisma.employee.findFirst({
+      where: { userId: session.user.id },
+      select: { id: true },
+    });
+    if (!employee) {
+      return NextResponse.json([]);
+    }
+    employeeId = employee.id;
+  }
+
   const requests = await prisma.timeOffRequest.findMany({
-    where: isManager ? {} : { userId: session.user.id },
+    where: isManager ? {} : { employeeId },
     include: {
-      user: { select: { id: true, name: true, email: true, image: true } },
+      employee: { select: { id: true, firstName: true, lastName: true, email: true } },
     },
     orderBy: { createdAt: "desc" },
   });
@@ -45,40 +58,58 @@ export async function POST(req: NextRequest) {
 
   const { startDate, endDate, reason } = result.data;
 
+  // Find the employee record for this user
+  const employee = await prisma.employee.findFirst({
+    where: { userId: session.user.id },
+    select: { id: true, firstName: true, lastName: true, email: true },
+  });
+
+  if (!employee) {
+    return NextResponse.json(
+      { error: "No employee record found for this account" },
+      { status: 400 }
+    );
+  }
+
   const request = await prisma.timeOffRequest.create({
     data: {
-      userId: session.user.id,
+      employeeId: employee.id,
       startDate: new Date(startDate),
       endDate: new Date(endDate),
       reason,
     },
     include: {
-      user: { select: { name: true, email: true } },
+      employee: { select: { firstName: true, lastName: true, email: true } },
     },
   });
 
   // Notify managers
   try {
+    const businessId = (session.user as any).businessId;
     const managers = await prisma.user.findMany({
-      where: { role: { in: [Role.MANAGER, Role.ADMIN] } },
+      where: {
+        role: { in: [Role.MANAGER, Role.ADMIN] },
+        ...(businessId ? { businessId } : {}),
+      },
       select: { email: true, name: true },
     });
+
+    const employeeName = `${employee.firstName} ${employee.lastName}`;
 
     for (const manager of managers) {
       if (manager.email) {
         await sendNewTimeOffRequestEmail({
           to: manager.email,
           managerName: manager.name ?? "Manager",
-          employeeName: request.user.name ?? "An employee",
+          employeeName,
           startDate: request.startDate,
           endDate: request.endDate,
           reason: reason,
-        });
+        }).catch((e) => console.error("Failed to send notification email:", e));
       }
     }
   } catch (e) {
-    // Email failure shouldn't block the request
-    console.error("Failed to send notification email:", e);
+    console.error("Failed to send notification emails:", e);
   }
 
   return NextResponse.json(request, { status: 201 });

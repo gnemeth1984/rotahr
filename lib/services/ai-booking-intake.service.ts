@@ -229,9 +229,9 @@ export async function processBookingIntake(
 
   const shiftsOnDay = await prisma.shift.findMany({
     where: {
-      businessId,
       date: { gte: dateStart, lt: dateEnd },
       published: true,
+      employee: { businessId },
     },
     include: {
       employee: { include: { department: { select: { name: true } } } },

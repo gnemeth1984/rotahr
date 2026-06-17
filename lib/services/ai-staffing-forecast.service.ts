@@ -47,11 +47,11 @@ export async function generateStaffingForecast(
 
   const totalCovers = reservations.reduce((sum, r) => sum + r.partySize, 0);
 
-  // Shifts for this day (use `date` field on Shift)
+  // Shifts for this day — Shift has no businessId, query via employee relation
   const shifts = await prisma.shift.findMany({
     where: {
-      businessId,
       date: { gte: startOfDay, lte: endOfDay },
+      employee: { businessId },
     },
   });
 

@@ -15,6 +15,7 @@ import {
   TableProperties,
   BookMarked,
   Sparkles,
+  LayoutDashboard,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -25,6 +26,12 @@ import { useState } from "react";
 import { BellButton } from "@/components/shared/BellButton";
 
 const navItems = [
+  {
+    href: "/dashboard",
+    label: "Dashboard",
+    icon: LayoutDashboard,
+    roles: [Role.EMPLOYEE, Role.MANAGER, Role.ADMIN],
+  },
   {
     href: "/shifts",
     label: "Shifts",
