@@ -1,37 +1,46 @@
-# Rotahr Build Progress
+# Rotahr Feature Build — 8 Features
 
-## Done
-- [x] Next.js setup
-- [x] Dependencies installed
-- [x] prisma/schema.prisma
-- [x] lib/db/index.ts
-- [x] lib/auth/options.ts + session.ts
-- [x] lib/validators/booking.ts + timeoff.ts
-- [x] lib/ai/assistant.ts
-- [x] lib/email/index.ts
-- [x] lib/utils.ts
-- [x] types/next-auth.d.ts
-- [x] middleware.ts
-- [x] API routes: auth, bookings, bookings/[id], timeoff, timeoff/[id], ai, employees, webhooks
-- [x] UI: button, card, badge, input, label, textarea, select, dialog, avatar, separator
-- [x] app/layout.tsx + globals.css
+## Schema additions needed
+- Message model (staff messaging)
+- ClockEvent model (clock in/out)
+- AvailabilityPreference model (staff availability)
+- RepeatTemplate model (repeating shifts)
+- Employee: hourlyRate field (payroll)
+- Business: onboardingComplete field (onboarding wizard)
+- Shift: isRepeat, templateId fields
 
-## Todo
-- [ ] components/shared/providers.tsx
-- [ ] components/shared/navbar.tsx
-- [ ] components/shared/sidebar.tsx
-- [ ] components/shared/ai-chat.tsx
-- [ ] app/page.tsx (landing)
-- [ ] app/auth/signin/page.tsx
-- [ ] app/auth/verify/page.tsx
-- [ ] app/auth/error/page.tsx
-- [ ] app/(app)/layout.tsx (dashboard shell)
-- [ ] app/dashboard/page.tsx
-- [ ] app/employees/page.tsx
-- [ ] app/shifts/page.tsx
-- [ ] app/timeoff/page.tsx
-- [ ] .env.example
-- [ ] README.md
-- [ ] tailwind.config.ts update
-- [ ] next.config.ts update
-- [ ] tsconfig.json paths
+## Build order (parallel where possible)
+
+### Batch 1 — Schema + DB
+- [ ] Update prisma/schema.prisma with all new models
+- [ ] npx prisma db push
+
+### Batch 2 — API routes (all parallel)
+- [ ] /api/messages/* (list, send, unread count)
+- [ ] /api/clock/* (clock-in, clock-out, status, history)
+- [ ] /api/payroll/summary route
+- [ ] /api/availability/* (get, set)
+- [ ] /api/shifts/repeat/* (create template, publish week)
+- [ ] /api/email/shift-reminder (Resend)
+- [ ] /api/onboarding/* (status, complete steps)
+
+### Batch 3 — Pages/UI (all parallel)
+- [ ] app/(app)/messages/page.tsx
+- [ ] app/(app)/clock/page.tsx
+- [ ] app/(app)/payroll/page.tsx
+- [ ] app/(app)/availability/page.tsx
+- [ ] app/(app)/onboarding/page.tsx (wizard)
+- [ ] Update rota page — repeating shifts UI
+- [ ] Update sidebar — new nav items
+
+### Batch 4 — PWA
+- [ ] public/manifest.json
+- [ ] app/layout.tsx — add manifest + theme-color meta
+- [ ] public/icons (192, 512)
+
+### Batch 5 — Email reminders
+- [ ] lib/email/shift-reminder.ts (Resend template)
+- [ ] app/api/email/shift-reminder/route.ts
+- [ ] Vercel cron job: vercel.json
+
+## Status: IN PROGRESS

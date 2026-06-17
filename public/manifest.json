@@ -1,0 +1,37 @@
+{
+  "name": "Rotahr",
+  "short_name": "Rotahr",
+  "description": "Rota and HR management for your team",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#3b82f6",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["business", "productivity"],
+  "shortcuts": [
+    {
+      "name": "Clock In/Out",
+      "url": "/clock",
+      "description": "Clock in or out for your shift"
+    },
+    {
+      "name": "My Schedule",
+      "url": "/shifts",
+      "description": "View your shifts"
+    }
+  ]
+}

@@ -8,31 +8,32 @@ datasource db {
 }
 
 model Business {
-  id          String       @id @default(cuid())
-  name        String
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  id                 String       @id @default(cuid())
+  name               String
+  onboardingComplete Boolean      @default(false)
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
 
-  users       User[]
-  departments Department[]
-  employees   Employee[]
-  tables      Table[]
+  users        User[]
+  departments  Department[]
+  employees    Employee[]
+  tables       Table[]
   reservations Reservation[]
-  expenses    Expense[]
+  expenses     Expense[]
 }
 
 model User {
-  id         String   @id @default(cuid())
-  email      String   @unique
+  id         String    @id @default(cuid())
+  email      String    @unique
   name       String?
   password   String?
-  role       String   @default("STAFF")
+  role       String    @default("STAFF")
   businessId String?
   business   Business? @relation(fields: [businessId], references: [id])
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
-  employees  Employee[]
+  employees Employee[]
 }
 
 model Department {
@@ -43,24 +44,25 @@ model Department {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  employees  Employee[]
+  employees Employee[]
 }
 
 model Employee {
-  id           String  @id @default(cuid())
+  id           String   @id @default(cuid())
   firstName    String
   lastName     String
-  email        String  @unique
+  email        String   @unique
   phone        String?
   ppsNumber    String?
-  role         String  @default("staff")
-  active       Boolean @default(true)
+  role         String   @default("staff")
+  hourlyRate   Float?
+  active       Boolean  @default(true)
   businessId   String
-  business     Business @relation(fields: [businessId], references: [id])
+  business     Business    @relation(fields: [businessId], references: [id])
   departmentId String?
   department   Department? @relation(fields: [departmentId], references: [id])
   userId       String?
-  user         User?   @relation(fields: [userId], references: [id])
+  user         User?       @relation(fields: [userId], references: [id])
 
   // Emergency contact
   emergencyName     String?
@@ -68,21 +70,26 @@ model Employee {
   emergencyRelation String?
 
   // Medical info
-  medicalConditions String?   // allergies, chronic conditions
-  medications       String?   // current medications
-  bloodType         String?   // A+, B-, O+, etc.
+  medicalConditions String?
+  medications       String?
+  bloodType         String?
   doctorName        String?
   doctorPhone       String?
-  medicalNotes      String?   // any other relevant info
+  medicalNotes      String?
 
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   shifts          Shift[]
   timeOffRequests TimeOffRequest[]
   expenses        Expense[]
   notifications   BookingNotification[]
   flags           BookingFlag[]
+  clockEvents     ClockEvent[]
+  sentMessages    Message[]              @relation("MessageSender")
+  receivedMessages Message[]             @relation("MessageRecipient")
+  availability    AvailabilityPreference[]
+  shiftTemplates  ShiftTemplate[]
 }
 
 model Shift {
@@ -126,75 +133,70 @@ model Table {
 }
 
 model Expense {
-  id            String    @id @default(cuid())
+  id            String   @id @default(cuid())
   businessId    String
-  business      Business  @relation(fields: [businessId], references: [id])
+  business      Business @relation(fields: [businessId], references: [id])
 
-  // Core fields
   amount        Float
-  vatAmount     Float     @default(0)
-  currency      String    @default("EUR")
+  vatAmount     Float    @default(0)
+  currency      String   @default("EUR")
   vendor        String?
-  category      String    // wages, supplier, utilities, equipment, food_beverage, general
+  category      String
   date          DateTime
   description   String?
-  paymentMethod String?   // cash, card, bank_transfer
-  status        String    @default("confirmed") // draft, confirmed
+  paymentMethod String?
+  status        String   @default("confirmed")
 
-  // Receipt image
   receiptUrl    String?
-  aiRawText     String?   // raw AI extraction output
+  aiRawText     String?
 
-  // Optional employee link (for staff cost expenses)
   employeeId    String?
   employee      Employee? @relation(fields: [employeeId], references: [id])
 
-  createdById   String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 model Reservation {
-  id           String   @id @default(cuid())
-  customerName String
+  id            String   @id @default(cuid())
+  customerName  String
   customerEmail String?
   customerPhone String?
-  partySize    Int
-  date         DateTime
-  time         String
-  duration     Int      @default(90)
-  status       String   @default("confirmed")
-  notes        String?
-  dietary      String?
-  occasion     String?
-  kitchenNotes String?
-  upsellNotes  String?
-  aiWarnings   String?
-  createdById  String?
-  tableId      String?
-  table        Table?   @relation(fields: [tableId], references: [id])
-  businessId   String
-  business     Business @relation(fields: [businessId], references: [id])
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  partySize     Int
+  date          DateTime
+  time          String
+  duration      Int      @default(90)
+  status        String   @default("confirmed")
+  notes         String?
+  dietary       String?
+  occasion      String?
+  kitchenNotes  String?
+  upsellNotes   String?
+  aiWarnings    String?
+  createdById   String?
+  tableId       String?
+  table         Table?   @relation(fields: [tableId], references: [id])
+  businessId    String
+  business      Business @relation(fields: [businessId], references: [id])
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   notifications BookingNotification[]
   flags         BookingFlag[]
 }
 
-// Notification sent to a specific employee about a booking
 model BookingNotification {
   id            String      @id @default(cuid())
   reservationId String
   reservation   Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
   employeeId    String
   employee      Employee    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  message       String?     // optional note from manager
+  message       String?
   read          Boolean     @default(false)
   createdAt     DateTime    @default(now())
 }
 
-// Employee flags a booking with a note for management
 model BookingFlag {
   id            String      @id @default(cuid())
   reservationId String
@@ -204,4 +206,66 @@ model BookingFlag {
   note          String
   resolved      Boolean     @default(false)
   createdAt     DateTime    @default(now())
+}
+
+// ── Staff Messaging ────────────────────────────────────────────────────────────
+model Message {
+  id          String   @id @default(cuid())
+  businessId  String
+  senderId    String
+  recipientId String
+  body        String
+  read        Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  sender    Employee @relation("MessageSender",    fields: [senderId],    references: [id], onDelete: Cascade)
+  recipient Employee @relation("MessageRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+}
+
+// ── Clock In / Out ─────────────────────────────────────────────────────────────
+model ClockEvent {
+  id         String   @id @default(cuid())
+  employeeId String
+  businessId String
+  type       String   // "in" | "out"
+  timestamp  DateTime @default(now())
+  note       String?
+  shiftId    String?
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+}
+
+// ── Staff Availability Preferences ────────────────────────────────────────────
+model AvailabilityPreference {
+  id         String   @id @default(cuid())
+  employeeId String
+  businessId String
+  dayOfWeek  Int      // 0=Sun 1=Mon … 6=Sat
+  available  Boolean  @default(true)
+  fromTime   String?  // "09:00"
+  toTime     String?  // "17:00"
+  note       String?
+  updatedAt  DateTime @updatedAt
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeId, dayOfWeek])
+}
+
+// ── Repeating Shift Templates ──────────────────────────────────────────────────
+model ShiftTemplate {
+  id          String   @id @default(cuid())
+  businessId  String
+  employeeId  String
+  dayOfWeek   Int      // 0=Sun … 6=Sat
+  startHour   Int
+  startMinute Int      @default(0)
+  endHour     Int
+  endMinute   Int      @default(0)
+  role        String?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 }

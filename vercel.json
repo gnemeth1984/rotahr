@@ -1,4 +1,8 @@
 {
-  "buildCommand": "prisma db push && next build",
-  "framework": "nextjs"
+  "crons": [
+    {
+      "path": "/api/email/shift-reminder",
+      "schedule": "0 8 * * *"
+    }
+  ]
 }

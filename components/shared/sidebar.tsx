@@ -16,6 +16,9 @@ import {
   BookMarked,
   Sparkles,
   LayoutDashboard,
+  MessageSquare,
+  DollarSign,
+  CalendarCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -57,9 +60,33 @@ const navItems = [
     roles: [Role.EMPLOYEE, Role.MANAGER, Role.ADMIN],
   },
   {
+    href: "/messages",
+    label: "Messages",
+    icon: MessageSquare,
+    roles: [Role.EMPLOYEE, Role.MANAGER, Role.ADMIN],
+  },
+  {
+    href: "/clock",
+    label: "Clock",
+    icon: Clock,
+    roles: [Role.EMPLOYEE, Role.MANAGER, Role.ADMIN],
+  },
+  {
+    href: "/availability",
+    label: "Availability",
+    icon: CalendarCheck,
+    roles: [Role.EMPLOYEE, Role.MANAGER, Role.ADMIN],
+  },
+  {
     href: "/bookkeeping",
     label: "Bookkeeping",
     icon: BookMarked,
+    roles: [Role.MANAGER, Role.ADMIN],
+  },
+  {
+    href: "/payroll",
+    label: "Payroll",
+    icon: DollarSign,
     roles: [Role.MANAGER, Role.ADMIN],
   },
   {
