@@ -165,16 +165,16 @@ export default function TimeOffPage() {
                     <div className="flex items-start gap-4">
                       {isManager && (
                         <Avatar className="h-9 w-9 flex-shrink-0 mt-0.5">
-                          <AvatarImage src={req.employee?.email ?? ""} />
+                          <AvatarImage src={req.user?.email ?? ""} />
                           <AvatarFallback className="bg-orange-200 text-orange-800 text-xs">
-                            {getInitials(`${req.employee?.firstName ?? ""} ${req.employee?.lastName ?? ""}`)}
+                            {getInitials(`${req.user?.name ?? ""}`)}
                           </AvatarFallback>
                         </Avatar>
                       )}
                       <div className="flex-1 min-w-0">
                         {isManager && (
                           <p className="font-semibold text-slate-900">
-                            {`${req.employee?.firstName ?? ""} ${req.employee?.lastName ?? ""}`.trim() || req.employee?.email}
+                            {`${req.user?.name ?? ""}`.trim() || req.user?.email}
                           </p>
                         )}
                         <p className="text-sm text-slate-700">
@@ -247,16 +247,16 @@ export default function TimeOffPage() {
                     <div className="flex items-center gap-4">
                       {isManager && (
                         <Avatar className="h-9 w-9 flex-shrink-0">
-                          <AvatarImage src={req.employee?.email ?? ""} />
+                          <AvatarImage src={req.user?.email ?? ""} />
                           <AvatarFallback className="bg-slate-100 text-slate-600 text-xs">
-                            {getInitials(`${req.employee?.firstName ?? ""} ${req.employee?.lastName ?? ""}`)}
+                            {getInitials(`${req.user?.name ?? ""}`)}
                           </AvatarFallback>
                         </Avatar>
                       )}
                       <div className="flex-1 min-w-0">
                         {isManager && (
                           <p className="font-medium text-slate-900">
-                            {`${req.employee?.firstName ?? ""} ${req.employee?.lastName ?? ""}`.trim() || req.employee?.email}
+                            {`${req.user?.name ?? ""}`.trim() || req.user?.email}
                           </p>
                         )}
                         <p className="text-sm text-slate-600">
