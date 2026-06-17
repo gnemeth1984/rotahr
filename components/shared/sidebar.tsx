@@ -14,6 +14,7 @@ import {
   BookOpen,
   TableProperties,
   BookMarked,
+  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -58,6 +59,12 @@ const navItems = [
     href: "/employees",
     label: "Employees",
     icon: Users,
+    roles: [Role.MANAGER, Role.ADMIN],
+  },
+  {
+    href: "/ai",
+    label: "AI Tools",
+    icon: Sparkles,
     roles: [Role.MANAGER, Role.ADMIN],
   },
 ];

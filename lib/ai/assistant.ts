@@ -34,7 +34,6 @@ function formatDate(date: Date): string {
  * Returns { startTime, endTime } as "HH:MM" strings or null.
  */
 function parseTimeRange(msg: string): { startTime: string; endTime: string } | null {
-  // Normalise
   const s = msg
     .replace(/\bfrom\b/gi, "")
     .replace(/\buntil\b/gi, "-")
@@ -42,8 +41,6 @@ function parseTimeRange(msg: string): { startTime: string; endTime: string } | n
     .replace(/\btill\b/gi, "-")
     .trim();
 
-  // Match patterns like:
-  //   11-19:30 | 11:00-19:30 | 8:30-12:30 | 11am-7:30pm | 16-20:30
   const rangeRe =
     /(\d{1,2}(?::\d{2})?\s*(?:am|pm)?)\s*[-–]\s*(\d{1,2}(?::\d{2})?\s*(?:am|pm)?)/i;
   const match = s.match(rangeRe);
@@ -51,12 +48,10 @@ function parseTimeRange(msg: string): { startTime: string; endTime: string } | n
 
   const parseOnePart = (part: string): string | null => {
     part = part.trim();
-    const ampm = /am|pm/i.test(part);
-    const ref = new Date(2000, 0, 1); // fixed reference date
+    const ref = new Date(2000, 0, 1);
     const parsed = chrono.parseDate(part, ref);
     if (parsed) return formatTime(parsed);
 
-    // Plain "16" or "8" — treat as 24h
     const plain = part.match(/^(\d{1,2})(?::(\d{2}))?$/);
     if (plain) {
       const h = parseInt(plain[1]);
@@ -74,10 +69,6 @@ function parseTimeRange(msg: string): { startTime: string; endTime: string } | n
   return { startTime, endTime };
 }
 
-/**
- * Parse multiple shift entries from a single message.
- * e.g. "book me tomorrow 11-19:30, wednesday same, friday 8:30-12:30"
- */
 interface ShiftEntry {
   date: Date;
   startTime: string;
@@ -87,7 +78,6 @@ interface ShiftEntry {
 function parseMultipleShifts(message: string, now: Date): ShiftEntry[] {
   const results: ShiftEntry[] = [];
 
-  // Split on commas, "and", or "for X" patterns
   const segments = message
     .split(/,|\band\b/i)
     .map((s) => s.trim())
@@ -96,12 +86,9 @@ function parseMultipleShifts(message: string, now: Date): ShiftEntry[] {
   let lastTimeRange: { startTime: string; endTime: string } | null = null;
 
   for (const seg of segments) {
-    // Try to find dates in this segment
     const parsed = chrono.parse(seg, now, { forwardDate: true });
-
-    // Try to find time range in this segment
     const segTimeRange = parseTimeRange(seg);
-    const timeRange: { startTime: string; endTime: string } | null = segTimeRange ?? lastTimeRange;
+    const timeRange = segTimeRange ?? lastTimeRange;
     if (timeRange) lastTimeRange = timeRange;
 
     if (parsed.length > 0 && timeRange) {
@@ -113,7 +100,6 @@ function parseMultipleShifts(message: string, now: Date): ShiftEntry[] {
         });
       }
     } else if (parsed.length > 0 && lastTimeRange) {
-      // "same" / no time mentioned — inherit last time
       for (const p of parsed) {
         results.push({
           date: p.start.date(),
@@ -155,35 +141,50 @@ export async function generateBookingResponse(
 
   // ── Greeting ──
   if (isGreeting) {
-    return `Hello ${context.userName}! I'm your Rotahr assistant. I can:\n\n• **Book shifts** — e.g. "Book me tomorrow 11-19:30"\n• **Check your schedule** — "Show my upcoming shifts"\n• **Time off** — "How do I request time off?"\n\nWhat do you need?`;
+    return `Hello ${context.userName}! I'm your Rotahr assistant. I can:\n\n• **Check your schedule** — "Show my upcoming shifts"\n• **Time off** — "How do I request time off?"\n• **Bookings help** — guide you to the right page\n\nWhat do you need?`;
   }
 
   // ── Help ──
   if (isHelp) {
-    return `Here's what I can do:\n\n• **Book a single shift** — "Book me June 20 from 9am to 5pm"\n• **Book multiple shifts** — "Book me tomorrow 11-19:30, Wednesday same, Friday 8:30-12:30"\n• **Check your shifts** — "Show my upcoming shifts"\n• **Time off info** — "How do I request time off?"\n\nJust talk naturally — I'll figure out the dates and times.`;
+    return `Here's what I can do:\n\n• **Check your shifts** — "Show my upcoming shifts"\n• **Time off info** — "How do I request time off?"\n• **Bookings** — managers can use the AI Assist button on the Bookings page\n• **Staffing** — managers can view the AI Staffing page\n\nJust talk naturally — I'll point you in the right direction.`;
   }
 
   // ── Schedule query ──
   if (isScheduleQuery) {
-    const bookings = await prisma.booking.findMany({
+    // Find the employee linked to this user
+    const employee = await prisma.employee.findFirst({
+      where: { userId: context.userId },
+      select: { id: true },
+    });
+
+    if (!employee) {
+      return "I couldn't find an employee record linked to your account. Please contact your manager.";
+    }
+
+    const shifts = await prisma.shift.findMany({
       where: {
-        userId: context.userId,
+        employeeId: employee.id,
         date: { gte: now },
-        status: "CONFIRMED",
+        published: true,
       },
       orderBy: { date: "asc" },
       take: 10,
     });
 
-    if (bookings.length === 0) {
-      return "You have no upcoming shifts scheduled. Would you like to book one?";
+    if (shifts.length === 0) {
+      return "You have no upcoming published shifts scheduled. Check back after your manager publishes the schedule.";
     }
 
-    const list = bookings
-      .map((b) => `• **${formatDate(new Date(b.date))}** — ${b.startTime} to ${b.endTime}`)
+    const list = shifts
+      .map((s) => {
+        const d = new Date(s.date);
+        const start = new Date(s.startTime);
+        const end = new Date(s.endTime);
+        return `• **${formatDate(d)}** — ${formatTime(start)} to ${formatTime(end)}${s.role ? ` (${s.role})` : ""}`;
+      })
       .join("\n");
 
-    return `Here are your upcoming shifts:\n\n${list}\n\nWant to book more or make changes?`;
+    return `Here are your upcoming shifts:\n\n${list}\n\nAnything else you need?`;
   }
 
   // ── Time off ──
@@ -191,84 +192,26 @@ export async function generateBookingResponse(
     return `To request time off:\n\n1. Go to **Time Off** in the sidebar\n2. Click **New Request**\n3. Pick your dates and add a reason\n4. Submit — your manager will be notified\n\nYou'll get an email once it's approved or declined.`;
   }
 
-  // ── Booking ──
+  // ── Booking (shift booking request) ──
   if (isBooking) {
     const shifts = parseMultipleShifts(message, now);
 
     if (shifts.length === 0) {
-      // Try to extract just a time range without dates
       const timeRange = parseTimeRange(message);
       if (!timeRange) {
-        return `I can book that shift! Just tell me:\n\n• **What date(s)?** (e.g. "tomorrow", "Monday", "June 20")\n• **What time?** (e.g. "11-19:30" or "9am to 5pm")`;
+        return `Shift booking is handled by your manager. You can:\n\n• **View your schedule** — "Show my upcoming shifts"\n• **Request time off** — go to the Time Off section\n• **Contact your manager** to request specific shifts`;
       }
-      return `Got the time **${timeRange.startTime}–${timeRange.endTime}**. Which date(s) should I book?`;
+      return `Got the time **${timeRange.startTime}–${timeRange.endTime}**. Shift requests go through your manager — head to the **Rota** page to see your schedule.`;
     }
 
-    // Create all bookings
-    const created: ShiftEntry[] = [];
-    const failed: ShiftEntry[] = [];
-
-    for (const shift of shifts) {
-      try {
-        await prisma.booking.create({
-          data: {
-            userId: context.userId,
-            date: shift.date,
-            startTime: shift.startTime,
-            endTime: shift.endTime,
-            title: "Shift (AI Booked)",
-            notes: `Booked via AI assistant: "${message}"`,
-          },
-        });
-        created.push(shift);
-      } catch {
-        failed.push(shift);
-      }
-    }
-
-    // Notify managers
-    if (created.length > 0 && process.env.RESEND_API_KEY) {
-      try {
-        const managers = await prisma.user.findMany({
-          where: { role: { in: ["MANAGER", "ADMIN"] } },
-          select: { email: true },
-        });
-        const emails = managers.map((m) => m.email).filter(Boolean) as string[];
-        if (emails.length > 0) {
-          const shiftRows = created
-            .map(
-              (s) =>
-                `<li>${formatDate(s.date)}: ${s.startTime}–${s.endTime}</li>`
-            )
-            .join("");
-          await getResend().emails.send({
-            from: process.env.EMAIL_FROM ?? "noreply@rotahr.app",
-            to: emails,
-            subject: `New Shift(s) Booked — ${context.userName}`,
-            html: `<h2>New Shift Booking</h2><p><strong>${context.userName}</strong> booked via AI assistant:</p><ul>${shiftRows}</ul>`,
-          });
-        }
-      } catch {
-        // Email failure is non-critical
-      }
-    }
-
-    if (created.length === 0) {
-      return `❌ I couldn't create any of those bookings. Please try the **Bookings** section directly.`;
-    }
-
-    const list = created
+    // Shifts are manager-controlled — guide employee to the right process
+    const list = shifts
       .map((s) => `• **${formatDate(s.date)}** — ${s.startTime}–${s.endTime}`)
       .join("\n");
 
-    const failNote =
-      failed.length > 0
-        ? `\n\n⚠️ ${failed.length} shift(s) couldn't be created — please add them manually.`
-        : "";
-
-    return `✅ **${created.length} shift${created.length > 1 ? "s" : ""} booked!**\n\n${list}${failNote}\n\nYour manager has been notified. Anything else?`;
+    return `I can see you want shifts on:\n\n${list}\n\nShift scheduling is managed by your manager. If you have a preference, let them know directly or check the **Rota** page. Is there anything else I can help with?`;
   }
 
   // ── Fallback ──
-  return `I can help with shifts and scheduling. Try:\n\n• **"Book me tomorrow 11-19:30"**\n• **"Show my upcoming shifts"**\n• **"Book me Mon 9-5, Tue 9-5, Wed 10-6"**\n\nWhat do you need?`;
+  return `I can help with shifts and scheduling. Try:\n\n• **"Show my upcoming shifts"**\n• **"How do I request time off?"**\n\nWhat do you need?`;
 }

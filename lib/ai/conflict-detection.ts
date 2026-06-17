@@ -104,7 +104,7 @@ export async function detectConflicts(params: {
   // Fetch shifts for this hour
   const shifts = await prisma.shift.findMany({
     where: {
-      businessId,
+      employee: { businessId },
       date: { gte: startOfDay, lte: endOfDay },
     },
     include: {
@@ -116,8 +116,8 @@ export async function detectConflicts(params: {
   let floorCount = 0;
 
   for (const shift of shifts) {
-    const start = parseInt(shift.startTime.split(":")[0], 10);
-    let end = parseInt(shift.endTime.split(":")[0], 10);
+    const start = new Date(shift.startTime).getHours();
+    let end = new Date(shift.endTime).getHours();
     if (end <= start) end = start + 8;
     if (proposedHour >= start && proposedHour < end) {
       const deptName = (shift as any).employee?.department?.name ?? "";

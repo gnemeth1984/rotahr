@@ -53,7 +53,7 @@ export async function generateStaffingForecast(
   // Fetch shifts for the day
   const shifts = await prisma.shift.findMany({
     where: {
-      businessId,
+      employee: { businessId },
       date: {
         gte: startOfDay,
         lte: endOfDay,
@@ -75,13 +75,15 @@ export async function generateStaffingForecast(
   }
 
   // Build hourly staff counts from shifts
-  // Shift startTime/endTime are "HH:MM" strings
+  // Shift startTime/endTime are DateTime fields — use .getHours()
   function parseShiftHours(shift: {
-    startTime: string;
-    endTime: string;
+    startTime: Date | string;
+    endTime: Date | string;
   }): number[] {
-    const start = parseInt(shift.startTime.split(":")[0], 10);
-    let end = parseInt(shift.endTime.split(":")[0], 10);
+    const startDate = new Date(shift.startTime);
+    const endDate = new Date(shift.endTime);
+    const start = startDate.getHours();
+    let end = endDate.getHours();
     if (end <= start) end = start + 8; // overnight fallback
     const hours: number[] = [];
     for (let h = start; h < end; h++) {
@@ -106,10 +108,7 @@ export async function generateStaffingForecast(
 
   for (const shift of shifts) {
     const deptName = shift.employee?.department?.name ?? "";
-    const hours = parseShiftHours({
-      startTime: shift.startTime,
-      endTime: shift.endTime,
-    });
+    const hours = parseShiftHours(shift);
     for (const h of hours) {
       if (!hourlyStaff[h]) hourlyStaff[h] = { kitchen: 0, floor: 0, bar: 0 };
       if (isKitchen(deptName)) hourlyStaff[h].kitchen++;

@@ -30,6 +30,8 @@ import {
   CheckCircle2,
   ChevronDown,
   ChevronUp,
+  Sparkles,
+  AlertTriangle,
 } from "lucide-react";
 import { UserRole as Role } from "@/types/roles";
 import { cn } from "@/lib/utils";
@@ -94,6 +96,13 @@ export default function BookingsPage() {
   const [flagBooking, setFlagBooking] = useState<Booking | null>(null);
   const [flagNote, setFlagNote] = useState("");
   const [flagging, setFlagging] = useState(false);
+
+  // AI Assist dialog (manager only)
+  const [aiAssistOpen, setAiAssistOpen] = useState(false);
+  const [aiMessage, setAiMessage] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiResult, setAiResult] = useState<any>(null);
+  const [aiError, setAiError] = useState<string | null>(null);
 
   // Flags view (manager only, expandable per booking)
   const [expandedFlags, setExpandedFlags] = useState<Record<string, BookingFlag[]>>({});
@@ -278,6 +287,30 @@ export default function BookingsPage() {
     }));
   };
 
+  const handleAiAssist = async (autoCreate: boolean) => {
+    if (!aiMessage.trim()) return;
+    setAiLoading(true);
+    setAiError(null);
+    setAiResult(null);
+    try {
+      const res = await fetch("/api/ai/booking-intake", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: aiMessage, autoCreate }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "AI intake failed");
+      setAiResult(data);
+      if (data.autoCreated) {
+        fetchBookings();
+      }
+    } catch (e: any) {
+      setAiError(e.message);
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
   const statusVariant = (s: string) => {
     if (s === "confirmed") return "default";
     if (s === "cancelled") return "destructive";
@@ -291,10 +324,22 @@ export default function BookingsPage() {
           <h1 className="text-2xl font-bold text-slate-900">Bookings</h1>
           <p className="text-slate-500 mt-1">Manage table reservations</p>
         </div>
-        <Button onClick={openNew} className="gap-2">
-          <Plus className="h-4 w-4" />
-          New Booking
-        </Button>
+        <div className="flex gap-2">
+          {isManager && (
+            <Button
+              variant="outline"
+              onClick={() => { setAiAssistOpen(true); setAiResult(null); setAiError(null); setAiMessage(""); }}
+              className="gap-2 border-violet-300 text-violet-700 hover:bg-violet-50"
+            >
+              <Sparkles className="h-4 w-4" />
+              AI Assist
+            </Button>
+          )}
+          <Button onClick={openNew} className="gap-2">
+            <Plus className="h-4 w-4" />
+            New Booking
+          </Button>
+        </div>
       </div>
 
       {/* Date filter */}
@@ -731,6 +776,107 @@ export default function BookingsPage() {
               {flagging && <Loader2 className="h-4 w-4 animate-spin" />}
               Submit Flag
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── AI Assist Dialog ───────────────────────────────────────────────── */}
+      <Dialog open={aiAssistOpen} onOpenChange={(o) => !o && setAiAssistOpen(false)}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-violet-600" />
+              AI Booking Assist
+            </DialogTitle>
+            <DialogDescription>
+              Paste or type a booking request — AI will parse and pre-fill all details.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            <Textarea
+              value={aiMessage}
+              onChange={(e) => setAiMessage(e.target.value)}
+              placeholder={`e.g. "Table for 6 on Friday 20th at 7:30pm, birthday, one vegan, name Walsh"`}
+              className="min-h-[80px] resize-none text-sm"
+            />
+
+            {aiError && (
+              <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                {aiError}
+              </div>
+            )}
+
+            {aiResult && (
+              <div className="space-y-2 text-sm">
+                {aiResult.autoCreated ? (
+                  <div className="rounded-lg border border-green-200 bg-green-50 p-3 flex items-center gap-2 text-green-800">
+                    <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
+                    Booking created for <strong>{aiResult.intake?.parsed?.customerName ?? "guest"}</strong>
+                  </div>
+                ) : (
+                  <div className="rounded-lg bg-slate-50 border border-slate-200 p-3 grid grid-cols-2 gap-x-4 gap-y-1.5">
+                    {[
+                      ["Customer", aiResult.intake?.parsed?.customerName],
+                      ["Party size", aiResult.intake?.parsed?.partySize],
+                      ["Date", aiResult.intake?.parsed?.date],
+                      ["Time", aiResult.intake?.parsed?.time ? new Date(aiResult.intake.parsed.time).toLocaleTimeString("en-IE", { hour: "2-digit", minute: "2-digit", hour12: false }) : null],
+                      ["Occasion", aiResult.intake?.parsed?.occasion],
+                      ["Dietary", aiResult.intake?.parsed?.dietary],
+                    ].map(([label, val]) => (
+                      <div key={label as string}>
+                        <span className="text-xs text-slate-500">{label}</span>
+                        <p className={val ? "font-medium text-slate-900" : "text-slate-400 italic text-xs"}>
+                          {val ?? "Not detected"}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {aiResult.intake?.tableAssignment && (
+                  <div className={`rounded-lg border p-2 text-xs ${aiResult.intake.tableAssignment.assigned ? "border-green-200 bg-green-50 text-green-800" : "border-amber-200 bg-amber-50 text-amber-800"}`}>
+                    Table: {aiResult.intake.tableAssignment.reason}
+                  </div>
+                )}
+                {aiResult.intake?.warnings?.length > 0 && (
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-2 space-y-1">
+                    {aiResult.intake.warnings.map((w: string, i: number) => (
+                      <div key={i} className="flex items-center gap-1.5 text-xs text-amber-700">
+                        <AlertTriangle className="h-3 w-3 flex-shrink-0" />
+                        {w}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAiAssistOpen(false)}>
+              Close
+            </Button>
+            {!aiResult?.autoCreated && (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => handleAiAssist(false)}
+                  disabled={aiLoading || !aiMessage.trim()}
+                  className="gap-2"
+                >
+                  {aiLoading && !aiResult ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                  Parse Only
+                </Button>
+                <Button
+                  onClick={() => handleAiAssist(true)}
+                  disabled={aiLoading || !aiMessage.trim()}
+                  className="gap-2 bg-violet-600 hover:bg-violet-700 text-white"
+                >
+                  {aiLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                  Create Booking
+                </Button>
+              </>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

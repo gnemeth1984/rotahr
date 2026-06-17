@@ -28,7 +28,7 @@ export async function suggestReplacements(
   warnings: string[];
 }> {
   // 1. Load the time-off request
-  const request = await prisma.employeeTimeOff.findFirst({
+  const request = await prisma.timeOffRequest.findFirst({
     where: { id: timeOffRequestId, employee: { businessId } },
     include: {
       employee: {

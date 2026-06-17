@@ -18,8 +18,9 @@ import {
 } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatDate, getInitials } from "@/lib/utils";
-import { Clock, Plus, CheckCircle, XCircle, Loader2 } from "lucide-react";
+import { Clock, Plus, CheckCircle, XCircle, Loader2, Sparkles, AlertTriangle, UserCheck } from "lucide-react";
 import { UserRole as Role } from "@/types/roles";
+import { cn } from "@/lib/utils";
 
 interface TimeOffRequest {
   id: string;
@@ -44,6 +45,13 @@ export default function TimeOffPage() {
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ startDate: "", endDate: "", reason: "" });
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  // Suggest Cover
+  const [suggestOpen, setSuggestOpen] = useState(false);
+  const [suggestRequestId, setSuggestRequestId] = useState<string | null>(null);
+  const [suggestLoading, setSuggestLoading] = useState(false);
+  const [suggestResult, setSuggestResult] = useState<any>(null);
+  const [suggestError, setSuggestError] = useState<string | null>(null);
 
   const isManager =
     session?.user?.role === Role.MANAGER ||
@@ -91,6 +99,28 @@ export default function TimeOffPage() {
       fetchRequests();
     } finally {
       setActionLoading(null);
+    }
+  };
+
+  const openSuggestCover = async (id: string) => {
+    setSuggestRequestId(id);
+    setSuggestResult(null);
+    setSuggestError(null);
+    setSuggestOpen(true);
+    setSuggestLoading(true);
+    try {
+      const res = await fetch("/api/ai/suggest-replacement", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ timeOffRequestId: id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to get suggestions");
+      setSuggestResult(data.result);
+    } catch (e: any) {
+      setSuggestError(e.message);
+    } finally {
+      setSuggestLoading(false);
     }
   };
 
@@ -185,6 +215,15 @@ export default function TimeOffPage() {
                                 <XCircle className="h-3 w-3" />
                               )}
                               Reject
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="border-violet-300 text-violet-700 hover:bg-violet-50 gap-1"
+                              onClick={() => openSuggestCover(req.id)}
+                            >
+                              <Sparkles className="h-3 w-3" />
+                              Suggest Cover
                             </Button>
                           </>
                         )}
@@ -311,6 +350,96 @@ export default function TimeOffPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Suggest Cover Dialog */}
+      <Dialog open={suggestOpen} onOpenChange={(o) => !o && setSuggestOpen(false)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-violet-600" />
+              Suggest Cover
+            </DialogTitle>
+            <DialogDescription>
+              AI-ranked replacement candidates from the same department
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            {suggestLoading && (
+              <div className="flex items-center justify-center py-8 gap-2 text-slate-500">
+                <Loader2 className="h-5 w-5 animate-spin" />
+                Finding candidates...
+              </div>
+            )}
+
+            {suggestError && (
+              <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                {suggestError}
+              </div>
+            )}
+
+            {suggestResult && !suggestLoading && (
+              <div className="space-y-3">
+                <p className="text-sm text-slate-600">
+                  Covering for <strong>{suggestResult.absentEmployee?.firstName} {suggestResult.absentEmployee?.lastName}</strong>
+                  {suggestResult.department ? ` · ${suggestResult.department}` : ""}
+                </p>
+
+                {suggestResult.warnings?.map((w: string, i: number) => (
+                  <div key={i} className="flex items-center gap-1.5 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2">
+                    <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0" />
+                    {w}
+                  </div>
+                ))}
+
+                {suggestResult.candidates?.length === 0 ? (
+                  <p className="text-sm text-slate-500 italic">No suitable candidates found.</p>
+                ) : (
+                  suggestResult.candidates?.map((c: any, i: number) => (
+                    <div key={c.id} className={cn(
+                      "rounded-lg border p-3 text-sm",
+                      i === 0 ? "border-green-200 bg-green-50" : "border-slate-200 bg-white"
+                    )}>
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center gap-2">
+                          {i === 0 && <UserCheck className="h-4 w-4 text-green-600" />}
+                          <span className="font-semibold text-slate-900">
+                            {i + 1}. {c.firstName} {c.lastName}
+                          </span>
+                          <span className="text-xs text-slate-500">{c.role}</span>
+                        </div>
+                        <span className="text-xs font-medium text-slate-500">Score: {c.score}</span>
+                      </div>
+                      <p className="text-xs text-slate-500">{c.email}</p>
+                      {c.reasons?.length > 0 && (
+                        <div className="mt-1.5 flex flex-wrap gap-1">
+                          {c.reasons.map((r: string, ri: number) => (
+                            <span key={ri} className="text-[10px] bg-green-100 text-green-700 rounded px-1.5 py-0.5">{r}</span>
+                          ))}
+                        </div>
+                      )}
+                      {c.warnings?.length > 0 && (
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {c.warnings.map((w: string, wi: number) => (
+                            <span key={wi} className="text-[10px] bg-amber-100 text-amber-700 rounded px-1.5 py-0.5">{w}</span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSuggestOpen(false)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
+
