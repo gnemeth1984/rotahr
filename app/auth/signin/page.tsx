@@ -11,7 +11,7 @@ import Link from "next/link";
 
 function SignInForm() {
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl") ?? "/dashboard";
+  const callbackUrl = searchParams.get("callbackUrl") ?? "/rota";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

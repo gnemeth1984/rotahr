@@ -11,7 +11,7 @@ export default function Login() {
     await signIn("credentials", {
       email,
       password,
-      callbackUrl: "/dashboard"
+      callbackUrl: "/rota"
     })
   }
 
