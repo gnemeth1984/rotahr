@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { usePathname } from "next/navigation";
 import { MessageCircle, X, Send, Bot, User, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,7 +22,11 @@ function formatMessage(text: string) {
 }
 
 export function AIChat() {
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
+
+  // Hide on messages page — it overlaps the send bar
+  if (pathname === "/messages") return null;
   const [messages, setMessages] = useState<Message[]>([
     {
       role: "assistant",
