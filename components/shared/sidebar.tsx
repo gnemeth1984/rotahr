@@ -113,7 +113,7 @@ export function Sidebar() {
     item.roles.includes(userRole)
   );
 
-  const SidebarContent = () => (
+  const sidebarInner = (
     <div className="flex h-full flex-col">
       {/* Logo */}
       <div className="flex items-center justify-between px-6 py-5 border-b border-slate-700">
@@ -204,12 +204,12 @@ export function Sidebar() {
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
-        <SidebarContent />
+        {sidebarInner}
       </aside>
 
       {/* Desktop sidebar */}
       <aside className="hidden lg:flex lg:flex-col lg:fixed lg:inset-y-0 lg:left-0 lg:w-64 bg-slate-900">
-        <SidebarContent />
+        {sidebarInner}
       </aside>
     </>
   );
