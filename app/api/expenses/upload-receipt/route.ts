@@ -17,9 +17,9 @@ export async function POST(req: NextRequest) {
     const file = formData.get("file") as File;
     if (!file) return NextResponse.json({ error: "No file provided" }, { status: 400 });
 
-    // Upload to Vercel Blob
+    // Upload to Vercel Blob (private store)
     const blob = await put(`receipts/${Date.now()}-${file.name}`, file, {
-      access: "public",
+      access: "private",
     });
 
     // AI extraction via OpenAI GPT-4o vision

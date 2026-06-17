@@ -147,6 +147,21 @@ export default function BookkeepingPage() {
   const [aiLoading, setAiLoading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState("");
 
+  // Open a private blob receipt via signed URL
+  const openReceipt = useCallback(async (e: React.MouseEvent, blobUrl: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    try {
+      const res = await fetch(`/api/expenses/receipt-url?url=${encodeURIComponent(blobUrl)}`);
+      const data = await res.json();
+      if (data.url) window.open(data.url, "_blank", "noreferrer");
+      else throw new Error(data.error);
+    } catch {
+      // Fallback: try direct URL
+      window.open(blobUrl, "_blank", "noreferrer");
+    }
+  }, []);
+
   const from = startOfMonth(currentMonth).toISOString();
   const to = endOfMonth(currentMonth).toISOString();
 
@@ -175,6 +190,9 @@ export default function BookkeepingPage() {
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+    // Use local object URL for preview (works without signed URL)
+    const localPreview = URL.createObjectURL(file);
+    setPreviewUrl(localPreview);
     setUploading(true);
     setAiLoading(true);
     try {
@@ -184,7 +202,7 @@ export default function BookkeepingPage() {
       const data = await res.json();
       if (!res.ok) { setError(data.error ?? "Upload failed"); return; }
 
-      setPreviewUrl(data.url);
+      // Keep local preview; store blob URL for saving
       setForm((f) => ({ ...f, receiptUrl: data.url, aiRawText: data.ai?.rawText ?? "" }));
 
       // Auto-fill from AI
@@ -232,7 +250,15 @@ export default function BookkeepingPage() {
       receiptUrl: exp.receiptUrl ?? "",
       aiRawText: exp.aiRawText ?? "",
     });
-    setPreviewUrl(exp.receiptUrl ?? "");
+    // For existing expenses, fetch a signed URL for the preview
+    if (exp.receiptUrl) {
+      fetch(`/api/expenses/receipt-url?url=${encodeURIComponent(exp.receiptUrl)}`)
+        .then(r => r.json())
+        .then(d => { if (d.url) setPreviewUrl(d.url); })
+        .catch(() => setPreviewUrl(exp.receiptUrl ?? ""));
+    } else {
+      setPreviewUrl("");
+    }
     setError("");
     setDialogOpen(true);
   }
@@ -545,7 +571,7 @@ export default function BookkeepingPage() {
                         href={exp.receiptUrl}
                         target="_blank"
                         rel="noreferrer"
-                        onClick={(e) => e.stopPropagation()}
+                        onClick={(e) => openReceipt(e, exp.receiptUrl!)}
                         className="inline-flex items-center justify-center h-7 w-7 rounded-md bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
                       >
                         <Eye className="h-3.5 w-3.5" />
