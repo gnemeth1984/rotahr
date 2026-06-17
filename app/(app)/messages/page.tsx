@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
-import { Send, MessageSquare, User, ArrowLeft } from "lucide-react";
+import { Send, MessageSquare, User, ArrowLeft, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -25,13 +25,19 @@ export default function MessagesPage() {
   const [body, setBody] = useState("");
   const [sending, setSending] = useState(false);
   const [unread, setUnread] = useState<Record<string, number>>({});
+  const [error, setError] = useState<string | null>(null);
+  const [contactsError, setContactsError] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   // Fetch contacts
   useEffect(() => {
     fetch("/api/messages/contacts")
       .then((r) => r.json())
-      .then((d) => setEmployees(d.employees ?? []));
+      .then((d) => {
+        if (d.error) setContactsError(d.error);
+        else setEmployees(d.employees ?? []);
+      })
+      .catch(() => setContactsError("Failed to load contacts"));
   }, []);
 
   // Fetch unread counts
@@ -48,13 +54,19 @@ export default function MessagesPage() {
   // Fetch messages when conversation changes
   useEffect(() => {
     if (!selectedId) return;
+    setError(null);
     fetch(`/api/messages/list?with=${selectedId}`)
       .then((r) => r.json())
       .then((d) => {
+        if (d.error) {
+          setError(d.error);
+          return;
+        }
         setMessages(d.messages ?? []);
         setMeId(d.meId ?? null);
         setUnread((prev) => ({ ...prev, [selectedId]: 0 }));
-      });
+      })
+      .catch(() => setError("Failed to load messages"));
   }, [selectedId]);
 
   // Auto scroll
@@ -64,28 +76,50 @@ export default function MessagesPage() {
 
   async function sendMessage() {
     if (!body.trim() || !selectedId) return;
-    setSending(true);
-    await fetch("/api/messages/send", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ recipientId: selectedId, body: body.trim() }),
-    });
+    const text = body.trim();
     setBody("");
-    const d = await fetch(`/api/messages/list?with=${selectedId}`).then((r) => r.json());
-    setMessages(d.messages ?? []);
-    setSending(false);
+    setSending(true);
+    setError(null);
+
+    try {
+      const res = await fetch("/api/messages/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ recipientId: selectedId, body: text }),
+      });
+      const data = await res.json();
+
+      if (!res.ok || data.error) {
+        setError(data.error || `Send failed (${res.status})`);
+        setBody(text); // restore so user doesn't lose message
+        setSending(false);
+        return;
+      }
+
+      // Refresh conversation
+      const d = await fetch(`/api/messages/list?with=${selectedId}`).then((r) => r.json());
+      if (d.error) {
+        setError(d.error);
+      } else {
+        setMessages(d.messages ?? []);
+        setMeId(d.meId ?? null);
+      }
+    } catch (e) {
+      setError("Network error — check your connection");
+      setBody(text);
+    } finally {
+      setSending(false);
+    }
   }
 
   const totalUnread = Object.values(unread).reduce((a, b) => a + b, 0);
   const selectedEmp = employees.find((e) => e.id === selectedId);
-
-  // On mobile: show chat panel if someone is selected, otherwise show list
   const showChat = !!selectedId;
 
   return (
     <div className="h-[calc(100vh-4rem)] flex overflow-hidden bg-slate-50">
 
-      {/* ── Contacts list ── hidden on mobile when chat is open */}
+      {/* Contacts list */}
       <div
         className={`
           flex-shrink-0 bg-white border-r border-slate-200 flex flex-col
@@ -105,7 +139,13 @@ export default function MessagesPage() {
           </h1>
         </div>
         <div className="flex-1 overflow-y-auto">
-          {employees.length === 0 && (
+          {contactsError && (
+            <div className="mx-4 mt-4 flex items-center gap-2 text-red-600 text-sm bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+              <AlertCircle className="h-4 w-4 flex-shrink-0" />
+              {contactsError}
+            </div>
+          )}
+          {!contactsError && employees.length === 0 && (
             <p className="text-sm text-slate-400 px-4 py-6">No colleagues found</p>
           )}
           {employees.map((emp) => {
@@ -140,16 +180,14 @@ export default function MessagesPage() {
         </div>
       </div>
 
-      {/* ── Chat panel ── full screen on mobile, flex-1 on desktop */}
+      {/* Chat panel */}
       <div
         className={`
-          flex-col min-w-0
-          w-full md:flex-1
+          flex-col min-w-0 w-full md:flex-1
           ${showChat ? "flex" : "hidden md:flex"}
         `}
       >
         {!selectedId ? (
-          /* Desktop empty state */
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center text-slate-400">
               <MessageSquare className="h-12 w-12 mx-auto mb-3 opacity-30" />
@@ -158,7 +196,7 @@ export default function MessagesPage() {
           </div>
         ) : (
           <>
-            {/* Header with back button on mobile */}
+            {/* Header */}
             <div className="px-4 py-3 bg-white border-b border-slate-200 flex items-center gap-3">
               <button
                 className="md:hidden p-1 -ml-1 rounded-full hover:bg-slate-100"
@@ -174,9 +212,17 @@ export default function MessagesPage() {
               </p>
             </div>
 
+            {/* Error banner */}
+            {error && (
+              <div className="mx-4 mt-3 flex items-center gap-2 text-red-600 text-sm bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                {error}
+              </div>
+            )}
+
             {/* Messages */}
             <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
-              {messages.length === 0 && (
+              {messages.length === 0 && !error && (
                 <p className="text-center text-slate-400 text-sm mt-8">
                   No messages yet. Say hello!
                 </p>
@@ -184,10 +230,7 @@ export default function MessagesPage() {
               {messages.map((msg) => {
                 const isMe = msg.sender.id === meId;
                 return (
-                  <div
-                    key={msg.id}
-                    className={`flex ${isMe ? "justify-end" : "justify-start"}`}
-                  >
+                  <div key={msg.id} className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
                     <div
                       className={`max-w-[75%] px-4 py-2.5 rounded-2xl text-sm ${
                         isMe
@@ -215,6 +258,7 @@ export default function MessagesPage() {
                 value={body}
                 onChange={(e) => setBody(e.target.value)}
                 placeholder="Type a message…"
+                disabled={sending}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();
