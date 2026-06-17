@@ -35,9 +35,6 @@ export function AIChat() {
   const [loading, setLoading] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  // Hide on messages page — it overlaps the send bar
-  if (pathname === "/messages") return null;
-
   useEffect(() => {
     if (open) {
       bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -78,6 +75,9 @@ export function AIChat() {
       setLoading(false);
     }
   };
+
+  // Hide on messages page — it overlaps the send bar
+  if (pathname === "/messages") return null;
 
   return (
     <>
