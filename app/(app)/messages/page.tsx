@@ -1,10 +1,28 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, Component, ReactNode } from "react";
 import { useSession } from "next-auth/react";
 import { Send, MessageSquare, User, ArrowLeft, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+
+class ErrorBoundary extends Component<{ children: ReactNode }, { error: string | null }> {
+  state = { error: null };
+  static getDerivedStateFromError(e: Error) { return { error: e.message }; }
+  render() {
+    if (this.state.error) return (
+      <div className="flex items-center justify-center h-full p-8 text-center">
+        <div>
+          <AlertCircle className="h-10 w-10 text-red-400 mx-auto mb-3" />
+          <p className="font-medium text-slate-700">Something went wrong</p>
+          <p className="text-sm text-slate-400 mt-1">{this.state.error}</p>
+          <button className="mt-4 text-sm text-blue-500 underline" onClick={() => window.location.reload()}>Reload page</button>
+        </div>
+      </div>
+    );
+    return this.props.children;
+  }
+}
 
 type Employee = { id: string; firstName: string; lastName: string };
 type Message = {
@@ -16,7 +34,7 @@ type Message = {
   recipient: Employee;
 };
 
-export default function MessagesPage() {
+function MessagesInner() {
   const { data: session } = useSession();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -34,8 +52,8 @@ export default function MessagesPage() {
     fetch("/api/messages/contacts")
       .then((r) => r.json())
       .then((d) => {
-        if (d.error) setContactsError(d.error);
-        else setEmployees(d.employees ?? []);
+        if (!d || d.error) setContactsError(d?.error ?? "Failed to load contacts");
+        else setEmployees(Array.isArray(d.employees) ? d.employees : []);
       })
       .catch(() => setContactsError("Failed to load contacts"));
   }, []);
@@ -45,10 +63,12 @@ export default function MessagesPage() {
     fetch("/api/messages/unread")
       .then((r) => r.json())
       .then((d) => {
+        if (!d || !Array.isArray(d.unread)) return;
         const map: Record<string, number> = {};
-        for (const u of d.unread ?? []) map[u.senderId] = u._count._all;
+        for (const u of d.unread) map[u.senderId] = u._count?._all ?? 0;
         setUnread(map);
-      });
+      })
+      .catch(() => {});
   }, []);
 
   // Fetch messages when conversation changes
@@ -58,11 +78,8 @@ export default function MessagesPage() {
     fetch(`/api/messages/list?with=${selectedId}`)
       .then((r) => r.json())
       .then((d) => {
-        if (d.error) {
-          setError(d.error);
-          return;
-        }
-        setMessages(d.messages ?? []);
+        if (!d || d.error) { setError(d?.error ?? "Failed to load messages"); return; }
+        setMessages(Array.isArray(d.messages) ? d.messages : []);
         setMeId(d.meId ?? null);
         setUnread((prev) => ({ ...prev, [selectedId]: 0 }));
       })
@@ -280,5 +297,13 @@ export default function MessagesPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function MessagesPage() {
+  return (
+    <ErrorBoundary>
+      <MessagesInner />
+    </ErrorBoundary>
   );
 }
