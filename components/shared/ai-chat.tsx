@@ -24,9 +24,6 @@ function formatMessage(text: string) {
 export function AIChat() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
-
-  // Hide on messages page — it overlaps the send bar
-  if (pathname === "/messages") return null;
   const [messages, setMessages] = useState<Message[]>([
     {
       role: "assistant",
@@ -37,6 +34,9 @@ export function AIChat() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  // Hide on messages page — it overlaps the send bar
+  if (pathname === "/messages") return null;
 
   useEffect(() => {
     if (open) {
