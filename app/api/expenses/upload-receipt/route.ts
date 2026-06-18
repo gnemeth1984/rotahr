@@ -17,9 +17,9 @@ export async function POST(req: NextRequest) {
     const file = formData.get("file") as File;
     if (!file) return NextResponse.json({ error: "No file provided" }, { status: 400 });
 
-    // Upload to Vercel Blob (private store)
+    // Upload to Vercel Blob (public so OpenAI vision can fetch the URL)
     const blob = await put(`receipts/${Date.now()}-${file.name}`, file, {
-      access: "private",
+      access: "public",
     });
 
     // AI extraction via OpenAI GPT-4o vision
@@ -79,9 +79,20 @@ Return ONLY the JSON object, no markdown, no explanation.`,
         // Strip markdown code blocks if present
         const cleaned = content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
         aiData = JSON.parse(cleaned);
-      } catch {
+      } catch (aiErr: any) {
         // AI failed — return URL anyway, user fills manually
+        return NextResponse.json({
+          url: blob.url,
+          ai: {},
+          aiError: aiErr?.message ?? "AI extraction failed",
+        });
       }
+    } else {
+      return NextResponse.json({
+        url: blob.url,
+        ai: {},
+        aiError: "OPENAI_API_KEY not set",
+      });
     }
 
     return NextResponse.json({
