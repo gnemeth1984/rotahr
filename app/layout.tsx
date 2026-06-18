@@ -4,9 +4,13 @@ import { Providers } from "@/components/shared/providers"
 import { ServiceWorkerRegister } from "@/components/shared/ServiceWorkerRegister"
 
 export const metadata = {
-  title: "Rotahr",
-  description: "Rota and HR management for your team",
+  title: "Rotahr — Venue Management for Irish Hospitality",
+  description: "Staff rotas, table reservations, bookkeeping and HR — all in one app. Built for Irish bars, restaurants and cafes.",
   manifest: "/manifest.json",
+  icons: {
+    icon: "/favicon.ico",
+    apple: "/apple-icon.png",
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -17,13 +21,14 @@ export const metadata = {
   },
   openGraph: {
     type: "website",
-    title: "Rotahr",
-    description: "Rota and HR management for your team",
+    title: "Rotahr — Venue Management for Irish Hospitality",
+    description: "Staff rotas, table reservations, bookkeeping and HR — all in one app.",
+    images: ["/logo-dark.png"],
   },
 }
 
 export const viewport = {
-  themeColor: "#3b82f6",
+  themeColor: "#F97316",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,

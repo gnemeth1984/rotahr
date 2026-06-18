@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import {
@@ -119,8 +120,7 @@ export function Sidebar() {
       {/* Logo */}
       <div className="flex items-center justify-between px-6 py-5 border-b border-slate-700">
         <div className="flex items-center gap-2">
-          <Briefcase className="h-6 w-6 text-blue-400" />
-          <span className="text-xl font-bold text-white">Rotahr</span>
+          <Image src="/logo-dark.png" alt="Rotahr" width={110} height={36} className="object-contain" priority />
         </div>
         <BellButton />
       </div>
