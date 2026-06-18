@@ -79,8 +79,11 @@ export const expenseService = {
         ...(filters?.from || filters?.to
           ? {
               date: {
+                // Use UTC boundaries — client sends UTC ISO strings
                 ...(filters.from ? { gte: new Date(filters.from) } : {}),
-                ...(filters.to ? { lte: new Date(filters.to) } : {}),
+                ...(filters.to
+                  ? { lte: new Date(filters.to.replace(/T\d{2}:\d{2}:\d{2}/, "T23:59:59")) }
+                  : {}),
               },
             }
           : {}),
@@ -131,7 +134,10 @@ export const expenseService = {
       where: {
         businessId,
         status: "confirmed",
-        date: { gte: new Date(from), lte: new Date(to) },
+        date: {
+          gte: new Date(from),
+          lte: new Date(to.replace(/T\d{2}:\d{2}:\d{2}/, "T23:59:59")),
+        },
       },
     });
 

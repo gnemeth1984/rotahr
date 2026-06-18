@@ -114,11 +114,12 @@ function getCatLabel(cat: string) {
 }
 
 function startOfMonth(d: Date) {
-  return new Date(d.getFullYear(), d.getMonth(), 1);
+  // UTC boundaries to avoid timezone drift (Ireland is UTC+1 in summer)
+  return new Date(Date.UTC(d.getFullYear(), d.getMonth(), 1, 0, 0, 0));
 }
 
 function endOfMonth(d: Date) {
-  return new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59);
+  return new Date(Date.UTC(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59));
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -274,7 +275,7 @@ export default function BookkeepingPage() {
         amount: parseFloat(form.amount),
         vatAmount: parseFloat(form.vatAmount) || 0,
         category: form.category,
-        date: `${form.date}T00:00:00.000Z`,
+        date: `${form.date}T12:00:00.000Z`,
         description: form.description || undefined,
         paymentMethod: form.paymentMethod || undefined,
         status: form.status,
