@@ -98,7 +98,10 @@ function SignInForm() {
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="password" className="text-slate-300">Password</Label>
+          <div className="flex items-center justify-between">
+            <Label htmlFor="password" className="text-slate-300">Password</Label>
+            <Link href="/auth/forgot-password" className="text-xs text-blue-400 hover:text-blue-300">Forgot password?</Link>
+          </div>
           <div className="relative">
             <Input
               id="password"
