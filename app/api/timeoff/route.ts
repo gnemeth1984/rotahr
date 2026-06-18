@@ -37,7 +37,21 @@ export async function GET(req: NextRequest) {
     orderBy: { createdAt: "desc" },
   });
 
-  return NextResponse.json(requests);
+  // Normalize: uppercase status, map employee → user shape expected by UI
+  const normalized = requests.map((r) => ({
+    ...r,
+    status: r.status.toUpperCase(),
+    user: r.employee
+      ? {
+          id: r.employee.id,
+          name: `${r.employee.firstName} ${r.employee.lastName}`,
+          email: r.employee.email,
+          image: null,
+        }
+      : null,
+  }));
+
+  return NextResponse.json(normalized);
 }
 
 export async function POST(req: NextRequest) {
