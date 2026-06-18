@@ -319,7 +319,7 @@ export default function BookingsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Bookings</h1>
           <p className="text-slate-500 mt-1">Manage table reservations</p>
@@ -329,13 +329,13 @@ export default function BookingsPage() {
             <Button
               variant="outline"
               onClick={() => { setAiAssistOpen(true); setAiResult(null); setAiError(null); setAiMessage(""); }}
-              className="gap-2 border-violet-300 text-violet-700 hover:bg-violet-50"
+              className="gap-2 border-violet-300 text-violet-700 hover:bg-violet-50 flex-1 sm:flex-none"
             >
               <Sparkles className="h-4 w-4" />
               AI Assist
             </Button>
           )}
-          <Button onClick={openNew} className="gap-2">
+          <Button onClick={openNew} className="gap-2 flex-1 sm:flex-none">
             <Plus className="h-4 w-4" />
             New Booking
           </Button>
@@ -375,126 +375,123 @@ export default function BookingsPage() {
         <div className="grid gap-3">
           {bookings.map((b) => (
             <Card key={b.id} className="hover:shadow-md transition-shadow">
-              <CardContent className="p-5">
-                <div className="flex items-center gap-4">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="font-semibold text-slate-900">{b.customerName}</p>
+              <CardContent className="p-4">
+                <div className="flex flex-col gap-3">
+                  {/* Top row: name + badge + actions */}
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2 flex-wrap min-w-0">
+                      <p className="font-semibold text-slate-900 truncate">{b.customerName}</p>
                       <Badge variant={statusVariant(b.status) as any}>
                         {b.status.charAt(0).toUpperCase() + b.status.slice(1)}
                       </Badge>
                     </div>
-                    <div className="flex items-center gap-4 mt-1 text-sm text-slate-500 flex-wrap">
-                      <span className="flex items-center gap-1">
-                        <Clock className="h-3.5 w-3.5" />
-                        {new Date(b.date).toLocaleDateString("en-IE", {
-                          weekday: "short",
-                          day: "numeric",
-                          month: "short",
-                        })}{" "}
-                        at {b.time}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Users className="h-3.5 w-3.5" />
-                        {b.partySize} guests
-                      </span>
-                      {b.table && (
-                        <span className="text-slate-400">{b.table.name}</span>
+
+                    {/* Actions — compact row */}
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8"
+                        onClick={() => openEdit(b)}
+                        title="Edit booking"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+
+                      {isManager && (
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8 text-blue-500 hover:text-blue-700 hover:bg-blue-50"
+                          onClick={() => openNotify(b)}
+                          title="Notify staff"
+                        >
+                          <Bell className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8 text-amber-500 hover:text-amber-700 hover:bg-amber-50"
+                        onClick={() => openFlag(b)}
+                        title="Flag booking"
+                      >
+                        <Flag className="h-3.5 w-3.5" />
+                      </Button>
+
+                      {isManager && (
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className={cn(
+                            "h-8 w-8",
+                            openFlagRow === b.id
+                              ? "text-amber-600 bg-amber-50"
+                              : "text-slate-400"
+                          )}
+                          onClick={() => toggleFlags(b.id)}
+                          title="View flags"
+                        >
+                          {openFlagRow === b.id ? (
+                            <ChevronUp className="h-3.5 w-3.5" />
+                          ) : (
+                            <ChevronDown className="h-3.5 w-3.5" />
+                          )}
+                        </Button>
+                      )}
+
+                      {b.status !== "cancelled" && (
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8 text-orange-500 hover:text-orange-700 hover:bg-orange-50"
+                          onClick={() => handleCancel(b.id)}
+                          title="Cancel booking"
+                        >
+                          <Clock className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+
+                      {isManager && (
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
+                          onClick={() => handleDelete(b.id)}
+                          title="Delete booking"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
                       )}
                     </div>
+                  </div>
+
+                  {/* Bottom row: date / guests / table / phone / notes */}
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-500">
+                    <span className="flex items-center gap-1">
+                      <Clock className="h-3.5 w-3.5 flex-shrink-0" />
+                      {new Date(b.date).toLocaleDateString("en-IE", {
+                        weekday: "short",
+                        day: "numeric",
+                        month: "short",
+                      })}{" "}
+                      at {b.time}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Users className="h-3.5 w-3.5 flex-shrink-0" />
+                      {b.partySize} guests
+                    </span>
+                    {b.table && (
+                      <span className="text-slate-400">{b.table.name}</span>
+                    )}
                     {b.customerPhone && (
-                      <p className="text-xs text-slate-400 mt-1">{b.customerPhone}</p>
-                    )}
-                    {b.notes && (
-                      <p className="text-xs text-slate-400 mt-1 truncate">{b.notes}</p>
+                      <span className="text-slate-400">{b.customerPhone}</span>
                     )}
                   </div>
-
-                  {/* Actions */}
-                  <div className="flex items-center gap-1.5 flex-shrink-0 flex-wrap justify-end">
-                    {/* Edit */}
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-8 w-8"
-                      onClick={() => openEdit(b)}
-                      title="Edit booking"
-                    >
-                      <Pencil className="h-3.5 w-3.5" />
-                    </Button>
-
-                    {/* Notify Staff — manager only */}
-                    {isManager && (
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-8 w-8 text-blue-500 hover:text-blue-700 hover:bg-blue-50"
-                        onClick={() => openNotify(b)}
-                        title="Notify staff"
-                      >
-                        <Bell className="h-3.5 w-3.5" />
-                      </Button>
-                    )}
-
-                    {/* Flag Booking — all users */}
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-8 w-8 text-amber-500 hover:text-amber-700 hover:bg-amber-50"
-                      onClick={() => openFlag(b)}
-                      title="Flag booking"
-                    >
-                      <Flag className="h-3.5 w-3.5" />
-                    </Button>
-
-                    {/* View Flags — manager only */}
-                    {isManager && (
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className={cn(
-                          "h-8 w-8",
-                          openFlagRow === b.id
-                            ? "text-amber-600 bg-amber-50"
-                            : "text-slate-400"
-                        )}
-                        onClick={() => toggleFlags(b.id)}
-                        title="View flags"
-                      >
-                        {openFlagRow === b.id ? (
-                          <ChevronUp className="h-3.5 w-3.5" />
-                        ) : (
-                          <ChevronDown className="h-3.5 w-3.5" />
-                        )}
-                      </Button>
-                    )}
-
-                    {/* Cancel */}
-                    {b.status !== "cancelled" && (
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-8 w-8 text-orange-500 hover:text-orange-700 hover:bg-orange-50"
-                        onClick={() => handleCancel(b.id)}
-                        title="Cancel booking"
-                      >
-                        <Clock className="h-3.5 w-3.5" />
-                      </Button>
-                    )}
-
-                    {/* Delete — manager only */}
-                    {isManager && (
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
-                        onClick={() => handleDelete(b.id)}
-                        title="Delete booking"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    )}
-                  </div>
+                  {b.notes && (
+                    <p className="text-xs text-slate-400 truncate">{b.notes}</p>
+                  )}
                 </div>
 
                 {/* Flags panel (manager, expandable) */}
