@@ -29,8 +29,13 @@ export const tableService = {
    * within ±2 hours of the requested time.
    */
   async findAvailable(businessId: string, partySize: number, dateTime: Date) {
-    const windowStart = new Date(dateTime.getTime() - 2 * 60 * 60 * 1000);
-    const windowEnd = new Date(dateTime.getTime() + 2 * 60 * 60 * 1000);
+    // time is stored as "HH:MM" string — filter by date, do time window in JS
+    const dayStart = new Date(dateTime);
+    dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date(dateTime);
+    dayEnd.setHours(23, 59, 59, 999);
+
+    const requestedMins = dateTime.getHours() * 60 + dateTime.getMinutes();
 
     const tables = await prisma.table.findMany({
       where: {
@@ -41,13 +46,20 @@ export const tableService = {
         reservations: {
           where: {
             status: { in: ["CONFIRMED", "SEATED"] },
-            time: { gte: windowStart, lte: windowEnd },
+            date: { gte: dayStart, lte: dayEnd },
           },
         },
       },
-      orderBy: { capacity: "asc" }, // prefer smallest fitting table
+      orderBy: { capacity: "asc" },
     });
 
-    return tables.filter((t) => t.reservations.length === 0);
+    return tables.filter((t) => {
+      // Check no existing reservation is within ±2 hours
+      return t.reservations.every((r) => {
+        const [h, m] = (r.time as string).split(":").map(Number);
+        const rMins = h * 60 + m;
+        return Math.abs(rMins - requestedMins) > 120;
+      });
+    });
   },
 };
