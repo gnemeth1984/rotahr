@@ -4,7 +4,9 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth/options";
 import { requireRole, isResponse } from "@/lib/auth/middleware";
 import { reservationService } from "@/lib/services/reservation.service";
+import { sendNotification } from "@/lib/services/notification.service";
 import { detectConflicts } from "@/lib/ai/conflict-detection";
+import { prisma } from "@/lib/db";
 import { z } from "zod";
 
 const CreateReservationSchema = z.object({
@@ -91,6 +93,26 @@ export async function POST(req: NextRequest) {
       businessId,
       session.user.id
     );
+    // Notify all managers & admins
+    const managers = await prisma.employee.findMany({
+      where: {
+        businessId,
+        role: { in: ["manager", "admin", "MANAGER", "ADMIN"] },
+        active: true,
+      },
+      select: { id: true },
+    });
+
+    await Promise.allSettled(
+      managers.map((m) =>
+        sendNotification({
+          reservationId: reservation.id,
+          employeeId: m.id,
+          message: `New booking: ${data.customerName}, party of ${data.partySize} on ${data.date} at ${data.time}`,
+        })
+      )
+    );
+
     return NextResponse.json({ reservation }, { status: 201 });
   } catch (err) {
     console.error("[bookings/create]", err);

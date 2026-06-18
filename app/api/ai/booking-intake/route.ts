@@ -4,6 +4,8 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth/options";
 import { processBookingIntake } from "@/lib/ai/booking-intake";
 import { reservationService } from "@/lib/services/reservation.service";
+import { sendNotification } from "@/lib/services/notification.service";
+import { prisma } from "@/lib/db";
 import { z } from "zod";
 
 const IntakeSchema = z.object({
@@ -63,6 +65,28 @@ export async function POST(req: NextRequest) {
         },
         businessId,
         session.user.id
+      );
+    }
+
+    // Notify all managers & admins in the business when a booking is auto-created
+    if (reservation) {
+      const managers = await prisma.employee.findMany({
+        where: {
+          businessId,
+          role: { in: ["manager", "admin", "MANAGER", "ADMIN"] },
+          active: true,
+        },
+        select: { id: true },
+      });
+
+      await Promise.allSettled(
+        managers.map((m) =>
+          sendNotification({
+            reservationId: reservation.id,
+            employeeId: m.id,
+            message: `New booking via AI: ${intake.parsed.customerName}, party of ${intake.parsed.partySize} on ${intake.parsed.date} at ${intake.parsed.time}`,
+          })
+        )
       );
     }
 
