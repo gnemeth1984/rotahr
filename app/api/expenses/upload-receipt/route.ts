@@ -17,12 +17,17 @@ export async function POST(req: NextRequest) {
     const file = formData.get("file") as File;
     if (!file) return NextResponse.json({ error: "No file provided" }, { status: 400 });
 
-    // Upload to Vercel Blob (public so OpenAI vision can fetch the URL)
+    // Read file bytes and convert to base64 BEFORE uploading
+    const fileBuffer = await file.arrayBuffer();
+    const base64Image = Buffer.from(fileBuffer).toString("base64");
+    const mimeType = file.type || "image/jpeg";
+
+    // Upload to Vercel Blob (private store)
     const blob = await put(`receipts/${Date.now()}-${file.name}`, file, {
-      access: "public",
+      access: "private",
     });
 
-    // AI extraction via OpenAI GPT-4o vision
+    // AI extraction via OpenAI GPT-4o vision (uses base64 — no public URL needed)
     let aiData: {
       vendor?: string;
       date?: string;
@@ -66,7 +71,10 @@ Return ONLY the JSON object, no markdown, no explanation.`,
                   },
                   {
                     type: "image_url",
-                    image_url: { url: blob.url, detail: "high" },
+                    image_url: {
+                      url: `data:${mimeType};base64,${base64Image}`,
+                      detail: "high",
+                    },
                   },
                 ],
               },
@@ -76,11 +84,9 @@ Return ONLY the JSON object, no markdown, no explanation.`,
 
         const aiJson = await aiRes.json();
         const content = aiJson.choices?.[0]?.message?.content ?? "";
-        // Strip markdown code blocks if present
         const cleaned = content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
         aiData = JSON.parse(cleaned);
       } catch (aiErr: any) {
-        // AI failed — return URL anyway, user fills manually
         return NextResponse.json({
           url: blob.url,
           ai: {},
