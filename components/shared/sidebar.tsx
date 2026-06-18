@@ -19,6 +19,7 @@ import {
   MessageSquare,
   DollarSign,
   CalendarCheck,
+  Smartphone,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -166,6 +167,13 @@ export function Sidebar() {
             </p>
           </div>
         </div>
+        <Link
+          href="/install"
+          className="flex items-center gap-2 px-3 py-2 text-sm text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors mb-1"
+        >
+          <Smartphone className="h-4 w-4" />
+          Get the App
+        </Link>
         <Button
           variant="ghost"
           size="sm"

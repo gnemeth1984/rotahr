@@ -1,6 +1,7 @@
 import "./globals.css"
 import { ReactNode } from "react"
 import { Providers } from "@/components/shared/providers"
+import { ServiceWorkerRegister } from "@/components/shared/ServiceWorkerRegister"
 
 export const metadata = {
   title: "Rotahr",
@@ -41,6 +42,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       </head>
       <body className="min-h-screen bg-slate-50">
         <Providers>
+          <ServiceWorkerRegister />
           {children}
         </Providers>
       </body>

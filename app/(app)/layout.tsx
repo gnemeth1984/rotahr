@@ -3,6 +3,7 @@ import { authOptions } from "@/lib/auth/options";
 import { redirect } from "next/navigation";
 import { Sidebar } from "@/components/shared/sidebar";
 import { AIChat } from "@/components/shared/ai-chat";
+import { InstallBanner } from "@/components/shared/InstallBanner";
 
 export default async function AppLayout({
   children,
@@ -23,6 +24,7 @@ export default async function AppLayout({
         </div>
       </main>
       <AIChat />
+      <InstallBanner />
     </div>
   );
 }
