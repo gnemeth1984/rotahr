@@ -3,15 +3,14 @@
 import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import {
   ChevronLeft,
   ChevronRight,
@@ -19,6 +18,10 @@ import {
   Download,
   Loader2,
   UserPlus,
+  Plus,
+  Clock,
+  CheckCircle2,
+  AlertCircle,
 } from "lucide-react";
 import { UserRole as Role } from "@/types/roles";
 import { cn } from "@/lib/utils";
@@ -53,14 +56,14 @@ interface Shift {
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-const DEPT_COLORS: Record<string, { bg: string; text: string; dot: string }> = {};
+const DEPT_COLORS: Record<string, { bg: string; text: string; dot: string; cardBg: string; cardText: string }> = {};
 const COLOR_PALETTE = [
-  { bg: "bg-indigo-50", text: "text-indigo-700", dot: "bg-indigo-500" },
-  { bg: "bg-amber-50", text: "text-amber-700", dot: "bg-amber-500" },
-  { bg: "bg-emerald-50", text: "text-emerald-700", dot: "bg-emerald-500" },
-  { bg: "bg-rose-50", text: "text-rose-700", dot: "bg-rose-500" },
-  { bg: "bg-purple-50", text: "text-purple-700", dot: "bg-purple-500" },
-  { bg: "bg-cyan-50", text: "text-cyan-700", dot: "bg-cyan-500" },
+  { bg: "bg-indigo-50", text: "text-indigo-700", dot: "bg-indigo-500", cardBg: "bg-indigo-100", cardText: "text-indigo-800" },
+  { bg: "bg-amber-50", text: "text-amber-700", dot: "bg-amber-500", cardBg: "bg-amber-100", cardText: "text-amber-800" },
+  { bg: "bg-emerald-50", text: "text-emerald-700", dot: "bg-emerald-500", cardBg: "bg-emerald-100", cardText: "text-emerald-800" },
+  { bg: "bg-rose-50", text: "text-rose-700", dot: "bg-rose-500", cardBg: "bg-rose-100", cardText: "text-rose-800" },
+  { bg: "bg-purple-50", text: "text-purple-700", dot: "bg-purple-500", cardBg: "bg-purple-100", cardText: "text-purple-800" },
+  { bg: "bg-cyan-50", text: "text-cyan-700", dot: "bg-cyan-500", cardBg: "bg-cyan-100", cardText: "text-cyan-800" },
 ];
 
 function getDeptColor(deptId: string, index: number) {
@@ -99,12 +102,10 @@ function fmtTime(iso: string): string {
   return new Date(iso).toLocaleTimeString("en-IE", { hour: "2-digit", minute: "2-digit", hour12: false });
 }
 
-/** Returns scheduled hours (not counting overtime) for a shift */
 function shiftHours(shift: Shift): number {
   return (new Date(shift.endTime).getTime() - new Date(shift.startTime).getTime()) / 3600000;
 }
 
-/** Returns total hours for an employee across the week (scheduled + overtime) */
 function empWeekHours(empId: string, weekDates: Date[], getShift: (id: string, d: string) => Shift | undefined): number {
   return weekDates.reduce((sum, date) => {
     const shift = getShift(empId, toDateStr(date));
@@ -115,10 +116,13 @@ function empWeekHours(empId: string, weekDates: Date[], getShift: (id: string, d
 
 function fmtHours(h: number): string {
   if (h === 0) return "0h";
-  // Show .5 if fractional, strip trailing .0
   const rounded = Math.round(h * 2) / 2;
   return rounded % 1 === 0 ? `${rounded}h` : `${rounded}h`;
 }
+
+// ─── Shift Form Default ───────────────────────────────────────────────────────
+
+const DEFAULT_FORM = { startTime: "09:00", endTime: "17:00", role: "", published: false, overtimeHours: 0 };
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
@@ -133,20 +137,20 @@ export default function RotaPage() {
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Shift dialog
-  const [shiftDialog, setShiftDialog] = useState(false);
+  // Mobile: selected day index (0=Mon … 6=Sun)
+  const todayIdx = (() => {
+    const now = new Date();
+    const day = now.getDay();
+    return day === 0 ? 6 : day - 1;
+  })();
+  const [selectedDay, setSelectedDay] = useState<number>(todayIdx);
+
+  // Shift sheet
+  const [sheetOpen, setSheetOpen] = useState(false);
   const [editingShift, setEditingShift] = useState<Shift | null>(null);
   const [cellContext, setCellContext] = useState<{ employeeId: string; date: string } | null>(null);
-  const [shiftForm, setShiftForm] = useState({
-    startTime: "09:00",
-    endTime: "17:00",
-    role: "",
-    published: false,
-    overtimeHours: 0,
-  });
+  const [shiftForm, setShiftForm] = useState(DEFAULT_FORM);
   const [saving, setSaving] = useState(false);
-
-  // Publish all
   const [publishing, setPublishing] = useState(false);
 
   const weekDates = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
@@ -176,11 +180,9 @@ export default function RotaPage() {
     }
   }, [weekStart]);
 
-  useEffect(() => {
-    fetchAll();
-  }, [fetchAll]);
+  useEffect(() => { fetchAll(); }, [fetchAll]);
 
-  // ── Cell click ───────────────────────────────────────────────────────────
+  // ── Open sheet ────────────────────────────────────────────────────────────
 
   function handleCellClick(empId: string, dateStr: string, existing?: Shift) {
     if (!isManager) return;
@@ -195,10 +197,10 @@ export default function RotaPage() {
       });
     } else {
       setEditingShift(null);
-      setShiftForm({ startTime: "09:00", endTime: "17:00", role: "", published: false, overtimeHours: 0 });
+      setShiftForm(DEFAULT_FORM);
     }
     setCellContext({ employeeId: empId, date: dateStr });
-    setShiftDialog(true);
+    setSheetOpen(true);
   }
 
   // ── Save shift ────────────────────────────────────────────────────────────
@@ -230,7 +232,7 @@ export default function RotaPage() {
           body: JSON.stringify(body),
         });
       }
-      setShiftDialog(false);
+      setSheetOpen(false);
       fetchAll();
     } finally {
       setSaving(false);
@@ -244,7 +246,7 @@ export default function RotaPage() {
     setSaving(true);
     try {
       await fetch(`/api/shifts/${editingShift.id}`, { method: "DELETE" });
-      setShiftDialog(false);
+      setSheetOpen(false);
       fetchAll();
     } finally {
       setSaving(false);
@@ -319,27 +321,57 @@ export default function RotaPage() {
   const totalShifts = shifts.length;
   const publishedShifts = shifts.filter((s) => s.published).length;
 
+  // All employee groups with their dept info
+  const groups: { dept: Department; colors: typeof COLOR_PALETTE[0]; emps: Employee[] }[] = [
+    ...departments.map((dept, idx) => ({
+      dept,
+      colors: getDeptColor(dept.id, idx),
+      emps: getEmpsByDept(dept.id),
+    })).filter((g) => g.emps.length > 0),
+    ...(getUnassigned().length > 0
+      ? [{
+          dept: { id: "__unassigned__", name: "Unassigned" },
+          colors: { bg: "bg-slate-50", text: "text-slate-600", dot: "bg-slate-400", cardBg: "bg-slate-100", cardText: "text-slate-700" },
+          emps: getUnassigned(),
+        }]
+      : []),
+    ...(employees.length > 0 && departments.length === 0
+      ? [{
+          dept: { id: "__all__", name: "All Staff" },
+          colors: { bg: "bg-blue-50", text: "text-blue-700", dot: "bg-blue-500", cardBg: "bg-blue-100", cardText: "text-blue-800" },
+          emps: employees,
+        }]
+      : []),
+  ];
+
+  const selectedDate = weekDates[selectedDay];
+  const selectedDateStr = toDateStr(selectedDate);
+  const isToday = selectedDateStr === toDateStr(new Date());
+
+  // Shift for selected employee in sheet
+  const sheetEmployee = cellContext
+    ? employees.find((e) => e.id === cellContext.employeeId)
+    : null;
+
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Rota</h1>
-          <p className="text-slate-500 mt-0.5 text-sm">
-            {fmtWeekRange(weekStart)}
-            {totalShifts > 0 && (
-              <span className="ml-2 text-xs">
-                · {publishedShifts}/{totalShifts} published
-              </span>
-            )}
-          </p>
-        </div>
+    <div className="space-y-4">
+      {/* ── Header ── */}
+      <div className="flex flex-col gap-3">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">Rota</h1>
+            <p className="text-slate-500 text-sm mt-0.5">
+              {fmtWeekRange(weekStart)}
+              {totalShifts > 0 && (
+                <span className="ml-2 text-xs">· {publishedShifts}/{totalShifts} published</span>
+              )}
+            </p>
+          </div>
 
-        <div className="flex items-center gap-2 flex-wrap">
           {/* Week nav */}
-          <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-lg p-1">
+          <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-lg p-1 flex-shrink-0">
             <button
               onClick={() => setWeekStart((w) => addDays(w, -7))}
               className="p-1.5 rounded-md hover:bg-slate-100 transition-colors"
@@ -348,9 +380,9 @@ export default function RotaPage() {
             </button>
             <button
               onClick={() => setWeekStart(getMondayOfWeek(new Date()))}
-              className="px-3 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-md transition-colors"
+              className="px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-md transition-colors"
             >
-              This week
+              Today
             </button>
             <button
               onClick={() => setWeekStart((w) => addDays(w, 7))}
@@ -359,25 +391,28 @@ export default function RotaPage() {
               <ChevronRight className="h-4 w-4 text-slate-600" />
             </button>
           </div>
-
-          {isManager && (
-            <>
-              <Button variant="outline" size="sm" className="gap-1.5" onClick={exportCSV}>
-                <Download className="h-3.5 w-3.5" />
-                Export
-              </Button>
-              {publishedShifts < totalShifts && totalShifts > 0 && (
-                <Button size="sm" onClick={publishAll} disabled={publishing} className="gap-1.5">
-                  {publishing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-                  Publish all
-                </Button>
-              )}
-            </>
-          )}
         </div>
+
+        {/* Action buttons row */}
+        {isManager && (
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={exportCSV}>
+              <Download className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Export</span>
+            </Button>
+            {publishedShifts < totalShifts && totalShifts > 0 && (
+              <Button size="sm" onClick={publishAll} disabled={publishing} className="gap-1.5">
+                {publishing
+                  ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  : <CheckCircle2 className="h-3.5 w-3.5" />}
+                Publish all
+              </Button>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* Loading */}
+      {/* ── Loading / Empty ── */}
       {loading ? (
         <div className="flex justify-center py-24">
           <Loader2 className="h-8 w-8 animate-spin text-slate-300" />
@@ -389,73 +424,181 @@ export default function RotaPage() {
           <p className="text-sm text-slate-400 mt-1">Add employees first to build a rota.</p>
         </div>
       ) : (
-        <div className="space-y-6">
-          {/* Department blocks */}
-          {departments.map((dept, idx) => {
-            const deptEmps = getEmpsByDept(dept.id);
-            if (deptEmps.length === 0) return null;
-            const colors = getDeptColor(dept.id, idx);
-            return (
+        <>
+          {/* ── MOBILE VIEW (< lg) ── */}
+          <div className="lg:hidden space-y-4">
+            {/* Day selector strip */}
+            <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+              {weekDates.map((date, i) => {
+                const dateStr = toDateStr(date);
+                const isTodayDate = dateStr === toDateStr(new Date());
+                const isSelected = i === selectedDay;
+                const dayShifts = shifts.filter((s) => s.date.split("T")[0] === dateStr);
+                return (
+                  <button
+                    key={i}
+                    onClick={() => setSelectedDay(i)}
+                    className={cn(
+                      "flex flex-col items-center px-3 py-2 rounded-xl text-xs font-medium transition-all flex-shrink-0 min-w-[48px]",
+                      isSelected
+                        ? "bg-blue-600 text-white shadow-sm"
+                        : isTodayDate
+                        ? "bg-blue-50 text-blue-600 border border-blue-200"
+                        : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
+                    )}
+                  >
+                    <span className="text-[11px] uppercase tracking-wide opacity-80">{DAYS[i]}</span>
+                    <span className="text-base font-bold leading-tight">{date.getDate()}</span>
+                    {dayShifts.length > 0 && (
+                      <span className={cn(
+                        "mt-0.5 h-1 w-1 rounded-full",
+                        isSelected ? "bg-white/70" : "bg-blue-400"
+                      )} />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Selected day heading */}
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-slate-700">
+                {selectedDate.toLocaleDateString("en-IE", { weekday: "long", day: "numeric", month: "long" })}
+                {isToday && (
+                  <span className="ml-2 text-xs font-medium text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full">Today</span>
+                )}
+              </h2>
+              <span className="text-xs text-slate-400">
+                {shifts.filter((s) => s.date.split("T")[0] === selectedDateStr).length} shifts
+              </span>
+            </div>
+
+            {/* Employee cards for selected day */}
+            <div className="space-y-3">
+              {groups.map(({ dept, colors, emps }) => (
+                <div key={dept.id} className="space-y-1.5">
+                  {/* Dept label */}
+                  <div className="flex items-center gap-1.5 px-0.5">
+                    <span className={cn("h-2 w-2 rounded-full flex-shrink-0", colors.dot)} />
+                    <span className={cn("text-xs font-semibold uppercase tracking-wide", colors.text)}>{dept.name}</span>
+                  </div>
+
+                  {emps.map((emp) => {
+                    const shift = getShift(emp.id, selectedDateStr);
+                    const weekHrs = empWeekHours(emp.id, weekDates, getShift);
+                    return (
+                      <button
+                        key={emp.id}
+                        onClick={() => handleCellClick(emp.id, selectedDateStr, shift)}
+                        disabled={!isManager}
+                        className={cn(
+                          "w-full flex items-center justify-between rounded-xl px-4 py-3 border transition-all text-left",
+                          shift
+                            ? shift.published
+                              ? "bg-white border-slate-200 hover:border-blue-300 hover:shadow-sm active:scale-[0.99]"
+                              : "bg-amber-50/60 border-amber-200 hover:border-amber-300 active:scale-[0.99]"
+                            : isManager
+                            ? "bg-white border-dashed border-slate-200 hover:border-blue-300 hover:bg-blue-50/30 active:scale-[0.99]"
+                            : "bg-slate-50 border-slate-100 cursor-default"
+                        )}
+                      >
+                        {/* Left: name + shift info */}
+                        <div className="flex items-center gap-3">
+                          {/* Avatar */}
+                          <div className={cn(
+                            "h-9 w-9 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0",
+                            shift ? colors.cardBg + " " + colors.cardText : "bg-slate-100 text-slate-400"
+                          )}>
+                            {emp.firstName[0]}{emp.lastName[0]}
+                          </div>
+                          <div>
+                            <p className="text-sm font-semibold text-slate-800">
+                              {emp.firstName} {emp.lastName}
+                            </p>
+                            {shift ? (
+                              <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                                <span className="text-xs text-slate-500 flex items-center gap-0.5">
+                                  <Clock className="h-3 w-3" />
+                                  {fmtTime(shift.startTime)}–{fmtTime(shift.endTime)}
+                                </span>
+                                {shift.role && (
+                                  <span className="text-xs text-slate-400">· {shift.role}</span>
+                                )}
+                                {(shift.overtimeHours ?? 0) > 0 && (
+                                  <span className="text-[10px] font-bold bg-orange-500 text-white px-1.5 py-0.5 rounded-full">
+                                    +{shift.overtimeHours}h OT
+                                  </span>
+                                )}
+                              </div>
+                            ) : (
+                              <p className="text-xs text-slate-400 mt-0.5">
+                                {weekHrs > 0 ? `${fmtHours(weekHrs)} this week` : "No shift"}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Right: status / add */}
+                        <div className="flex-shrink-0 flex items-center gap-1.5">
+                          {shift ? (
+                            shift.published ? (
+                              <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                            ) : (
+                              <AlertCircle className="h-4 w-4 text-amber-500" />
+                            )
+                          ) : isManager ? (
+                            <div className="h-7 w-7 rounded-full bg-blue-50 border border-blue-200 flex items-center justify-center">
+                              <Plus className="h-3.5 w-3.5 text-blue-500" />
+                            </div>
+                          ) : null}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* ── DESKTOP VIEW (>= lg) ── */}
+          <div className="hidden lg:block space-y-6">
+            {groups.map(({ dept, colors, emps }) => (
               <DeptBlock
                 key={dept.id}
                 dept={dept}
                 colors={colors}
-                employees={deptEmps}
+                employees={emps}
                 weekDates={weekDates}
                 getShift={getShift}
                 isManager={isManager}
                 onCellClick={handleCellClick}
               />
-            );
-          })}
-
-          {/* Unassigned */}
-          {getUnassigned().length > 0 && (
-            <DeptBlock
-              dept={{ id: "__unassigned__", name: "Unassigned" }}
-              colors={{ bg: "bg-slate-50", text: "text-slate-600", dot: "bg-slate-400" }}
-              employees={getUnassigned()}
-              weekDates={weekDates}
-              getShift={getShift}
-              isManager={isManager}
-              onCellClick={handleCellClick}
-            />
-          )}
-        </div>
+            ))}
+          </div>
+        </>
       )}
 
-      {/* No depts but has employees — show all */}
-      {!loading && employees.length > 0 && departments.length === 0 && (
-        <DeptBlock
-          dept={{ id: "__all__", name: "All Staff" }}
-          colors={{ bg: "bg-blue-50", text: "text-blue-700", dot: "bg-blue-500" }}
-          employees={employees}
-          weekDates={weekDates}
-          getShift={getShift}
-          isManager={isManager}
-          onCellClick={handleCellClick}
-        />
-      )}
-
-      {/* Shift Dialog */}
-      <Dialog open={shiftDialog} onOpenChange={setShiftDialog}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>
+      {/* ── Shift Sheet (bottom on mobile, right on desktop) ── */}
+      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+        <SheetContent side="bottom" className="rounded-t-2xl px-4 pb-8 sm:max-w-md sm:mx-auto lg:side-right">
+          <SheetHeader className="mb-4">
+            <SheetTitle>
               {editingShift ? "Edit Shift" : "Add Shift"}
-            </DialogTitle>
+            </SheetTitle>
             {cellContext && (
               <p className="text-sm text-slate-500">
-                {new Date(cellContext.date).toLocaleDateString("en-IE", {
+                {sheetEmployee ? `${sheetEmployee.firstName} ${sheetEmployee.lastName} · ` : ""}
+                {new Date(cellContext.date + "T12:00:00").toLocaleDateString("en-IE", {
                   weekday: "long",
                   day: "numeric",
                   month: "long",
                 })}
               </p>
             )}
-          </DialogHeader>
+          </SheetHeader>
 
-          <div className="space-y-4 py-2">
+          <div className="space-y-4">
+            {/* Time */}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label htmlFor="st">Start</Label>
@@ -477,6 +620,7 @@ export default function RotaPage() {
               </div>
             </div>
 
+            {/* Role */}
             <div className="space-y-1.5">
               <Label htmlFor="role">Role / Note</Label>
               <Input
@@ -504,46 +648,52 @@ export default function RotaPage() {
               />
             </div>
 
-            <div className="flex items-center gap-2">
+            {/* Publish */}
+            <label className="flex items-center gap-3 cursor-pointer select-none p-3 rounded-xl bg-slate-50 border border-slate-100">
               <input
                 type="checkbox"
                 id="pub"
                 checked={shiftForm.published}
                 onChange={(e) => setShiftForm((f) => ({ ...f, published: e.target.checked }))}
-                className="rounded border-slate-300"
+                className="h-4 w-4 rounded border-slate-300 accent-blue-600"
               />
-              <Label htmlFor="pub" className="cursor-pointer">Publish immediately</Label>
+              <div>
+                <p className="text-sm font-medium text-slate-700">Publish immediately</p>
+                <p className="text-xs text-slate-400">Employee will be notified</p>
+              </div>
+            </label>
+
+            {/* Actions */}
+            <div className="flex gap-2 pt-1">
+              {editingShift && (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={handleDeleteShift}
+                  disabled={saving}
+                  className="gap-1.5"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Delete
+                </Button>
+              )}
+              <div className="flex-1" />
+              <Button variant="outline" size="sm" onClick={() => setSheetOpen(false)}>
+                Cancel
+              </Button>
+              <Button size="sm" onClick={handleSaveShift} disabled={saving} className="gap-1.5">
+                {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                {editingShift ? "Save" : "Add Shift"}
+              </Button>
             </div>
           </div>
-
-          <DialogFooter className="gap-2">
-            {editingShift && (
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={handleDeleteShift}
-                disabled={saving}
-              >
-                <Trash2 className="h-3.5 w-3.5 mr-1" />
-                Delete
-              </Button>
-            )}
-            <div className="flex-1" />
-            <Button variant="outline" size="sm" onClick={() => setShiftDialog(false)}>
-              Cancel
-            </Button>
-            <Button size="sm" onClick={handleSaveShift} disabled={saving}>
-              {saving && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
-              {editingShift ? "Save" : "Add"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
 
-// ─── DeptBlock subcomponent ──────────────────────────────────────────────────
+// ─── DeptBlock (desktop only) ────────────────────────────────────────────────
 
 function DeptBlock({
   dept,
@@ -562,14 +712,12 @@ function DeptBlock({
   isManager: boolean;
   onCellClick: (empId: string, dateStr: string, existing?: Shift) => void;
 }) {
-  // Department total hours (scheduled + overtime)
   const totalHours = employees.reduce((acc, emp) => {
     return acc + empWeekHours(emp.id, weekDates, getShift);
   }, 0);
 
   return (
     <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-      {/* Dept header */}
       <div className={cn("flex items-center justify-between px-5 py-3 border-b border-slate-100", colors.bg)}>
         <div className="flex items-center gap-2.5">
           <span className={cn("h-2.5 w-2.5 rounded-full flex-shrink-0", colors.dot)} />
@@ -580,32 +728,18 @@ function DeptBlock({
         </div>
       </div>
 
-      {/* Table */}
       <div className="overflow-x-auto">
         <table className="w-full min-w-[700px]">
           <thead>
             <tr className="border-b border-slate-100">
-              <th className="text-left px-4 py-2.5 text-xs font-medium text-slate-500 w-40">
-                Employee
-              </th>
-              <th className="text-center px-2 py-2.5 text-xs font-medium text-slate-400 w-14">
-                Hrs
-              </th>
+              <th className="text-left px-4 py-2.5 text-xs font-medium text-slate-500 w-40">Employee</th>
+              <th className="text-center px-2 py-2.5 text-xs font-medium text-slate-400 w-14">Hrs</th>
               {weekDates.map((date, i) => {
                 const isToday = toDateStr(date) === toDateStr(new Date());
                 return (
-                  <th
-                    key={i}
-                    className={cn(
-                      "text-center px-1 py-2.5 text-xs font-medium",
-                      isToday ? "text-blue-600" : "text-slate-500"
-                    )}
-                  >
+                  <th key={i} className={cn("text-center px-1 py-2.5 text-xs font-medium", isToday ? "text-blue-600" : "text-slate-500")}>
                     <div>{DAYS[i]}</div>
-                    <div className={cn(
-                      "text-[11px] mt-0.5",
-                      isToday ? "font-bold text-blue-600" : "text-slate-400 font-normal"
-                    )}>
+                    <div className={cn("text-[11px] mt-0.5", isToday ? "font-bold text-blue-600" : "text-slate-400 font-normal")}>
                       {date.getDate()}
                     </div>
                   </th>
@@ -617,19 +751,12 @@ function DeptBlock({
             {employees.map((emp, ri) => {
               const weekHrs = empWeekHours(emp.id, weekDates, getShift);
               return (
-                <tr
-                  key={emp.id}
-                  className={cn("border-b border-slate-50", ri % 2 === 0 ? "bg-white" : "bg-slate-50/40")}
-                >
+                <tr key={emp.id} className={cn("border-b border-slate-50", ri % 2 === 0 ? "bg-white" : "bg-slate-50/40")}>
                   <td className="px-4 py-2 text-sm font-medium text-slate-700 truncate max-w-[160px]">
                     {emp.firstName} {emp.lastName}
                   </td>
-                  {/* Per-employee weekly hours */}
                   <td className="px-2 py-2 text-center">
-                    <span className={cn(
-                      "text-xs font-semibold tabular-nums",
-                      weekHrs === 0 ? "text-slate-300" : "text-slate-600"
-                    )}>
+                    <span className={cn("text-xs font-semibold tabular-nums", weekHrs === 0 ? "text-slate-300" : "text-slate-600")}>
                       {fmtHours(weekHrs)}
                     </span>
                   </td>
@@ -638,13 +765,7 @@ function DeptBlock({
                     const shift = getShift(emp.id, dateStr);
                     const isToday = dateStr === toDateStr(new Date());
                     return (
-                      <td
-                        key={di}
-                        className={cn(
-                          "px-1 py-1.5 text-center align-middle",
-                          isToday && "bg-blue-50/40"
-                        )}
-                      >
+                      <td key={di} className={cn("px-1 py-1.5 text-center align-middle", isToday && "bg-blue-50/40")}>
                         {shift ? (
                           <button
                             onClick={() => onCellClick(emp.id, dateStr, shift)}
@@ -658,11 +779,8 @@ function DeptBlock({
                             <div>{fmtTime(shift.startTime)}</div>
                             <div className="opacity-70">–{fmtTime(shift.endTime)}</div>
                             {shift.role && (
-                              <div className="text-[10px] opacity-60 truncate mt-0.5">
-                                {shift.role}
-                              </div>
+                              <div className="text-[10px] opacity-60 truncate mt-0.5">{shift.role}</div>
                             )}
-                            {/* Overtime badge */}
                             {(shift.overtimeHours ?? 0) > 0 && (
                               <div className="mt-0.5">
                                 <span className="inline-block bg-orange-500 text-white text-[9px] font-bold px-1 py-0.5 rounded leading-none">
