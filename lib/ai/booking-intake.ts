@@ -53,16 +53,18 @@ function extractPartySize(msg: string): number | null {
 }
 
 function extractCustomerName(msg: string): string | null {
-  // "booking for John Smith", "under the name Walsh", "name: Christy"
+  // "booking for John Smith", "under the name Walsh", "name: Christy", "name walsh"
   const patterns = [
+    /\bname[:\s]+([A-Za-z][a-zA-Z]+(?:\s+[A-Za-z][a-zA-Z]+)?)\b/i,
+    /\bunder\s+(?:the\s+name\s+)?([A-Za-z][a-zA-Z]+(?:\s+[A-Za-z][a-zA-Z]+)?)\b/i,
     /\bfor\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\b/,
-    /\bname[:\s]+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\b/i,
-    /\bunder\s+(?:the\s+name\s+)?([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\b/i,
   ];
+  const stopWords = new Set(["the", "a", "an", "this", "that", "table", "us", "our", "my"]);
   for (const p of patterns) {
     const m = msg.match(p);
-    if (m && !["the", "a", "an", "this", "that"].includes(m[1].toLowerCase())) {
-      return m[1];
+    if (m && !stopWords.has(m[1].toLowerCase())) {
+      // Capitalise first letter of each word
+      return m[1].replace(/\b\w/g, (c) => c.toUpperCase());
     }
   }
   return null;
