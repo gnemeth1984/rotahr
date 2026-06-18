@@ -35,6 +35,7 @@ model User {
 
   employees           Employee[]
   passwordResetTokens PasswordResetToken[]
+  appNotifications    AppNotification[]
 }
 
 model PasswordResetToken {
@@ -280,4 +281,19 @@ model ShiftTemplate {
   updatedAt   DateTime @updatedAt
 
   employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+}
+
+// ── In-App Notifications ───────────────────────────────────────────────────────
+model AppNotification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String   // "message" | "shift" | "timeoff" | "booking" | "rota"
+  title     String
+  body      String
+  link      String?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, read])
 }

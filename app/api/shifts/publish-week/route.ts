@@ -4,6 +4,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth/options";
 import { prisma } from "@/lib/db";
+import { notifyUsers } from "@/lib/services/appNotification.service";
+import { format } from "date-fns";
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -16,7 +18,7 @@ export async function POST(req: NextRequest) {
 
   const businessId = session.user.businessId ?? "christys-bar-seed-id";
   const body = await req.json();
-  const { mondayDate } = body; // ISO string e.g. "2024-01-15"
+  const { mondayDate } = body;
 
   if (!mondayDate) {
     return NextResponse.json({ error: "mondayDate required" }, { status: 400 });
@@ -25,12 +27,10 @@ export async function POST(req: NextRequest) {
   const monday = new Date(mondayDate);
   monday.setHours(0, 0, 0, 0);
 
-  // Verify it's actually a Monday (day 1)
   if (monday.getDay() !== 1) {
     return NextResponse.json({ error: "mondayDate must be a Monday" }, { status: 400 });
   }
 
-  // Fetch all active templates for this business
   const templates = await prisma.shiftTemplate.findMany({
     where: { businessId, active: true },
     include: {
@@ -45,11 +45,9 @@ export async function POST(req: NextRequest) {
   const shiftsToCreate = [];
 
   for (const tmpl of templates) {
-    // dayOfWeek: 0=Sun, 1=Mon … 6=Sat
-    // Monday is day 1, so offset = dayOfWeek - 1 (Mon=0 offset, Tue=1, …, Sun=6)
     let offset: number;
     if (tmpl.dayOfWeek === 0) {
-      offset = 6; // Sunday comes at end of week
+      offset = 6;
     } else {
       offset = tmpl.dayOfWeek - 1;
     }
@@ -63,18 +61,12 @@ export async function POST(req: NextRequest) {
     const endTime = new Date(shiftDate);
     endTime.setHours(tmpl.endHour, tmpl.endMinute, 0, 0);
 
-    // Handle overnight shifts
     if (endTime <= startTime) {
       endTime.setDate(endTime.getDate() + 1);
     }
 
-    // Check for duplicate (same employee, overlapping start)
     const existing = await prisma.shift.findFirst({
-      where: {
-        businessId,
-        employeeId: tmpl.employeeId,
-        startTime,
-      },
+      where: { businessId, employeeId: tmpl.employeeId, startTime },
     });
 
     if (!existing) {
@@ -90,8 +82,26 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Bulk create
   const created = await prisma.shift.createMany({ data: shiftsToCreate });
+
+  // Notify all affected employees
+  if (created.count > 0) {
+    const employeeIds = [...new Set(shiftsToCreate.map((s) => s.employeeId).filter(Boolean))];
+    const employees = await prisma.employee.findMany({
+      where: { id: { in: employeeIds } },
+      select: { userId: true },
+    });
+    const userIds = employees.map((e) => e.userId).filter(Boolean) as string[];
+    if (userIds.length > 0) {
+      const weekStr = format(monday, "MMM d");
+      await notifyUsers(userIds, {
+        type: "rota",
+        title: "Rota published",
+        body: `Your schedule for the week of ${weekStr} is now available.`,
+        link: "/schedule",
+      });
+    }
+  }
 
   return NextResponse.json({ created: created.count, skipped: templates.length - created.count });
 }

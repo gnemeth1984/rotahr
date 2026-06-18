@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db";
 import { createTimeOffSchema } from "@/lib/validators/timeoff";
 import { UserRole as Role } from "@/types/roles";
 import { sendNewTimeOffRequestEmail } from "@/lib/email";
+import { notifyUsers } from "@/lib/services/appNotification.service";
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -105,10 +106,21 @@ export async function POST(req: NextRequest) {
         role: { in: [Role.MANAGER, Role.ADMIN] },
         ...(businessId ? { businessId } : {}),
       },
-      select: { email: true, name: true },
+      select: { id: true, email: true, name: true },
     });
 
     const employeeName = `${employee.firstName} ${employee.lastName}`;
+
+    // In-app notifications for managers
+    const managerIds = managers.map((m) => m.id);
+    if (managerIds.length > 0) {
+      await notifyUsers(managerIds, {
+        type: "timeoff",
+        title: "New time off request",
+        body: `${employeeName} requested time off.`,
+        link: "/time-off",
+      }).catch(() => {});
+    }
 
     for (const manager of managers) {
       if (manager.email) {

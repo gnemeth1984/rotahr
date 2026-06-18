@@ -5,6 +5,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth/options";
 import { prisma } from "@/lib/db";
 import { UserRole as Role } from "@/types/roles";
+import { notifyUsers } from "@/lib/services/appNotification.service";
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -32,6 +33,21 @@ export async function POST(req: NextRequest) {
       })
     )
   );
+
+  // Notify each recipient who has a user account
+  const recipients = await prisma.employee.findMany({
+    where: { id: { in: recipientIds } },
+    select: { userId: true },
+  });
+  const userIds = recipients.map((r) => r.userId).filter(Boolean) as string[];
+  if (userIds.length > 0) {
+    await notifyUsers(userIds, {
+      type: "message",
+      title: `New message from ${me.firstName} ${me.lastName}`,
+      body: body.trim().slice(0, 120),
+      link: "/messages",
+    });
+  }
 
   return NextResponse.json({ sent: messages.length });
 }

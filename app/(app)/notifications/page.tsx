@@ -2,36 +2,53 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Bell, CheckCheck, Calendar, Users, Clock } from "lucide-react";
-import { format } from "date-fns";
+import { Bell, CheckCheck, Calendar, MessageSquare, Clock, Users, BellRing } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
 
-type Notification = {
+type Notif = {
   id: string;
-  message: string | null;
+  type: "message" | "shift" | "timeoff" | "booking" | "rota";
+  title: string;
+  body: string;
+  link: string | null;
   read: boolean;
   createdAt: string;
-  reservation: {
-    id: string;
-    customerName: string;
-    date: string;
-    time: string;
-    partySize: number;
-    status: string;
-    notes: string | null;
-  };
+};
+
+const TYPE_META: Record<string, { icon: React.ReactNode; color: string }> = {
+  message: {
+    icon: <MessageSquare className="w-4 h-4" />,
+    color: "text-blue-400 bg-blue-500/10",
+  },
+  shift: {
+    icon: <Clock className="w-4 h-4" />,
+    color: "text-green-400 bg-green-500/10",
+  },
+  timeoff: {
+    icon: <Calendar className="w-4 h-4" />,
+    color: "text-yellow-400 bg-yellow-500/10",
+  },
+  booking: {
+    icon: <Users className="w-4 h-4" />,
+    color: "text-purple-400 bg-purple-500/10",
+  },
+  rota: {
+    icon: <BellRing className="w-4 h-4" />,
+    color: "text-orange-400 bg-orange-500/10",
+  },
 };
 
 export default function NotificationsPage() {
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [notifs, setNotifs] = useState<Notif[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchNotifications = async () => {
+  const fetch_ = async () => {
     try {
-      const res = await fetch("/api/notifications/list");
+      const res = await fetch("/api/app-notifications/list");
       if (res.ok) {
         const data = await res.json();
-        setNotifications(data.notifications ?? []);
+        setNotifs(data.notifications ?? []);
       }
     } catch {
       // silent
@@ -40,28 +57,19 @@ export default function NotificationsPage() {
     }
   };
 
-  useEffect(() => {
-    fetchNotifications();
-  }, []);
+  useEffect(() => { fetch_(); }, []);
 
   const markRead = async (id: string) => {
-    await fetch(`/api/notifications/${id}/read`, { method: "PATCH" });
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, read: true } : n))
-    );
+    await fetch(`/api/app-notifications/${id}/read`, { method: "PATCH" });
+    setNotifs((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
   };
 
   const markAllRead = async () => {
-    const unread = notifications.filter((n) => !n.read);
-    await Promise.all(
-      unread.map((n) =>
-        fetch(`/api/notifications/${n.id}/read`, { method: "PATCH" })
-      )
-    );
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    await fetch("/api/app-notifications/mark-all-read", { method: "POST" });
+    setNotifs((prev) => prev.map((n) => ({ ...n, read: true })));
   };
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  const unreadCount = notifs.filter((n) => !n.read).length;
 
   if (loading) {
     return (
@@ -96,68 +104,52 @@ export default function NotificationsPage() {
       </div>
 
       {/* List */}
-      {notifications.length === 0 ? (
+      {notifs.length === 0 ? (
         <div className="text-center py-16 text-slate-500">
           <Bell className="h-10 w-10 mx-auto mb-3 opacity-30" />
           <p>No notifications yet.</p>
         </div>
       ) : (
-        <div className="space-y-3">
-          {notifications.map((n) => (
-            <div
-              key={n.id}
-              onClick={() => !n.read && markRead(n.id)}
-              className={cn(
-                "rounded-xl border p-4 cursor-pointer transition-all",
-                n.read
-                  ? "bg-slate-800/50 border-slate-700"
-                  : "bg-slate-800 border-blue-500/50 shadow-sm shadow-blue-500/10"
-              )}
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                  {/* Booking info */}
-                  <div className="flex items-center gap-2 mb-1">
-                    <span
-                      className={cn(
-                        "text-sm font-semibold",
-                        n.read ? "text-slate-300" : "text-white"
-                      )}
-                    >
-                      Booking: {n.reservation.customerName}
-                    </span>
-                    {!n.read && (
-                      <span className="w-2 h-2 rounded-full bg-blue-400 flex-shrink-0" />
-                    )}
-                  </div>
-
-                  {/* Meta */}
-                  <div className="flex flex-wrap gap-3 text-xs text-slate-400 mb-2">
-                    <span className="flex items-center gap-1">
-                      <Calendar className="h-3 w-3" />
-                      {format(new Date(n.reservation.date), "EEE, MMM d")} at{" "}
-                      {n.reservation.time}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Users className="h-3 w-3" />
-                      {n.reservation.partySize} guests
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Clock className="h-3 w-3" />
-                      {format(new Date(n.createdAt), "MMM d, HH:mm")}
-                    </span>
-                  </div>
-
-                  {/* Manager message */}
-                  {n.message && (
-                    <p className="text-sm text-slate-300 bg-slate-700/50 rounded-lg px-3 py-2 mt-1">
-                      &ldquo;{n.message}&rdquo;
-                    </p>
-                  )}
+        <div className="space-y-2">
+          {notifs.map((n) => {
+            const meta = TYPE_META[n.type] ?? TYPE_META.booking;
+            return (
+              <div
+                key={n.id}
+                onClick={() => {
+                  if (!n.read) markRead(n.id);
+                  if (n.link) window.location.href = n.link;
+                }}
+                className={cn(
+                  "rounded-xl border p-4 cursor-pointer transition-all flex items-start gap-3",
+                  n.read
+                    ? "bg-slate-800/50 border-slate-700 opacity-70"
+                    : "bg-slate-800 border-blue-500/40 shadow-sm shadow-blue-500/10"
+                )}
+              >
+                {/* Type icon */}
+                <div className={cn("flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center", meta.color)}>
+                  {meta.icon}
                 </div>
+
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2 mb-0.5">
+                    <span className={cn("text-sm font-semibold", n.read ? "text-slate-300" : "text-white")}>
+                      {n.title}
+                    </span>
+                    <span className="text-xs text-slate-500 flex-shrink-0">
+                      {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })}
+                    </span>
+                  </div>
+                  <p className="text-sm text-slate-400 leading-snug">{n.body}</p>
+                </div>
+
+                {!n.read && (
+                  <span className="flex-shrink-0 w-2 h-2 rounded-full bg-blue-400 mt-1.5" />
+                )}
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

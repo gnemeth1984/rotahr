@@ -11,7 +11,7 @@ export function BellButton() {
 
   const fetchCount = async () => {
     try {
-      const res = await fetch("/api/notifications/unread-count");
+      const res = await fetch("/api/app-notifications/unread-count");
       if (res.ok) {
         const data = await res.json();
         setCount(data.count ?? 0);
@@ -23,7 +23,7 @@ export function BellButton() {
 
   useEffect(() => {
     fetchCount();
-    const interval = setInterval(fetchCount, 30_000);
+    const interval = setInterval(fetchCount, 15_000); // poll every 15s
     return () => clearInterval(interval);
   }, []);
 
