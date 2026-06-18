@@ -45,7 +45,7 @@ export const tableService = {
       include: {
         reservations: {
           where: {
-            status: { in: ["CONFIRMED", "SEATED"] },
+            status: { in: ["confirmed", "seated"] },
             date: { gte: dayStart, lte: dayEnd },
           },
         },

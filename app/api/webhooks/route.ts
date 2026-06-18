@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
       const { reservationId } = data;
       await prisma.reservation.update({
         where: { id: reservationId },
-        data: { status: "CANCELLED" },
+        data: { status: "cancelled" },
       });
       return NextResponse.json({ success: true });
     }

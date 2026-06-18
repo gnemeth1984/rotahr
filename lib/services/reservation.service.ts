@@ -19,7 +19,7 @@ export const createReservationSchema = z.object({
 });
 
 export const updateReservationSchema = createReservationSchema.partial().extend({
-  status: z.enum(["CONFIRMED", "CANCELLED", "PENDING", "SEATED", "COMPLETED", "NO_SHOW"]).optional(),
+  status: z.enum(["confirmed", "cancelled", "pending", "seated", "completed", "no_show"]).optional(),
 });
 
 export const reservationService = {

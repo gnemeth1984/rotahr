@@ -277,7 +277,7 @@ export async function processBookingIntake(
   const upsellSuggestions = generateUpsells(partySize, occasion);
 
   // 6. Manager summary
-  const canCreate = !!dateTime && !!partySize;
+  const canCreate = !!dateTime && !!partySize && !!customerName;
   const managerSummary = [
     `📋 Booking Intake Summary`,
     `─────────────────────────`,

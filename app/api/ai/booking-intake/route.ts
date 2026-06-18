@@ -40,15 +40,17 @@ export async function POST(req: NextRequest) {
     const intake = await processBookingIntake(message, businessId);
 
     let reservation = null;
+    let blockedReason: string | null = null;
 
-    if (
-      autoCreate &&
-      intake.canCreate &&
-      intake.parsed.date &&
-      intake.parsed.time &&
-      intake.parsed.partySize &&
-      intake.parsed.customerName
-    ) {
+    if (autoCreate && !intake.canCreate) {
+      const missing: string[] = [];
+      if (!intake.parsed.customerName) missing.push("customer name");
+      if (!intake.parsed.partySize) missing.push("party size");
+      if (!intake.parsed.date || !intake.parsed.time) missing.push("date/time");
+      blockedReason = `Could not auto-create — missing: ${missing.join(", ")}. Please add these details to your message.`;
+    }
+
+    if (autoCreate && intake.canCreate) {
       reservation = await reservationService.create(
         {
           customerName: intake.parsed.customerName,
@@ -94,6 +96,7 @@ export async function POST(req: NextRequest) {
       intake,
       reservation,
       autoCreated: reservation !== null,
+      blockedReason,
     });
   } catch (err: any) {
     console.error("[ai/booking-intake]", err?.message ?? err);

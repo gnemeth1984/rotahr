@@ -303,6 +303,8 @@ export default function BookingsPage() {
       setAiResult(data);
       if (data.autoCreated) {
         fetchBookings();
+      } else if (data.blockedReason) {
+        setAiError(data.blockedReason);
       }
     } catch (e: any) {
       setAiError(e.message);

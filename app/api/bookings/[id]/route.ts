@@ -96,7 +96,7 @@ export async function DELETE(req: NextRequest, context: RouteContext) {
   const { id } = await context.params;
 
   try {
-    const reservation = await reservationService.update(id, businessId, { status: "CANCELLED" });
+    const reservation = await reservationService.update(id, businessId, { status: "cancelled" });
     return NextResponse.json({ reservation });
   } catch (err: any) {
     if (err?.message === "Reservation not found") {
