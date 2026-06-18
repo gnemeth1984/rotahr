@@ -30,10 +30,13 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    const resetUrl = `${process.env.NEXTAUTH_URL}/auth/reset-password?token=${token}`;
+    const baseUrl = process.env.NEXTAUTH_URL?.includes("localhost")
+      ? "https://rotahr.com"
+      : process.env.NEXTAUTH_URL ?? "https://rotahr.com";
+    const resetUrl = `${baseUrl}/auth/reset-password?token=${token}`;
 
     await resend.emails.send({
-      from: "Rotahr <noreply@rotahr.com>",
+      from: "Rotahr <onboarding@resend.dev>",
       to: email,
       subject: "Reset your Rotahr password",
       html: `
