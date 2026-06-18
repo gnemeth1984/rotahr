@@ -3,7 +3,6 @@
 
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -18,6 +17,12 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import {
   BookOpen,
   Plus,
   Trash2,
@@ -28,10 +33,14 @@ import {
   Bell,
   Flag,
   CheckCircle2,
-  ChevronDown,
-  ChevronUp,
   Sparkles,
   AlertTriangle,
+  Phone,
+  ChevronRight,
+  CalendarDays,
+  MoreHorizontal,
+  X,
+  StickyNote,
 } from "lucide-react";
 import { UserRole as Role } from "@/types/roles";
 import { cn } from "@/lib/utils";
@@ -75,53 +84,77 @@ const emptyForm = {
   notes: "",
 };
 
+const STATUS_STYLES: Record<string, string> = {
+  confirmed: "bg-green-100 text-green-700 border-green-200",
+  pending:   "bg-amber-100 text-amber-700 border-amber-200",
+  cancelled: "bg-red-100 text-red-600 border-red-200",
+  seated:    "bg-blue-100 text-blue-700 border-blue-200",
+};
+
+function formatDate(dateStr: string) {
+  const d = new Date(dateStr);
+  const today = new Date();
+  const tomorrow = new Date(today);
+  tomorrow.setDate(today.getDate() + 1);
+
+  if (d.toDateString() === today.toDateString()) return "Today";
+  if (d.toDateString() === tomorrow.toDateString()) return "Tomorrow";
+  return d.toLocaleDateString("en-IE", { weekday: "short", day: "numeric", month: "short" });
+}
+
+// Quick date pill filters
+const TODAY = new Date().toISOString().split("T")[0];
+const TOMORROW = new Date(Date.now() + 86400000).toISOString().split("T")[0];
+
 export default function BookingsPage() {
   const { data: session } = useSession();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
+  const [filterDate, setFilterDate] = useState(TODAY);
+
+  // Selected booking for action sheet
+  const [activeBooking, setActiveBooking] = useState<Booking | null>(null);
+  const [actionSheetOpen, setActionSheetOpen] = useState(false);
+
+  // Edit dialog
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editBooking, setEditBooking] = useState<Booking | null>(null);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState(emptyForm);
-  const [filterDate, setFilterDate] = useState("");
 
-  // Notify Staff dialog
+  // Notify Staff
   const [notifyBooking, setNotifyBooking] = useState<Booking | null>(null);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [selectedEmployees, setSelectedEmployees] = useState<string[]>([]);
   const [notifyMessage, setNotifyMessage] = useState("");
   const [notifying, setNotifying] = useState(false);
 
-  // Flag dialog
+  // Flag
   const [flagBooking, setFlagBooking] = useState<Booking | null>(null);
   const [flagNote, setFlagNote] = useState("");
   const [flagging, setFlagging] = useState(false);
 
-  // AI Assist dialog (manager only)
+  // AI Assist
   const [aiAssistOpen, setAiAssistOpen] = useState(false);
   const [aiMessage, setAiMessage] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
   const [aiResult, setAiResult] = useState<any>(null);
   const [aiError, setAiError] = useState<string | null>(null);
 
-  // Flags view (manager only, expandable per booking)
-  const [expandedFlags, setExpandedFlags] = useState<Record<string, BookingFlag[]>>({});
-  const [loadingFlags, setLoadingFlags] = useState<Record<string, boolean>>({});
-  const [openFlagRow, setOpenFlagRow] = useState<string | null>(null);
+  // Flags panel (inside action sheet)
+  const [flags, setFlags] = useState<BookingFlag[]>([]);
+  const [flagsLoading, setFlagsLoading] = useState(false);
+  const [showFlags, setShowFlags] = useState(false);
 
   const isManager =
     session?.user?.role === Role.MANAGER || session?.user?.role === Role.ADMIN;
 
-  useEffect(() => {
-    fetchBookings();
-  }, [filterDate]);
+  useEffect(() => { fetchBookings(); }, [filterDate]);
 
-  const fetchBookings = async () => {
+  async function fetchBookings() {
     setLoading(true);
     try {
-      const url = filterDate
-        ? `/api/reservations?date=${filterDate}`
-        : "/api/reservations";
+      const url = filterDate ? `/api/reservations?date=${filterDate}` : "/api/reservations";
       const res = await fetch(url);
       if (!res.ok) throw new Error("Failed");
       const data = await res.json();
@@ -131,15 +164,18 @@ export default function BookingsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }
 
-  const openNew = () => {
-    setEditBooking(null);
-    setForm(emptyForm);
-    setDialogOpen(true);
-  };
+  // ── Open action sheet ──────────────────────────────────────────────────────
+  function openActions(b: Booking) {
+    setActiveBooking(b);
+    setShowFlags(false);
+    setFlags([]);
+    setActionSheetOpen(true);
+  }
 
-  const openEdit = (b: Booking) => {
+  // ── Edit ───────────────────────────────────────────────────────────────────
+  function openEdit(b: Booking) {
     setEditBooking(b);
     setForm({
       customerName: b.customerName,
@@ -150,10 +186,17 @@ export default function BookingsPage() {
       time: b.time,
       notes: b.notes ?? "",
     });
+    setActionSheetOpen(false);
     setDialogOpen(true);
-  };
+  }
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  function openNew() {
+    setEditBooking(null);
+    setForm({ ...emptyForm, date: TODAY });
+    setDialogOpen(true);
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
     try {
@@ -175,30 +218,30 @@ export default function BookingsPage() {
     } finally {
       setSaving(false);
     }
-  };
+  }
 
-  const handleCancel = async (id: string) => {
-    if (!confirm("Cancel this booking?")) return;
+  async function handleCancel(id: string) {
+    setActionSheetOpen(false);
     await fetch(`/api/reservations/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status: "cancelled" }),
     });
     fetchBookings();
-  };
+  }
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Delete this booking permanently?")) return;
+  async function handleDelete(id: string) {
+    setActionSheetOpen(false);
     await fetch(`/api/reservations/${id}`, { method: "DELETE" });
     fetchBookings();
-  };
+  }
 
-  // ── Notify Staff ────────────────────────────────────────────────────────────
-  const openNotify = async (b: Booking) => {
+  // ── Notify ─────────────────────────────────────────────────────────────────
+  async function openNotify(b: Booking) {
     setNotifyBooking(b);
     setSelectedEmployees([]);
     setNotifyMessage("");
-    // fetch employees
+    setActionSheetOpen(false);
     if (employees.length === 0) {
       const res = await fetch("/api/employee/list");
       if (res.ok) {
@@ -206,15 +249,9 @@ export default function BookingsPage() {
         setEmployees(Array.isArray(data.employees) ? data.employees : []);
       }
     }
-  };
+  }
 
-  const toggleEmployee = (id: string) => {
-    setSelectedEmployees((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    );
-  };
-
-  const sendNotifications = async () => {
+  async function sendNotifications() {
     if (!notifyBooking || selectedEmployees.length === 0) return;
     setNotifying(true);
     try {
@@ -231,15 +268,16 @@ export default function BookingsPage() {
     } finally {
       setNotifying(false);
     }
-  };
+  }
 
-  // ── Flag Booking ─────────────────────────────────────────────────────────────
-  const openFlag = (b: Booking) => {
+  // ── Flag ───────────────────────────────────────────────────────────────────
+  function openFlag(b: Booking) {
     setFlagBooking(b);
     setFlagNote("");
-  };
+    setActionSheetOpen(false);
+  }
 
-  const submitFlag = async () => {
+  async function submitFlag() {
     if (!flagBooking || !flagNote.trim()) return;
     setFlagging(true);
     try {
@@ -252,42 +290,30 @@ export default function BookingsPage() {
     } finally {
       setFlagging(false);
     }
-  };
+  }
 
-  // ── View Flags (manager) ──────────────────────────────────────────────────────
-  const toggleFlags = async (bookingId: string) => {
-    if (openFlagRow === bookingId) {
-      setOpenFlagRow(null);
-      return;
-    }
-    setOpenFlagRow(bookingId);
-    if (!expandedFlags[bookingId]) {
-      setLoadingFlags((p) => ({ ...p, [bookingId]: true }));
-      try {
-        const res = await fetch(`/api/bookings/${bookingId}/flags`);
-        if (res.ok) {
-          const data = await res.json();
-          setExpandedFlags((p) => ({ ...p, [bookingId]: data.flags ?? [] }));
-        }
-      } finally {
-        setLoadingFlags((p) => ({ ...p, [bookingId]: false }));
+  // ── Flags view ─────────────────────────────────────────────────────────────
+  async function loadFlags(b: Booking) {
+    setShowFlags(true);
+    setFlagsLoading(true);
+    try {
+      const res = await fetch(`/api/bookings/${b.id}/flags`);
+      if (res.ok) {
+        const data = await res.json();
+        setFlags(data.flags ?? []);
       }
+    } finally {
+      setFlagsLoading(false);
     }
-  };
+  }
 
-  const resolveFlag = async (bookingId: string, flagId: string) => {
-    await fetch(`/api/bookings/${bookingId}/flags/${flagId}/resolve`, {
-      method: "PATCH",
-    });
-    setExpandedFlags((p) => ({
-      ...p,
-      [bookingId]: (p[bookingId] ?? []).map((f) =>
-        f.id === flagId ? { ...f, resolved: true } : f
-      ),
-    }));
-  };
+  async function resolveFlag(bookingId: string, flagId: string) {
+    await fetch(`/api/bookings/${bookingId}/flags/${flagId}/resolve`, { method: "PATCH" });
+    setFlags((prev) => prev.map((f) => f.id === flagId ? { ...f, resolved: true } : f));
+  }
 
-  const handleAiAssist = async (autoCreate: boolean) => {
+  // ── AI Assist ──────────────────────────────────────────────────────────────
+  async function handleAiAssist(autoCreate: boolean) {
     if (!aiMessage.trim()) return;
     setAiLoading(true);
     setAiError(null);
@@ -301,306 +327,345 @@ export default function BookingsPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "AI intake failed");
       setAiResult(data);
-      if (data.autoCreated) {
-        fetchBookings();
-      } else if (data.blockedReason) {
-        setAiError(data.blockedReason);
-      }
+      if (data.autoCreated) fetchBookings();
+      else if (data.blockedReason) setAiError(data.blockedReason);
     } catch (e: any) {
       setAiError(e.message);
     } finally {
       setAiLoading(false);
     }
-  };
+  }
 
-  const statusVariant = (s: string) => {
-    if (s === "confirmed") return "default";
-    if (s === "cancelled") return "destructive";
-    return "secondary";
-  };
-
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Bookings</h1>
-          <p className="text-slate-500 mt-1">Manage table reservations</p>
-        </div>
-        <div className="flex gap-2">
+    <div className="flex flex-col h-full">
+      {/* ── Header ─────────────────────────────────────────────────────────── */}
+      <div className="flex items-center justify-between px-4 pt-4 pb-3">
+        <h1 className="text-xl font-bold text-slate-900">Bookings</h1>
+        <div className="flex items-center gap-2">
           {isManager && (
             <Button
+              size="sm"
               variant="outline"
               onClick={() => { setAiAssistOpen(true); setAiResult(null); setAiError(null); setAiMessage(""); }}
-              className="gap-2 border-violet-300 text-violet-700 hover:bg-violet-50 flex-1 sm:flex-none"
+              className="gap-1.5 border-violet-300 text-violet-700 hover:bg-violet-50 h-9 px-3"
             >
-              <Sparkles className="h-4 w-4" />
-              AI Assist
+              <Sparkles className="h-3.5 w-3.5" />
+              AI
             </Button>
           )}
-          <Button onClick={openNew} className="gap-2 flex-1 sm:flex-none">
-            <Plus className="h-4 w-4" />
-            New Booking
+          <Button size="sm" onClick={openNew} className="gap-1.5 h-9 px-3">
+            <Plus className="h-3.5 w-3.5" />
+            New
           </Button>
         </div>
       </div>
 
-      {/* Date filter */}
-      <div className="flex items-center gap-3">
-        <Input
-          type="date"
-          value={filterDate}
-          onChange={(e) => setFilterDate(e.target.value)}
-          className="w-48"
-        />
-        {filterDate && (
-          <Button variant="ghost" size="sm" onClick={() => setFilterDate("")}>
-            Clear
-          </Button>
-        )}
+      {/* ── Date pill filter ───────────────────────────────────────────────── */}
+      <div className="flex items-center gap-2 px-4 pb-3 overflow-x-auto scrollbar-hide">
+        {[
+          { label: "Today", value: TODAY },
+          { label: "Tomorrow", value: TOMORROW },
+          { label: "All", value: "" },
+        ].map(({ label, value }) => (
+          <button
+            key={label}
+            onClick={() => setFilterDate(value)}
+            className={cn(
+              "flex-shrink-0 px-4 py-1.5 rounded-full text-sm font-medium border transition-colors",
+              filterDate === value
+                ? "bg-slate-900 text-white border-slate-900"
+                : "bg-white text-slate-600 border-slate-200 hover:border-slate-400"
+            )}
+          >
+            {label}
+          </button>
+        ))}
+        {/* Custom date picker */}
+        <div className="flex-shrink-0 relative">
+          <input
+            type="date"
+            value={filterDate}
+            onChange={(e) => setFilterDate(e.target.value)}
+            className={cn(
+              "pl-8 pr-3 py-1.5 rounded-full text-sm font-medium border transition-colors appearance-none cursor-pointer",
+              filterDate && filterDate !== TODAY && filterDate !== TOMORROW
+                ? "bg-slate-900 text-white border-slate-900"
+                : "bg-white text-slate-600 border-slate-200 hover:border-slate-400"
+            )}
+            style={{ colorScheme: "light" }}
+          />
+          <CalendarDays className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
+        </div>
       </div>
 
-      {loading ? (
-        <div className="flex justify-center py-20">
-          <Loader2 className="h-8 w-8 animate-spin text-slate-300" />
-        </div>
-      ) : bookings.length === 0 ? (
-        <Card>
-          <CardContent className="py-16 text-center">
-            <BookOpen className="h-12 w-12 mx-auto mb-3 text-slate-200" />
-            <p className="text-slate-500 font-medium">No bookings found</p>
-            <p className="text-slate-400 text-sm mt-1">
-              Create one or ask the AI assistant.
-            </p>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid gap-3">
-          {bookings.map((b) => (
-            <Card key={b.id} className="hover:shadow-md transition-shadow">
-              <CardContent className="p-4">
-                <div className="flex flex-col gap-3">
-                  {/* Top row: name + badge + actions */}
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-2 flex-wrap min-w-0">
-                      <p className="font-semibold text-slate-900 truncate">{b.customerName}</p>
-                      <Badge variant={statusVariant(b.status) as any}>
-                        {b.status.charAt(0).toUpperCase() + b.status.slice(1)}
-                      </Badge>
-                    </div>
-
-                    {/* Actions — compact row */}
-                    <div className="flex items-center gap-1 flex-shrink-0">
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-8 w-8"
-                        onClick={() => openEdit(b)}
-                        title="Edit booking"
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                      </Button>
-
-                      {isManager && (
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-8 w-8 text-blue-500 hover:text-blue-700 hover:bg-blue-50"
-                          onClick={() => openNotify(b)}
-                          title="Notify staff"
-                        >
-                          <Bell className="h-3.5 w-3.5" />
-                        </Button>
-                      )}
-
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-8 w-8 text-amber-500 hover:text-amber-700 hover:bg-amber-50"
-                        onClick={() => openFlag(b)}
-                        title="Flag booking"
-                      >
-                        <Flag className="h-3.5 w-3.5" />
-                      </Button>
-
-                      {isManager && (
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className={cn(
-                            "h-8 w-8",
-                            openFlagRow === b.id
-                              ? "text-amber-600 bg-amber-50"
-                              : "text-slate-400"
-                          )}
-                          onClick={() => toggleFlags(b.id)}
-                          title="View flags"
-                        >
-                          {openFlagRow === b.id ? (
-                            <ChevronUp className="h-3.5 w-3.5" />
-                          ) : (
-                            <ChevronDown className="h-3.5 w-3.5" />
-                          )}
-                        </Button>
-                      )}
-
-                      {b.status !== "cancelled" && (
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-8 w-8 text-orange-500 hover:text-orange-700 hover:bg-orange-50"
-                          onClick={() => handleCancel(b.id)}
-                          title="Cancel booking"
-                        >
-                          <Clock className="h-3.5 w-3.5" />
-                        </Button>
-                      )}
-
-                      {isManager && (
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
-                          onClick={() => handleDelete(b.id)}
-                          title="Delete booking"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      )}
-                    </div>
+      {/* ── Booking list ───────────────────────────────────────────────────── */}
+      <div className="flex-1 overflow-y-auto px-4 pb-6 space-y-2">
+        {loading ? (
+          <div className="flex justify-center py-24">
+            <Loader2 className="h-8 w-8 animate-spin text-slate-300" />
+          </div>
+        ) : bookings.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-24 gap-3">
+            <BookOpen className="h-12 w-12 text-slate-200" />
+            <p className="text-slate-400 font-medium">No bookings</p>
+            <Button size="sm" variant="outline" onClick={openNew} className="gap-1.5">
+              <Plus className="h-3.5 w-3.5" />
+              Add one
+            </Button>
+          </div>
+        ) : (
+          bookings.map((b) => (
+            <button
+              key={b.id}
+              onClick={() => openActions(b)}
+              className="w-full text-left bg-white border border-slate-200 rounded-2xl p-4 active:scale-[0.98] transition-transform shadow-sm hover:shadow-md"
+            >
+              <div className="flex items-start justify-between gap-3">
+                {/* Left: name + info */}
+                <div className="min-w-0 flex-1 space-y-2">
+                  {/* Name + status */}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-semibold text-slate-900 text-base leading-tight truncate">
+                      {b.customerName}
+                    </span>
+                    <span className={cn(
+                      "text-xs font-medium px-2 py-0.5 rounded-full border",
+                      STATUS_STYLES[b.status] ?? "bg-slate-100 text-slate-500"
+                    )}>
+                      {b.status.charAt(0).toUpperCase() + b.status.slice(1)}
+                    </span>
                   </div>
 
-                  {/* Bottom row: date / guests / table / phone / notes */}
-                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-500">
-                    <span className="flex items-center gap-1">
-                      <Clock className="h-3.5 w-3.5 flex-shrink-0" />
-                      {new Date(b.date).toLocaleDateString("en-IE", {
-                        weekday: "short",
-                        day: "numeric",
-                        month: "short",
-                      })}{" "}
-                      at {b.time}
+                  {/* Time + guests + table */}
+                  <div className="flex flex-wrap gap-x-3 gap-y-1 text-sm text-slate-500">
+                    <span className="flex items-center gap-1 font-medium text-slate-700">
+                      <Clock className="h-3.5 w-3.5 text-slate-400 flex-shrink-0" />
+                      {formatDate(b.date)} · {b.time}
                     </span>
                     <span className="flex items-center gap-1">
-                      <Users className="h-3.5 w-3.5 flex-shrink-0" />
+                      <Users className="h-3.5 w-3.5 text-slate-400 flex-shrink-0" />
                       {b.partySize} guests
                     </span>
                     {b.table && (
-                      <span className="text-slate-400">{b.table.name}</span>
-                    )}
-                    {b.customerPhone && (
-                      <span className="text-slate-400">{b.customerPhone}</span>
+                      <span className="text-slate-400 text-xs self-center">
+                        {b.table.name}
+                      </span>
                     )}
                   </div>
-                  {b.notes && (
-                    <p className="text-xs text-slate-400 truncate">{b.notes}</p>
-                  )}
+
+                  {/* Phone + notes inline */}
+                  <div className="flex flex-wrap gap-x-3 gap-y-0.5">
+                    {b.customerPhone && (
+                      <span className="flex items-center gap-1 text-xs text-slate-400">
+                        <Phone className="h-3 w-3 flex-shrink-0" />
+                        {b.customerPhone}
+                      </span>
+                    )}
+                    {b.notes && (
+                      <span className="flex items-center gap-1 text-xs text-slate-400 truncate max-w-[200px]">
+                        <StickyNote className="h-3 w-3 flex-shrink-0" />
+                        {b.notes}
+                      </span>
+                    )}
+                  </div>
                 </div>
 
-                {/* Flags panel (manager, expandable) */}
-                {isManager && openFlagRow === b.id && (
-                  <div className="mt-4 border-t pt-3">
-                    {loadingFlags[b.id] ? (
-                      <div className="flex items-center gap-2 text-sm text-slate-400">
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        Loading flags...
-                      </div>
-                    ) : !expandedFlags[b.id] ||
-                      expandedFlags[b.id].length === 0 ? (
-                      <p className="text-sm text-slate-400">No flags for this booking.</p>
-                    ) : (
-                      <div className="space-y-2">
-                        {expandedFlags[b.id].map((flag) => (
-                          <div
-                            key={flag.id}
-                            className={cn(
-                              "flex items-start justify-between gap-3 rounded-lg px-3 py-2 text-sm",
-                              flag.resolved
-                                ? "bg-green-50 text-green-700"
-                                : "bg-amber-50 text-amber-800"
-                            )}
-                          >
-                            <div className="flex-1 min-w-0">
-                              <span className="font-medium">
-                                {flag.employee.firstName} {flag.employee.lastName}
-                              </span>
-                              <span className="text-xs opacity-70 ml-2">
-                                {new Date(flag.createdAt).toLocaleDateString("en-IE")}
-                              </span>
-                              <p className="mt-0.5 text-xs">{flag.note}</p>
-                            </div>
-                            {!flag.resolved && (
-                              <button
-                                onClick={() => resolveFlag(b.id, flag.id)}
-                                className="flex items-center gap-1 text-xs text-green-600 hover:text-green-800 font-medium whitespace-nowrap"
-                              >
-                                <CheckCircle2 className="h-3.5 w-3.5" />
-                                Resolve
-                              </button>
-                            )}
-                            {flag.resolved && (
-                              <span className="text-xs text-green-600 font-medium whitespace-nowrap">
-                                Resolved
-                              </span>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
+                {/* Right: chevron */}
+                <ChevronRight className="h-4 w-4 text-slate-300 flex-shrink-0 mt-1" />
+              </div>
+            </button>
+          ))
+        )}
+      </div>
 
-      {/* ── Edit/Create Dialog ─────────────────────────────────────────────── */}
+      {/* ═══════════════════════════════════════════════════════════════════════
+          ACTION SHEET — slides up from bottom on mobile
+      ════════════════════════════════════════════════════════════════════════ */}
+      <Sheet open={actionSheetOpen} onOpenChange={setActionSheetOpen}>
+        <SheetContent side="bottom" className="rounded-t-3xl px-0 pb-8 max-h-[85vh] overflow-y-auto">
+          <SheetHeader className="px-5 pb-3 border-b border-slate-100">
+            <div className="flex items-center justify-between">
+              <div>
+                <SheetTitle className="text-left text-base">
+                  {activeBooking?.customerName}
+                </SheetTitle>
+                <p className="text-sm text-slate-500 mt-0.5">
+                  {activeBooking && formatDate(activeBooking.date)} · {activeBooking?.time} · {activeBooking?.partySize} guests
+                </p>
+              </div>
+              <span className={cn(
+                "text-xs font-medium px-2.5 py-1 rounded-full border",
+                STATUS_STYLES[activeBooking?.status ?? ""] ?? "bg-slate-100"
+              )}>
+                {activeBooking?.status?.charAt(0).toUpperCase()}{activeBooking?.status?.slice(1)}
+              </span>
+            </div>
+          </SheetHeader>
+
+          {!showFlags ? (
+            /* ── Main action buttons ── */
+            <div className="px-4 pt-4 space-y-2">
+              {/* Edit */}
+              <ActionRow
+                icon={<Pencil className="h-4 w-4" />}
+                label="Edit Booking"
+                color="text-slate-700"
+                onClick={() => activeBooking && openEdit(activeBooking)}
+              />
+
+              {/* Notify staff */}
+              {isManager && (
+                <ActionRow
+                  icon={<Bell className="h-4 w-4" />}
+                  label="Notify Staff"
+                  color="text-blue-600"
+                  bg="bg-blue-50"
+                  onClick={() => activeBooking && openNotify(activeBooking)}
+                />
+              )}
+
+              {/* Flag */}
+              <ActionRow
+                icon={<Flag className="h-4 w-4" />}
+                label="Flag Booking"
+                color="text-amber-600"
+                bg="bg-amber-50"
+                onClick={() => activeBooking && openFlag(activeBooking)}
+              />
+
+              {/* View flags (manager) */}
+              {isManager && (
+                <ActionRow
+                  icon={<StickyNote className="h-4 w-4" />}
+                  label="View Flags"
+                  color="text-amber-700"
+                  bg="bg-amber-50"
+                  onClick={() => activeBooking && loadFlags(activeBooking)}
+                />
+              )}
+
+              {/* Cancel */}
+              {activeBooking?.status !== "cancelled" && (
+                <ActionRow
+                  icon={<X className="h-4 w-4" />}
+                  label="Cancel Booking"
+                  color="text-orange-600"
+                  bg="bg-orange-50"
+                  onClick={() => activeBooking && handleCancel(activeBooking.id)}
+                />
+              )}
+
+              {/* Delete (manager) */}
+              {isManager && (
+                <ActionRow
+                  icon={<Trash2 className="h-4 w-4" />}
+                  label="Delete Booking"
+                  color="text-red-600"
+                  bg="bg-red-50"
+                  onClick={() => activeBooking && handleDelete(activeBooking.id)}
+                />
+              )}
+            </div>
+          ) : (
+            /* ── Flags panel ── */
+            <div className="px-4 pt-4 space-y-3">
+              <button
+                onClick={() => setShowFlags(false)}
+                className="text-sm text-slate-500 flex items-center gap-1 mb-1"
+              >
+                ← Back
+              </button>
+              {flagsLoading ? (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-slate-300" />
+                </div>
+              ) : flags.length === 0 ? (
+                <p className="text-sm text-slate-400 text-center py-6">No flags for this booking.</p>
+              ) : (
+                flags.map((flag) => (
+                  <div
+                    key={flag.id}
+                    className={cn(
+                      "rounded-xl border p-3 text-sm",
+                      flag.resolved ? "bg-green-50 border-green-200" : "bg-amber-50 border-amber-200"
+                    )}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-slate-800">
+                          {flag.employee.firstName} {flag.employee.lastName}
+                        </p>
+                        <p className="text-xs text-slate-400 mt-0.5">
+                          {new Date(flag.createdAt).toLocaleDateString("en-IE")}
+                        </p>
+                        <p className="text-sm text-slate-700 mt-1">{flag.note}</p>
+                      </div>
+                      {!flag.resolved && activeBooking && (
+                        <button
+                          onClick={() => resolveFlag(activeBooking.id, flag.id)}
+                          className="flex-shrink-0 flex items-center gap-1 text-xs font-medium text-green-700 bg-green-100 px-2.5 py-1 rounded-full"
+                        >
+                          <CheckCircle2 className="h-3 w-3" />
+                          Resolve
+                        </button>
+                      )}
+                      {flag.resolved && (
+                        <span className="text-xs font-medium text-green-700 bg-green-100 px-2.5 py-1 rounded-full flex-shrink-0">
+                          Resolved
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
+
+      {/* ═══════════════════════════════════════════════════════════════════════
+          EDIT / CREATE DIALOG
+      ════════════════════════════════════════════════════════════════════════ */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-md mx-4 rounded-2xl">
           <DialogHeader>
             <DialogTitle>{editBooking ? "Edit Booking" : "New Booking"}</DialogTitle>
-            <DialogDescription>
-              {editBooking
-                ? "Update reservation details"
-                : "Create a new table reservation"}
-            </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <Label>Customer Name *</Label>
               <Input
                 value={form.customerName}
                 onChange={(e) => setForm({ ...form, customerName: e.target.value })}
                 required
+                placeholder="Full name"
               />
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <Label>Phone</Label>
                 <Input
                   value={form.customerPhone}
-                  onChange={(e) =>
-                    setForm({ ...form, customerPhone: e.target.value })
-                  }
+                  onChange={(e) => setForm({ ...form, customerPhone: e.target.value })}
                   placeholder="+353..."
+                  type="tel"
                 />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <Label>Party Size *</Label>
                 <Input
                   type="number"
                   min={1}
                   max={100}
                   value={form.partySize}
-                  onChange={(e) =>
-                    setForm({ ...form, partySize: parseInt(e.target.value) || 1 })
-                  }
+                  onChange={(e) => setForm({ ...form, partySize: parseInt(e.target.value) || 1 })}
                   required
                 />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <Label>Date *</Label>
                 <Input
                   type="date"
@@ -609,7 +674,7 @@ export default function BookingsPage() {
                   required
                 />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <Label>Time *</Label>
                 <Input
                   type="time"
@@ -619,141 +684,110 @@ export default function BookingsPage() {
                 />
               </div>
             </div>
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <Label>Email</Label>
               <Input
                 type="email"
                 value={form.customerEmail}
-                onChange={(e) =>
-                  setForm({ ...form, customerEmail: e.target.value })
-                }
+                onChange={(e) => setForm({ ...form, customerEmail: e.target.value })}
+                placeholder="optional"
               />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <Label>Notes</Label>
               <Textarea
                 value={form.notes}
                 onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                rows={3}
-                placeholder="Dietary requirements, occasion, etc."
+                rows={2}
+                placeholder="Dietary requirements, occasion…"
               />
             </div>
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setDialogOpen(false)}
-              >
+            <DialogFooter className="gap-2">
+              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)} className="flex-1">
                 Cancel
               </Button>
-              <Button type="submit" disabled={saving}>
+              <Button type="submit" disabled={saving} className="flex-1">
                 {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                {editBooking ? "Save Changes" : "Create Booking"}
+                {editBooking ? "Save" : "Create"}
               </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
 
-      {/* ── Notify Staff Dialog ────────────────────────────────────────────── */}
-      <Dialog
-        open={!!notifyBooking}
-        onOpenChange={(o) => !o && setNotifyBooking(null)}
-      >
-        <DialogContent>
+      {/* ═══════════════════════════════════════════════════════════════════════
+          NOTIFY STAFF DIALOG
+      ════════════════════════════════════════════════════════════════════════ */}
+      <Dialog open={!!notifyBooking} onOpenChange={(o) => !o && setNotifyBooking(null)}>
+        <DialogContent className="max-w-md mx-4 rounded-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Bell className="h-4 w-4 text-blue-500" />
               Notify Staff
             </DialogTitle>
             <DialogDescription>
-              Select employees to notify about &ldquo;
-              {notifyBooking?.customerName}&rdquo; — {notifyBooking?.date
-                ? new Date(notifyBooking.date).toLocaleDateString("en-IE", {
-                    weekday: "short",
-                    day: "numeric",
-                    month: "short",
-                  })
-                : ""}{" "}
-              at {notifyBooking?.time}
+              {notifyBooking?.customerName} · {notifyBooking && formatDate(notifyBooking.date)} at {notifyBooking?.time}
             </DialogDescription>
           </DialogHeader>
-
           <div className="space-y-4">
-            {/* Employee list */}
-            <div className="max-h-48 overflow-y-auto space-y-1 border rounded-lg p-2">
+            <div className="max-h-44 overflow-y-auto space-y-1 border rounded-xl p-2">
               {employees.length === 0 ? (
-                <p className="text-sm text-slate-400 text-center py-2">
-                  Loading employees...
-                </p>
+                <p className="text-sm text-slate-400 text-center py-3">Loading…</p>
               ) : (
                 employees.map((emp) => (
-                  <label
-                    key={emp.id}
-                    className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-slate-50 cursor-pointer text-sm"
-                  >
+                  <label key={emp.id} className="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-slate-50 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={selectedEmployees.includes(emp.id)}
-                      onChange={() => toggleEmployee(emp.id)}
-                      className="rounded"
+                      onChange={() => setSelectedEmployees((p) =>
+                        p.includes(emp.id) ? p.filter((x) => x !== emp.id) : [...p, emp.id]
+                      )}
+                      className="rounded w-4 h-4"
                     />
-                    <span className="font-medium">
-                      {emp.firstName} {emp.lastName}
-                    </span>
-                    <span className="text-slate-400">{emp.email}</span>
+                    <span className="text-sm font-medium">{emp.firstName} {emp.lastName}</span>
                   </label>
                 ))
               )}
             </div>
-
-            {/* Optional message */}
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <Label>Message (optional)</Label>
               <Textarea
                 value={notifyMessage}
                 onChange={(e) => setNotifyMessage(e.target.value)}
                 rows={2}
-                placeholder="Extra details for the team..."
+                placeholder="Extra details for the team…"
               />
             </div>
           </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setNotifyBooking(null)}>
-              Cancel
-            </Button>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setNotifyBooking(null)} className="flex-1">Cancel</Button>
             <Button
               onClick={sendNotifications}
               disabled={notifying || selectedEmployees.length === 0}
-              className="gap-2"
+              className="flex-1 gap-2"
             >
               {notifying && <Loader2 className="h-4 w-4 animate-spin" />}
-              Send to {selectedEmployees.length} employee
-              {selectedEmployees.length !== 1 ? "s" : ""}
+              Send{selectedEmployees.length > 0 ? ` (${selectedEmployees.length})` : ""}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* ── Flag Booking Dialog ────────────────────────────────────────────── */}
-      <Dialog
-        open={!!flagBooking}
-        onOpenChange={(o) => !o && setFlagBooking(null)}
-      >
-        <DialogContent>
+      {/* ═══════════════════════════════════════════════════════════════════════
+          FLAG DIALOG
+      ════════════════════════════════════════════════════════════════════════ */}
+      <Dialog open={!!flagBooking} onOpenChange={(o) => !o && setFlagBooking(null)}>
+        <DialogContent className="max-w-md mx-4 rounded-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Flag className="h-4 w-4 text-amber-500" />
               Flag Booking
             </DialogTitle>
             <DialogDescription>
-              Add a note to flag &ldquo;{flagBooking?.customerName}&rdquo; for
-              management attention.
+              Flag &ldquo;{flagBooking?.customerName}&rdquo; for management attention.
             </DialogDescription>
           </DialogHeader>
-
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <Label>Note *</Label>
             <Textarea
               value={flagNote}
@@ -762,33 +796,32 @@ export default function BookingsPage() {
               placeholder="e.g. Customer has severe nut allergy — confirm with kitchen"
             />
           </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setFlagBooking(null)}>
-              Cancel
-            </Button>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setFlagBooking(null)} className="flex-1">Cancel</Button>
             <Button
               onClick={submitFlag}
               disabled={flagging || !flagNote.trim()}
-              className="gap-2 bg-amber-500 hover:bg-amber-600 text-white"
+              className="flex-1 bg-amber-500 hover:bg-amber-600 text-white"
             >
               {flagging && <Loader2 className="h-4 w-4 animate-spin" />}
-              Submit Flag
+              Flag
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* ── AI Assist Dialog ───────────────────────────────────────────────── */}
+      {/* ═══════════════════════════════════════════════════════════════════════
+          AI ASSIST DIALOG
+      ════════════════════════════════════════════════════════════════════════ */}
       <Dialog open={aiAssistOpen} onOpenChange={(o) => !o && setAiAssistOpen(false)}>
-        <DialogContent className="max-w-xl">
+        <DialogContent className="max-w-md mx-4 rounded-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Sparkles className="h-4 w-4 text-violet-600" />
               AI Booking Assist
             </DialogTitle>
             <DialogDescription>
-              Paste or type a booking request — AI will parse and pre-fill all details.
+              Type or paste a booking request — AI will parse and create it.
             </DialogDescription>
           </DialogHeader>
 
@@ -796,12 +829,13 @@ export default function BookingsPage() {
             <Textarea
               value={aiMessage}
               onChange={(e) => setAiMessage(e.target.value)}
-              placeholder={`e.g. "Table for 6 on Friday 20th at 7:30pm, birthday, one vegan, name Walsh"`}
-              className="min-h-[80px] resize-none text-sm"
+              placeholder={`e.g. "Table for 6 Friday at 7:30pm, birthday, one vegan, name Walsh"`}
+              className="min-h-[80px] text-sm"
+              autoFocus
             />
 
             {aiError && (
-              <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+              <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
                 {aiError}
               </div>
             )}
@@ -809,36 +843,31 @@ export default function BookingsPage() {
             {aiResult && (
               <div className="space-y-2 text-sm">
                 {aiResult.autoCreated ? (
-                  <div className="rounded-lg border border-green-200 bg-green-50 p-3 flex items-center gap-2 text-green-800">
+                  <div className="rounded-xl border border-green-200 bg-green-50 p-3 flex items-center gap-2 text-green-800">
                     <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
                     Booking created for <strong>{aiResult.intake?.parsed?.customerName ?? "guest"}</strong>
                   </div>
                 ) : (
-                  <div className="rounded-lg bg-slate-50 border border-slate-200 p-3 grid grid-cols-2 gap-x-4 gap-y-1.5">
+                  <div className="rounded-xl bg-slate-50 border border-slate-200 p-3 grid grid-cols-2 gap-x-4 gap-y-2">
                     {[
                       ["Customer", aiResult.intake?.parsed?.customerName],
-                      ["Party size", aiResult.intake?.parsed?.partySize],
+                      ["Guests", aiResult.intake?.parsed?.partySize],
                       ["Date", aiResult.intake?.parsed?.date],
-                      ["Time", aiResult.intake?.parsed?.time ? new Date(aiResult.intake.parsed.time).toLocaleTimeString("en-IE", { hour: "2-digit", minute: "2-digit", hour12: false }) : null],
+                      ["Time", aiResult.intake?.parsed?.time],
                       ["Occasion", aiResult.intake?.parsed?.occasion],
                       ["Dietary", aiResult.intake?.parsed?.dietary],
                     ].map(([label, val]) => (
                       <div key={label as string}>
-                        <span className="text-xs text-slate-500">{label}</span>
-                        <p className={val ? "font-medium text-slate-900" : "text-slate-400 italic text-xs"}>
-                          {val ?? "Not detected"}
+                        <span className="text-xs text-slate-400">{label}</span>
+                        <p className={val ? "font-medium text-slate-900 text-sm" : "text-slate-300 italic text-xs"}>
+                          {val ?? "—"}
                         </p>
                       </div>
                     ))}
                   </div>
                 )}
-                {aiResult.intake?.tableAssignment && (
-                  <div className={`rounded-lg border p-2 text-xs ${aiResult.intake.tableAssignment.assigned ? "border-green-200 bg-green-50 text-green-800" : "border-amber-200 bg-amber-50 text-amber-800"}`}>
-                    Table: {aiResult.intake.tableAssignment.reason}
-                  </div>
-                )}
                 {aiResult.intake?.warnings?.length > 0 && (
-                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-2 space-y-1">
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 p-2 space-y-1">
                     {aiResult.intake.warnings.map((w: string, i: number) => (
                       <div key={i} className="flex items-center gap-1.5 text-xs text-amber-700">
                         <AlertTriangle className="h-3 w-3 flex-shrink-0" />
@@ -851,34 +880,63 @@ export default function BookingsPage() {
             )}
           </div>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setAiAssistOpen(false)}>
-              Close
-            </Button>
-            {!aiResult?.autoCreated && (
+          <DialogFooter className="gap-2 flex-col sm:flex-row">
+            {!aiResult?.autoCreated ? (
               <>
                 <Button
                   variant="outline"
                   onClick={() => handleAiAssist(false)}
                   disabled={aiLoading || !aiMessage.trim()}
-                  className="gap-2"
+                  className="flex-1 gap-2"
                 >
                   {aiLoading && !aiResult ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                  Parse Only
+                  Parse
                 </Button>
                 <Button
                   onClick={() => handleAiAssist(true)}
                   disabled={aiLoading || !aiMessage.trim()}
-                  className="gap-2 bg-violet-600 hover:bg-violet-700 text-white"
+                  className="flex-1 gap-2 bg-violet-600 hover:bg-violet-700 text-white"
                 >
                   {aiLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
                   Create Booking
                 </Button>
               </>
+            ) : (
+              <Button onClick={() => setAiAssistOpen(false)} className="flex-1">Done</Button>
             )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+// ── Reusable action row component ──────────────────────────────────────────────
+function ActionRow({
+  icon,
+  label,
+  color = "text-slate-700",
+  bg = "bg-slate-50",
+  onClick,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  color?: string;
+  bg?: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl transition-colors active:scale-[0.98]",
+        bg,
+        "hover:opacity-90"
+      )}
+    >
+      <span className={cn("flex-shrink-0", color)}>{icon}</span>
+      <span className={cn("text-sm font-medium flex-1 text-left", color)}>{label}</span>
+      <ChevronRight className="h-4 w-4 text-slate-300 flex-shrink-0" />
+    </button>
   );
 }
