@@ -71,8 +71,8 @@ export async function POST(req: NextRequest) {
       reservation,
       autoCreated: reservation !== null,
     });
-  } catch (err) {
-    console.error("[ai/booking-intake]", err);
-    return NextResponse.json({ error: "Booking intake failed" }, { status: 500 });
+  } catch (err: any) {
+    console.error("[ai/booking-intake]", err?.message ?? err);
+    return NextResponse.json({ error: err?.message ?? "Booking intake failed" }, { status: 500 });
   }
 }

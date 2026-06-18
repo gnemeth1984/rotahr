@@ -12,7 +12,7 @@ export const createReservationSchema = z.object({
   notes: z.string().max(1000).optional(),
   dietary: z.string().max(500).optional(),
   occasion: z.string().max(100).optional(),
-  tableId: z.string().cuid().optional(),
+  tableId: z.string().optional(),
   kitchenNotes: z.string().optional(),
   upsellNotes: z.string().optional(),
   aiWarnings: z.string().optional(),
