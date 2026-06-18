@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Briefcase, Smartphone, Share, Plus, MoreVertical, Chrome, ArrowRight, CheckCircle } from "lucide-react";
+import { Briefcase, Smartphone, Share, Plus, MoreVertical, Globe, ArrowRight, CheckCircle } from "lucide-react";
 
 export const metadata = {
   title: "Install Rotahr App",
@@ -71,7 +71,7 @@ export default function InstallPage() {
             {[
               {
                 step: "1",
-                icon: <Chrome className="h-5 w-5 text-blue-400" />,
+                icon: <Globe className="h-5 w-5 text-blue-400" />,
                 title: "Open Safari",
                 desc: 'Go to rotahr.com in Safari (must be Safari — not Chrome or Firefox)',
               },
@@ -129,7 +129,7 @@ export default function InstallPage() {
             {[
               {
                 step: "1",
-                icon: <Chrome className="h-5 w-5 text-blue-400" />,
+                icon: <Globe className="h-5 w-5 text-blue-400" />,
                 title: "Open Chrome",
                 desc: "Go to rotahr.com in Chrome on your Android phone",
               },
