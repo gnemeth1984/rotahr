@@ -2,9 +2,19 @@
 
 import { useEffect, useRef, useState, Component, ReactNode } from "react";
 import { useSession } from "next-auth/react";
-import { Send, MessageSquare, User, ArrowLeft, AlertCircle } from "lucide-react";
+import { Send, MessageSquare, User, ArrowLeft, AlertCircle, Users, Check, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { UserRole as Role } from "@/types/roles";
 
 class ErrorBoundary extends Component<{ children: ReactNode }, { error: string | null }> {
   state = { error: null };
@@ -46,6 +56,17 @@ function MessagesInner() {
   const [error, setError] = useState<string | null>(null);
   const [contactsError, setContactsError] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  // Group message state
+  const [groupOpen, setGroupOpen] = useState(false);
+  const [groupSelected, setGroupSelected] = useState<string[]>([]);
+  const [groupBody, setGroupBody] = useState("");
+  const [groupSending, setGroupSending] = useState(false);
+  const [groupError, setGroupError] = useState<string | null>(null);
+  const [groupSuccess, setGroupSuccess] = useState(false);
+
+  const isManager =
+    session?.user?.role === Role.MANAGER || session?.user?.role === Role.ADMIN;
 
   // Fetch contacts
   useEffect(() => {
@@ -108,25 +129,54 @@ function MessagesInner() {
 
       if (!res.ok || data.error) {
         setError(data.error || `Send failed (${res.status})`);
-        setBody(text); // restore so user doesn't lose message
+        setBody(text);
         setSending(false);
         return;
       }
 
-      // Refresh conversation
       const d = await fetch(`/api/messages/list?with=${selectedId}`).then((r) => r.json());
-      if (d.error) {
-        setError(d.error);
-      } else {
-        setMessages(d.messages ?? []);
-        setMeId(d.meId ?? null);
-      }
-    } catch (e) {
+      if (d.error) setError(d.error);
+      else { setMessages(d.messages ?? []); setMeId(d.meId ?? null); }
+    } catch {
       setError("Network error — check your connection");
       setBody(text);
     } finally {
       setSending(false);
     }
+  }
+
+  async function sendGroupMessage() {
+    if (!groupBody.trim() || groupSelected.length === 0) return;
+    setGroupSending(true);
+    setGroupError(null);
+    setGroupSuccess(false);
+    try {
+      const res = await fetch("/api/messages/group", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ recipientIds: groupSelected, body: groupBody.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) { setGroupError(data.error || "Failed to send"); return; }
+      setGroupSuccess(true);
+      setGroupBody("");
+      setGroupSelected([]);
+      setTimeout(() => { setGroupOpen(false); setGroupSuccess(false); }, 1500);
+    } catch {
+      setGroupError("Network error");
+    } finally {
+      setGroupSending(false);
+    }
+  }
+
+  function toggleGroupEmployee(id: string) {
+    setGroupSelected((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  }
+
+  function selectAll() {
+    setGroupSelected(employees.map((e) => e.id));
   }
 
   const totalUnread = Object.values(unread).reduce((a, b) => a + b, 0);
@@ -145,15 +195,34 @@ function MessagesInner() {
         `}
       >
         <div className="px-4 py-4 border-b border-slate-200">
-          <h1 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
-            <MessageSquare className="h-5 w-5 text-blue-500" />
-            Messages
-            {totalUnread > 0 && (
-              <span className="ml-auto bg-blue-500 text-white text-xs rounded-full px-2 py-0.5">
-                {totalUnread}
-              </span>
+          <div className="flex items-center justify-between">
+            <h1 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+              <MessageSquare className="h-5 w-5 text-blue-500" />
+              Messages
+              {totalUnread > 0 && (
+                <span className="ml-1 bg-blue-500 text-white text-xs rounded-full px-2 py-0.5">
+                  {totalUnread}
+                </span>
+              )}
+            </h1>
+            {isManager && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1.5 text-xs border-blue-200 text-blue-700 hover:bg-blue-50"
+                onClick={() => {
+                  setGroupSelected([]);
+                  setGroupBody("");
+                  setGroupError(null);
+                  setGroupSuccess(false);
+                  setGroupOpen(true);
+                }}
+              >
+                <Users className="h-3.5 w-3.5" />
+                Group
+              </Button>
             )}
-          </h1>
+          </div>
         </div>
         <div className="flex-1 overflow-y-auto">
           {contactsError && (
@@ -213,7 +282,6 @@ function MessagesInner() {
           </div>
         ) : (
           <>
-            {/* Header */}
             <div className="px-4 py-3 bg-white border-b border-slate-200 flex items-center gap-3">
               <button
                 className="md:hidden p-1 -ml-1 rounded-full hover:bg-slate-100"
@@ -229,7 +297,6 @@ function MessagesInner() {
               </p>
             </div>
 
-            {/* Error banner */}
             {error && (
               <div className="mx-4 mt-3 flex items-center gap-2 text-red-600 text-sm bg-red-50 border border-red-200 rounded-lg px-3 py-2">
                 <AlertCircle className="h-4 w-4 flex-shrink-0" />
@@ -237,7 +304,6 @@ function MessagesInner() {
               </div>
             )}
 
-            {/* Messages */}
             <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
               {messages.length === 0 && !error && (
                 <p className="text-center text-slate-400 text-sm mt-8">
@@ -269,7 +335,6 @@ function MessagesInner() {
               <div ref={bottomRef} />
             </div>
 
-            {/* Send bar */}
             <div className="px-4 py-3 bg-white border-t border-slate-200 flex gap-2">
               <Input
                 value={body}
@@ -277,10 +342,7 @@ function MessagesInner() {
                 placeholder="Type a message…"
                 disabled={sending}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    sendMessage();
-                  }
+                  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
                 }}
                 className="flex-1"
               />
@@ -296,6 +358,113 @@ function MessagesInner() {
           </>
         )}
       </div>
+
+      {/* ── Group Message Dialog ──────────────────────────────────────────────── */}
+      <Dialog open={groupOpen} onOpenChange={(o) => !groupSending && setGroupOpen(o)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Users className="h-4 w-4 text-blue-500" />
+              Group Message
+            </DialogTitle>
+            <DialogDescription>
+              Send a message to multiple team members at once.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {/* Recipient selector */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm font-medium text-slate-700">
+                  Recipients
+                  {groupSelected.length > 0 && (
+                    <span className="ml-2 text-xs bg-blue-100 text-blue-700 rounded-full px-2 py-0.5">
+                      {groupSelected.length} selected
+                    </span>
+                  )}
+                </p>
+                <button
+                  className="text-xs text-blue-600 hover:text-blue-800"
+                  onClick={groupSelected.length === employees.length ? () => setGroupSelected([]) : selectAll}
+                >
+                  {groupSelected.length === employees.length ? "Deselect all" : "Select all"}
+                </button>
+              </div>
+              <div className="max-h-48 overflow-y-auto border rounded-lg divide-y divide-slate-100">
+                {employees.map((emp) => {
+                  const checked = groupSelected.includes(emp.id);
+                  return (
+                    <button
+                      key={emp.id}
+                      onClick={() => toggleGroupEmployee(emp.id)}
+                      className={`w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors ${
+                        checked ? "bg-blue-50" : "hover:bg-slate-50"
+                      }`}
+                    >
+                      <div className={`h-5 w-5 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${
+                        checked ? "bg-blue-500 border-blue-500" : "border-slate-300"
+                      }`}>
+                        {checked && <Check className="h-3 w-3 text-white" />}
+                      </div>
+                      <div className="h-8 w-8 rounded-full bg-slate-200 flex items-center justify-center flex-shrink-0">
+                        <User className="h-4 w-4 text-slate-500" />
+                      </div>
+                      <span className="text-sm font-medium text-slate-900">
+                        {emp.firstName} {emp.lastName}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Message body */}
+            <div>
+              <p className="text-sm font-medium text-slate-700 mb-2">Message</p>
+              <Textarea
+                value={groupBody}
+                onChange={(e) => setGroupBody(e.target.value)}
+                placeholder="Type your message to the group…"
+                rows={3}
+                disabled={groupSending}
+              />
+            </div>
+
+            {groupError && (
+              <div className="flex items-center gap-2 text-red-600 text-sm bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                {groupError}
+              </div>
+            )}
+
+            {groupSuccess && (
+              <div className="flex items-center gap-2 text-green-700 text-sm bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+                <Check className="h-4 w-4 flex-shrink-0" />
+                Message sent to {groupSelected.length} team member{groupSelected.length !== 1 ? "s" : ""}!
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setGroupOpen(false)} disabled={groupSending}>
+              Cancel
+            </Button>
+            <Button
+              onClick={sendGroupMessage}
+              disabled={groupSending || groupSelected.length === 0 || !groupBody.trim()}
+              className="gap-2 bg-blue-500 hover:bg-blue-600 text-white"
+            >
+              {groupSending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="h-4 w-4" />
+              )}
+              Send to {groupSelected.length || "…"} member{groupSelected.length !== 1 ? "s" : ""}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
