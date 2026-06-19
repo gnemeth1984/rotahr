@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Sparkles, Users, CalendarCheck, AlertTriangle, CheckCircle2, Brain, ChevronDown, ChevronUp } from "lucide-react";
+import { Loader2, Sparkles, Users, CalendarCheck, AlertTriangle, CheckCircle2, Brain, ChevronDown, ChevronUp, Settings } from "lucide-react";
+import Link from "next/link";
 import { UserRole as Role } from "@/types/roles";
 import { cn } from "@/lib/utils";
 
@@ -439,14 +440,22 @@ export default function AIPage() {
 
   return (
     <div className="px-4 py-6 max-w-3xl mx-auto space-y-6 w-full">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-          <Brain className="h-6 w-6 text-violet-600" />
-          AI Assistant
-        </h1>
-        <p className="text-sm text-slate-500 mt-1">
-          Rule-based AI tools for booking intake and staffing analysis
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+            <Brain className="h-6 w-6 text-violet-600" />
+            AI Assistant
+          </h1>
+          <p className="text-sm text-slate-500 mt-1">
+            Rule-based AI tools for booking intake and staffing analysis
+          </p>
+        </div>
+        <Link href="/ai/settings">
+          <Button variant="outline" size="sm" className="gap-2 shrink-0">
+            <Settings className="h-4 w-4" />
+            Settings
+          </Button>
+        </Link>
       </div>
 
       <BookingIntakePanel />

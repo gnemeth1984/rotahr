@@ -22,14 +22,24 @@ export interface StaffingForecast {
   summary: string;
 }
 
-// Rules: 1 kitchen per 20 covers, 1 floor per 15 covers, warn if 0 bar staff
-const KITCHEN_RATIO = 20;
-const FLOOR_RATIO = 15;
+// Default fallback ratios (overridden by business AISettings)
+const DEFAULT_KITCHEN_RATIO = 20;
+const DEFAULT_FLOOR_RATIO = 15;
+const DEFAULT_MIN_BAR = 1;
+const DEFAULT_BOOKING_THRESHOLD = 20;
 
 export async function generateStaffingForecast(
   businessId: string,
   date: Date
 ): Promise<StaffingForecast> {
+  // Load per-business AI settings
+  const aiSettings = await prisma.aISettings.findUnique({
+    where: { businessId },
+  });
+  const KITCHEN_RATIO = aiSettings?.kitchenRatio ?? DEFAULT_KITCHEN_RATIO;
+  const FLOOR_RATIO = aiSettings?.floorRatio ?? DEFAULT_FLOOR_RATIO;
+  const MIN_BAR = aiSettings?.minBarStaff ?? DEFAULT_MIN_BAR;
+  const BOOKING_THRESHOLD = aiSettings?.bookingThresholdForStaffIncrease ?? DEFAULT_BOOKING_THRESHOLD;
   const startOfDay = new Date(date);
   startOfDay.setHours(0, 0, 0, 0);
   const endOfDay = new Date(date);
@@ -142,8 +152,8 @@ export async function generateStaffingForecast(
         `Need ${floorShortfall} more floor staff at ${hour}:00 (${covers} covers)`
       );
     }
-    if (staff.bar === 0 && covers > 0) {
-      issues.push(`No bar staff scheduled at ${hour}:00`);
+    if (staff.bar < MIN_BAR && covers > 0) {
+      issues.push(`Need ${MIN_BAR} bar staff at ${hour}:00 (currently ${staff.bar})`);
     }
 
     return {
@@ -151,7 +161,7 @@ export async function generateStaffingForecast(
       expectedCovers: covers,
       kitchenRequired,
       floorRequired,
-      barWarning: staff.bar === 0 && covers > 0,
+      barWarning: staff.bar < MIN_BAR && covers > 0,
       kitchenOnShift: staff.kitchen,
       floorOnShift: staff.floor,
       barOnShift: staff.bar,
@@ -165,10 +175,15 @@ export async function generateStaffingForecast(
     (acc, r) => acc + r.issues.length,
     0
   );
+  const totalCovers = reservations.reduce((acc, r) => acc + r.partySize, 0);
+  const thresholdWarning =
+    totalCovers >= BOOKING_THRESHOLD
+      ? ` High volume day (${totalCovers} covers) — consider adding extra staff.`
+      : "";
   const summary =
     totalIssues === 0
-      ? `Staffing looks good for ${dateStr}. All shifts are adequately covered.`
-      : `Found ${totalIssues} staffing issue(s) for ${dateStr}. Review recommendations below.`;
+      ? `Staffing looks good for ${dateStr}. All shifts are adequately covered.${thresholdWarning}`
+      : `Found ${totalIssues} staffing issue(s) for ${dateStr}. Review recommendations below.${thresholdWarning}`;
 
   return {
     date: dateStr,
