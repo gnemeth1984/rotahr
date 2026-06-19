@@ -5,7 +5,7 @@ import { shiftService, updateShiftSchema } from "@/lib/services/shift.service";
 import { prisma } from "@/lib/db";
 import { createNotification } from "@/lib/services/appNotification.service";
 
-export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
+async function handleUpdate(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await requireRole("ADMIN", "MANAGER");
   if (isResponse(session)) return session;
 
@@ -25,10 +25,12 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     // Notify the employee their shift was updated
     const employee = await prisma.employee.findUnique({
       where: { id: shift.employeeId },
-      select: { userId: true, firstName: true, lastName: true },
+      select: { userId: true },
     });
     if (employee?.userId) {
-      const shiftDate = shift.date ? new Date(shift.date).toLocaleDateString("en-IE", { weekday: "short", day: "numeric", month: "short" }) : "your shift";
+      const shiftDate = shift.date
+        ? new Date(shift.date).toLocaleDateString("en-IE", { weekday: "short", day: "numeric", month: "short" })
+        : "your shift";
       await createNotification({
         userId: employee.userId,
         type: "shift",
@@ -39,6 +41,53 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     }
 
     return NextResponse.json({ shift });
+  } catch (e: any) {
+    return NextResponse.json({ error: e.message }, { status: 400 });
+  }
+}
+
+// Support both PATCH and PUT from UI
+export const PATCH = handleUpdate;
+export const PUT = handleUpdate;
+
+export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
+  const session = await requireRole("ADMIN", "MANAGER");
+  if (isResponse(session)) return session;
+
+  try {
+    // Fetch shift before deleting so we can notify the employee
+    const shift = await prisma.shift.findUnique({
+      where: { id: params.id },
+      select: { id: true, employeeId: true, date: true },
+    });
+
+    if (!shift) {
+      return NextResponse.json({ error: "Shift not found" }, { status: 404 });
+    }
+
+    await shiftService.delete(params.id);
+
+    // Notify employee
+    if (shift.employeeId) {
+      const employee = await prisma.employee.findUnique({
+        where: { id: shift.employeeId },
+        select: { userId: true },
+      });
+      if (employee?.userId) {
+        const shiftDate = shift.date
+          ? new Date(shift.date).toLocaleDateString("en-IE", { weekday: "short", day: "numeric", month: "short" })
+          : "a shift";
+        await createNotification({
+          userId: employee.userId,
+          type: "shift",
+          title: "Shift Cancelled",
+          body: `Your shift on ${shiftDate} has been cancelled.`,
+          link: "/shifts",
+        }).catch(() => {});
+      }
+    }
+
+    return NextResponse.json({ success: true });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 400 });
   }

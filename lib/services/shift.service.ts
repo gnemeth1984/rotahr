@@ -78,4 +78,10 @@ export const shiftService = {
       },
     });
   },
+
+  async delete(id: string) {
+    const shift = await prisma.shift.findFirst({ where: { id } });
+    if (!shift) throw new Error("Shift not found");
+    return prisma.shift.delete({ where: { id } });
+  },
 };
