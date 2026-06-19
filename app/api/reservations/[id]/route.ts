@@ -38,6 +38,9 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   }
 }
 
+// DELETE — anonymises PII instead of hard-deleting.
+// GDPR: right to erasure is balanced against legitimate interest (business records, Revenue audit trail).
+// Financial data (partySize, date, time) is retained; personal data (name, email, phone) is wiped.
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
   try {
     const session = await getServerSession(authOptions);
@@ -45,7 +48,19 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    await prisma.reservation.delete({ where: { id: params.id } });
+    await prisma.reservation.update({
+      where: { id: params.id },
+      data: {
+        customerName: "[deleted]",
+        customerEmail: null,
+        customerPhone: null,
+        notes: null,
+        dietary: null,
+        occasion: null,
+        status: "cancelled",
+      },
+    });
+
     return NextResponse.json({ success: true });
   } catch (e) {
     console.error("[DELETE /api/reservations/[id]]", e);

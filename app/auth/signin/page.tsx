@@ -159,7 +159,10 @@ export default function SignInPage() {
           <SignInForm />
         </Suspense>
         <p className="text-center text-xs text-slate-500 mt-6">
-          By signing in, you agree to our terms of service.
+          By signing in, you agree to our{" "}
+          <a href="/terms" className="underline hover:text-slate-700">Terms of Service</a>{" "}
+          and{" "}
+          <a href="/privacy" className="underline hover:text-slate-700">Privacy Policy</a>.
         </p>
       </div>
     </div>

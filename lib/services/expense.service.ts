@@ -80,6 +80,8 @@ export const expenseService = {
     return prisma.expense.findMany({
       where: {
         businessId,
+        // Exclude soft-deleted records from all list views
+        NOT: { status: "deleted" },
         ...(filters?.category ? { category: filters.category } : {}),
         ...(filters?.status ? { status: filters.status } : {}),
         ...(filters?.from || filters?.to
@@ -132,7 +134,19 @@ export const expenseService = {
     });
   },
 
-  async delete(id: string, businessId: string) {
+  // Soft delete — sets status to "deleted". Record is retained for Irish Revenue 6-year rule (TCA 1997 s.886).
+  // Hard delete is intentionally not exposed via API.
+  async softDelete(id: string, businessId: string) {
+    const expense = await prisma.expense.findFirst({ where: { id, businessId } });
+    if (!expense) throw new Error("Expense not found");
+    return prisma.expense.update({
+      where: { id },
+      data: { status: "deleted" },
+    });
+  },
+
+  // Kept for internal use only (e.g. tests / migrations) — not called from any API route.
+  async hardDelete(id: string, businessId: string) {
     const expense = await prisma.expense.findFirst({ where: { id, businessId } });
     if (!expense) throw new Error("Expense not found");
     return prisma.expense.delete({ where: { id } });
@@ -142,7 +156,7 @@ export const expenseService = {
     const expenses = await prisma.expense.findMany({
       where: {
         businessId,
-        status: "confirmed",
+        status: "confirmed", // excludes "deleted" and "pending" automatically
         date: {
           gte: new Date(from),
           lte: new Date(to.replace(/T\d{2}:\d{2}:\d{2}/, "T23:59:59")),

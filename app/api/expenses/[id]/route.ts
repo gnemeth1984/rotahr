@@ -23,6 +23,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   }
 }
 
+// DELETE — soft delete only (TCA 1997 s.886: VAT records must be retained 6 years)
+// Sets status to "deleted" — record remains in DB, excluded from all views/exports.
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -32,7 +34,7 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
 
   const businessId = session.user.businessId ?? "christys-bar-seed-id";
   try {
-    await expenseService.delete(params.id, businessId);
+    await expenseService.softDelete(params.id, businessId);
     return NextResponse.json({ ok: true });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 400 });

@@ -3,6 +3,10 @@
     {
       "path": "/api/email/shift-reminder",
       "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/cron/purge-receipt-images",
+      "schedule": "0 3 * * *"
     }
   ]
 }
