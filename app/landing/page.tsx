@@ -6,23 +6,48 @@ import { Check, Zap, ArrowRight } from "lucide-react"
 const features = [
   {
     icon: "📅",
-    title: "Shift Scheduling",
-    desc: "Build and publish rotas in minutes. Staff get notified instantly. No more WhatsApp chaos.",
+    title: "Rota & Scheduling",
+    desc: "Build and publish weekly rotas in minutes. Staff get notified instantly. No more WhatsApp chaos.",
+  },
+  {
+    icon: "🕐",
+    title: "Clock In / Out",
+    desc: "GPS geofencing ensures staff can only clock in when they're on-site. Full time tracking built in.",
   },
   {
     icon: "🍽️",
     title: "Reservations",
-    desc: "Manage table bookings, party sizes and customer details. Notify staff about specific covers.",
+    desc: "Manage table bookings, party sizes and special requests. Notify staff automatically about covers.",
+  },
+  {
+    icon: "🍋",
+    title: "Menu & Specials Board",
+    desc: "Post daily specials, 86'd items, menu changes and announcements. Every team member sees it instantly.",
   },
   {
     icon: "💸",
     title: "Bookkeeping",
-    desc: "Snap a receipt, AI reads it automatically. Track expenses, VAT, P&L and export to CSV.",
+    desc: "Snap a receipt and AI reads it automatically. Track expenses, VAT, P&L and export to CSV.",
+  },
+  {
+    icon: "💼",
+    title: "Payroll",
+    desc: "Automatic payroll summaries based on hours worked. Reduce manual calculations and errors.",
   },
   {
     icon: "🏖️",
     title: "Time-Off Management",
-    desc: "Staff submit requests, managers approve. AI suggests cover when someone is out.",
+    desc: "Staff submit requests, managers approve in one tap. AI suggests cover when someone is out.",
+  },
+  {
+    icon: "📆",
+    title: "Availability",
+    desc: "Staff set their availability preferences. Build rotas that actually work around your team.",
+  },
+  {
+    icon: "💬",
+    title: "Team Messaging",
+    desc: "In-app messaging for the whole team. No need to share personal numbers.",
   },
   {
     icon: "👥",
@@ -32,7 +57,12 @@ const features = [
   {
     icon: "🤖",
     title: "AI Assistant",
-    desc: "Ask about schedules, parse booking requests and forecast staffing needs.",
+    desc: "Ask about schedules, parse booking requests, forecast staffing needs and detect shift conflicts.",
+  },
+  {
+    icon: "📱",
+    title: "Mobile App",
+    desc: "Native iOS & Android app. Push notifications for shifts, bookings, time-off and messages.",
   },
 ]
 
@@ -46,14 +76,16 @@ const plans = [
     highlight: false,
     cta: "Get Started",
     features: [
-      "Shift scheduling & rota publishing",
-      "Reservations & table management",
+      "Rota scheduling & publishing",
       "Clock in/out with geofencing",
-      "Time-off requests & approvals",
-      "Bookkeeping & AI receipt scanning",
+      "Reservations & table management",
       "Menu & specials board",
+      "Bookkeeping & AI receipt scanning",
+      "Time-off requests & approvals",
+      "Team messaging",
       "Employee profiles",
       "AI booking assistant",
+      "Mobile app (iOS & Android)",
       "Email & push notifications",
     ],
   },
@@ -69,6 +101,7 @@ const plans = [
       "Everything in Starter",
       "Up to 30 staff members",
       "Department management",
+      "Staff availability management",
       "Payroll summaries",
       "Staffing forecast & AI insights",
       "VAT & P&L dashboard",
@@ -134,7 +167,6 @@ export default function LandingPage() {
 
       {/* Hero */}
       <section className="relative overflow-hidden max-w-6xl mx-auto px-6 pt-24 pb-20 text-center">
-        {/* background glow */}
         <div className="pointer-events-none absolute inset-0 -z-10">
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[400px] rounded-full opacity-10"
             style={{ background: "radial-gradient(ellipse, #F97316 0%, #EC4899 50%, transparent 70%)" }} />
@@ -153,8 +185,11 @@ export default function LandingPage() {
           </span>
         </h1>
 
-        <p className="text-xl text-slate-500 max-w-2xl mx-auto mb-10">
-          Staff rotas, table reservations, bookkeeping and HR — all in one place. Replace three tools with one. Starting at €79/month.
+        <p className="text-xl text-slate-500 max-w-2xl mx-auto mb-4">
+          Rotas, clock-in, reservations, bookkeeping, payroll, team messaging and more — all in one place.
+        </p>
+        <p className="text-base text-slate-400 max-w-xl mx-auto mb-10">
+          Replace 4 separate tools with one. Starting at <strong className="text-slate-600">€79/month</strong> incl. VAT.
         </p>
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -177,7 +212,8 @@ export default function LandingPage() {
       {/* vs competitors */}
       <section className="py-12" style={{ background: "#FFF7F0" }}>
         <div className="max-w-3xl mx-auto px-6">
-          <p className="text-center text-sm text-slate-500 mb-6">What you'd pay using separate tools</p>
+          <p className="text-center text-sm font-semibold text-slate-600 mb-2">What you'd pay using separate tools</p>
+          <p className="text-center text-xs text-slate-400 mb-6">Most Irish venues are paying for 3–4 tools that don't talk to each other</p>
           <div className="bg-white rounded-2xl border border-orange-100 overflow-hidden shadow-sm">
             {competitors.map((c) => (
               <div
@@ -191,7 +227,7 @@ export default function LandingPage() {
             <div className="flex justify-between items-center px-6 py-4" style={{ background: "linear-gradient(135deg, #FFF7F0, #FFF0F8)" }}>
               <span className="text-sm font-bold text-slate-900 flex items-center gap-2">
                 <Image src="/logo-icon.png" alt="" width={20} height={20} className="object-contain" />
-                Rotahr (all-in-one)
+                Rotahr — everything included
               </span>
               <span className="text-sm font-bold" style={{ color: "#F97316" }}>from €79/mo</span>
             </div>
@@ -203,15 +239,17 @@ export default function LandingPage() {
       <section id="features" className="max-w-6xl mx-auto px-6 py-24">
         <div className="text-center mb-16">
           <h2 className="text-3xl font-extrabold mb-4">Everything your venue needs</h2>
-          <p className="text-slate-500 text-lg max-w-xl mx-auto">Built specifically for bars, restaurants and cafes in Ireland.</p>
+          <p className="text-slate-500 text-lg max-w-xl mx-auto">
+            12 tools in one platform. Built specifically for bars, restaurants and cafés in Ireland.
+          </p>
         </div>
-        <div className="grid md:grid-cols-3 gap-6">
+        <div className="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
           {features.map((f) => (
             <div key={f.title}
-              className="p-6 rounded-2xl border border-slate-100 hover:border-orange-200 hover:shadow-md transition-all group"
+              className="p-5 rounded-2xl border border-slate-100 hover:border-orange-200 hover:shadow-md transition-all group"
             >
-              <div className="text-3xl mb-4">{f.icon}</div>
-              <h3 className="font-bold text-lg mb-2 group-hover:text-orange-500 transition-colors">{f.title}</h3>
+              <div className="text-2xl mb-3">{f.icon}</div>
+              <h3 className="font-bold text-base mb-1.5 group-hover:text-orange-500 transition-colors">{f.title}</h3>
               <p className="text-slate-500 text-sm leading-relaxed">{f.desc}</p>
             </div>
           ))}
@@ -278,13 +316,12 @@ export default function LandingPage() {
       <section className="max-w-6xl mx-auto px-6 py-24 text-center">
         <div className="rounded-3xl px-8 py-16 relative overflow-hidden"
           style={{ background: "linear-gradient(135deg, #0F172A 0%, #1E1035 100%)" }}>
-          {/* glow */}
           <div className="absolute inset-0 pointer-events-none"
             style={{ background: "radial-gradient(ellipse at 50% 120%, #F9731630 0%, transparent 60%)" }} />
           <Image src="/logo-dark.png" alt="Rotahr" width={130} height={42} className="object-contain mx-auto mb-8" />
           <h2 className="text-3xl font-extrabold text-white mb-4">Ready to simplify your operations?</h2>
           <p className="text-slate-400 text-lg mb-10 max-w-xl mx-auto">
-            Join hospitality businesses across Ireland already using Rotahr to manage their teams.
+            Join hospitality businesses across Ireland already using Rotahr to manage their teams and venues.
           </p>
           <Link
             href="/auth/signin"
