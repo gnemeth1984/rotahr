@@ -118,9 +118,9 @@ export function Sidebar() {
   );
 
   const sidebarInner = (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full flex-col overflow-hidden">
       {/* Logo — logo always visible; bell on right; X close button on mobile only */}
-      <div className="flex items-center justify-between px-4 py-4 border-b border-slate-700">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700 flex-shrink-0">
         <div className="flex items-center gap-2 min-w-0">
           {/* On mobile: leave gap for the hamburger button (top-left, 44px wide) */}
           <div className="lg:hidden w-8 flex-shrink-0" />
@@ -164,8 +164,8 @@ export function Sidebar() {
       </nav>
 
       {/* User — extra bottom padding on mobile to clear phone nav bar */}
-      <div className="px-3 py-4 border-t border-slate-700 pb-safe" style={{ paddingBottom: "calc(1rem + env(safe-area-inset-bottom, 0px))" }}>
-        <div className="flex items-center gap-3 px-3 mb-3">
+      <div className="px-3 py-2 border-t border-slate-700 pb-safe flex-shrink-0" style={{ paddingBottom: "calc(1rem + env(safe-area-inset-bottom, 0px))" }}>
+        <div className="flex items-center gap-3 px-3 mb-2">
           <Avatar className="h-8 w-8">
             <AvatarImage src={session?.user?.image ?? ""} />
             <AvatarFallback className="bg-blue-600 text-white text-xs">
@@ -183,14 +183,14 @@ export function Sidebar() {
         </div>
         <Link
           href="/install"
-          className="flex items-center gap-2 px-3 py-2.5 text-sm text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors mb-1"
+          className="flex items-center gap-2 px-3 py-1.5 text-sm text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors mb-1"
           onClick={() => setMobileOpen(false)}
         >
           <Smartphone className="h-4 w-4" />
           Get the App
         </Link>
         <button
-          className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"
+          className="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"
           onClick={() => signOut({ callbackUrl: "/" })}
         >
           <LogOut className="h-4 w-4" />
