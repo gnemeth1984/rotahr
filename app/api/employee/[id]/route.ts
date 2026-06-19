@@ -17,6 +17,10 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   return NextResponse.json({ employee });
 }
 
+export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+  return PUT(req, { params });
+}
+
 export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await requireRole("ADMIN", "MANAGER");
   if (isResponse(session)) return session;

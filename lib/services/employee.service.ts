@@ -7,20 +7,9 @@ export const addEmployeeSchema = z.object({
   lastName: z.string().min(1).max(50),
   email: z.string().email(),
   phone: z.string().optional(),
-  ppsNumber: z.string().optional(),
   role: z.string().default("staff"),
   departmentId: z.string().optional(),
   businessId: z.string().min(1),
-  emergencyName: z.string().optional(),
-  emergencyPhone: z.string().optional(),
-  emergencyRelation: z.string().optional(),
-  // Medical
-  medicalConditions: z.string().optional(),
-  medications: z.string().optional(),
-  bloodType: z.string().optional(),
-  doctorName: z.string().optional(),
-  doctorPhone: z.string().optional(),
-  medicalNotes: z.string().optional(),
 });
 
 export const updateEmployeeSchema = z.object({
@@ -28,20 +17,9 @@ export const updateEmployeeSchema = z.object({
   lastName: z.string().min(1).max(50).optional(),
   email: z.string().email().optional(),
   phone: z.string().nullable().optional(),
-  ppsNumber: z.string().nullable().optional(),
   role: z.string().optional(),
   departmentId: z.string().nullable().optional(),
   active: z.boolean().optional(),
-  emergencyName: z.string().nullable().optional(),
-  emergencyPhone: z.string().nullable().optional(),
-  emergencyRelation: z.string().nullable().optional(),
-  // Medical
-  medicalConditions: z.string().nullable().optional(),
-  medications: z.string().nullable().optional(),
-  bloodType: z.string().nullable().optional(),
-  doctorName: z.string().nullable().optional(),
-  doctorPhone: z.string().nullable().optional(),
-  medicalNotes: z.string().nullable().optional(),
 });
 
 export const employeeService = {
@@ -55,19 +33,9 @@ export const employeeService = {
         lastName: data.lastName,
         email: data.email,
         phone: data.phone ?? null,
-        ppsNumber: data.ppsNumber ?? null,
         role: data.role,
         businessId: data.businessId,
         departmentId: data.departmentId ?? null,
-        emergencyName: data.emergencyName ?? null,
-        emergencyPhone: data.emergencyPhone ?? null,
-        emergencyRelation: data.emergencyRelation ?? null,
-        medicalConditions: data.medicalConditions ?? null,
-        medications: data.medications ?? null,
-        bloodType: data.bloodType ?? null,
-        doctorName: data.doctorName ?? null,
-        doctorPhone: data.doctorPhone ?? null,
-        medicalNotes: data.medicalNotes ?? null,
       },
       include: { department: true },
     });
