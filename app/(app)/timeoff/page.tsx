@@ -139,12 +139,10 @@ export default function TimeOffPage() {
             {isManager ? "Review and manage time off requests" : "Submit and track your time off"}
           </p>
         </div>
-        {!isManager && (
-          <Button onClick={() => setDialogOpen(true)} className="gap-2">
-            <Plus className="h-4 w-4" />
-            New Request
-          </Button>
-        )}
+        <Button onClick={() => setDialogOpen(true)} className="gap-2">
+          <Plus className="h-4 w-4" />
+          New Request
+        </Button>
       </div>
 
       {loading ? (

@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
 
   const { startDate, endDate, reason } = result.data;
 
-  // Find the employee record for this user
+  // Find the employee record for this user (works for all roles including manager/admin)
   const employee = await prisma.employee.findFirst({
     where: { userId: session.user.id },
     select: { id: true, firstName: true, lastName: true, email: true },
@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
 
   if (!employee) {
     return NextResponse.json(
-      { error: "No employee record found for this account" },
+      { error: "No employee record linked to your account. Ask an admin to link your employee profile." },
       { status: 400 }
     );
   }
