@@ -38,12 +38,7 @@ const navItems = [
     icon: LayoutDashboard,
     roles: [Role.EMPLOYEE, Role.MANAGER, Role.ADMIN],
   },
-  {
-    href: "/shifts",
-    label: "Shifts",
-    icon: Calendar,
-    roles: [Role.EMPLOYEE, Role.MANAGER, Role.ADMIN],
-  },
+
   {
     href: "/timeoff",
     label: "Time Off",

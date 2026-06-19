@@ -39,27 +39,29 @@ const features = [
 const plans = [
   {
     name: "Starter",
-    price: "€49.99",
+    price: "€79",
     period: "/month incl. VAT",
-    desc: "Perfect for small venues getting started.",
+    desc: "Perfect for small cafés and independent restaurants.",
     staff: "Up to 10 staff",
     highlight: false,
     cta: "Get Started",
     features: [
-      "Shift scheduling & publishing",
+      "Shift scheduling & rota publishing",
       "Reservations & table management",
+      "Clock in/out with geofencing",
       "Time-off requests & approvals",
+      "Bookkeeping & AI receipt scanning",
+      "Menu & specials board",
       "Employee profiles",
-      "Expense tracking & receipt upload",
-      "AI assistant",
-      "Email notifications",
+      "AI booking assistant",
+      "Email & push notifications",
     ],
   },
   {
     name: "Pro",
-    price: "€69.99",
+    price: "€149",
     period: "/month incl. VAT",
-    desc: "For growing venues with larger teams.",
+    desc: "For busy restaurants and bars with larger teams.",
     staff: "Up to 30 staff",
     highlight: true,
     cta: "Start Free Trial",
@@ -67,37 +69,40 @@ const plans = [
       "Everything in Starter",
       "Up to 30 staff members",
       "Department management",
-      "Staffing forecast reports",
+      "Payroll summaries",
+      "Staffing forecast & AI insights",
       "VAT & P&L dashboard",
-      "CSV export",
+      "CSV & data export",
       "Priority support",
     ],
   },
   {
     name: "Enterprise",
-    price: "Custom",
-    period: "pricing",
-    desc: "For multi-venue groups and franchises.",
+    price: "€249+",
+    period: "/month incl. VAT",
+    desc: "For multi-venue groups, hotel F&B, and franchises.",
     staff: "Unlimited staff",
     highlight: false,
-    cta: "Contact Us",
+    cta: "Talk to Us",
     features: [
       "Everything in Pro",
       "Unlimited staff & venues",
       "Multi-location management",
-      "Custom onboarding",
+      "Custom onboarding & training",
       "Dedicated account manager",
       "SLA guarantee",
       "Custom integrations",
+      "Volume discounts available",
     ],
   },
 ]
 
 const competitors = [
-  { name: "Rotaready (scheduling)", price: "€80–150/mo" },
-  { name: "Xero (bookkeeping)", price: "€35–50/mo" },
-  { name: "ResDiary (reservations)", price: "€100+/mo" },
-  { name: "Total", price: "€215–300+/mo", bold: true },
+  { name: "Rota & scheduling tool", price: "€80–150/mo" },
+  { name: "Bookkeeping & receipt tool", price: "€35–60/mo" },
+  { name: "Reservations system", price: "€100+/mo" },
+  { name: "HR & payroll tool", price: "€50–80/mo" },
+  { name: "Total", price: "€265–390+/mo", bold: true },
 ]
 
 export default function LandingPage() {
@@ -149,7 +154,7 @@ export default function LandingPage() {
         </h1>
 
         <p className="text-xl text-slate-500 max-w-2xl mx-auto mb-10">
-          Staff rotas, table reservations, bookkeeping and HR — all in one place. Replace three tools with one. Starting at €49.99/month.
+          Staff rotas, table reservations, bookkeeping and HR — all in one place. Replace three tools with one. Starting at €79/month.
         </p>
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -188,7 +193,7 @@ export default function LandingPage() {
                 <Image src="/logo-icon.png" alt="" width={20} height={20} className="object-contain" />
                 Rotahr (all-in-one)
               </span>
-              <span className="text-sm font-bold" style={{ color: "#F97316" }}>from €49.99/mo</span>
+              <span className="text-sm font-bold" style={{ color: "#F97316" }}>from €79/mo</span>
             </div>
           </div>
         </div>
