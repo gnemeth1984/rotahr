@@ -34,6 +34,9 @@ import {
   TrendingDown,
   Euro,
   FileText,
+  ImageIcon,
+  Clock,
+  X,
 } from "lucide-react";
 import { UserRole as Role } from "@/types/roles";
 import { cn } from "@/lib/utils";
@@ -52,6 +55,8 @@ interface Expense {
   paymentMethod: string | null;
   status: string;
   receiptUrl: string | null;
+  receiptDataUrl: string | null;
+  receiptExpiresAt: string | null;
   aiRawText: string | null;
   employeeId: string | null;
   employee?: { id: string; firstName: string; lastName: string } | null;
@@ -92,6 +97,8 @@ const EMPTY_FORM = {
   paymentMethod: "card",
   status: "confirmed",
   receiptUrl: "",
+  receiptDataUrl: "",
+  receiptExpiresAt: "",
   aiRawText: "",
 };
 
@@ -134,6 +141,10 @@ export default function BookkeepingPage() {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [loading, setLoading] = useState(true);
   const [filterCat, setFilterCat] = useState("all");
+  const [activeTab, setActiveTab] = useState<"expenses" | "receipts" | "summary">("expenses");
+
+  // Lightbox
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
   // Dialog
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -148,18 +159,20 @@ export default function BookkeepingPage() {
   const [aiLoading, setAiLoading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState("");
 
-  // Open a private blob receipt via signed URL
-  const openReceipt = useCallback(async (e: React.MouseEvent, blobUrl: string) => {
+  // Open a private blob receipt via signed URL, fall back to base64
+  const openReceipt = useCallback(async (e: React.MouseEvent, exp: Expense) => {
     e.preventDefault();
     e.stopPropagation();
-    try {
-      const res = await fetch(`/api/expenses/receipt-url?url=${encodeURIComponent(blobUrl)}`);
-      const data = await res.json();
-      if (data.url) window.open(data.url, "_blank", "noreferrer");
-      else throw new Error(data.error);
-    } catch {
-      // Fallback: try direct URL
-      window.open(blobUrl, "_blank", "noreferrer");
+    if (exp.receiptUrl) {
+      try {
+        const res = await fetch(`/api/expenses/receipt-url?url=${encodeURIComponent(exp.receiptUrl)}`);
+        const data = await res.json();
+        if (data.url) { setLightboxUrl(data.url); return; }
+      } catch {/* fall through */}
+    }
+    // Blob failed or missing — use base64 fallback
+    if (exp.receiptDataUrl) {
+      setLightboxUrl(exp.receiptDataUrl);
     }
   }, []);
 
@@ -203,14 +216,23 @@ export default function BookkeepingPage() {
       const data = await res.json();
       if (!res.ok) { setError(data.error ?? "Upload failed"); return; }
 
-      // Keep local preview; store blob URL for saving
-      setForm((f) => ({ ...f, receiptUrl: data.url, aiRawText: data.ai?.rawText ?? "" }));
+      // Store blob URL + base64 fallback + 30-day expiry
+      const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+      setForm((f) => ({
+        ...f,
+        receiptUrl: data.url ?? f.receiptUrl,
+        receiptDataUrl: data.dataUri ?? "",
+        receiptExpiresAt: expiresAt,
+        aiRawText: data.ai?.rawText ?? "",
+      }));
 
       // Auto-fill from AI
       if (data.ai) {
         setForm((f) => ({
           ...f,
-          receiptUrl: data.url,
+          receiptUrl: data.url ?? f.receiptUrl,
+          receiptDataUrl: data.dataUri ?? f.receiptDataUrl,
+          receiptExpiresAt: expiresAt,
           aiRawText: data.ai.rawText ?? "",
           vendor: data.ai.vendor ?? f.vendor,
           amount: data.ai.amount ? String(data.ai.amount) : f.amount,
@@ -249,14 +271,21 @@ export default function BookkeepingPage() {
       paymentMethod: exp.paymentMethod ?? "card",
       status: exp.status,
       receiptUrl: exp.receiptUrl ?? "",
+      receiptDataUrl: exp.receiptDataUrl ?? "",
+      receiptExpiresAt: exp.receiptExpiresAt ?? "",
       aiRawText: exp.aiRawText ?? "",
     });
-    // For existing expenses, fetch a signed URL for the preview
+    // For existing expenses, try signed URL first, then base64 fallback
     if (exp.receiptUrl) {
       fetch(`/api/expenses/receipt-url?url=${encodeURIComponent(exp.receiptUrl)}`)
         .then(r => r.json())
-        .then(d => { if (d.url) setPreviewUrl(d.url); })
-        .catch(() => setPreviewUrl(exp.receiptUrl ?? ""));
+        .then(d => {
+          if (d.url) setPreviewUrl(d.url);
+          else if (exp.receiptDataUrl) setPreviewUrl(exp.receiptDataUrl);
+        })
+        .catch(() => setPreviewUrl(exp.receiptDataUrl ?? exp.receiptUrl ?? ""));
+    } else if (exp.receiptDataUrl) {
+      setPreviewUrl(exp.receiptDataUrl);
     } else {
       setPreviewUrl("");
     }
@@ -280,6 +309,8 @@ export default function BookkeepingPage() {
         paymentMethod: form.paymentMethod || undefined,
         status: form.status,
         receiptUrl: form.receiptUrl || undefined,
+        receiptDataUrl: form.receiptDataUrl || undefined,
+        receiptExpiresAt: form.receiptExpiresAt || undefined,
         aiRawText: form.aiRawText || undefined,
       };
 
@@ -491,6 +522,24 @@ export default function BookkeepingPage() {
         </div>
       )}
 
+      {/* Main tabs */}
+      <div className="flex gap-1 bg-slate-100 p-1 rounded-xl w-fit">
+        {(["expenses", "receipts", "summary"] as const).map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={cn(
+              "px-4 py-1.5 rounded-lg text-xs font-medium transition-colors capitalize",
+              activeTab === tab ? "bg-white shadow-sm text-slate-900" : "text-slate-500 hover:text-slate-700"
+            )}
+          >
+            {tab === "receipts" ? "Receipt History" : tab.charAt(0).toUpperCase() + tab.slice(1)}
+          </button>
+        ))}
+      </div>
+
+      {/* ── Expenses tab ── */}
+      {activeTab === "expenses" && <>
       {/* Filter tabs */}
       <div className="flex gap-2 flex-wrap">
         <button
@@ -567,16 +616,13 @@ export default function BookkeepingPage() {
                     {fmt(exp.amount)}
                   </td>
                   <td className="px-3 py-3 text-center hidden sm:table-cell">
-                    {exp.receiptUrl ? (
-                      <a
-                        href={exp.receiptUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        onClick={(e) => openReceipt(e, exp.receiptUrl!)}
+                    {(exp.receiptUrl || exp.receiptDataUrl) ? (
+                      <button
+                        onClick={(e) => openReceipt(e, exp)}
                         className="inline-flex items-center justify-center h-7 w-7 rounded-md bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
                       >
                         <Eye className="h-3.5 w-3.5" />
-                      </a>
+                      </button>
                     ) : (
                       <span className="text-slate-300 text-xs">—</span>
                     )}
@@ -599,6 +645,170 @@ export default function BookkeepingPage() {
               </tr>
             </tfoot>
           </table>
+        </div>
+      )}
+
+      </> /* end expenses tab */}
+
+      {/* ── Receipt History tab ── */}
+      {activeTab === "receipts" && (() => {
+        const withReceipts = expenses.filter(e => e.receiptUrl || e.receiptDataUrl);
+        return (
+          <div>
+            {loading ? (
+              <div className="flex justify-center py-20">
+                <Loader2 className="h-8 w-8 animate-spin text-slate-300" />
+              </div>
+            ) : withReceipts.length === 0 ? (
+              <div className="bg-white border border-slate-200 rounded-xl py-20 text-center">
+                <ImageIcon className="h-12 w-12 mx-auto mb-3 text-slate-200" />
+                <p className="font-medium text-slate-600">No receipts stored yet</p>
+                <p className="text-sm text-slate-400 mt-1">Upload a receipt when adding an expense — it'll appear here for 30 days.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                {withReceipts.map((exp) => {
+                  const thumbUrl = exp.receiptDataUrl ?? exp.receiptUrl ?? "";
+                  const daysLeft = exp.receiptExpiresAt
+                    ? Math.ceil((new Date(exp.receiptExpiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+                    : null;
+                  const badgeColor = daysLeft === null ? "bg-slate-100 text-slate-500"
+                    : daysLeft <= 5 ? "bg-red-100 text-red-700"
+                    : daysLeft <= 10 ? "bg-amber-100 text-amber-700"
+                    : "bg-green-100 text-green-700";
+                  return (
+                    <div
+                      key={exp.id}
+                      onClick={(e) => openReceipt(e, exp)}
+                      className="bg-white border border-slate-200 rounded-xl overflow-hidden cursor-pointer hover:border-blue-300 hover:shadow-md transition-all group"
+                    >
+                      {/* Thumbnail */}
+                      <div className="relative h-36 bg-slate-50 flex items-center justify-center overflow-hidden">
+                        {thumbUrl ? (
+                          <img
+                            src={thumbUrl}
+                            alt="Receipt"
+                            className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-200"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).style.display = "none";
+                              (e.target as HTMLImageElement).nextElementSibling?.classList.remove("hidden");
+                            }}
+                          />
+                        ) : null}
+                        <div className={cn("absolute inset-0 flex items-center justify-center", thumbUrl ? "hidden" : "")}>
+                          <FileText className="h-10 w-10 text-slate-300" />
+                        </div>
+                        {/* Days badge */}
+                        {daysLeft !== null && (
+                          <div className={cn("absolute top-2 right-2 px-1.5 py-0.5 rounded-full text-xs font-medium flex items-center gap-1", badgeColor)}>
+                            <Clock className="h-2.5 w-2.5" />
+                            {daysLeft}d
+                          </div>
+                        )}
+                      </div>
+                      {/* Info */}
+                      <div className="p-3">
+                        <p className="text-xs font-semibold text-slate-800 truncate">{exp.vendor ?? "Unknown vendor"}</p>
+                        <p className="text-xs text-slate-400 mt-0.5">{new Date(exp.date).toLocaleDateString("en-IE", { day: "numeric", month: "short", year: "numeric" })}</p>
+                        <p className="text-sm font-bold text-slate-900 mt-1">{fmt(exp.amount)}</p>
+                        <span className={cn("mt-1.5 inline-block text-xs font-medium px-1.5 py-0.5 rounded-full", getCatColor(exp.category))}>
+                          {getCatLabel(exp.category)}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
+      {/* ── Summary tab ── */}
+      {activeTab === "summary" && (
+        <div className="space-y-4">
+          {loading ? (
+            <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-slate-300" /></div>
+          ) : !summary || summary.count === 0 ? (
+            <div className="bg-white border border-slate-200 rounded-xl py-20 text-center">
+              <FileText className="h-12 w-12 mx-auto mb-3 text-slate-200" />
+              <p className="font-medium text-slate-600">No data for this month</p>
+            </div>
+          ) : (
+            <>
+              {/* P&L style table */}
+              <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+                <div className="px-5 py-4 border-b border-slate-100 bg-slate-50/60">
+                  <p className="text-sm font-semibold text-slate-700">Expense Breakdown — {monthLabel(currentMonth)}</p>
+                </div>
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-slate-100">
+                      <th className="text-left px-5 py-3 text-xs font-medium text-slate-500">Category</th>
+                      <th className="text-right px-4 py-3 text-xs font-medium text-slate-500">Gross</th>
+                      <th className="text-right px-4 py-3 text-xs font-medium text-slate-500">VAT</th>
+                      <th className="text-right px-5 py-3 text-xs font-medium text-slate-500">Net</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {CATEGORIES.filter(c => summary.byCategory[c.value]).map(cat => {
+                      const gross = summary.byCategory[cat.value] ?? 0;
+                      const catExpenses = expenses.filter(e => e.category === cat.value);
+                      const vat = catExpenses.reduce((s, e) => s + e.vatAmount, 0);
+                      return (
+                        <tr key={cat.value} className="border-b border-slate-50">
+                          <td className="px-5 py-3">
+                            <span className={cn("text-xs font-medium px-2 py-0.5 rounded-full", cat.color)}>{cat.label}</span>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-right text-slate-700">{fmt(gross)}</td>
+                          <td className="px-4 py-3 text-sm text-right text-slate-500">{fmt(vat)}</td>
+                          <td className="px-5 py-3 text-sm text-right font-medium text-slate-900">{fmt(gross - vat)}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                  <tfoot>
+                    <tr className="border-t-2 border-slate-200 bg-slate-50">
+                      <td className="px-5 py-3 text-sm font-bold text-slate-700">Total</td>
+                      <td className="px-4 py-3 text-sm font-bold text-right text-slate-900">{fmt(summary.total)}</td>
+                      <td className="px-4 py-3 text-sm font-bold text-right text-slate-700">{fmt(summary.totalVat)}</td>
+                      <td className="px-5 py-3 text-sm font-bold text-right text-slate-900">{fmt(summary.total - summary.totalVat)}</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+
+              {/* VAT note */}
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                <p className="text-sm font-semibold text-amber-800 mb-1">VAT Summary</p>
+                <p className="text-sm text-amber-700">
+                  Reclaimable VAT this month: <span className="font-bold">{fmt(summary.totalVat)}</span>
+                  {" "}— ensure all receipts are uploaded before filing your VAT return.
+                </p>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Lightbox */}
+      {lightboxUrl && (
+        <div
+          className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
+          onClick={() => setLightboxUrl(null)}
+        >
+          <button
+            onClick={() => setLightboxUrl(null)}
+            className="absolute top-4 right-4 h-9 w-9 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors"
+          >
+            <X className="h-5 w-5" />
+          </button>
+          <img
+            src={lightboxUrl}
+            alt="Receipt"
+            className="max-h-[90vh] max-w-full rounded-xl shadow-2xl object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
         </div>
       )}
 

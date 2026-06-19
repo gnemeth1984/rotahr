@@ -165,8 +165,10 @@ model Expense {
   paymentMethod String?
   status        String   @default("confirmed")
 
-  receiptUrl    String?
-  aiRawText     String?
+  receiptUrl      String?
+  receiptDataUrl  String?   // base64 data URI — permanent fallback for 30-day recall
+  receiptExpiresAt DateTime? // 30 days from upload
+  aiRawText       String?
 
   employeeId    String?
   employee      Employee? @relation(fields: [employeeId], references: [id])

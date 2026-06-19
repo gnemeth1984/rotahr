@@ -30,6 +30,8 @@ export const createExpenseSchema = z.object({
   paymentMethod: z.string().optional(),
   status: z.string().default("confirmed"),
   receiptUrl: z.string().optional(),
+  receiptDataUrl: z.string().optional(),   // base64 data URI — 30-day recall
+  receiptExpiresAt: z.string().optional(), // ISO date string
   aiRawText: z.string().optional(),
   employeeId: z.string().optional(),
   createdById: z.string().optional(),
@@ -54,6 +56,8 @@ export const expenseService = {
         paymentMethod: data.paymentMethod ?? null,
         status: data.status ?? "confirmed",
         receiptUrl: data.receiptUrl ?? null,
+        receiptDataUrl: data.receiptDataUrl ?? null,
+        receiptExpiresAt: data.receiptExpiresAt ? new Date(data.receiptExpiresAt) : null,
         aiRawText: data.aiRawText ?? null,
         employeeId: data.employeeId ?? null,
         createdById: data.createdById ?? null,
@@ -117,6 +121,8 @@ export const expenseService = {
         ...(data.paymentMethod !== undefined ? { paymentMethod: data.paymentMethod } : {}),
         ...(data.status !== undefined ? { status: data.status } : {}),
         ...(data.receiptUrl !== undefined ? { receiptUrl: data.receiptUrl } : {}),
+        ...(data.receiptDataUrl !== undefined ? { receiptDataUrl: data.receiptDataUrl } : {}),
+        ...(data.receiptExpiresAt !== undefined ? { receiptExpiresAt: data.receiptExpiresAt ? new Date(data.receiptExpiresAt) : null } : {}),
         ...(data.aiRawText !== undefined ? { aiRawText: data.aiRawText } : {}),
         ...(data.employeeId !== undefined ? { employeeId: data.employeeId } : {}),
       },

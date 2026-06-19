@@ -101,8 +101,12 @@ Return ONLY the JSON object, no markdown, no explanation.`,
       });
     }
 
+    // Build a data URI so the caller can store it permanently in the DB
+    const dataUri = `data:${mimeType};base64,${base64Image}`;
+
     return NextResponse.json({
       url: blob.url,
+      dataUri,
       ai: aiData,
     });
   } catch (err: any) {
