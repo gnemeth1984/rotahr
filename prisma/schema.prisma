@@ -27,6 +27,9 @@ model Business {
   expenses     Expense[]
   menuSpecials MenuSpecial[]
   aiSettings   AISettings?
+  suppliers    Supplier[]
+  stockItems   StockItem[]
+  supplierOrders SupplierOrder[]
 }
 
 model User {
@@ -343,4 +346,91 @@ model AISettings {
 
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+}
+
+// ── Stock Management ───────────────────────────────────────────────────────────
+model Supplier {
+  id          String   @id @default(cuid())
+  businessId  String
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  name        String
+  contactName String?
+  email       String?
+  phone       String?
+  address     String?
+  notes       String?  @db.Text
+  active      Boolean  @default(true)
+
+  stockItems  StockItem[]
+  orders      SupplierOrder[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([businessId, active])
+}
+
+model StockItem {
+  id           String   @id @default(cuid())
+  businessId   String
+  business     Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  supplierId   String?
+  supplier     Supplier? @relation(fields: [supplierId], references: [id])
+
+  name         String
+  sku          String?          // supplier's product code
+  unit         String           @default("unit") // "unit", "kg", "litre", "case", "box", "bottle" etc
+  category     String           @default("general") // "food", "beverage", "cleaning", "packaging", "equipment", "other"
+
+  lastPrice    Float?           // price from most recent receipt/invoice
+  lastOrdered  DateTime?        // date of last order
+  reorderLevel Float?           // trigger reorder below this qty
+  currentStock Float?           // optional manual stock count
+  notes        String?          @db.Text
+
+  // Source tracing
+  lastExpenseId String?         // which expense/receipt last updated this item
+
+  orderItems   OrderItem[]
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([businessId, supplierId])
+  @@index([businessId, category])
+}
+
+model SupplierOrder {
+  id          String      @id @default(cuid())
+  businessId  String
+  business    Business    @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  supplierId  String
+  supplier    Supplier    @relation(fields: [supplierId], references: [id])
+
+  status      String      @default("draft")   // "draft" | "sent" | "received"
+  notes       String?     @db.Text
+  sentAt      DateTime?
+  receivedAt  DateTime?
+
+  items       OrderItem[]
+
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@index([businessId, supplierId, status])
+}
+
+model OrderItem {
+  id          String        @id @default(cuid())
+  orderId     String
+  order       SupplierOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  stockItemId String
+  stockItem   StockItem     @relation(fields: [stockItemId], references: [id])
+
+  quantity    Float
+  unitPrice   Float?
+  notes       String?
+
+  @@index([orderId])
 }

@@ -22,6 +22,7 @@ import {
   DollarSign,
   CalendarCheck,
   Smartphone,
+  Package,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -79,6 +80,12 @@ const navItems = [
     href: "/bookkeeping",
     label: "Bookkeeping",
     icon: BookMarked,
+    roles: [Role.MANAGER, Role.ADMIN],
+  },
+  {
+    href: "/stock",
+    label: "Stock & Orders",
+    icon: Package,
     roles: [Role.MANAGER, Role.ADMIN],
   },
   {
