@@ -88,7 +88,7 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const businessId = session.user.businessId ?? "christys-bar-seed-id";
-  const { type, note } = await req.json();
+  const { type, note, latitude, longitude } = await req.json();
 
   if (!["in", "out"].includes(type)) {
     return NextResponse.json({ error: "type must be 'in' or 'out'" }, { status: 400 });
@@ -98,7 +98,14 @@ export async function POST(req: NextRequest) {
   if (!me) return NextResponse.json({ error: "Employee not found" }, { status: 404 });
 
   const event = await prisma.clockEvent.create({
-    data: { employeeId: me.id, businessId, type, note: note ?? null },
+    data: {
+      employeeId: me.id,
+      businessId,
+      type,
+      note: note ?? null,
+      latitude: latitude != null ? parseFloat(latitude) : null,
+      longitude: longitude != null ? parseFloat(longitude) : null,
+    },
   });
 
   return NextResponse.json({ event });
