@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Bell, CheckCheck, Calendar, MessageSquare, Clock, Users, BellRing } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -40,6 +41,7 @@ const TYPE_META: Record<string, { icon: React.ReactNode; color: string }> = {
 };
 
 export default function NotificationsPage() {
+  const router = useRouter();
   const [notifs, setNotifs] = useState<Notif[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -118,7 +120,7 @@ export default function NotificationsPage() {
                 key={n.id}
                 onClick={() => {
                   if (!n.read) markRead(n.id);
-                  if (n.link) window.location.href = n.link;
+                  if (n.link) router.push(n.link);
                 }}
                 className={cn(
                   "rounded-xl border p-4 cursor-pointer transition-all flex items-start gap-3",

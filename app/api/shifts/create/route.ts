@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
           type: "shift",
           title: "New shift assigned",
           body: `${dateStr} · ${startStr}–${endStr}${shift.role ? ` · ${shift.role}` : ""}`,
-          link: "/schedule",
+          link: "/shifts",
         }).catch(() => {});
       }
     }

@@ -98,7 +98,7 @@ export async function POST(req: NextRequest) {
         type: "rota",
         title: "Rota published",
         body: `Your schedule for the week of ${weekStr} is now available.`,
-        link: "/schedule",
+        link: "/shifts",
       });
     }
   }

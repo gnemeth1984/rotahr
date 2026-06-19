@@ -34,7 +34,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
         type: "shift",
         title: "Shift Updated",
         body: `Your shift on ${shiftDate} has been updated.`,
-        link: "/schedule",
+        link: "/shifts",
       }).catch(() => {});
     }
 
