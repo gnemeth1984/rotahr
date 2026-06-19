@@ -16,6 +16,7 @@ import {
   TableProperties,
   BookMarked,
   Sparkles,
+  Utensils,
   LayoutDashboard,
   MessageSquare,
   DollarSign,
@@ -96,6 +97,12 @@ const navItems = [
     label: "Employees",
     icon: Users,
     roles: [Role.MANAGER, Role.ADMIN],
+  },
+  {
+    href: "/menu-specials",
+    label: "Menu & Specials",
+    icon: Utensils,
+    roles: [Role.EMPLOYEE, Role.MANAGER, Role.ADMIN],
   },
   {
     href: "/ai",

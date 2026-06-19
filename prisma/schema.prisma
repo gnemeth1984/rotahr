@@ -25,6 +25,7 @@ model Business {
   tables       Table[]
   reservations Reservation[]
   expenses     Expense[]
+  menuSpecials MenuSpecial[]
 }
 
 model User {
@@ -41,6 +42,7 @@ model User {
   employees           Employee[]
   passwordResetTokens PasswordResetToken[]
   appNotifications    AppNotification[]
+  menuSpecials        MenuSpecial[]     @relation("MenuSpecialAuthor")
 }
 
 model PasswordResetToken {
@@ -305,4 +307,28 @@ model AppNotification {
   createdAt DateTime @default(now())
 
   @@index([userId, read])
+}
+
+// ── Menu Specials / Board ──────────────────────────────────────────────────────
+model MenuSpecial {
+  id          String    @id @default(cuid())
+  businessId  String
+  business    Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  createdById String
+  createdBy   User      @relation("MenuSpecialAuthor", fields: [createdById], references: [id])
+
+  title       String
+  description String?   @db.Text
+  category    String    @default("special") // "special" | "change" | "announcement" | "86'd"
+  date        DateTime  // primary date / start of range
+  endDate     DateTime? // optional end date for multi-day
+  pinned      Boolean   @default(false)
+  imageUrl    String?   // optional photo of the dish
+  imageDataUri String?  @db.Text
+  archived    Boolean   @default(false)
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([businessId, archived, date])
 }
