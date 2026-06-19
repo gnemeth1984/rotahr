@@ -19,6 +19,9 @@ model Business {
   geoLng             Float?       // premises longitude
   geoRadius          Int          @default(200) // metres
 
+  // Labour cost / revenue target (used in rota live cost banner)
+  weeklyRevenueTarget Float?      // manager-set revenue target for current week (€)
+
   users        User[]
   departments  Department[]
   employees    Employee[]
@@ -30,6 +33,8 @@ model Business {
   suppliers    Supplier[]
   stockItems   StockItem[]
   supplierOrders SupplierOrder[]
+  shiftSwapRequests ShiftSwapRequest[]
+  tipPools     TipPool[]
 }
 
 model User {
@@ -100,6 +105,9 @@ model Employee {
   receivedMessages Message[]             @relation("MessageRecipient")
   availability    AvailabilityPreference[]
   shiftTemplates  ShiftTemplate[]
+  shiftSwapRequestsOffered  ShiftSwapRequest[] @relation("SwapOfferer")
+  shiftSwapRequestsReceived ShiftSwapRequest[] @relation("SwapReceiver")
+  tipDistributions TipDistribution[]
 }
 
 model Shift {
@@ -437,4 +445,78 @@ model OrderItem {
   notes       String?
 
   @@index([orderId])
+}
+
+// ── Shift Swap Marketplace ─────────────────────────────────────────────────────
+// Complies with: Organisation of Working Time Act 1997 (rest periods enforced
+// in validation before approval), GDPR Art.6(1)(b) performance of contract.
+model ShiftSwapRequest {
+  id              String   @id @default(cuid())
+  businessId      String
+  business        Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  // The employee offering their shift
+  offererId       String
+  offerer         Employee @relation("SwapOfferer", fields: [offererId], references: [id], onDelete: Cascade)
+  offeredShiftId  String   // Shift the offerer wants to give away
+
+  // The employee accepting (null until someone accepts)
+  receiverId      String?
+  receiver        Employee? @relation("SwapReceiver", fields: [receiverId], references: [id])
+  receiverShiftId String?   // Optional: the receiver's shift to swap (can be open swap)
+
+  status          String   @default("open")
+  // "open"      — listed, waiting for taker
+  // "pending"   — receiver accepted, awaiting manager approval
+  // "approved"  — manager approved, shifts reassigned
+  // "rejected"  — manager rejected
+  // "cancelled" — offerer withdrew
+
+  managerNote     String?
+  managedById     String?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([businessId, status])
+  @@index([offererId])
+}
+
+// ── Tip / Tronc Management ────────────────────────────────────────────────────
+// Complies with: Payment of Wages (Amendment) (Tips and Gratuities) Act 2022
+// (Irish law — mandatory transparent distribution records)
+model TipPool {
+  id          String   @id @default(cuid())
+  businessId  String
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  periodStart DateTime  // start of period (typically week start)
+  periodEnd   DateTime  // end of period
+  totalAmount Float     // total tips collected (€)
+  method      String    @default("hours") // "hours" | "equal" | "custom"
+  notes       String?   @db.Text
+  status      String    @default("draft") // "draft" | "distributed"
+  distributedAt DateTime?
+
+  distributions TipDistribution[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([businessId, periodStart])
+}
+
+model TipDistribution {
+  id          String   @id @default(cuid())
+  poolId      String
+  pool        TipPool  @relation(fields: [poolId], references: [id], onDelete: Cascade)
+  employeeId  String
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  hoursWorked Float    @default(0)  // hours in the period (used for "hours" method)
+  shareAmount Float    // € amount allocated to this employee
+  customNote  String?  // reason for custom override
+
+  @@index([poolId])
+  @@index([employeeId])
 }

@@ -39,10 +39,22 @@ export const shiftService = {
     });
   },
 
-  async list(_businessId: string, filters?: { employeeId?: string; from?: string; to?: string; published?: boolean }) {
+  async list(businessId: string, filters?: { employeeId?: string; from?: string; to?: string; published?: boolean }) {
+    // Shift has no direct businessId — resolve via employees
+    let employeeIdFilter: string[] | undefined;
+    if (filters?.employeeId) {
+      employeeIdFilter = [filters.employeeId];
+    } else if (businessId) {
+      const bizEmployees = await prisma.employee.findMany({
+        where: { businessId },
+        select: { id: true },
+      });
+      employeeIdFilter = bizEmployees.map((e) => e.id);
+    }
+
     return prisma.shift.findMany({
       where: {
-        ...(filters?.employeeId ? { employeeId: filters.employeeId } : {}),
+        ...(employeeIdFilter ? { employeeId: { in: employeeIdFilter } } : {}),
         ...(filters?.published !== undefined ? { published: filters.published } : {}),
         ...(filters?.from || filters?.to
           ? {

@@ -22,6 +22,10 @@ import {
   Clock,
   CheckCircle2,
   AlertCircle,
+  TrendingUp,
+  AlertTriangle,
+  Target,
+  ArrowRightLeft,
 } from "lucide-react";
 import { UserRole as Role } from "@/types/roles";
 import { cn } from "@/lib/utils";
@@ -34,6 +38,7 @@ interface Employee {
   lastName: string;
   email: string;
   departmentId?: string | null;
+  hourlyRate?: number | null;
 }
 
 interface Department {
@@ -159,6 +164,19 @@ export default function RotaPage() {
   const [saving, setSaving] = useState(false);
   const [publishing, setPublishing] = useState(false);
 
+  // ── Labour cost & revenue target ──────────────────────────────────────────
+  const [weeklyRevenueTarget, setWeeklyRevenueTarget] = useState<number | null>(null);
+  const [editingTarget, setEditingTarget] = useState(false);
+  const [targetInput, setTargetInput] = useState("");
+  const [savingTarget, setSavingTarget] = useState(false);
+
+  // ── Working Time compliance alerts ────────────────────────────────────────
+  // Organisation of Working Time Act 1997 (Irish transposition of EU WTD):
+  //   - 11h rest between shifts
+  //   - Max 48h average per week
+  interface ComplianceAlert { empId: string; empName: string; message: string; type: "rest" | "hours" }
+  const [complianceAlerts, setComplianceAlerts] = useState<ComplianceAlert[]>([]);
+
   const weekDates = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
   // ── Fetch ────────────────────────────────────────────────────────────────
@@ -172,17 +190,21 @@ export default function RotaPage() {
     try {
       const from = toDateStr(weekStart);
       const to = toDateStr(addDays(weekStart, 6));
-      const [empRes, deptRes, shiftRes] = await Promise.all([
+      const [empRes, deptRes, shiftRes, targetRes] = await Promise.all([
         fetch("/api/employee/list"),
         fetch("/api/department/list"),
         fetch(`/api/shifts/list?from=${from}&to=${to}`),
+        fetch("/api/business/revenue-target"),
       ]);
       const empData = empRes.ok ? await empRes.json() : { employees: [] };
       const deptData = deptRes.ok ? await deptRes.json() : { departments: [] };
       const shiftData = shiftRes.ok ? await shiftRes.json() : { shifts: [] };
+      const targetData = targetRes.ok ? await targetRes.json() : {};
       setEmployees(empData.employees ?? []);
       setDepartments(deptData.departments ?? []);
       setShifts(shiftData.shifts ?? []);
+      setWeeklyRevenueTarget(targetData.weeklyRevenueTarget ?? null);
+      setTargetInput(targetData.weeklyRevenueTarget ? String(targetData.weeklyRevenueTarget) : "");
     } catch {
       // silently fail
     } finally {
@@ -193,6 +215,57 @@ export default function RotaPage() {
   }, [weekStart]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
+
+  // ── Compliance check — runs whenever shifts or employees change ───────────
+  useEffect(() => {
+    if (!shifts.length || !employees.length) { setComplianceAlerts([]); return; }
+    const alerts: ComplianceAlert[] = [];
+    const empMap = Object.fromEntries(employees.map((e) => [e.id, e]));
+
+    // Per employee: sort shifts by start time, check 11h rest & 48h/week cap
+    const byEmp: Record<string, Shift[]> = {};
+    for (const s of shifts) {
+      if (!s.employeeId) continue;
+      if (!byEmp[s.employeeId]) byEmp[s.employeeId] = [];
+      byEmp[s.employeeId].push(s);
+    }
+
+    for (const [empId, empShifts] of Object.entries(byEmp)) {
+      const emp = empMap[empId];
+      if (!emp) continue;
+      const empName = `${emp.firstName} ${emp.lastName}`;
+      const sorted = [...empShifts].sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+
+      // 11h rest check
+      for (let i = 1; i < sorted.length; i++) {
+        const prev = sorted[i - 1];
+        const curr = sorted[i];
+        const restMs = new Date(curr.startTime).getTime() - new Date(prev.endTime).getTime();
+        const restHours = restMs / 3600000;
+        if (restHours < 11) {
+          alerts.push({
+            empId,
+            empName,
+            message: `${empName}: only ${restHours.toFixed(1)}h rest between ${fmtTime(prev.endTime)} and ${fmtTime(curr.startTime)} (WTA 1997 requires 11h)`,
+            type: "rest",
+          });
+        }
+      }
+
+      // 48h weekly cap check
+      const totalHrs = empShifts.reduce((sum, s) => sum + shiftHours(s) + (s.overtimeHours ?? 0), 0);
+      if (totalHrs > 48) {
+        alerts.push({
+          empId,
+          empName,
+          message: `${empName}: ${totalHrs.toFixed(1)}h scheduled this week — exceeds 48h weekly limit (Working Time Act 1997)`,
+          type: "hours",
+        });
+      }
+    }
+
+    setComplianceAlerts(alerts);
+  }, [shifts, employees]);
 
   // ── Open sheet ────────────────────────────────────────────────────────────
 
@@ -330,6 +403,37 @@ export default function RotaPage() {
     return employees.filter((e) => !e.departmentId || !deptIds.includes(e.departmentId));
   }
 
+  // ── Save revenue target ───────────────────────────────────────────────────
+  async function saveRevenueTarget() {
+    setSavingTarget(true);
+    const val = targetInput.trim() === "" ? null : parseFloat(targetInput);
+    await fetch("/api/business/revenue-target", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ weeklyRevenueTarget: val }),
+    });
+    setWeeklyRevenueTarget(val);
+    setEditingTarget(false);
+    setSavingTarget(false);
+  }
+
+  // ── Labour cost calculations ──────────────────────────────────────────────
+  const empMap = Object.fromEntries(employees.map((e) => [e.id, e]));
+  const totalLabourCost = shifts.reduce((sum, s) => {
+    if (!s.employeeId) return sum;
+    const emp = empMap[s.employeeId];
+    const rate = emp?.hourlyRate ?? 0;
+    return sum + shiftHours(s) * rate + (s.overtimeHours ?? 0) * rate * 1.5;
+  }, 0);
+  const labourPct = weeklyRevenueTarget && weeklyRevenueTarget > 0
+    ? (totalLabourCost / weeklyRevenueTarget) * 100
+    : null;
+  const labourPctColor =
+    labourPct === null ? "text-slate-600"
+    : labourPct > 40 ? "text-red-600"
+    : labourPct > 30 ? "text-amber-600"
+    : "text-emerald-600";
+
   const totalShifts = shifts.length;
   const publishedShifts = shifts.filter((s) => s.published).length;
 
@@ -410,7 +514,7 @@ export default function RotaPage() {
 
         {/* Action buttons row */}
         {isManager && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <Button variant="outline" size="sm" className="gap-1.5" onClick={exportCSV}>
               <Download className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Export</span>
@@ -423,9 +527,93 @@ export default function RotaPage() {
                 Publish all
               </Button>
             )}
+            <a
+              href="/shift-swaps"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-slate-200 rounded-md bg-white hover:bg-slate-50 text-slate-700 transition-colors"
+            >
+              <ArrowRightLeft className="h-3.5 w-3.5" />
+              Swap requests
+            </a>
           </div>
         )}
       </div>
+
+      {/* ── Labour Cost Banner (managers only) ── */}
+      {isManager && !loading && shifts.length > 0 && (
+        <div className="bg-white border border-slate-200 rounded-xl px-5 py-3.5 flex flex-wrap items-center gap-4">
+          {/* Labour cost */}
+          <div className="flex items-center gap-2.5">
+            <TrendingUp className="h-4 w-4 text-slate-400 flex-shrink-0" />
+            <div>
+              <p className="text-[11px] text-slate-400 uppercase tracking-wide font-medium">Labour cost</p>
+              <p className="text-lg font-bold text-slate-900">€{totalLabourCost.toFixed(2)}</p>
+            </div>
+          </div>
+
+          {/* Labour % of revenue */}
+          {labourPct !== null && (
+            <div className="flex items-center gap-2.5">
+              <div className={`h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
+                labourPct > 40 ? "bg-red-100 text-red-700"
+                : labourPct > 30 ? "bg-amber-100 text-amber-700"
+                : "bg-emerald-100 text-emerald-700"
+              }`}>
+                {labourPct.toFixed(0)}%
+              </div>
+              <div>
+                <p className="text-[11px] text-slate-400 uppercase tracking-wide font-medium">of revenue</p>
+                <p className={`text-sm font-semibold ${labourPctColor}`}>
+                  {labourPct > 40 ? "High — review staffing" : labourPct > 30 ? "Moderate" : "Healthy"}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Revenue target setter */}
+          <div className="flex items-center gap-2 ml-auto">
+            <Target className="h-4 w-4 text-slate-400 flex-shrink-0" />
+            {editingTarget ? (
+              <div className="flex items-center gap-1.5">
+                <span className="text-sm text-slate-500">€</span>
+                <Input
+                  type="number"
+                  value={targetInput}
+                  onChange={(e) => setTargetInput(e.target.value)}
+                  className="h-7 w-28 text-sm"
+                  placeholder="e.g. 25000"
+                  autoFocus
+                />
+                <Button size="sm" className="h-7 text-xs px-2.5" onClick={saveRevenueTarget} disabled={savingTarget}>
+                  {savingTarget ? <Loader2 className="h-3 w-3 animate-spin" /> : "Save"}
+                </Button>
+                <button onClick={() => setEditingTarget(false)} className="text-xs text-slate-400 hover:text-slate-600">Cancel</button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setEditingTarget(true)}
+                className="text-xs text-slate-500 hover:text-slate-800 underline decoration-dotted"
+              >
+                {weeklyRevenueTarget ? `Target: €${weeklyRevenueTarget.toLocaleString("en-IE")}` : "Set revenue target"}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Working Time Compliance Alerts (WTA 1997) ── */}
+      {isManager && complianceAlerts.length > 0 && (
+        <div className="border border-amber-200 bg-amber-50 rounded-xl px-4 py-3 space-y-1.5">
+          <div className="flex items-center gap-2 mb-1">
+            <AlertTriangle className="h-4 w-4 text-amber-600 flex-shrink-0" />
+            <p className="text-sm font-semibold text-amber-800">
+              Working Time Act 1997 — {complianceAlerts.length} alert{complianceAlerts.length > 1 ? "s" : ""}
+            </p>
+          </div>
+          {complianceAlerts.map((alert, i) => (
+            <p key={i} className="text-xs text-amber-700 pl-6">{alert.message}</p>
+          ))}
+        </div>
+      )}
 
       {/* ── Loading / Empty ── */}
       {loading ? (

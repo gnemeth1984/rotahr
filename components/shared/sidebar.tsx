@@ -23,6 +23,8 @@ import {
   CalendarCheck,
   Smartphone,
   Package,
+  ArrowRightLeft,
+  Coins,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -92,6 +94,18 @@ const navItems = [
     href: "/payroll",
     label: "Payroll",
     icon: DollarSign,
+    roles: [Role.MANAGER, Role.ADMIN],
+  },
+  {
+    href: "/shift-swaps",
+    label: "Shift Swaps",
+    icon: ArrowRightLeft,
+    roles: [Role.EMPLOYEE, Role.MANAGER, Role.ADMIN],
+  },
+  {
+    href: "/tips",
+    label: "Tips & Tronc",
+    icon: Coins,
     roles: [Role.MANAGER, Role.ADMIN],
   },
   {

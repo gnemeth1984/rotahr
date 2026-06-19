@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { DollarSign, ChevronLeft, ChevronRight, Download } from "lucide-react";
+import { DollarSign, ChevronLeft, ChevronRight, Download, FileSpreadsheet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 type PayrollRow = {
@@ -79,6 +79,10 @@ export default function PayrollPage() {
     a.click();
   }
 
+  function exportBrightPay() {
+    window.location.href = `/api/payroll/brightpay?week=${monday}`;
+  }
+
   const weekLabel = data
     ? `${new Date(data.weekStart).toLocaleDateString("en-IE", { day: "numeric", month: "short" })} – ${new Date(data.weekEnd).toLocaleDateString("en-IE", { day: "numeric", month: "short", year: "numeric" })}`
     : monday;
@@ -94,10 +98,16 @@ export default function PayrollPage() {
           </h1>
           <p className="text-slate-500 mt-1">Weekly pay summary</p>
         </div>
-        <Button onClick={exportCSV} variant="outline" size="sm" disabled={!data || data.rows.length === 0}>
-          <Download className="h-4 w-4 mr-2" />
-          Export CSV
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={exportCSV} variant="outline" size="sm" disabled={!data || data.rows.length === 0}>
+            <Download className="h-4 w-4 mr-2" />
+            Export CSV
+          </Button>
+          <Button onClick={exportBrightPay} variant="outline" size="sm" disabled={!data || data.rows.length === 0} className="border-emerald-200 text-emerald-700 hover:bg-emerald-50">
+            <FileSpreadsheet className="h-4 w-4 mr-2" />
+            BrightPay Export
+          </Button>
+        </div>
       </div>
 
       {/* Week navigator */}
