@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -135,7 +135,8 @@ export default function RotaPage() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [shifts, setShifts] = useState<Shift[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true);       // initial load only
+  const [shiftsLoading, setShiftsLoading] = useState(false); // week-change refresh
 
   // Mobile: selected day index (0=Mon … 6=Sun)
   const todayIdx = (() => {
@@ -144,6 +145,7 @@ export default function RotaPage() {
     return day === 0 ? 6 : day - 1;
   })();
   const [selectedDay, setSelectedDay] = useState<number>(todayIdx);
+  const isFirstLoad = useRef(true);
 
   // Shift sheet
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -158,7 +160,11 @@ export default function RotaPage() {
   // ── Fetch ────────────────────────────────────────────────────────────────
 
   const fetchAll = useCallback(async () => {
-    setLoading(true);
+    if (isFirstLoad.current) {
+      setLoading(true);
+    } else {
+      setShiftsLoading(true);
+    }
     try {
       const from = toDateStr(weekStart);
       const to = toDateStr(addDays(weekStart, 6));
@@ -177,6 +183,8 @@ export default function RotaPage() {
       // silently fail
     } finally {
       setLoading(false);
+      setShiftsLoading(false);
+      isFirstLoad.current = false;
     }
   }, [weekStart]);
 
@@ -379,7 +387,10 @@ export default function RotaPage() {
               <ChevronLeft className="h-4 w-4 text-slate-600" />
             </button>
             <button
-              onClick={() => setWeekStart(getMondayOfWeek(new Date()))}
+              onClick={() => {
+                setWeekStart(getMondayOfWeek(new Date()));
+                setSelectedDay(todayIdx);
+              }}
               className="px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-md transition-colors"
             >
               Today
@@ -424,6 +435,13 @@ export default function RotaPage() {
           <p className="text-sm text-slate-400 mt-1">Add employees first to build a rota.</p>
         </div>
       ) : (
+        <div className="relative">
+          {/* Week-change overlay spinner — content stays mounted so selectedDay is preserved */}
+          {shiftsLoading && (
+            <div className="absolute inset-0 z-10 flex items-start justify-center pt-16 bg-white/60 rounded-xl">
+              <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+            </div>
+          )}
         <>
           {/* ── MOBILE VIEW (< lg) ── */}
           <div className="lg:hidden space-y-4">
@@ -576,6 +594,7 @@ export default function RotaPage() {
             ))}
           </div>
         </>
+        </div>
       )}
 
       {/* ── Shift Sheet (bottom on mobile, right on desktop) ── */}
