@@ -89,7 +89,11 @@ function addDays(date: Date, n: number): Date {
 }
 
 function toDateStr(date: Date): string {
-  return date.toISOString().split("T")[0];
+  // Use local date parts to avoid UTC-offset day shift (important for UTC+1 Ireland)
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
 }
 
 function fmtWeekRange(monday: Date): string {
@@ -442,7 +446,6 @@ export default function RotaPage() {
               <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
             </div>
           )}
-        <>
           {/* ── MOBILE VIEW (< lg) ── */}
           <div className="lg:hidden space-y-4">
             {/* Day selector strip */}
@@ -593,7 +596,6 @@ export default function RotaPage() {
               />
             ))}
           </div>
-        </>
         </div>
       )}
 

@@ -81,7 +81,7 @@ export default function ClockPage() {
 
   // Settings sheet
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [geoForm, setGeoForm] = useState({ lat: "", lng: "", radius: "200" });
+  const [geoForm, setGeoForm] = useState({ lat: "", lng: "", radius: "80" });
   const [savingGeo, setSavingGeo] = useState(false);
   const [geoSaved, setGeoSaved] = useState(false);
 
@@ -117,7 +117,7 @@ export default function ClockPage() {
       setGeoForm({
         lat: g.geoLat?.toString() ?? "",
         lng: g.geoLng?.toString() ?? "",
-        radius: g.geoRadius?.toString() ?? "200",
+        radius: g.geoRadius?.toString() ?? "80",
       });
     }
   }, []);
@@ -246,7 +246,7 @@ export default function ClockPage() {
       body: JSON.stringify({
         geoLat: geoForm.lat ? parseFloat(geoForm.lat) : null,
         geoLng: geoForm.lng ? parseFloat(geoForm.lng) : null,
-        geoRadius: parseInt(geoForm.radius) || 200,
+        geoRadius: parseInt(geoForm.radius) || 80,
       }),
     });
     if (res.ok) {
@@ -575,7 +575,7 @@ export default function ClockPage() {
                 value={geoForm.radius}
                 onChange={(e) => setGeoForm((f) => ({ ...f, radius: e.target.value }))}
               />
-              <p className="text-xs text-slate-400">Default 200m. Min 50m, max 1000m.</p>
+              <p className="text-xs text-slate-400">Default 80m. Min 50m, max 1000m.</p>
             </div>
 
             {/* Use my current location */}

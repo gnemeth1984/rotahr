@@ -428,7 +428,7 @@ export default function AIPage() {
 
   if (!isManager) {
     return (
-      <div className="p-8 text-center">
+      <div className="px-4 py-8 text-center max-w-sm mx-auto">
         <div className="h-12 w-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-3">
           <Brain className="h-6 w-6 text-slate-400" />
         </div>
@@ -438,7 +438,7 @@ export default function AIPage() {
   }
 
   return (
-    <div className="p-6 max-w-3xl mx-auto space-y-6">
+    <div className="px-4 py-6 max-w-3xl mx-auto space-y-6 w-full">
       <div>
         <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
           <Brain className="h-6 w-6 text-violet-600" />

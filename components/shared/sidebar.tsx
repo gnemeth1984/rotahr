@@ -117,16 +117,28 @@ export function Sidebar() {
 
   const sidebarInner = (
     <div className="flex h-full flex-col">
-      {/* Logo */}
-      <div className="flex items-center justify-between px-6 py-5 border-b border-slate-700">
-        <div className="flex items-center gap-2">
-          <Image src="/logo-dark.png" alt="Rotahr" width={110} height={36} className="object-contain" priority />
+      {/* Logo — logo always visible; bell on right; X close button on mobile only */}
+      <div className="flex items-center justify-between px-4 py-4 border-b border-slate-700">
+        <div className="flex items-center gap-2 min-w-0">
+          {/* On mobile: leave gap for the hamburger button (top-left, 44px wide) */}
+          <div className="lg:hidden w-8 flex-shrink-0" />
+          <Image src="/logo-dark.png" alt="Rotahr" width={100} height={32} className="object-contain flex-shrink-0" priority />
         </div>
-        <BellButton />
+        <div className="flex items-center gap-2">
+          <BellButton />
+          {/* Close button on mobile — right side so it doesn't cover logo */}
+          <button
+            className="lg:hidden p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
+            onClick={() => setMobileOpen(false)}
+            aria-label="Close menu"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
       </div>
 
-      {/* Nav */}
-      <nav className="flex-1 px-3 py-4 space-y-1">
+      {/* Nav — scrollable so all items reachable on small phones */}
+      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
         {visibleItems.map((item) => {
           const Icon = item.icon;
           const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
@@ -149,8 +161,8 @@ export function Sidebar() {
         })}
       </nav>
 
-      {/* User */}
-      <div className="px-3 py-4 border-t border-slate-700">
+      {/* User — extra bottom padding on mobile to clear phone nav bar */}
+      <div className="px-3 py-4 border-t border-slate-700 pb-safe" style={{ paddingBottom: "calc(1rem + env(safe-area-inset-bottom, 0px))" }}>
         <div className="flex items-center gap-3 px-3 mb-3">
           <Avatar className="h-8 w-8">
             <AvatarImage src={session?.user?.image ?? ""} />
@@ -169,33 +181,35 @@ export function Sidebar() {
         </div>
         <Link
           href="/install"
-          className="flex items-center gap-2 px-3 py-2 text-sm text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors mb-1"
+          className="flex items-center gap-2 px-3 py-2.5 text-sm text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors mb-1"
+          onClick={() => setMobileOpen(false)}
         >
           <Smartphone className="h-4 w-4" />
           Get the App
         </Link>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="w-full justify-start text-slate-400 hover:text-white hover:bg-slate-700"
+        <button
+          className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"
           onClick={() => signOut({ callbackUrl: "/" })}
         >
-          <LogOut className="h-4 w-4 mr-2" />
+          <LogOut className="h-4 w-4" />
           Sign out
-        </Button>
+        </button>
       </div>
     </div>
   );
 
   return (
     <>
-      {/* Mobile toggle */}
-      <button
-        className="fixed top-4 left-4 z-50 lg:hidden bg-slate-800 p-2 rounded-lg text-white"
-        onClick={() => setMobileOpen(!mobileOpen)}
-      >
-        {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-      </button>
+      {/* Mobile toggle — only shows hamburger (X is inside sidebar header now) */}
+      {!mobileOpen && (
+        <button
+          className="fixed top-4 left-4 z-50 lg:hidden bg-slate-800 p-2.5 rounded-lg text-white shadow-lg"
+          onClick={() => setMobileOpen(true)}
+          aria-label="Open menu"
+        >
+          <Menu className="h-5 w-5" />
+        </button>
+      )}
 
       {/* Mobile overlay */}
       {mobileOpen && (
