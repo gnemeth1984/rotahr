@@ -162,6 +162,10 @@ model Expense {
   receiptExpiresAt DateTime? // 30 days from upload
   aiRawText       String?
 
+  // Irish Revenue / VAT compliance fields
+  supplierVatNumber String?   // supplier's VAT registration number (required for VAT reclaim)
+  legalBasis        String?   @default("legal_obligation") // GDPR Art.6(1)(c) — legal obligation
+
   employeeId    String?
   employee      Employee? @relation(fields: [employeeId], references: [id])
 

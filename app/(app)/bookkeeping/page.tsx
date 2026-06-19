@@ -37,11 +37,16 @@ import {
   ImageIcon,
   Clock,
   X,
+  Package,
+  AlertTriangle,
+  CheckCircle2,
+  Info,
+  ShieldCheck,
 } from "lucide-react";
 import { UserRole as Role } from "@/types/roles";
 import { cn } from "@/lib/utils";
 
-// ─── Types ───────────────────────────────────────────────────────────────────
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 interface Expense {
   id: string;
@@ -58,6 +63,7 @@ interface Expense {
   receiptDataUrl: string | null;
   receiptExpiresAt: string | null;
   aiRawText: string | null;
+  supplierVatNumber: string | null;
   employeeId: string | null;
   employee?: { id: string; firstName: string; lastName: string } | null;
 }
@@ -69,7 +75,24 @@ interface Summary {
   count: number;
 }
 
-// ─── Constants ───────────────────────────────────────────────────────────────
+interface StockSuggestion {
+  name: string;
+  quantity: number;
+  unit: string;
+  unitPrice: number | null;
+  existingItemId: string | null;
+  existingName: string | null;
+  existingPrice: number | null;
+  priceChanged: boolean;
+}
+
+interface StockFromReceiptResult {
+  expense: { id: string; vendor: string | null; date: string; amount: number };
+  matchedSupplier: { id: string; name: string } | null;
+  suggestions: StockSuggestion[];
+}
+
+// ─── Constants ────────────────────────────────────────────────────────────────
 
 const CATEGORIES = [
   { value: "wages", label: "Staff Wages & Overtime", color: "bg-blue-100 text-blue-700" },
@@ -100,9 +123,10 @@ const EMPTY_FORM = {
   receiptDataUrl: "",
   receiptExpiresAt: "",
   aiRawText: "",
+  supplierVatNumber: "",
 };
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function fmt(n: number) {
   return `€${n.toLocaleString("en-IE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -121,7 +145,6 @@ function getCatLabel(cat: string) {
 }
 
 function startOfMonth(d: Date) {
-  // UTC boundaries to avoid timezone drift (Ireland is UTC+1 in summer)
   return new Date(Date.UTC(d.getFullYear(), d.getMonth(), 1, 0, 0, 0));
 }
 
@@ -129,7 +152,294 @@ function endOfMonth(d: Date) {
   return new Date(Date.UTC(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59));
 }
 
-// ─── Component ───────────────────────────────────────────────────────────────
+// ─── StockFromReceiptDialog ────────────────────────────────────────────────────
+
+function StockFromReceiptDialog({
+  expenseId,
+  open,
+  onClose,
+}: {
+  expenseId: string | null;
+  open: boolean;
+  onClose: () => void;
+}) {
+  const [loading, setLoading] = useState(false);
+  const [applying, setApplying] = useState(false);
+  const [result, setResult] = useState<StockFromReceiptResult | null>(null);
+  const [error, setError] = useState("");
+  const [selected, setSelected] = useState<Record<number, boolean>>({});
+  const [done, setDone] = useState(false);
+  const [appliedCount, setAppliedCount] = useState(0);
+
+  // Fetch suggestions when dialog opens
+  useEffect(() => {
+    if (!open || !expenseId) return;
+    setResult(null);
+    setError("");
+    setDone(false);
+    setAppliedCount(0);
+    setSelected({});
+    setLoading(true);
+
+    fetch("/api/stock/from-receipt", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ expenseId }),
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.error) { setError(data.error); return; }
+        setResult(data);
+        // Default: select all suggestions
+        const init: Record<number, boolean> = {};
+        data.suggestions.forEach((_: StockSuggestion, i: number) => { init[i] = true; });
+        setSelected(init);
+      })
+      .catch(() => setError("Failed to load suggestions"))
+      .finally(() => setLoading(false));
+  }, [open, expenseId]);
+
+  async function handleApply() {
+    if (!result) return;
+    setApplying(true);
+    setError("");
+    let count = 0;
+
+    for (let i = 0; i < result.suggestions.length; i++) {
+      if (!selected[i]) continue;
+      const s = result.suggestions[i];
+
+      try {
+        if (s.existingItemId) {
+          // Update existing stock item: price + lastExpenseId + lastOrdered
+          await fetch(`/api/stock/${s.existingItemId}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              ...(s.unitPrice !== null ? { lastPrice: s.unitPrice } : {}),
+              lastExpenseId: result.expense.id,
+              lastOrdered: result.expense.date,
+            }),
+          });
+        } else {
+          // Create new stock item
+          await fetch("/api/stock", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              name: s.name,
+              unit: s.unit,
+              category: "general",
+              ...(s.unitPrice !== null ? { lastPrice: s.unitPrice } : {}),
+              lastExpenseId: result.expense.id,
+              lastOrdered: result.expense.date,
+              ...(result.matchedSupplier ? { supplierId: result.matchedSupplier.id } : {}),
+            }),
+          });
+        }
+        count++;
+      } catch {/* skip single item failure, continue */}
+    }
+
+    setAppliedCount(count);
+    setApplying(false);
+    setDone(true);
+  }
+
+  function handleClose() {
+    setResult(null);
+    setError("");
+    setDone(false);
+    onClose();
+  }
+
+  const toggleAll = (val: boolean) => {
+    if (!result) return;
+    const next: Record<number, boolean> = {};
+    result.suggestions.forEach((_, i) => { next[i] = val; });
+    setSelected(next);
+  };
+
+  const anySelected = Object.values(selected).some(Boolean);
+
+  return (
+    <Dialog open={open} onOpenChange={handleClose}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Package className="h-5 w-5 text-blue-600" />
+            Add to Stock from Receipt
+          </DialogTitle>
+        </DialogHeader>
+
+        {loading && (
+          <div className="flex flex-col items-center gap-3 py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+            <p className="text-sm text-slate-500">Analysing receipt…</p>
+          </div>
+        )}
+
+        {!loading && error && (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700">
+            {error}
+          </div>
+        )}
+
+        {!loading && done && (
+          <div className="flex flex-col items-center gap-3 py-12">
+            <div className="h-14 w-14 bg-green-50 rounded-full flex items-center justify-center">
+              <CheckCircle2 className="h-7 w-7 text-green-600" />
+            </div>
+            <p className="text-base font-semibold text-slate-800">
+              {appliedCount} item{appliedCount !== 1 ? "s" : ""} updated in Stock
+            </p>
+            <p className="text-sm text-slate-400 text-center max-w-sm">
+              Prices and last-ordered dates have been updated. View them in the Stock page.
+            </p>
+            <Button size="sm" onClick={handleClose} className="mt-2">Done</Button>
+          </div>
+        )}
+
+        {!loading && !error && !done && result && (
+          <>
+            {/* Supplier match banner */}
+            {result.matchedSupplier && (
+              <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-xl px-4 py-2.5 text-sm">
+                <CheckCircle2 className="h-4 w-4 text-blue-600 shrink-0" />
+                <span className="text-blue-800">
+                  Matched supplier: <span className="font-semibold">{result.matchedSupplier.name}</span> — new items will be linked automatically.
+                </span>
+              </div>
+            )}
+
+            {result.suggestions.length === 0 ? (
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-5 text-center">
+                <AlertTriangle className="h-8 w-8 mx-auto mb-2 text-amber-400" />
+                <p className="text-sm font-medium text-amber-800">No line items found</p>
+                <p className="text-xs text-amber-600 mt-1">
+                  The receipt text couldn't be parsed into line items. You can add stock items manually from the Stock page.
+                </p>
+              </div>
+            ) : (
+              <>
+                {/* Select all / none */}
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-slate-500">
+                    {result.suggestions.length} item{result.suggestions.length !== 1 ? "s" : ""} found
+                  </p>
+                  <div className="flex gap-2">
+                    <button onClick={() => toggleAll(true)} className="text-xs text-blue-600 hover:underline">Select all</button>
+                    <span className="text-slate-300">·</span>
+                    <button onClick={() => toggleAll(false)} className="text-xs text-slate-500 hover:underline">None</button>
+                  </div>
+                </div>
+
+                {/* Suggestions table */}
+                <div className="border border-slate-200 rounded-xl overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-slate-50 border-b border-slate-100">
+                        <th className="px-3 py-2.5 text-left"></th>
+                        <th className="px-3 py-2.5 text-left text-xs font-medium text-slate-500">Item</th>
+                        <th className="px-3 py-2.5 text-center text-xs font-medium text-slate-500">Qty</th>
+                        <th className="px-3 py-2.5 text-center text-xs font-medium text-slate-500">Unit</th>
+                        <th className="px-3 py-2.5 text-right text-xs font-medium text-slate-500">Unit Price</th>
+                        <th className="px-3 py-2.5 text-center text-xs font-medium text-slate-500">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {result.suggestions.map((s, i) => (
+                        <tr
+                          key={i}
+                          className={cn(
+                            "border-b border-slate-50 transition-colors",
+                            selected[i] ? "bg-white" : "bg-slate-50/50 opacity-60"
+                          )}
+                        >
+                          <td className="px-3 py-3">
+                            <input
+                              type="checkbox"
+                              checked={!!selected[i]}
+                              onChange={(e) => setSelected((prev) => ({ ...prev, [i]: e.target.checked }))}
+                              className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                            />
+                          </td>
+                          <td className="px-3 py-3">
+                            <p className="font-medium text-slate-800">{s.name}</p>
+                            {s.existingName && s.existingName !== s.name && (
+                              <p className="text-xs text-slate-400 mt-0.5">→ matches "{s.existingName}"</p>
+                            )}
+                          </td>
+                          <td className="px-3 py-3 text-center text-slate-600">{s.quantity}</td>
+                          <td className="px-3 py-3 text-center text-slate-500 text-xs">{s.unit}</td>
+                          <td className="px-3 py-3 text-right">
+                            {s.unitPrice !== null ? (
+                              <span className={cn("font-medium", s.priceChanged ? "text-amber-700" : "text-slate-800")}>
+                                {fmt(s.unitPrice)}
+                              </span>
+                            ) : (
+                              <span className="text-slate-400">—</span>
+                            )}
+                          </td>
+                          <td className="px-3 py-3 text-center">
+                            {s.existingItemId ? (
+                              <span className={cn(
+                                "inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium",
+                                s.priceChanged
+                                  ? "bg-amber-100 text-amber-700"
+                                  : "bg-green-100 text-green-700"
+                              )}>
+                                {s.priceChanged ? (
+                                  <><AlertTriangle className="h-3 w-3" /> Price changed</>
+                                ) : (
+                                  <><CheckCircle2 className="h-3 w-3" /> Update</>
+                                )}
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium bg-blue-100 text-blue-700">
+                                <Plus className="h-3 w-3" /> New item
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Price change warning */}
+                {result.suggestions.some((s) => s.priceChanged) && (
+                  <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm">
+                    <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
+                    <span className="text-amber-800">
+                      Some items have a different price from what's on record. Confirming will update <em>lastPrice</em> in Stock.
+                    </span>
+                  </div>
+                )}
+              </>
+            )}
+
+            <DialogFooter className="gap-2 mt-2">
+              <Button variant="outline" size="sm" onClick={handleClose}>Cancel</Button>
+              {result.suggestions.length > 0 && (
+                <Button
+                  size="sm"
+                  onClick={handleApply}
+                  disabled={applying || !anySelected}
+                >
+                  {applying && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
+                  Apply {Object.values(selected).filter(Boolean).length} item{Object.values(selected).filter(Boolean).length !== 1 ? "s" : ""}
+                </Button>
+              )}
+            </DialogFooter>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function BookkeepingPage() {
   const { data: session } = useSession();
@@ -146,6 +456,9 @@ export default function BookkeepingPage() {
   // Lightbox
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
+  // Stock from receipt
+  const [stockDialogExpenseId, setStockDialogExpenseId] = useState<string | null>(null);
+
   // Dialog
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
@@ -159,7 +472,6 @@ export default function BookkeepingPage() {
   const [aiLoading, setAiLoading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState("");
 
-  // Open a private blob receipt via signed URL, fall back to base64
   const openReceipt = useCallback(async (e: React.MouseEvent, exp: Expense) => {
     e.preventDefault();
     e.stopPropagation();
@@ -170,7 +482,6 @@ export default function BookkeepingPage() {
         if (data.url) { setLightboxUrl(data.url); return; }
       } catch {/* fall through */}
     }
-    // Blob failed or missing — use base64 fallback
     if (exp.receiptDataUrl) {
       setLightboxUrl(exp.receiptDataUrl);
     }
@@ -204,7 +515,6 @@ export default function BookkeepingPage() {
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    // Use local object URL for preview (works without signed URL)
     const localPreview = URL.createObjectURL(file);
     setPreviewUrl(localPreview);
     setUploading(true);
@@ -216,7 +526,6 @@ export default function BookkeepingPage() {
       const data = await res.json();
       if (!res.ok) { setError(data.error ?? "Upload failed"); return; }
 
-      // Store blob URL + base64 fallback + 30-day expiry
       const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
       setForm((f) => ({
         ...f,
@@ -226,7 +535,6 @@ export default function BookkeepingPage() {
         aiRawText: data.ai?.rawText ?? "",
       }));
 
-      // Auto-fill from AI
       if (data.ai) {
         setForm((f) => ({
           ...f,
@@ -274,8 +582,8 @@ export default function BookkeepingPage() {
       receiptDataUrl: exp.receiptDataUrl ?? "",
       receiptExpiresAt: exp.receiptExpiresAt ?? "",
       aiRawText: exp.aiRawText ?? "",
+      supplierVatNumber: exp.supplierVatNumber ?? "",
     });
-    // For existing expenses, try signed URL first, then base64 fallback
     if (exp.receiptUrl) {
       fetch(`/api/expenses/receipt-url?url=${encodeURIComponent(exp.receiptUrl)}`)
         .then(r => r.json())
@@ -312,6 +620,7 @@ export default function BookkeepingPage() {
         receiptDataUrl: form.receiptDataUrl || undefined,
         receiptExpiresAt: form.receiptExpiresAt || undefined,
         aiRawText: form.aiRawText || undefined,
+        supplierVatNumber: form.supplierVatNumber || undefined,
       };
 
       if (isNaN(body.amount) || body.amount <= 0) {
@@ -359,11 +668,12 @@ export default function BookkeepingPage() {
   // ── Export CSV ────────────────────────────────────────────────────────────
 
   function exportCSV() {
-    const rows = [["Date", "Vendor", "Category", "Description", "Amount (€)", "VAT (€)", "Net (€)", "Payment Method", "Status"]];
+    const rows = [["Date", "Vendor", "Supplier VAT No.", "Category", "Description", "Amount (€)", "VAT (€)", "Net (€)", "Payment Method", "Status"]];
     expenses.forEach((e) => {
       rows.push([
         e.date.split("T")[0],
         e.vendor ?? "",
+        e.supplierVatNumber ?? "",
         getCatLabel(e.category),
         e.description ?? "",
         e.amount.toFixed(2),
@@ -373,10 +683,9 @@ export default function BookkeepingPage() {
         e.status,
       ]);
     });
-    // Totals row
     const total = expenses.reduce((s, e) => s + e.amount, 0);
     const totalVat = expenses.reduce((s, e) => s + e.vatAmount, 0);
-    rows.push(["", "", "", "TOTAL", total.toFixed(2), totalVat.toFixed(2), (total - totalVat).toFixed(2), "", ""]);
+    rows.push(["", "", "", "", "TOTAL", total.toFixed(2), totalVat.toFixed(2), (total - totalVat).toFixed(2), "", ""]);
 
     const csv = rows.map((r) => r.map((c) => `"${c}"`).join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
@@ -435,6 +744,14 @@ export default function BookkeepingPage() {
               Add Expense
             </Button>
           )}
+        </div>
+      </div>
+
+      {/* ── Irish Revenue / GDPR compliance banner ── */}
+      <div className="flex items-start gap-3 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3">
+        <ShieldCheck className="h-4 w-4 text-emerald-600 mt-0.5 shrink-0" />
+        <div className="text-xs text-emerald-800 leading-relaxed">
+          <span className="font-semibold">Irish Revenue compliance</span> — All expense records are retained permanently under <strong>TCA 1997 s.886</strong> (6-year minimum). Receipt <em>images</em> expire after 30 days in the preview cache; the financial record and all figures are never deleted. VAT records are processed under <strong>GDPR Art.6(1)(c)</strong> — legal obligation. Staff expense data linked to an employee is processed under Art.6(1)(b) — contract performance.
         </div>
       </div>
 
@@ -539,122 +856,145 @@ export default function BookkeepingPage() {
       </div>
 
       {/* ── Expenses tab ── */}
-      {activeTab === "expenses" && <>
-      {/* Filter tabs */}
-      <div className="flex gap-2 flex-wrap">
-        <button
-          onClick={() => setFilterCat("all")}
-          className={cn("px-3 py-1.5 rounded-lg text-xs font-medium transition-colors", filterCat === "all" ? "bg-slate-900 text-white" : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50")}
-        >
-          All
-        </button>
-        {CATEGORIES.map((cat) => (
-          <button
-            key={cat.value}
-            onClick={() => setFilterCat(cat.value)}
-            className={cn("px-3 py-1.5 rounded-lg text-xs font-medium transition-colors", filterCat === cat.value ? "bg-slate-900 text-white" : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50")}
-          >
-            {cat.label}
-          </button>
-        ))}
-      </div>
+      {activeTab === "expenses" && (
+        <>
+          {/* Filter tabs */}
+          <div className="flex gap-2 flex-wrap">
+            <button
+              onClick={() => setFilterCat("all")}
+              className={cn("px-3 py-1.5 rounded-lg text-xs font-medium transition-colors", filterCat === "all" ? "bg-slate-900 text-white" : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50")}
+            >
+              All
+            </button>
+            {CATEGORIES.map((cat) => (
+              <button
+                key={cat.value}
+                onClick={() => setFilterCat(cat.value)}
+                className={cn("px-3 py-1.5 rounded-lg text-xs font-medium transition-colors", filterCat === cat.value ? "bg-slate-900 text-white" : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50")}
+              >
+                {cat.label}
+              </button>
+            ))}
+          </div>
 
-      {/* Expense list */}
-      {loading ? (
-        <div className="flex justify-center py-20">
-          <Loader2 className="h-8 w-8 animate-spin text-slate-300" />
-        </div>
-      ) : filtered.length === 0 ? (
-        <div className="bg-white border border-slate-200 rounded-xl py-20 text-center">
-          <Receipt className="h-12 w-12 mx-auto mb-3 text-slate-200" />
-          <p className="font-medium text-slate-600">No expenses yet</p>
-          <p className="text-sm text-slate-400 mt-1">Click "Add Expense" to log your first one.</p>
-        </div>
-      ) : (
-        <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-slate-100 bg-slate-50/60">
-                <th className="text-left px-5 py-3 text-xs font-medium text-slate-500">Date</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-slate-500">Vendor</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-slate-500">Category</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-slate-500 hidden md:table-cell">Description</th>
-                <th className="text-right px-4 py-3 text-xs font-medium text-slate-500">VAT</th>
-                <th className="text-right px-5 py-3 text-xs font-medium text-slate-500">Amount</th>
-                <th className="px-3 py-3 text-xs font-medium text-slate-500 hidden sm:table-cell">Receipt</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((exp, i) => (
-                <tr
-                  key={exp.id}
-                  onClick={() => isManager && openEdit(exp)}
-                  className={cn(
-                    "border-b border-slate-50 transition-colors",
-                    isManager ? "cursor-pointer hover:bg-slate-50" : "",
-                    i % 2 === 0 ? "bg-white" : "bg-slate-50/30"
-                  )}
-                >
-                  <td className="px-5 py-3 text-sm text-slate-600 whitespace-nowrap">
-                    {new Date(exp.date).toLocaleDateString("en-IE", { day: "numeric", month: "short" })}
-                  </td>
-                  <td className="px-4 py-3 text-sm font-medium text-slate-800 max-w-[140px] truncate">
-                    {exp.vendor ?? "—"}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={cn("text-xs font-medium px-2 py-0.5 rounded-full", getCatColor(exp.category))}>
-                      {getCatLabel(exp.category)}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-sm text-slate-500 max-w-[200px] truncate hidden md:table-cell">
-                    {exp.description ?? "—"}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-right text-slate-500">
-                    {exp.vatAmount > 0 ? fmt(exp.vatAmount) : "—"}
-                  </td>
-                  <td className="px-5 py-3 text-sm font-semibold text-right text-slate-900">
-                    {fmt(exp.amount)}
-                  </td>
-                  <td className="px-3 py-3 text-center hidden sm:table-cell">
-                    {(exp.receiptUrl || exp.receiptDataUrl) ? (
-                      <button
-                        onClick={(e) => openReceipt(e, exp)}
-                        className="inline-flex items-center justify-center h-7 w-7 rounded-md bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
-                      >
-                        <Eye className="h-3.5 w-3.5" />
-                      </button>
-                    ) : (
-                      <span className="text-slate-300 text-xs">—</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-            <tfoot>
-              <tr className="border-t-2 border-slate-200 bg-slate-50">
-                <td colSpan={4} className="px-5 py-3 text-sm font-semibold text-slate-600">
-                  Total ({filtered.length} items)
-                </td>
-                <td className="px-4 py-3 text-sm font-semibold text-right text-slate-700">
-                  {fmt(filtered.reduce((s, e) => s + e.vatAmount, 0))}
-                </td>
-                <td className="px-5 py-3 text-sm font-bold text-right text-slate-900">
-                  {fmt(filtered.reduce((s, e) => s + e.amount, 0))}
-                </td>
-                <td className="px-3 py-3 hidden sm:table-cell" />
-              </tr>
-            </tfoot>
-          </table>
-        </div>
+          {/* Expense list */}
+          {loading ? (
+            <div className="flex justify-center py-20">
+              <Loader2 className="h-8 w-8 animate-spin text-slate-300" />
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="bg-white border border-slate-200 rounded-xl py-20 text-center">
+              <Receipt className="h-12 w-12 mx-auto mb-3 text-slate-200" />
+              <p className="font-medium text-slate-600">No expenses yet</p>
+              <p className="text-sm text-slate-400 mt-1">Click "Add Expense" to log your first one.</p>
+            </div>
+          ) : (
+            <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-slate-100 bg-slate-50/60">
+                    <th className="text-left px-5 py-3 text-xs font-medium text-slate-500">Date</th>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-slate-500">Vendor</th>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-slate-500">Category</th>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-slate-500 hidden md:table-cell">Description</th>
+                    <th className="text-right px-4 py-3 text-xs font-medium text-slate-500">VAT</th>
+                    <th className="text-right px-5 py-3 text-xs font-medium text-slate-500">Amount</th>
+                    <th className="px-3 py-3 text-xs font-medium text-slate-500 hidden sm:table-cell text-center">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map((exp, i) => (
+                    <tr
+                      key={exp.id}
+                      onClick={() => isManager && openEdit(exp)}
+                      className={cn(
+                        "border-b border-slate-50 transition-colors",
+                        isManager ? "cursor-pointer hover:bg-slate-50" : "",
+                        i % 2 === 0 ? "bg-white" : "bg-slate-50/30"
+                      )}
+                    >
+                      <td className="px-5 py-3 text-sm text-slate-600 whitespace-nowrap">
+                        {new Date(exp.date).toLocaleDateString("en-IE", { day: "numeric", month: "short" })}
+                      </td>
+                      <td className="px-4 py-3 text-sm font-medium text-slate-800 max-w-[140px] truncate">
+                        {exp.vendor ?? "—"}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={cn("text-xs font-medium px-2 py-0.5 rounded-full", getCatColor(exp.category))}>
+                          {getCatLabel(exp.category)}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-slate-500 max-w-[200px] truncate hidden md:table-cell">
+                        {exp.description ?? "—"}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-right text-slate-500">
+                        {exp.vatAmount > 0 ? fmt(exp.vatAmount) : "—"}
+                      </td>
+                      <td className="px-5 py-3 text-sm font-semibold text-right text-slate-900">
+                        {fmt(exp.amount)}
+                      </td>
+                      <td className="px-3 py-3 text-center hidden sm:table-cell">
+                        <div className="flex items-center justify-center gap-1.5">
+                          {(exp.receiptUrl || exp.receiptDataUrl) && (
+                            <button
+                              onClick={(e) => openReceipt(e, exp)}
+                              title="View receipt"
+                              className="inline-flex items-center justify-center h-7 w-7 rounded-md bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
+                            >
+                              <Eye className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                          {isManager && (
+                            <button
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setStockDialogExpenseId(exp.id);
+                              }}
+                              title="Add to Stock"
+                              className="inline-flex items-center justify-center h-7 w-7 rounded-md bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors"
+                            >
+                              <Package className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t-2 border-slate-200 bg-slate-50">
+                    <td colSpan={4} className="px-5 py-3 text-sm font-semibold text-slate-600">
+                      Total ({filtered.length} items)
+                    </td>
+                    <td className="px-4 py-3 text-sm font-semibold text-right text-slate-700">
+                      {fmt(filtered.reduce((s, e) => s + e.vatAmount, 0))}
+                    </td>
+                    <td className="px-5 py-3 text-sm font-bold text-right text-slate-900">
+                      {fmt(filtered.reduce((s, e) => s + e.amount, 0))}
+                    </td>
+                    <td className="px-3 py-3 hidden sm:table-cell" />
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          )}
+        </>
       )}
-
-      </> /* end expenses tab */}
 
       {/* ── Receipt History tab ── */}
       {activeTab === "receipts" && (() => {
         const withReceipts = expenses.filter(e => e.receiptUrl || e.receiptDataUrl);
         return (
           <div>
+            {/* Retention notice */}
+            <div className="flex items-start gap-2 mb-4 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3">
+              <Info className="h-4 w-4 text-slate-400 mt-0.5 shrink-0" />
+              <p className="text-xs text-slate-500">
+                Receipt <strong>images</strong> are cached for 30 days for quick preview. The underlying expense record — including all amounts, dates, VAT, and vendor — is retained permanently under <strong>TCA 1997 s.886</strong> (Irish Revenue 6-year rule). Images do not expire from Vercel Blob storage if uploaded there.
+              </p>
+            </div>
+
             {loading ? (
               <div className="flex justify-center py-20">
                 <Loader2 className="h-8 w-8 animate-spin text-slate-300" />
@@ -663,7 +1003,7 @@ export default function BookkeepingPage() {
               <div className="bg-white border border-slate-200 rounded-xl py-20 text-center">
                 <ImageIcon className="h-12 w-12 mx-auto mb-3 text-slate-200" />
                 <p className="font-medium text-slate-600">No receipts stored yet</p>
-                <p className="text-sm text-slate-400 mt-1">Upload a receipt when adding an expense — it'll appear here for 30 days.</p>
+                <p className="text-sm text-slate-400 mt-1">Upload a receipt when adding an expense.</p>
               </div>
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
@@ -679,11 +1019,13 @@ export default function BookkeepingPage() {
                   return (
                     <div
                       key={exp.id}
-                      onClick={(e) => openReceipt(e, exp)}
-                      className="bg-white border border-slate-200 rounded-xl overflow-hidden cursor-pointer hover:border-blue-300 hover:shadow-md transition-all group"
+                      className="bg-white border border-slate-200 rounded-xl overflow-hidden hover:border-blue-300 hover:shadow-md transition-all group"
                     >
-                      {/* Thumbnail */}
-                      <div className="relative h-36 bg-slate-50 flex items-center justify-center overflow-hidden">
+                      {/* Thumbnail — click to view */}
+                      <div
+                        onClick={(e) => openReceipt(e, exp)}
+                        className="relative h-36 bg-slate-50 flex items-center justify-center overflow-hidden cursor-pointer"
+                      >
                         {thumbUrl ? (
                           <img
                             src={thumbUrl}
@@ -714,6 +1056,19 @@ export default function BookkeepingPage() {
                         <span className={cn("mt-1.5 inline-block text-xs font-medium px-1.5 py-0.5 rounded-full", getCatColor(exp.category))}>
                           {getCatLabel(exp.category)}
                         </span>
+                        {/* Add to stock button */}
+                        {isManager && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setStockDialogExpenseId(exp.id);
+                            }}
+                            className="mt-2 w-full flex items-center justify-center gap-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg py-1.5 transition-colors"
+                          >
+                            <Package className="h-3.5 w-3.5" />
+                            Add to Stock
+                          </button>
+                        )}
                       </div>
                     </div>
                   );
@@ -783,7 +1138,18 @@ export default function BookkeepingPage() {
                 <p className="text-sm font-semibold text-amber-800 mb-1">VAT Summary</p>
                 <p className="text-sm text-amber-700">
                   Reclaimable VAT this month: <span className="font-bold">{fmt(summary.totalVat)}</span>
-                  {" "}— ensure all receipts are uploaded before filing your VAT return.
+                  {" "}— ensure all VAT invoices include the supplier's VAT registration number before filing your return with Revenue.
+                </p>
+              </div>
+
+              {/* Compliance reminder */}
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
+                <p className="text-xs font-semibold text-slate-600 mb-1 flex items-center gap-1.5">
+                  <ShieldCheck className="h-3.5 w-3.5 text-slate-400" />
+                  Data Retention — Irish Tax Law
+                </p>
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  Under <strong>Taxes Consolidation Act 1997, s.886</strong>, all business records must be retained for a minimum of <strong>6 years</strong>. Rotahr stores all expense records permanently in your database. You are responsible for ensuring your Neon database backup policy meets this requirement. Receipt images (preview cache) are separate from the permanent record.
                 </p>
               </div>
             </>
@@ -812,7 +1178,14 @@ export default function BookkeepingPage() {
         </div>
       )}
 
-      {/* Add/Edit Dialog */}
+      {/* Stock from Receipt Dialog */}
+      <StockFromReceiptDialog
+        expenseId={stockDialogExpenseId}
+        open={!!stockDialogExpenseId}
+        onClose={() => setStockDialogExpenseId(null)}
+      />
+
+      {/* Add/Edit Expense Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -820,6 +1193,14 @@ export default function BookkeepingPage() {
           </DialogHeader>
 
           <div className="space-y-5 py-1">
+            {/* GDPR / legal basis note */}
+            <div className="flex items-start gap-2 bg-slate-50 border border-slate-100 rounded-xl px-3 py-2.5">
+              <Info className="h-3.5 w-3.5 text-slate-400 mt-0.5 shrink-0" />
+              <p className="text-xs text-slate-500">
+                Financial records are processed under <strong>GDPR Art.6(1)(c)</strong> — legal obligation (Irish Revenue). Records are retained permanently per TCA 1997 s.886.
+              </p>
+            </div>
+
             {/* Receipt upload */}
             <div className="space-y-2">
               <Label>Receipt Image</Label>
@@ -877,7 +1258,7 @@ export default function BookkeepingPage() {
               </div>
             </div>
 
-            {/* Fields */}
+            {/* Amount + VAT */}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label>Amount (€) *</Label>
@@ -903,6 +1284,7 @@ export default function BookkeepingPage() {
               </div>
             </div>
 
+            {/* Vendor */}
             <div className="space-y-1.5">
               <Label>Vendor / Supplier</Label>
               <Input
@@ -912,6 +1294,23 @@ export default function BookkeepingPage() {
               />
             </div>
 
+            {/* Supplier VAT number — Irish Revenue requirement */}
+            <div className="space-y-1.5">
+              <Label className="flex items-center gap-1.5">
+                Supplier VAT Registration No.
+                <span className="text-xs text-slate-400 font-normal">(required for VAT reclaim)</span>
+              </Label>
+              <Input
+                placeholder="e.g. IE1234567T"
+                value={form.supplierVatNumber}
+                onChange={(e) => setForm((f) => ({ ...f, supplierVatNumber: e.target.value }))}
+              />
+              <p className="text-xs text-slate-400">
+                Irish Revenue requires the supplier's VAT number on all VAT invoices (Value-Added Tax Consolidation Act 2010, s.66).
+              </p>
+            </div>
+
+            {/* Category + Date */}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label>Category *</Label>
@@ -934,6 +1333,7 @@ export default function BookkeepingPage() {
               </div>
             </div>
 
+            {/* Payment + Status */}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label>Payment Method</Label>
@@ -958,6 +1358,7 @@ export default function BookkeepingPage() {
               </div>
             </div>
 
+            {/* Description */}
             <div className="space-y-1.5">
               <Label>Description</Label>
               <Input
