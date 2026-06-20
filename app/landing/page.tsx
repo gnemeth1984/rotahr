@@ -263,6 +263,18 @@ export default function LandingPage() {
             <h2 className="text-3xl font-extrabold mb-4">Simple, transparent pricing</h2>
             <p className="text-slate-500 text-lg">All prices include 23% Irish VAT. No setup fees. Cancel anytime.</p>
           </div>
+
+          {/* Free trial banner */}
+          <div className="mb-10 flex justify-center">
+            <div className="inline-flex items-center gap-3 rounded-2xl border border-orange-200 bg-gradient-to-r from-orange-50 to-pink-50 px-6 py-3.5 shadow-sm">
+              <span className="text-xl">🎉</span>
+              <div>
+                <span className="font-bold text-slate-800 text-sm">First month free for new venues</span>
+                <span className="text-slate-500 text-sm ml-2">— no credit card required</span>
+              </div>
+            </div>
+          </div>
+
           <div className="grid md:grid-cols-3 gap-8 items-start">
             {plans.map((plan) => (
               <div
@@ -296,7 +308,7 @@ export default function LandingPage() {
                   }`}
                   style={plan.highlight ? { background: "linear-gradient(135deg, #F97316, #EC4899)" } : {}}
                 >
-                  {plan.cta}
+                  {plan.name === "Enterprise" ? plan.cta : "Start Free Trial"}
                 </Link>
                 <ul className="space-y-3">
                   {plan.features.map((feat) => (
@@ -309,6 +321,10 @@ export default function LandingPage() {
               </div>
             ))}
           </div>
+
+          <p className="text-center text-sm text-slate-400 mt-8">
+            Free trial applies to Starter and Pro plans. Enterprise pricing is custom — <Link href="/auth/signin" className="text-orange-500 hover:underline">contact us</Link> to get started.
+          </p>
         </div>
       </section>
 
