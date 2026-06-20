@@ -20,7 +20,8 @@ model Business {
   geoRadius          Int          @default(200) // metres
 
   // Labour cost / revenue target (used in rota live cost banner)
-  weeklyRevenueTarget Float?      // manager-set revenue target for current week (€)
+  weeklyRevenueTarget Float?      // manager-set revenue target for current week
+  venues              Venue[]
 
   users        User[]
   departments  Department[]
@@ -108,6 +109,9 @@ model Employee {
   shiftSwapRequestsOffered  ShiftSwapRequest[] @relation("SwapOfferer")
   shiftSwapRequestsReceived ShiftSwapRequest[] @relation("SwapReceiver")
   tipDistributions TipDistribution[]
+  certifications   TrainingCertification[]
+  venueId          String?
+  venue            Venue?   @relation(fields: [venueId], references: [id], onDelete: SetNull)
 }
 
 model Shift {
@@ -117,6 +121,8 @@ model Shift {
   endTime       DateTime
   role          String?
   published     Boolean   @default(false)
+  venueId       String?
+  venue         Venue?    @relation(fields: [venueId], references: [id], onDelete: SetNull)
   overtimeHours Float     @default(0)
   employeeId    String?
   employee      Employee? @relation(fields: [employeeId], references: [id])
@@ -280,20 +286,25 @@ model AvailabilityPreference {
 
 // ── Repeating Shift Templates ──────────────────────────────────────────────────
 model ShiftTemplate {
-  id          String   @id @default(cuid())
-  businessId  String
-  employeeId  String
-  dayOfWeek   Int      // 0=Sun … 6=Sat
-  startHour   Int
-  startMinute Int      @default(0)
-  endHour     Int
-  endMinute   Int      @default(0)
-  role        String?
-  active      Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id           String   @id @default(cuid())
+  businessId   String
+  employeeId   String?
+  dayOfWeek    Int
+  startHour    Int
+  startMinute  Int      @default(0)
+  endHour      Int
+  endMinute    Int      @default(0)
+  role         String?
+  active       Boolean  @default(true)
+  templateName String?
+  venueId      String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employee Employee? @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  venue    Venue?    @relation(fields: [venueId], references: [id], onDelete: SetNull)
+
+  @@index([businessId, templateName])
 }
 
 // ── In-App Notifications ───────────────────────────────────────────────────────
@@ -301,12 +312,13 @@ model AppNotification {
   id        String   @id @default(cuid())
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  type      String   // "message" | "shift" | "timeoff" | "booking" | "rota"
-  title     String
-  body      String
-  link      String?
-  read      Boolean  @default(false)
-  createdAt DateTime @default(now())
+  type        String   // "message" | "shift" | "timeoff" | "booking" | "rota" | "late_checkin" | "cert_expiry"
+  title       String
+  body        String
+  link        String?
+  referenceId String?  // shift/cert/etc ID for dedup
+  read        Boolean  @default(false)
+  createdAt   DateTime @default(now())
 
   @@index([userId, read])
 }
@@ -519,4 +531,57 @@ model TipDistribution {
 
   @@index([poolId])
   @@index([employeeId])
+}
+
+
+// ── Multi-Venue Support ───────────────────────────────────────────────────────
+model Venue {
+  id          String   @id @default(cuid())
+  businessId  String
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  name        String
+  address     String?
+  geoLat      Float?
+  geoLng      Float?
+  geoRadius   Int      @default(200)
+  timezone    String   @default("Europe/Dublin")
+  isDefault   Boolean  @default(false)
+  active      Boolean  @default(true)
+
+  employees       Employee[]
+  shifts          Shift[]
+  shiftTemplates  ShiftTemplate[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([businessId])
+}
+
+// ── Training & Certifications ─────────────────────────────────────────────────
+// HACCP, alcohol serving certs, manual handling, first aid — Irish legal requirements
+model TrainingCertification {
+  id          String   @id @default(cuid())
+  businessId  String
+  employeeId  String
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  title       String   // e.g. "HACCP Level 2", "RSA Bar Skills"
+  issuer      String?  // e.g. "Failte Ireland", "QQI"
+  category    String   @default("OTHER") // HACCP | ALCOHOL | MANUAL_HANDLING | FIRST_AID | FOOD_SAFETY | OTHER
+  issuedDate  DateTime?
+  expiryDate  DateTime?
+  documentUrl String?  // Vercel Blob URL
+  notes       String?  @db.Text
+
+  // Computed status — set by cron, not stored (derive from expiryDate)
+  // VALID = expiryDate > today+30d, EXPIRING_SOON = within 30d, EXPIRED = past, NO_EXPIRY = null expiryDate
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([businessId, category])
+  @@index([employeeId])
+  @@index([expiryDate])
 }

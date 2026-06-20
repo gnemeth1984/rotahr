@@ -7,6 +7,14 @@
     {
       "path": "/api/cron/purge-receipt-images",
       "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/cron/late-checkin",
+      "schedule": "*/30 * * * *"
+    },
+    {
+      "path": "/api/cron/cert-expiry",
+      "schedule": "0 7 * * *"
     }
   ]
 }

@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import { UserRole as Role } from "@/types/roles";
 import { cn } from "@/lib/utils";
+import { getHolidaysInRange, type PublicHoliday } from "@/lib/irish-public-holidays";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -154,6 +155,7 @@ export default function RotaPage() {
     return day === 0 ? 6 : day - 1;
   })();
   const [selectedDay, setSelectedDay] = useState<number>(todayIdx);
+  const [copyingWeek, setCopyingWeek] = useState(false);
   const isFirstLoad = useRef(true);
 
   // Shift sheet
@@ -178,6 +180,10 @@ export default function RotaPage() {
   const [complianceAlerts, setComplianceAlerts] = useState<ComplianceAlert[]>([]);
 
   const weekDates = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+  // Irish public holidays for this week
+  const weekHolidays = getHolidaysInRange(weekDates[0], weekDates[6]);
+  const holidayMap: Record<string, PublicHoliday> = {};
+  for (const h of weekHolidays) holidayMap[h.date] = h;
 
   // ── Fetch ────────────────────────────────────────────────────────────────
 
@@ -386,6 +392,32 @@ export default function RotaPage() {
     URL.revokeObjectURL(url);
   }
 
+  // ── Copy previous week ──────────────────────────────────────────────────────
+  async function copyPrevWeek() {
+    if (copyingWeek) return;
+    const fromMonday = toDateStr(addDays(weekStart, -7));
+    const toMonday = toDateStr(weekStart);
+    setCopyingWeek(true);
+    try {
+      const res = await fetch("/api/shifts/copy-week", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fromMonday, toMonday, keepAssignments: true }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        // Refresh shifts
+        const from = toDateStr(weekStart);
+        const to = toDateStr(addDays(weekStart, 6));
+        const shiftsRes = await fetch(`/api/shifts?from=${from}&to=${to}`);
+        const shiftsData = await shiftsRes.json();
+        setShifts(shiftsData.shifts ?? shiftsData ?? []);
+      }
+    } finally {
+      setCopyingWeek(false);
+    }
+  }
+
   // ── Helpers ───────────────────────────────────────────────────────────────
 
   function getShift(empId: string, dateStr: string): Shift | undefined {
@@ -518,6 +550,19 @@ export default function RotaPage() {
             <Button variant="outline" size="sm" className="gap-1.5" onClick={exportCSV}>
               <Download className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Export</span>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              onClick={copyPrevWeek}
+              disabled={copyingWeek}
+              title="Copy all shifts from previous week into this week (as drafts)"
+            >
+              {copyingWeek
+                ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                : <ChevronLeft className="h-3.5 w-3.5" />}
+              <span className="hidden sm:inline">Copy prev week</span>
             </Button>
             {publishedShifts < totalShifts && totalShifts > 0 && (
               <Button size="sm" onClick={publishAll} disabled={publishing} className="gap-1.5">
@@ -658,7 +703,13 @@ export default function RotaPage() {
                   >
                     <span className="text-[11px] uppercase tracking-wide opacity-80">{DAYS[i]}</span>
                     <span className="text-base font-bold leading-tight">{date.getDate()}</span>
-                    {dayShifts.length > 0 && (
+                    {holidayMap[toDateStr(date)] && (
+                      <span className={cn(
+                        "mt-0.5 h-1.5 w-1.5 rounded-full",
+                        isSelected ? "bg-amber-300" : "bg-amber-400"
+                      )} title={holidayMap[toDateStr(date)]?.name} />
+                    )}
+                    {!holidayMap[toDateStr(date)] && dayShifts.length > 0 && (
                       <span className={cn(
                         "mt-0.5 h-1 w-1 rounded-full",
                         isSelected ? "bg-white/70" : "bg-blue-400"
@@ -781,6 +832,7 @@ export default function RotaPage() {
                 getShift={getShift}
                 isManager={isManager}
                 onCellClick={handleCellClick}
+                holidayMap={holidayMap}
               />
             ))}
           </div>
@@ -912,6 +964,7 @@ function DeptBlock({
   getShift,
   isManager,
   onCellClick,
+  holidayMap,
 }: {
   dept: Department;
   colors: { bg: string; text: string; dot: string };
@@ -920,6 +973,7 @@ function DeptBlock({
   getShift: (empId: string, dateStr: string) => Shift | undefined;
   isManager: boolean;
   onCellClick: (empId: string, dateStr: string, existing?: Shift) => void;
+  holidayMap: Record<string, { date: string; name: string; isPremiumPay: boolean }>;
 }) {
   const totalHours = employees.reduce((acc, emp) => {
     return acc + empWeekHours(emp.id, weekDates, getShift);
@@ -945,12 +999,26 @@ function DeptBlock({
               <th className="text-center px-2 py-2.5 text-xs font-medium text-slate-400 w-14">Hrs</th>
               {weekDates.map((date, i) => {
                 const isToday = toDateStr(date) === toDateStr(new Date());
+                const ph = holidayMap[toDateStr(date)];
                 return (
-                  <th key={i} className={cn("text-center px-1 py-2.5 text-xs font-medium", isToday ? "text-blue-600" : "text-slate-500")}>
+                  <th
+                    key={i}
+                    className={cn(
+                      "text-center px-1 py-2.5 text-xs font-medium",
+                      ph ? "bg-amber-50" : "",
+                      isToday ? "text-blue-600" : "text-slate-500"
+                    )}
+                    title={ph?.name}
+                  >
                     <div>{DAYS[i]}</div>
                     <div className={cn("text-[11px] mt-0.5", isToday ? "font-bold text-blue-600" : "text-slate-400 font-normal")}>
                       {date.getDate()}
                     </div>
+                    {ph && (
+                      <div className="text-[9px] text-amber-600 font-semibold mt-0.5 leading-tight truncate max-w-[60px] mx-auto" title={ph.name}>
+                        PH
+                      </div>
+                    )}
                   </th>
                 );
               })}
@@ -974,7 +1042,7 @@ function DeptBlock({
                     const shift = getShift(emp.id, dateStr);
                     const isToday = dateStr === toDateStr(new Date());
                     return (
-                      <td key={di} className={cn("px-1 py-1.5 text-center align-middle", isToday && "bg-blue-50/40")}>
+                      <td key={di} className={cn("px-1 py-1.5 text-center align-middle", isToday && "bg-blue-50/40", holidayMap[dateStr] && "bg-amber-50/60")}>
                         {shift ? (
                           <button
                             onClick={() => onCellClick(emp.id, dateStr, shift)}

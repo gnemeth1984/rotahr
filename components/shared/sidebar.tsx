@@ -25,6 +25,8 @@ import {
   Package,
   ArrowRightLeft,
   Coins,
+  Award,
+  Building2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -119,6 +121,18 @@ const navItems = [
     label: "Menu & Specials",
     icon: Utensils,
     roles: [Role.EMPLOYEE, Role.MANAGER, Role.ADMIN],
+  },
+  {
+    href: "/training",
+    label: "Training & Certs",
+    icon: Award,
+    roles: [Role.MANAGER, Role.ADMIN],
+  },
+  {
+    href: "/settings/venues",
+    label: "Venues",
+    icon: Building2,
+    roles: [Role.MANAGER, Role.ADMIN],
   },
   {
     href: "/ai",
