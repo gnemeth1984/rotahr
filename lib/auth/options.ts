@@ -6,6 +6,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import { prisma } from "@/lib/db";
 import { UserRole } from "@/types/roles";
 import bcrypt from "bcryptjs";
+import { isDemoEmail, triggerDemoReset } from "@/lib/demo/reset";
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma) as any,
@@ -24,6 +25,13 @@ export const authOptions: NextAuthOptions = {
         if (!user?.password) return null;
         const valid = await bcrypt.compare(credentials.password, user.password);
         if (!valid) return null;
+
+        // Demo accounts: fire-and-forget reset in background so next visitor
+        // starts with clean data. Login is NOT blocked — reset runs async.
+        if (isDemoEmail(credentials.email)) {
+          triggerDemoReset();
+        }
+
         return { id: user.id, email: user.email, name: user.name };
       },
     }),
