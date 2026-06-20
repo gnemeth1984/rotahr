@@ -196,21 +196,42 @@ export default function RotaPage() {
     try {
       const from = toDateStr(weekStart);
       const to = toDateStr(addDays(weekStart, 6));
-      const [empRes, deptRes, shiftRes, targetRes] = await Promise.all([
-        fetch("/api/employee/list"),
-        fetch("/api/department/list"),
-        fetch(`/api/shifts/list?from=${from}&to=${to}`),
-        fetch("/api/business/revenue-target"),
-      ]);
-      const empData = empRes.ok ? await empRes.json() : { employees: [] };
-      const deptData = deptRes.ok ? await deptRes.json() : { departments: [] };
-      const shiftData = shiftRes.ok ? await shiftRes.json() : { shifts: [] };
-      const targetData = targetRes.ok ? await targetRes.json() : {};
-      setEmployees(empData.employees ?? []);
-      setDepartments(deptData.departments ?? []);
-      setShifts(shiftData.shifts ?? []);
-      setWeeklyRevenueTarget(targetData.weeklyRevenueTarget ?? null);
-      setTargetInput(targetData.weeklyRevenueTarget ? String(targetData.weeklyRevenueTarget) : "");
+
+      if (isManager) {
+        // Manager/Admin: full rota view
+        const [empRes, deptRes, shiftRes, targetRes] = await Promise.all([
+          fetch("/api/employee/list"),
+          fetch("/api/department/list"),
+          fetch(`/api/shifts/list?from=${from}&to=${to}`),
+          fetch("/api/business/revenue-target"),
+        ]);
+        const empData = empRes.ok ? await empRes.json() : { employees: [] };
+        const deptData = deptRes.ok ? await deptRes.json() : { departments: [] };
+        const shiftData = shiftRes.ok ? await shiftRes.json() : { shifts: [] };
+        const targetData = targetRes.ok ? await targetRes.json() : {};
+        setEmployees(empData.employees ?? []);
+        setDepartments(deptData.departments ?? []);
+        setShifts(shiftData.shifts ?? []);
+        setWeeklyRevenueTarget(targetData.weeklyRevenueTarget ?? null);
+        setTargetInput(targetData.weeklyRevenueTarget ? String(targetData.weeklyRevenueTarget) : "");
+      } else {
+        // Employee: only their own published shifts
+        const shiftRes = await fetch(`/api/shifts/my?from=${from}&to=${to}`);
+        const shiftData = shiftRes.ok ? await shiftRes.json() : { shifts: [], employeeId: null };
+        setShifts(shiftData.shifts ?? []);
+        // Build a minimal self-employee record so the grid renders
+        if (shiftData.employeeId && shiftData.shifts?.length > 0) {
+          const s = shiftData.shifts[0];
+          if (s.employee) {
+            setEmployees([{ id: s.employee.id, firstName: s.employee.firstName, lastName: s.employee.lastName, email: "" }]);
+          }
+        } else if (shiftData.employeeId) {
+          // No shifts this week but we know who they are — fetch their profile
+          const meRes = await fetch("/api/employee/me");
+          const meData = meRes.ok ? await meRes.json() : null;
+          if (meData?.employee) setEmployees([meData.employee]);
+        }
+      }
     } catch {
       // silently fail
     } finally {
@@ -218,7 +239,7 @@ export default function RotaPage() {
       setShiftsLoading(false);
       isFirstLoad.current = false;
     }
-  }, [weekStart]);
+  }, [weekStart, isManager]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
@@ -664,6 +685,12 @@ export default function RotaPage() {
       {loading ? (
         <div className="flex justify-center py-24">
           <Loader2 className="h-8 w-8 animate-spin text-slate-300" />
+        </div>
+      ) : !isManager && shifts.length === 0 ? (
+        <div className="bg-white border border-slate-200 rounded-xl py-20 text-center">
+          <Clock className="h-12 w-12 mx-auto mb-3 text-slate-200" />
+          <p className="font-medium text-slate-600">No shifts this week</p>
+          <p className="text-sm text-slate-400 mt-1">Your manager hasn't published any shifts for this week yet.</p>
         </div>
       ) : employees.length === 0 ? (
         <div className="bg-white border border-slate-200 rounded-xl py-20 text-center">

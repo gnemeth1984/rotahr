@@ -1,24 +1,8 @@
-export const metadata = {
-  title: 'Rotahr — Pitch Deck',
-  description: 'One app to run your entire venue. Rotas, Clock-In, Reservations, Bookkeeping, Payroll — built for Irish hospitality.',
-  openGraph: {
-    title: 'Rotahr — One app to run your entire venue',
-    description: 'See how Rotahr replaces 4–5 separate tools for Irish hospitality venues.',
-    images: ['https://storage.googleapis.com/runable-templates/cli-uploads%2FnpR7iwoxdmjjem91IBsyOE3SjrOrbdCS%2FCrgxhP2MJXbx87efI2p01%2Fslide-01.png'],
-  },
-}
+"use client";
+
+import { useEffect } from "react";
 
 export default function PitchPage() {
-  return (
-    <html lang="en">
-      <body>
-        <PitchDeck />
-      </body>
-    </html>
-  )
-}
-
-function PitchDeck() {
   const slides = [
     "https://storage.googleapis.com/runable-templates/cli-uploads%2FnpR7iwoxdmjjem91IBsyOE3SjrOrbdCS%2FCrgxhP2MJXbx87efI2p01%2Fslide-01.png",
     "https://storage.googleapis.com/runable-templates/cli-uploads%2FnpR7iwoxdmjjem91IBsyOE3SjrOrbdCS%2FBgaYpiY3-JUa_oL959JSU%2Fslide-02.png",
@@ -32,7 +16,36 @@ function PitchDeck() {
     "https://storage.googleapis.com/runable-templates/cli-uploads%2FnpR7iwoxdmjjem91IBsyOE3SjrOrbdCS%2FY_Zh5Un59mQ8AyE2lZPlG%2Fslide-10.png",
     "https://storage.googleapis.com/runable-templates/cli-uploads%2FnpR7iwoxdmjjem91IBsyOE3SjrOrbdCS%2Fpk4r7ZTaS1nlixQXG2miX%2Fslide-11.png",
     "https://storage.googleapis.com/runable-templates/cli-uploads%2FnpR7iwoxdmjjem91IBsyOE3SjrOrbdCS%2FOjziMdnxOaPCjHXhn_4hI%2Fslide-12.png",
-  ]
+  ];
+
+  useEffect(() => {
+    const items = document.querySelectorAll<HTMLElement>(".slide-item");
+
+    function updateActive() {
+      const centerY = window.innerHeight / 2;
+      let closest: Element | null = null;
+      let closestDist = Infinity;
+      items.forEach((slide) => {
+        const rect = slide.getBoundingClientRect();
+        const dist = Math.abs(rect.top + rect.height / 2 - centerY);
+        if (dist < closestDist) {
+          closestDist = dist;
+          closest = slide;
+        }
+      });
+      items.forEach((slide) => slide.classList.toggle("active", slide === closest));
+    }
+
+    window.addEventListener("scroll", updateActive, { passive: true });
+    window.addEventListener("resize", updateActive);
+    // slight delay so layout is fully painted
+    const t = setTimeout(updateActive, 100);
+    return () => {
+      window.removeEventListener("scroll", updateActive);
+      window.removeEventListener("resize", updateActive);
+      clearTimeout(t);
+    };
+  }, []);
 
   return (
     <>
@@ -72,9 +85,14 @@ function PitchDeck() {
       <header>
         <a className="logo" href="/landing">
           <svg width="32" height="32" viewBox="0 0 40 40" fill="none">
-            <circle cx="20" cy="20" r="20" fill="#0f172a"/>
-            <path d="M20 8C15 8 11 13 13 18C15 23 20 24 20 32C20 24 25 23 27 18C29 13 25 8 20 8Z" fill="url(#g)"/>
-            <defs><linearGradient id="g" x1="20" y1="8" x2="20" y2="32" gradientUnits="userSpaceOnUse"><stop stopColor="#f97316"/><stop offset="1" stopColor="#ec4899"/></linearGradient></defs>
+            <circle cx="20" cy="20" r="20" fill="#0f172a" />
+            <path d="M20 8C15 8 11 13 13 18C15 23 20 24 20 32C20 24 25 23 27 18C29 13 25 8 20 8Z" fill="url(#g)" />
+            <defs>
+              <linearGradient id="g" x1="20" y1="8" x2="20" y2="32" gradientUnits="userSpaceOnUse">
+                <stop stopColor="#f97316" />
+                <stop offset="1" stopColor="#ec4899" />
+              </linearGradient>
+            </defs>
           </svg>
           <span className="logo-text">rotahr</span>
         </a>
@@ -83,15 +101,15 @@ function PitchDeck() {
 
       <section className="hero">
         <div className="hero-label">Pitch Deck · 12 Slides</div>
-        <h1>One app to run<br/><span>your entire venue</span></h1>
+        <h1>One app to run<br /><span>your entire venue</span></h1>
         <p>Rotas · Clock-In · Reservations · Bookkeeping · Payroll — built for Irish hospitality.</p>
         <a className="btn-primary" href="/auth/signin">Start Free Trial</a>
       </section>
 
-      <div className="slides-stack" id="slides-stack">
+      <div className="slides-stack">
         {slides.map((src, i) => (
-          <div key={i} className={`slide-item${i === 0 ? ' active' : ''}`}>
-            <img src={src} alt={`Slide ${i + 1}`} loading={i === 0 ? 'eager' : 'lazy'} />
+          <div key={i} className="slide-item">
+            <img src={src} alt={`Slide ${i + 1}`} loading={i === 0 ? "eager" : "lazy"} />
           </div>
         ))}
       </div>
@@ -104,42 +122,27 @@ function PitchDeck() {
       </div>
 
       <section className="bottom-cta">
-        <h2>Ready to simplify<br/><span>your venue?</span></h2>
+        <h2>Ready to simplify<br /><span>your venue?</span></h2>
         <p>First month free. No credit card required. Cancel anytime.</p>
-        <a className="btn-primary" href="/auth/signin" style={{fontSize:'16px',padding:'16px 36px'}}>Get Started Free — rotahr.com</a>
+        <a className="btn-primary" href="/auth/signin" style={{ fontSize: "16px", padding: "16px 36px" }}>
+          Get Started Free — rotahr.com
+        </a>
         <div className="trust-badges">
           <span className="badge">🔒 GDPR Compliant</span>
           <span className="badge">☘️ Built for Ireland</span>
           <span className="badge">✓ No Setup Fees</span>
-          <span className="badge">📱 iOS & Android</span>
+          <span className="badge">📱 iOS &amp; Android</span>
         </div>
       </section>
 
       <footer>
         <p>© 2025 Rotahr. Built for Irish hospitality.</p>
-        <div style={{display:'flex',gap:'20px'}}>
+        <div style={{ display: "flex", gap: "20px" }}>
           <a href="/landing">rotahr.com</a>
           <a href="/privacy">Privacy</a>
           <a href="/terms">Terms</a>
         </div>
       </footer>
-
-      <script dangerouslySetInnerHTML={{__html: `
-        const slides = document.querySelectorAll('.slide-item');
-        function updateActive() {
-          const centerY = window.innerHeight / 2;
-          let closest = null, closestDist = Infinity;
-          slides.forEach(slide => {
-            const rect = slide.getBoundingClientRect();
-            const dist = Math.abs(rect.top + rect.height / 2 - centerY);
-            if (dist < closestDist) { closestDist = dist; closest = slide; }
-          });
-          slides.forEach(slide => slide.classList.toggle('active', slide === closest));
-        }
-        window.addEventListener('scroll', updateActive, { passive: true });
-        window.addEventListener('resize', updateActive);
-        updateActive();
-      `}} />
     </>
-  )
+  );
 }
