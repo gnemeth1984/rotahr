@@ -1,10 +1,10 @@
 // @ts-nocheck
 import { NextRequest, NextResponse } from "next/server";
-import { requireRole, isResponse } from "@/lib/auth/middleware";
+import { requireAuth, isResponse } from "@/lib/auth/middleware";
 import { employeeService } from "@/lib/services/employee.service";
 
 export async function GET(req: NextRequest) {
-  const session = await requireRole("ADMIN", "MANAGER");
+  const session = await requireAuth();
   if (isResponse(session)) return session;
 
   if (!session.user.businessId) {
