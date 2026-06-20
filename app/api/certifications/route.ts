@@ -1,8 +1,7 @@
 // @ts-nocheck
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth/options";
+import { requirePermission, isResponse } from "@/lib/auth/middleware";
 import { prisma } from "@/lib/db";
 
 function certStatus(expiryDate: Date | null): string {
@@ -15,11 +14,9 @@ function certStatus(expiryDate: Date | null): string {
 }
 
 export async function GET(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (session.user.role !== "MANAGER" && session.user.role !== "ADMIN") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const session = await requirePermission("training");
+  if (isResponse(session)) return session;
+
   const businessId = session.user.businessId;
   if (!businessId) return NextResponse.json({ certifications: [] });
 
@@ -48,11 +45,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (session.user.role !== "MANAGER" && session.user.role !== "ADMIN") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const session = await requirePermission("training");
+  if (isResponse(session)) return session;
+
   const businessId = session.user.businessId;
   if (!businessId) return NextResponse.json({ error: "No business" }, { status: 400 });
 

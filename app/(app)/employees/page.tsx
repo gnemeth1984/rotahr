@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -24,8 +25,18 @@ import {
 } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { getInitials } from "@/lib/utils";
-import { Users, Search, Pencil, Plus, Loader2, Phone } from "lucide-react";
+import { Users, Search, Pencil, Plus, Loader2, Phone, ShieldCheck } from "lucide-react";
 import { UserRole as Role } from "@/types/roles";
+
+const GRANTABLE_PERMISSIONS = [
+  { key: "bookkeeping", label: "Bookkeeping" },
+  { key: "stocktaking", label: "Stock & Orders" },
+  { key: "payroll", label: "Payroll" },
+  { key: "tips", label: "Tips & Tronc" },
+  { key: "bookings", label: "Bookings (manage)" },
+  { key: "training", label: "Training & Certs (all staff)" },
+  { key: "reports", label: "Dashboard reports" },
+] as const;
 
 interface Employee {
   id: string;
@@ -36,6 +47,7 @@ interface Employee {
   role: string;
   active: boolean;
   departmentId: string | null;
+  permissions: string[];
   department?: { id: string; name: string } | null;
   _count?: { shifts: number };
 }
@@ -68,6 +80,7 @@ export default function EmployeesPage() {
 
   const [editEmployee, setEditEmployee] = useState<Employee | null>(null);
   const [editForm, setEditForm] = useState(EMPTY_FORM);
+  const [editPermissions, setEditPermissions] = useState<string[]>([]);
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState("");
 
@@ -135,6 +148,7 @@ export default function EmployeesPage() {
       role: emp.role,
       departmentId: emp.departmentId ?? "",
     });
+    setEditPermissions(emp.permissions ?? []);
     setEditError("");
   };
 
@@ -154,6 +168,7 @@ export default function EmployeesPage() {
           phone: editForm.phone || null,
           role: editForm.role,
           departmentId: editForm.departmentId || null,
+          permissions: editPermissions,
         }),
       });
       const data = await res.json();
@@ -317,6 +332,12 @@ export default function EmployeesPage() {
                           <Phone className="h-3 w-3" />{emp.phone}
                         </span>
                       )}
+                      {emp.permissions && emp.permissions.length > 0 && emp.role === "staff" && (
+                        <span className="text-xs text-blue-600 flex items-center gap-1">
+                          <ShieldCheck className="h-3 w-3" />
+                          {emp.permissions.length} permission{emp.permissions.length !== 1 ? "s" : ""}
+                        </span>
+                      )}
                     </div>
                   </div>
                   {emp._count !== undefined && (
@@ -359,12 +380,49 @@ export default function EmployeesPage() {
 
       {/* Edit Dialog */}
       <Dialog open={!!editEmployee} onOpenChange={(o) => !o && setEditEmployee(null)}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Employee</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleEdit} className="space-y-4 py-1">
             {renderFormFields(editForm, setEditForm)}
+
+            {/* Permissions panel — only shown for non-manager staff */}
+            {(editForm.role === "staff" || editForm.role === "EMPLOYEE") && (
+              <div className="border rounded-lg p-3 space-y-2 bg-slate-50">
+                <div className="flex items-center gap-2 mb-1">
+                  <ShieldCheck className="h-4 w-4 text-blue-600" />
+                  <p className="text-sm font-medium text-slate-700">Module Access</p>
+                </div>
+                <p className="text-xs text-slate-500 mb-2">
+                  Grant access to specific modules without changing their role.
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  {GRANTABLE_PERMISSIONS.map((perm) => (
+                    <label
+                      key={perm.key}
+                      className="flex items-center gap-2 cursor-pointer group"
+                    >
+                      <Checkbox
+                        checked={editPermissions.includes(perm.key)}
+                        onCheckedChange={(checked: boolean | "indeterminate") => {
+                          setEditPermissions((prev) =>
+                            checked === true
+                              ? [...prev, perm.key]
+                              : prev.filter((p) => p !== perm.key)
+                          );
+                        }}
+                        className="data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
+                      />
+                      <span className="text-xs text-slate-600 group-hover:text-slate-900">
+                        {perm.label}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {editError && <p className="text-sm text-red-500">{editError}</p>}
             <DialogFooter className="gap-2">
               <Button type="button" variant="outline" size="sm" onClick={handleToggleActive} disabled={editSaving}>

@@ -1,16 +1,12 @@
 // @ts-nocheck
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth/options";
+import { requirePermission, isResponse } from "@/lib/auth/middleware";
 import { prisma } from "@/lib/db";
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (session.user.role !== "MANAGER" && session.user.role !== "ADMIN") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const session = await requirePermission("training");
+  if (isResponse(session)) return session;
 
   const body = await req.json();
   const { title, issuer, category, issuedDate, expiryDate, documentUrl, notes } = body;
@@ -31,11 +27,9 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 }
 
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (session.user.role !== "MANAGER" && session.user.role !== "ADMIN") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const session = await requirePermission("training");
+  if (isResponse(session)) return session;
+
   await prisma.trainingCertification.delete({ where: { id: params.id } });
   return NextResponse.json({ ok: true });
 }

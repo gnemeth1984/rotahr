@@ -1,30 +1,24 @@
 // @ts-nocheck
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth/options";
+import { requirePermission, isResponse } from "@/lib/auth/middleware";
 import { prisma } from "@/lib/db";
 
 export async function GET(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const role = session.user.role;
-  if (role !== "MANAGER" && role !== "ADMIN") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const session = await requirePermission("payroll");
+  if (isResponse(session)) return session;
 
   const businessId = session.user.businessId ?? "christys-bar-seed-id";
   const { searchParams } = new URL(req.url);
 
   // Default to current week (Mon–Sun)
-  const weekParam = searchParams.get("week"); // ISO date of Monday e.g. "2024-01-15"
+  const weekParam = searchParams.get("week");
   let monday: Date;
   if (weekParam) {
     monday = new Date(weekParam);
   } else {
     const now = new Date();
-    const day = now.getDay(); // 0=Sun
+    const day = now.getDay();
     const diff = day === 0 ? -6 : 1 - day;
     monday = new Date(now);
     monday.setDate(now.getDate() + diff);
@@ -35,7 +29,6 @@ export async function GET(req: NextRequest) {
   sunday.setDate(monday.getDate() + 6);
   sunday.setHours(23, 59, 59, 999);
 
-  // Fetch all shifts in range for this business
   const shifts = await prisma.shift.findMany({
     where: {
       businessId,
@@ -47,7 +40,6 @@ export async function GET(req: NextRequest) {
     },
   });
 
-  // Group by employee and sum hours
   const byEmployee: Record<string, {
     employeeId: string;
     firstName: string;

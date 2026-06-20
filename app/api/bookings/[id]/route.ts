@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth/options";
+import { requirePermission, isResponse } from "@/lib/auth/middleware";
 import { reservationService, updateReservationSchema } from "@/lib/services/reservation.service";
 import { UserRole as Role } from "@/types/roles";
 
@@ -35,17 +36,10 @@ export async function GET(req: NextRequest, context: RouteContext) {
 
 // PUT /api/bookings/[id]
 export async function PUT(req: NextRequest, context: RouteContext) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const session = await requirePermission("bookings");
+  if (isResponse(session)) return session;
 
-  const role = session.user.role as Role;
-  if (role !== Role.ADMIN && role !== Role.MANAGER) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-
-  const businessId = (session.user as any).businessId as string | undefined;
+  const businessId = session.user.businessId;
   if (!businessId) {
     return NextResponse.json({ error: "No business associated with account" }, { status: 400 });
   }
@@ -78,17 +72,10 @@ export async function PUT(req: NextRequest, context: RouteContext) {
 
 // DELETE /api/bookings/[id] — soft cancel (sets status to CANCELLED)
 export async function DELETE(req: NextRequest, context: RouteContext) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const session = await requirePermission("bookings");
+  if (isResponse(session)) return session;
 
-  const role = session.user.role as Role;
-  if (role !== Role.ADMIN && role !== Role.MANAGER) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-
-  const businessId = (session.user as any).businessId as string | undefined;
+  const businessId = session.user.businessId;
   if (!businessId) {
     return NextResponse.json({ error: "No business associated with account" }, { status: 400 });
   }

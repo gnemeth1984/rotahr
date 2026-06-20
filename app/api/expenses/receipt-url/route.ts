@@ -1,8 +1,6 @@
 // @ts-nocheck
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth/options";
-import { UserRole as Role } from "@/types/roles";
+import { requirePermission, isResponse } from "@/lib/auth/middleware";
 import { issueSignedToken, presignUrl } from "@vercel/blob";
 
 export const dynamic = "force-dynamic";
@@ -12,19 +10,15 @@ export const dynamic = "force-dynamic";
  * Returns a short-lived (1h) presigned URL for viewing a private receipt.
  */
 export async function GET(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (session.user.role !== Role.MANAGER && session.user.role !== Role.ADMIN) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const session = await requirePermission("bookkeeping");
+  if (isResponse(session)) return session;
 
   const blobUrl = req.nextUrl.searchParams.get("url");
   if (!blobUrl) return NextResponse.json({ error: "Missing url param" }, { status: 400 });
 
   try {
-    // Extract the pathname from the blob URL
     const urlObj = new URL(blobUrl);
-    const pathname = urlObj.pathname.replace(/^\//, ""); // remove leading slash
+    const pathname = urlObj.pathname.replace(/^\//, "");
 
     const token = process.env.BLOB_READ_WRITE_TOKEN!;
     const signedTokenData = await issueSignedToken({

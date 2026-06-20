@@ -1,9 +1,7 @@
 // @ts-nocheck
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth/options";
+import { requirePermission, isResponse } from "@/lib/auth/middleware";
 import { prisma } from "@/lib/db";
-import { UserRole as Role } from "@/types/roles";
 import { z } from "zod";
 
 const stockSchema = z.object({
@@ -19,20 +17,11 @@ const stockSchema = z.object({
   lastExpenseId: z.string().optional().nullable(),
 });
 
-async function requireManager(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) return null;
-  const role = session.user.role as Role;
-  if (role !== Role.ADMIN && role !== Role.MANAGER) return null;
-  const businessId = (session.user as any).businessId as string | undefined;
-  if (!businessId) return null;
-  return { session, businessId };
-}
-
 export async function GET(req: NextRequest) {
-  const auth = await requireManager(req);
-  if (!auth) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const session = await requirePermission("stocktaking");
+  if (isResponse(session)) return session;
 
+  const businessId = session.user.businessId!;
   const { searchParams } = new URL(req.url);
   const supplierId = searchParams.get("supplierId");
   const category = searchParams.get("category");
@@ -40,7 +29,7 @@ export async function GET(req: NextRequest) {
 
   const items = await prisma.stockItem.findMany({
     where: {
-      businessId: auth.businessId,
+      businessId,
       ...(supplierId ? { supplierId } : {}),
       ...(category ? { category } : {}),
       ...(search ? { name: { contains: search, mode: "insensitive" } } : {}),
@@ -53,16 +42,17 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const auth = await requireManager(req);
-  if (!auth) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const session = await requirePermission("stocktaking");
+  if (isResponse(session)) return session;
 
+  const businessId = session.user.businessId!;
   const body = await req.json();
   const result = stockSchema.safeParse(body);
   if (!result.success)
     return NextResponse.json({ error: "Invalid input", details: result.error.flatten() }, { status: 400 });
 
   const item = await prisma.stockItem.create({
-    data: { businessId: auth.businessId, ...result.data },
+    data: { businessId, ...result.data },
     include: { supplier: { select: { id: true, name: true } } },
   });
 

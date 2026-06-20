@@ -4,22 +4,15 @@
 // All distribution records retained; soft-delete only for audit trail.
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth/options";
+import { requirePermission, isResponse } from "@/lib/auth/middleware";
 import { prisma } from "@/lib/db";
 
 // GET — list tip pools for the business
 export async function GET(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const session = await requirePermission("tips");
+  if (isResponse(session)) return session;
 
-  const role = session.user.role;
-  if (role !== "MANAGER" && role !== "ADMIN") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-
-  const businessId = session.user.businessId;
-  if (!businessId) return NextResponse.json({ error: "No business" }, { status: 400 });
+  const businessId = session.user.businessId!;
 
   const pools = await prisma.tipPool.findMany({
     where: { businessId },
@@ -38,16 +31,10 @@ export async function GET(req: NextRequest) {
 
 // POST — create a new tip pool period
 export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const session = await requirePermission("tips");
+  if (isResponse(session)) return session;
 
-  const role = session.user.role;
-  if (role !== "MANAGER" && role !== "ADMIN") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-
-  const businessId = session.user.businessId;
-  if (!businessId) return NextResponse.json({ error: "No business" }, { status: 400 });
+  const businessId = session.user.businessId!;
 
   const body = await req.json();
   const { periodStart, periodEnd, totalAmount, method, notes } = body;

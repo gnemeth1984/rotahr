@@ -12,6 +12,18 @@ export const addEmployeeSchema = z.object({
   businessId: z.string().min(1),
 });
 
+export const GRANTABLE_PERMISSIONS = [
+  { key: "bookkeeping", label: "Bookkeeping" },
+  { key: "stocktaking", label: "Stock & Orders" },
+  { key: "payroll", label: "Payroll" },
+  { key: "tips", label: "Tips & Tronc" },
+  { key: "bookings", label: "Bookings (manage)" },
+  { key: "training", label: "Training & Certs (all staff)" },
+  { key: "reports", label: "Dashboard reports" },
+] as const;
+
+export type GrantablePermission = typeof GRANTABLE_PERMISSIONS[number]["key"];
+
 export const updateEmployeeSchema = z.object({
   firstName: z.string().min(1).max(50).optional(),
   lastName: z.string().min(1).max(50).optional(),
@@ -20,6 +32,7 @@ export const updateEmployeeSchema = z.object({
   role: z.string().optional(),
   departmentId: z.string().nullable().optional(),
   active: z.boolean().optional(),
+  permissions: z.array(z.string()).optional(),
 });
 
 export const employeeService = {

@@ -6,25 +6,17 @@
 // — Method must be communicated to staff
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth/options";
+import { requirePermission, isResponse } from "@/lib/auth/middleware";
 import { prisma } from "@/lib/db";
 
 export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const session = await requirePermission("tips");
+  if (isResponse(session)) return session;
 
-  const role = session.user.role;
-  if (role !== "MANAGER" && role !== "ADMIN") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-
-  const businessId = session.user.businessId;
-  if (!businessId) return NextResponse.json({ error: "No business" }, { status: 400 });
+  const businessId = session.user.businessId!;
 
   const body = await req.json();
   const { poolId, customAmounts } = body;
-  // customAmounts: optional array of { employeeId, shareAmount, customNote }
 
   const pool = await prisma.tipPool.findUnique({
     where: { id: poolId },
@@ -38,13 +30,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Already distributed" }, { status: 409 });
   }
 
-  // Delete any existing draft distributions for this pool
   await prisma.tipDistribution.deleteMany({ where: { poolId } });
 
   let distributions: { employeeId: string; hoursWorked: number; shareAmount: number; customNote?: string }[] = [];
 
   if (pool.method === "custom" && customAmounts?.length) {
-    // Custom allocations provided directly
     distributions = customAmounts.map((c: any) => ({
       employeeId: c.employeeId,
       hoursWorked: c.hoursWorked ?? 0,
@@ -52,7 +42,6 @@ export async function POST(req: NextRequest) {
       customNote: c.customNote ?? null,
     }));
   } else if (pool.method === "equal") {
-    // Equal split among all active employees who worked in the period
     const shifts = await prisma.shift.findMany({
       where: {
         businessId,
@@ -70,7 +59,7 @@ export async function POST(req: NextRequest) {
       shareAmount: Math.round(share * 100) / 100,
     }));
   } else {
-    // Default: pro-rata by hours worked (most fair, typical Irish practice)
+    // Default: pro-rata by hours worked
     const shifts = await prisma.shift.findMany({
       where: {
         businessId,
@@ -97,7 +86,6 @@ export async function POST(req: NextRequest) {
     }));
   }
 
-  // Create distribution records and mark pool as distributed
   await prisma.$transaction([
     prisma.tipDistribution.createMany({
       data: distributions.map((d) => ({

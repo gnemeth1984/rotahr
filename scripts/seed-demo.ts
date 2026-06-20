@@ -202,8 +202,16 @@ async function main() {
         departmentId: e.dept,
         hourlyRate: e.rate,
         active: true,
+        permissions: e.id === EMPS.marco ? ["bookkeeping", "stocktaking"] : [],
       },
-      update: { role: e.role, hourlyRate: e.rate, departmentId: e.dept, venueId: VENUE },
+      update: {
+        role: e.role,
+        hourlyRate: e.rate,
+        departmentId: e.dept,
+        venueId: VENUE,
+        // Grant bookkeeping + stocktaking to Marco so demo shows permissions feature
+        ...(e.id === EMPS.marco ? { permissions: ["bookkeeping", "stocktaking"] } : { permissions: [] }),
+      },
     });
   }
 

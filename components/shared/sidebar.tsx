@@ -42,103 +42,119 @@ const navItems = [
     label: "Dashboard",
     icon: LayoutDashboard,
     roles: [Role.EMPLOYEE, Role.MANAGER, Role.ADMIN],
+    permission: null,
   },
-
   {
     href: "/timeoff",
     label: "Time Off",
     icon: Clock,
     roles: [Role.EMPLOYEE, Role.MANAGER, Role.ADMIN],
+    permission: null,
   },
   {
     href: "/bookings",
     label: "Bookings",
     icon: BookOpen,
     roles: [Role.EMPLOYEE, Role.MANAGER, Role.ADMIN],
+    permission: "bookings",
   },
   {
     href: "/rota",
     label: "Rota",
     icon: TableProperties,
     roles: [Role.EMPLOYEE, Role.MANAGER, Role.ADMIN],
+    permission: null,
   },
   {
     href: "/messages",
     label: "Messages",
     icon: MessageSquare,
     roles: [Role.EMPLOYEE, Role.MANAGER, Role.ADMIN],
+    permission: null,
   },
   {
     href: "/clock",
     label: "Clock",
     icon: Clock,
     roles: [Role.EMPLOYEE, Role.MANAGER, Role.ADMIN],
+    permission: null,
   },
   {
     href: "/availability",
     label: "Availability",
     icon: CalendarCheck,
     roles: [Role.EMPLOYEE, Role.MANAGER, Role.ADMIN],
+    permission: null,
   },
   {
     href: "/bookkeeping",
     label: "Bookkeeping",
     icon: BookMarked,
     roles: [Role.MANAGER, Role.ADMIN],
+    permission: "bookkeeping",
   },
   {
     href: "/stock",
     label: "Stock & Orders",
     icon: Package,
     roles: [Role.MANAGER, Role.ADMIN],
+    permission: "stocktaking",
   },
   {
     href: "/payroll",
     label: "Payroll",
     icon: DollarSign,
     roles: [Role.MANAGER, Role.ADMIN],
+    permission: "payroll",
   },
   {
     href: "/shift-swaps",
     label: "Shift Swaps",
     icon: ArrowRightLeft,
     roles: [Role.EMPLOYEE, Role.MANAGER, Role.ADMIN],
+    permission: null,
   },
   {
     href: "/tips",
     label: "Tips & Tronc",
     icon: Coins,
     roles: [Role.MANAGER, Role.ADMIN],
+    permission: "tips",
   },
   {
     href: "/employees",
     label: "Employees",
     icon: Users,
     roles: [Role.MANAGER, Role.ADMIN],
+    permission: null,
   },
   {
     href: "/menu-specials",
     label: "Menu & Specials",
     icon: Utensils,
     roles: [Role.EMPLOYEE, Role.MANAGER, Role.ADMIN],
+    permission: null,
   },
   {
     href: "/training",
     label: "Training & Certs",
     icon: Award,
     roles: [Role.MANAGER, Role.ADMIN],
+    permission: "training",
   },
   {
     href: "/settings/venues",
     label: "Venues",
     icon: Building2,
     roles: [Role.MANAGER, Role.ADMIN],
+    permission: null,
   },
   {
     href: "/ai",
     label: "AI Tools",
     icon: Sparkles,
     roles: [Role.MANAGER, Role.ADMIN],
+    permission: null,
   },
 ];
 
@@ -148,9 +164,16 @@ export function Sidebar() {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const userRole = (session?.user?.role ?? Role.EMPLOYEE) as Role;
-  const visibleItems = navItems.filter((item) =>
-    item.roles.includes(userRole)
-  );
+  const userPermissions: string[] = (session?.user as any)?.permissions ?? [];
+  const isManager = userRole === Role.MANAGER || userRole === Role.ADMIN;
+
+  const visibleItems = navItems.filter((item) => {
+    // Always visible if user's role is in the allowed roles
+    if (item.roles.includes(userRole)) return true;
+    // For EMPLOYEE: also show if they have the specific permission grant
+    if (!isManager && item.permission && userPermissions.includes(item.permission)) return true;
+    return false;
+  });
 
   const sidebarInner = (
     <div className="flex h-full flex-col overflow-hidden">

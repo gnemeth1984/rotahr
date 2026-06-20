@@ -112,6 +112,7 @@ model Employee {
   certifications   TrainingCertification[]
   venueId          String?
   venue            Venue?   @relation(fields: [venueId], references: [id], onDelete: SetNull)
+  permissions      String[] @default([])
 }
 
 model Shift {

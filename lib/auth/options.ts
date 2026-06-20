@@ -44,7 +44,7 @@ export const authOptions: NextAuthOptions = {
   session: { strategy: "jwt" },
   callbacks: {
     async jwt({ token, user }) {
-      // Always re-fetch from DB so role/businessId are always current
+      // Always re-fetch from DB so role/businessId/permissions are always current
       const emailToLookup = user?.email ?? (token.email as string | undefined);
       if (emailToLookup) {
         const dbUser = await prisma.user.findUnique({
@@ -55,6 +55,17 @@ export const authOptions: NextAuthOptions = {
           token.role = dbUser.role ?? UserRole.MANAGER;
           token.id = dbUser.id;
           token.businessId = dbUser.businessId ?? null;
+
+          // Fetch employee permissions (additive grants for non-managers)
+          if (dbUser.businessId) {
+            const emp = await prisma.employee.findFirst({
+              where: { userId: dbUser.id, businessId: dbUser.businessId },
+              select: { permissions: true },
+            });
+            token.permissions = emp?.permissions ?? [];
+          } else {
+            token.permissions = [];
+          }
         }
       }
       if (user && !token.id) token.id = user.id;
@@ -65,6 +76,7 @@ export const authOptions: NextAuthOptions = {
         session.user.id = token.id as string;
         session.user.role = token.role as UserRole;
         session.user.businessId = token.businessId as string | null;
+        session.user.permissions = (token.permissions as string[]) ?? [];
       }
       return session;
     },

@@ -6,24 +6,16 @@
 // GDPR Art.6(1)(c) — processing for legal payroll obligations.
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth/options";
+import { requirePermission, isResponse } from "@/lib/auth/middleware";
 import { prisma } from "@/lib/db";
 
 export async function GET(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const session = await requirePermission("payroll");
+  if (isResponse(session)) return session;
 
-  const role = session.user.role;
-  if (role !== "MANAGER" && role !== "ADMIN") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-
-  const businessId = session.user.businessId;
-  if (!businessId) return NextResponse.json({ error: "No business" }, { status: 400 });
-
+  const businessId = session.user.businessId!;
   const { searchParams } = new URL(req.url);
-  const weekParam = searchParams.get("week"); // ISO Monday date e.g. "2026-06-23"
+  const weekParam = searchParams.get("week");
 
   let monday: Date;
   if (weekParam) {
@@ -41,7 +33,6 @@ export async function GET(req: NextRequest) {
   sunday.setDate(monday.getDate() + 6);
   sunday.setHours(23, 59, 59, 999);
 
-  // Shift has no businessId — filter via employees belonging to this business
   const businessEmployees = await prisma.employee.findMany({
     where: { businessId },
     select: { id: true },
@@ -67,7 +58,6 @@ export async function GET(req: NextRequest) {
     },
   });
 
-  // Group by employee
   const byEmployee: Record<string, {
     firstName: string;
     lastName: string;
@@ -98,10 +88,7 @@ export async function GET(req: NextRequest) {
   const periodStart = monday.toISOString().split("T")[0];
   const periodEnd = sunday.toISOString().split("T")[0];
 
-  // BrightPay CSV format
-  // Header row matches BrightPay Timesheet Import template
   const rows: string[] = [
-    // BrightPay timesheet import columns
     ["Surname", "Forename", "Email", "Period Start", "Period End", "Hours", "Basic Pay (EUR)"].join(","),
   ];
 
