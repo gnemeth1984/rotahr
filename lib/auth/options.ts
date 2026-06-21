@@ -7,6 +7,7 @@ import { prisma } from "@/lib/db";
 import { UserRole } from "@/types/roles";
 import bcrypt from "bcryptjs";
 import { isDemoEmail, triggerDemoReset } from "@/lib/demo/reset";
+import { triggerWelcomeEmail } from "@/lib/email/marketing";
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma) as any,
@@ -81,10 +82,17 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
   },
+  events: {
+    // Fires only on brand-new OAuth account creation (Google signup)
+    async createUser({ user }) {
+      if (!user.email || isDemoEmail(user.email)) return;
+      const firstName = user.name?.split(" ")[0] ?? undefined;
+      triggerWelcomeEmail({ first_name: firstName, email: user.email });
+    },
+  },
   pages: {
     signIn: "/auth/signin",
     error: "/auth/error",
-
   },
   secret: process.env.NEXTAUTH_SECRET,
 };

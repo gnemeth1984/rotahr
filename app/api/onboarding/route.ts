@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth/options";
 import { prisma } from "@/lib/db";
+import { triggerWelcomeEmail } from "@/lib/email/marketing";
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -64,6 +65,16 @@ export async function POST(req: NextRequest) {
     where: { id: businessId },
     data,
   });
+
+  // When onboarding completes, send welcome email (covers credential signups)
+  if (complete === true && session.user.email) {
+    const firstName = session.user.name?.split(" ")[0] ?? undefined;
+    triggerWelcomeEmail({
+      first_name: firstName,
+      email: session.user.email,
+      business_name: business.name,
+    });
+  }
 
   return NextResponse.json({ ok: true, business });
 }

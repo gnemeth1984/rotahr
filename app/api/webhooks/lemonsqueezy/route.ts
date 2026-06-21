@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import crypto from "crypto"
 import { prisma } from "@/lib/prisma"
 import { VARIANT_TO_PLAN, LS_WEBHOOK_SECRET } from "@/lib/lemonsqueezy"
+import { triggerLeadConverted } from "@/lib/email/marketing"
 
 export async function POST(req: NextRequest) {
   const rawBody = await req.text()
@@ -42,7 +43,16 @@ export async function POST(req: NextRequest) {
   }
 
   switch (eventName) {
-    case "subscription_created":
+    case "subscription_created": {
+      // Mark as converted in email marketing system (fire-and-forget)
+      const owner = await prisma.user.findFirst({
+        where: { businessId, role: { in: ["MANAGER", "ADMIN"] } },
+        select: { email: true },
+        orderBy: { createdAt: "asc" },
+      })
+      if (owner?.email) triggerLeadConverted(owner.email)
+      // fall through to update subscription
+    }
     case "subscription_updated":
     case "subscription_resumed":
     case "subscription_unpaused": {
