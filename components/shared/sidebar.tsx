@@ -27,6 +27,7 @@ import {
   Coins,
   Award,
   Building2,
+  CreditCard,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -153,6 +154,13 @@ const navItems = [
     href: "/ai",
     label: "AI Tools",
     icon: Sparkles,
+    roles: [Role.MANAGER, Role.ADMIN],
+    permission: null,
+  },
+  {
+    href: "/settings/billing",
+    label: "Billing",
+    icon: CreditCard,
     roles: [Role.MANAGER, Role.ADMIN],
     permission: null,
   },

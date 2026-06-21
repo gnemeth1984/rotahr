@@ -36,6 +36,15 @@ model Business {
   supplierOrders SupplierOrder[]
   shiftSwapRequests ShiftSwapRequest[]
   tipPools     TipPool[]
+
+  // Lemon Squeezy subscription
+  lsCustomerId       String?   // Lemon Squeezy customer ID
+  lsSubscriptionId   String?   // Lemon Squeezy subscription ID
+  lsVariantId        String?   // active variant ID
+  lsPlan             String?   @default("none") // "none" | "starter" | "pro" | "enterprise"
+  lsStatus           String?   @default("none") // "active" | "cancelled" | "past_due" | "none"
+  lsRenewsAt         DateTime?
+  lsEndsAt           DateTime?
 }
 
 model User {
