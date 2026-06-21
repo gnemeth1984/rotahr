@@ -22,9 +22,8 @@ export async function POST(req: NextRequest) {
   const eventName: string = payload.meta?.event_name ?? ""
   const data = payload.data
   const attrs = data?.attributes ?? {}
-  const customData = payload.meta?.custom_data ?? {}
+  const customData = payload.meta?.custom_data ?? attrs?.custom_data ?? {}
 
-  const businessId: string | undefined = customData.business_id
   const lsSubId: string = String(data?.id ?? "")
   const lsCustomerId: string = String(attrs.customer_id ?? "")
   const variantId: string = String(attrs.variant_id ?? "")
@@ -33,11 +32,22 @@ export async function POST(req: NextRequest) {
   const renewsAt: Date | null = attrs.renews_at ? new Date(attrs.renews_at) : null
   const endsAt: Date | null = attrs.ends_at ? new Date(attrs.ends_at) : null
 
+  // Resolve business — prefer custom_data.business_id, fallback to lsCustomerId match
+  let businessId: string | undefined = customData?.business_id
+
+  if (!businessId && lsCustomerId) {
+    const biz = await prisma.business.findFirst({
+      where: { lsCustomerId },
+      select: { id: true },
+    })
+    businessId = biz?.id
+  }
+
   console.log(`LS webhook: ${eventName} | businessId=${businessId} | plan=${plan} | status=${status}`)
 
   if (!businessId) {
-    // Try to find business by customer ID
-    console.warn("LS webhook: no business_id in custom_data")
+    console.warn("LS webhook: could not resolve business — storing customer for future lookups")
+    // Can't do anything useful without a businessId
     return NextResponse.json({ received: true })
   }
 
@@ -53,7 +63,7 @@ export async function POST(req: NextRequest) {
           lsCustomerId: String(lsCustomerId),
           lsVariantId: variantId,
           lsPlan: plan,
-          lsStatus: status === "active" ? "active" : status,
+          lsStatus: status === "active" || status === "on_trial" ? "active" : status,
           lsRenewsAt: renewsAt,
           lsEndsAt: endsAt,
         },
