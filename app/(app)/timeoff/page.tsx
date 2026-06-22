@@ -159,8 +159,8 @@ export default function TimeOffPage() {
               </h2>
               {pendingRequests.map((req) => (
                 <Card key={req.id} className="border-orange-200 bg-orange-50">
-                  <CardContent className="p-5">
-                    <div className="flex items-start gap-4">
+                  <CardContent className="p-4">
+                    <div className="flex items-start gap-3">
                       {isManager && (
                         <Avatar className="h-9 w-9 flex-shrink-0 mt-0.5">
                           <AvatarImage src={req.user?.email ?? ""} />
@@ -170,22 +170,22 @@ export default function TimeOffPage() {
                         </Avatar>
                       )}
                       <div className="flex-1 min-w-0">
-                        {isManager && (
-                          <p className="font-semibold text-slate-900">
-                            {`${req.user?.name ?? ""}`.trim() || req.user?.email}
-                          </p>
-                        )}
-                        <p className="text-sm text-slate-700">
+                        <div className="flex items-center gap-2 flex-wrap mb-1">
+                          {isManager && (
+                            <p className="font-semibold text-slate-900">
+                              {`${req.user?.name ?? ""}`.trim() || req.user?.email}
+                            </p>
+                          )}
+                          <Badge variant="warning">Pending</Badge>
+                        </div>
+                        <p className="text-sm text-slate-700 whitespace-nowrap">
                           {formatDate(req.startDate)} — {formatDate(req.endDate)}
                         </p>
                         {req.reason && (
                           <p className="text-sm text-slate-500 mt-1">{req.reason}</p>
                         )}
-                      </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        <Badge variant="warning">Pending</Badge>
                         {isManager && (
-                          <>
+                          <div className="flex items-center gap-2 flex-wrap mt-3">
                             <Button
                               size="sm"
                               variant="outline"
@@ -223,7 +223,7 @@ export default function TimeOffPage() {
                               <Sparkles className="h-3 w-3" />
                               Suggest Cover
                             </Button>
-                          </>
+                          </div>
                         )}
                       </div>
                     </div>
