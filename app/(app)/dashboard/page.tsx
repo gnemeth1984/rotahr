@@ -27,6 +27,7 @@ interface DashboardData {
   activeShifts: number;
   pendingTimeOff: number;
   totalEmployees: number;
+  lateCheckins: number;
   upcomingReservations: Array<{
     id: string;
     customerName: string;
@@ -103,11 +104,12 @@ export default function DashboardPage() {
     async function load() {
       try {
         const today = new Date().toISOString().split("T")[0];
-        const [resRes, shiftsRes, employeesRes, timeoffRes] = await Promise.allSettled([
+        const [resRes, shiftsRes, employeesRes, timeoffRes, lateRes] = await Promise.allSettled([
           fetch(`/api/reservations?date=${today}`),
           fetch(`/api/shifts/list?from=${today}&to=${today}`),
           fetch("/api/employees"),
           isManager ? fetch("/api/timeoff") : Promise.resolve(null),
+          isManager ? fetch("/api/app-notifications/list?type=late_checkin&today=1") : Promise.resolve(null),
         ]);
 
         const reservations =
@@ -169,12 +171,20 @@ export default function DashboardPage() {
           }),
         }));
 
+        // Late check-ins today
+        let lateCheckins = 0;
+        if (isManager && lateRes.status === "fulfilled" && lateRes.value && lateRes.value.ok) {
+          const lateData = await lateRes.value.json();
+          lateCheckins = (lateData.notifications ?? []).length;
+        }
+
         setData({
           todayReservations: reservations.length,
           todayCovers: reservations.reduce((sum: number, r: any) => sum + (r.partySize ?? 0), 0),
           activeShifts: shifts.length,
           pendingTimeOff: pending.length,
           totalEmployees: employees.length,
+          lateCheckins,
           upcomingReservations: upcoming,
           recentShifts,
         });
@@ -250,6 +260,16 @@ export default function DashboardPage() {
                 (data?.pendingTimeOff ?? 0) > 0 ? "bg-amber-500" : "bg-slate-400"
               }
               href="/timeoff"
+            />
+          )}
+          {isManager && (data?.lateCheckins ?? 0) > 0 && (
+            <StatCard
+              title="Late / No-show"
+              value={data?.lateCheckins ?? 0}
+              subtitle="Today, unclocked"
+              icon={AlertTriangle}
+              color="bg-red-500"
+              href="/notifications"
             />
           )}
         </div>

@@ -28,6 +28,7 @@ import {
   Award,
   Building2,
   CreditCard,
+  Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -36,6 +37,7 @@ import { getInitials } from "@/lib/utils";
 import { Role } from "@/types/roles";
 import { useState } from "react";
 import { BellButton } from "@/components/shared/BellButton";
+import { VenueSwitcher } from "@/components/shared/VenueSwitcher";
 
 const navItems = [
   {
@@ -158,6 +160,13 @@ const navItems = [
     permission: null,
   },
   {
+    href: "/settings/general",
+    label: "Account",
+    icon: Settings,
+    roles: [Role.EMPLOYEE, Role.MANAGER, Role.ADMIN],
+    permission: null,
+  },
+  {
     href: "/settings/billing",
     label: "Billing",
     icon: CreditCard,
@@ -203,6 +212,11 @@ export function Sidebar() {
             <X className="h-5 w-5" />
           </button>
         </div>
+      </div>
+
+      {/* Venue switcher — only shows if multi-venue */}
+      <div className="px-2 py-1.5 border-b border-slate-700">
+        <VenueSwitcher />
       </div>
 
       {/* Nav — scrollable so all items reachable on small phones */}

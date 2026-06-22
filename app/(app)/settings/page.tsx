@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-// /settings → redirect to /settings/venues (first settings section)
+// /settings → redirect to /settings/general (account settings — all roles)
 export default function SettingsIndexPage() {
-  redirect("/settings/venues");
+  redirect("/settings/general");
 }
