@@ -74,10 +74,15 @@ export function HelpAssistant() {
     setShowQuickTopics(false);
 
     try {
+      // Build history from current messages (exclude last user msg we just added)
+      const history = messages
+        .slice(-8) // last 4 exchanges
+        .map((m) => ({ role: m.role, content: m.content }));
+
       const res = await fetch("/api/help", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text }),
+        body: JSON.stringify({ message: text, history }),
       });
       const data = await res.json();
       setMessages((prev) => [
