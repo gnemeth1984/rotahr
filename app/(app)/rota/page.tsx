@@ -270,9 +270,57 @@ export default function RotaPage() {
         alerts.push({
           empId,
           empName,
-          message: `${empName}: ${totalHrs.toFixed(1)}h scheduled this week — exceeds 48h weekly limit (Working Time Act 1997)`,
+          message: `${empName}: ${totalHrs.toFixed(1)}h scheduled this week — exceeds 48h weekly limit (OWT Act 1997 s.15)`,
           type: "hours",
         });
+      }
+
+      // Rest break check — OWT Act 1997 s.12
+      // >4.5h worked → 15 min break; >6h worked → 30 min break
+      // We can only check scheduled duration; actual break compliance is on the employer.
+      for (const s of empShifts) {
+        const hrs = shiftHours(s);
+        if (hrs > 6) {
+          alerts.push({
+            empId,
+            empName,
+            message: `${empName}: shift ${fmtTime(s.startTime)}–${fmtTime(s.endTime)} (${hrs.toFixed(1)}h) — employee is entitled to a 30-min rest break (OWT Act 1997 s.12)`,
+            type: "rest",
+          });
+        } else if (hrs > 4.5) {
+          alerts.push({
+            empId,
+            empName,
+            message: `${empName}: shift ${fmtTime(s.startTime)}–${fmtTime(s.endTime)} (${hrs.toFixed(1)}h) — employee is entitled to a 15-min rest break (OWT Act 1997 s.12)`,
+            type: "rest",
+          });
+        }
+      }
+
+      // 24h weekly rest check — OWT Act 1997 s.13
+      // Employee must have at least one 24h continuous rest in each 7-day period
+      if (sorted.length >= 2) {
+        let hasOneDayOff = false;
+        for (let i = 1; i < sorted.length; i++) {
+          const gapMs = new Date(sorted[i].startTime).getTime() - new Date(sorted[i - 1].endTime).getTime();
+          if (gapMs >= 24 * 3600000) { hasOneDayOff = true; break; }
+        }
+        // Also check gap before first shift (Mon start) and after last (Sun end)
+        const mondayMs = weekDates[0].getTime();
+        const beforeFirst = new Date(sorted[0].startTime).getTime() - mondayMs;
+        if (beforeFirst >= 24 * 3600000) hasOneDayOff = true;
+        const sundayEndMs = weekDates[6].getTime() + 24 * 3600000;
+        const afterLast = sundayEndMs - new Date(sorted[sorted.length - 1].endTime).getTime();
+        if (afterLast >= 24 * 3600000) hasOneDayOff = true;
+
+        if (!hasOneDayOff) {
+          alerts.push({
+            empId,
+            empName,
+            message: `${empName}: no 24h continuous rest period found this week — required by OWT Act 1997 s.13`,
+            type: "rest",
+          });
+        }
       }
     }
 

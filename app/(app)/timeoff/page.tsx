@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatDate, getInitials } from "@/lib/utils";
-import { Clock, Plus, CheckCircle, XCircle, Loader2, Sparkles, AlertTriangle, UserCheck } from "lucide-react";
+import { Clock, Plus, CheckCircle, XCircle, Loader2, Sparkles, AlertTriangle, UserCheck, CalendarDays, Info } from "lucide-react";
 import { UserRole as Role } from "@/types/roles";
 import { cn } from "@/lib/utils";
 
@@ -46,6 +46,20 @@ export default function TimeOffPage() {
   const [form, setForm] = useState({ startDate: "", endDate: "", reason: "" });
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
+  // Annual leave entitlement (OWT Act 1997 s.19)
+  interface Entitlement {
+    leaveYear: string;
+    hoursWorked: number;
+    entitlementHours: number;
+    entitlementDays: number;
+    daysTaken: number;
+    daysRemaining: number;
+    method: string;
+    note: string;
+  }
+  const [entitlement, setEntitlement] = useState<Entitlement | null>(null);
+  const [entitlementLoading, setEntitlementLoading] = useState(false);
+
   // Suggest Cover
   const [suggestOpen, setSuggestOpen] = useState(false);
   const [suggestRequestId, setSuggestRequestId] = useState<string | null>(null);
@@ -59,7 +73,23 @@ export default function TimeOffPage() {
 
   useEffect(() => {
     fetchRequests();
+    fetchEntitlement();
   }, []);
+
+  const fetchEntitlement = async () => {
+    setEntitlementLoading(true);
+    try {
+      const res = await fetch("/api/timeoff/entitlement");
+      if (res.ok) {
+        const data = await res.json();
+        setEntitlement(data);
+      }
+    } catch {
+      // non-critical, ignore
+    } finally {
+      setEntitlementLoading(false);
+    }
+  };
 
   const fetchRequests = async () => {
     setLoading(true);
@@ -144,6 +174,43 @@ export default function TimeOffPage() {
           New Request
         </Button>
       </div>
+
+      {/* Annual leave entitlement (OWT Act 1997 s.19) */}
+      {entitlementLoading ? null : entitlement && entitlement.entitlementDays > 0 ? (
+        <div className="bg-white border border-slate-200 rounded-xl px-5 py-4">
+          <div className="flex items-center gap-2 mb-3">
+            <CalendarDays className="h-4 w-4 text-blue-600 flex-shrink-0" />
+            <p className="text-sm font-semibold text-slate-800">Your Annual Leave Entitlement</p>
+            <span className="text-xs text-slate-400 ml-auto">{entitlement.leaveYear}</span>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="text-center bg-blue-50 rounded-lg px-3 py-2.5">
+              <p className="text-2xl font-bold text-blue-700">{entitlement.entitlementDays.toFixed(1)}</p>
+              <p className="text-xs text-slate-500 mt-0.5">Days entitled</p>
+            </div>
+            <div className="text-center bg-slate-50 rounded-lg px-3 py-2.5">
+              <p className="text-2xl font-bold text-slate-700">{entitlement.daysTaken}</p>
+              <p className="text-xs text-slate-500 mt-0.5">Days taken</p>
+            </div>
+            <div className={cn(
+              "text-center rounded-lg px-3 py-2.5",
+              entitlement.daysRemaining <= 0 ? "bg-red-50" : entitlement.daysRemaining < 5 ? "bg-amber-50" : "bg-emerald-50"
+            )}>
+              <p className={cn(
+                "text-2xl font-bold",
+                entitlement.daysRemaining <= 0 ? "text-red-600" : entitlement.daysRemaining < 5 ? "text-amber-600" : "text-emerald-600"
+              )}>
+                {entitlement.daysRemaining.toFixed(1)}
+              </p>
+              <p className="text-xs text-slate-500 mt-0.5">Days remaining</p>
+            </div>
+          </div>
+          <p className="text-[11px] text-slate-400 mt-3 flex items-start gap-1">
+            <Info className="h-3 w-3 mt-0.5 flex-shrink-0" />
+            Based on {entitlement.hoursWorked.toFixed(0)}h worked ({entitlement.method}). Public holidays are additional. Figures are indicative — consult your manager for final approval.
+          </p>
+        </div>
+      ) : null}
 
       {loading ? (
         <div className="flex justify-center py-20">

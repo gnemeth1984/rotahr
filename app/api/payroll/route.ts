@@ -72,18 +72,28 @@ export async function GET(req: NextRequest) {
     byEmployee[emp.id].shiftCount += 1;
   }
 
+  // Irish National Minimum Wage — €13.50/hr from 1 Jan 2025
+  // Organisation of Working Time Act 1997 / National Minimum Wage Act 2000
+  const IRISH_NMW = 13.50;
+
   const rows = Object.values(byEmployee).map((r) => ({
     ...r,
     totalHours: Math.round(r.totalHours * 100) / 100,
     totalPay: Math.round(r.totalPay * 100) / 100,
+    belowNMW: r.hourlyRate > 0 && r.hourlyRate < IRISH_NMW,
   }));
 
   const grandTotal = rows.reduce((sum, r) => sum + r.totalPay, 0);
+  const nmwWarnings = rows
+    .filter((r) => r.belowNMW)
+    .map((r) => `${r.firstName} ${r.lastName} is set at €${r.hourlyRate.toFixed(2)}/hr — below the Irish NMW of €${IRISH_NMW.toFixed(2)}/hr`);
 
   return NextResponse.json({
     weekStart: monday.toISOString(),
     weekEnd: sunday.toISOString(),
     rows,
     grandTotal: Math.round(grandTotal * 100) / 100,
+    nmwWarnings,
+    grossOnly: true, // PAYE/PRSI/USC deductions must be calculated via BrightPay or equivalent payroll software
   });
 }

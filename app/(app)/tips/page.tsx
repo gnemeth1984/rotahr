@@ -6,7 +6,7 @@
 
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
-import { Coins, Plus, Check, Loader2, Info, ChevronDown, ChevronUp } from "lucide-react";
+import { Coins, Plus, Check, Loader2, Info, ChevronDown, ChevronUp, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -122,11 +122,94 @@ export default function TipsPage() {
     load();
   }
 
+  // Staff view — show tip policy statement (required by Tips Act 2022)
   if (!isManager) {
     return (
-      <div className="max-w-2xl mx-auto py-20 text-center text-slate-500">
-        <Coins className="h-10 w-10 mx-auto mb-3 opacity-30" />
-        <p>Tip management is available to managers only.</p>
+      <div className="max-w-2xl mx-auto space-y-6 py-6">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+            <Coins className="h-6 w-6 text-amber-500" />
+            Tips & Tronc
+          </h1>
+          <p className="text-slate-500 text-sm mt-0.5">Your tip distribution information</p>
+        </div>
+
+        {/* Legal policy statement — required by Payment of Wages (Amendment) (Tips & Gratuities) Act 2022 */}
+        <div className="bg-amber-50 border border-amber-200 rounded-xl px-5 py-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <Info className="h-4 w-4 text-amber-600 flex-shrink-0" />
+            <p className="text-sm font-semibold text-amber-800">Tip Distribution Policy</p>
+          </div>
+          <div className="text-sm text-amber-900 space-y-2">
+            <p>
+              Under the <strong>Payment of Wages (Amendment) (Tips and Gratuities) Act 2022</strong>, your employer is required to display this tip policy to all staff.
+            </p>
+            <ul className="list-disc pl-5 space-y-1 text-sm text-amber-800">
+              <li>All customer tips and service charges collected are distributed to staff — none are retained by the business for operational costs.</li>
+              <li><strong>Primary method:</strong> Pro-rata by hours worked in the period.</li>
+              <li>Distributions are calculated and recorded weekly.</li>
+              <li>All staff who worked during a period are included in that period's tip pool.</li>
+              <li>Managers do not receive a share of tronc pools unless they also worked service hours.</li>
+              <li>Records of all tip distributions are retained for audit purposes in accordance with the Act.</li>
+            </ul>
+            <p className="text-xs text-amber-700 mt-1">
+              If you have questions about tip distributions, speak to your manager or contact <a href="mailto:support@rotahr.com" className="underline">support@rotahr.com</a>. You may also contact the Workplace Relations Commission (WRC) at <a href="https://www.workplacerelations.ie" target="_blank" rel="noopener noreferrer" className="underline">workplacerelations.ie</a>.
+            </p>
+          </div>
+        </div>
+
+        {/* Recent distributions visible to staff */}
+        {loading ? (
+          <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-slate-300" /></div>
+        ) : pools.filter((p) => p.status === "distributed").length === 0 ? (
+          <div className="bg-white border border-slate-200 rounded-xl py-12 text-center">
+            <Coins className="h-8 w-8 mx-auto mb-2 text-slate-200" />
+            <p className="text-slate-500 text-sm">No distributed tip pools yet.</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <p className="text-sm font-semibold text-slate-500 uppercase tracking-wide">Recent distributions</p>
+            {pools.filter((p) => p.status === "distributed").map((pool) => (
+              <div key={pool.id} className="bg-white border border-slate-200 rounded-xl px-5 py-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900">
+                      {fmtDate(pool.periodStart)} – {fmtDate(pool.periodEnd)}
+                    </p>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Total pool: <strong>€{pool.totalAmount.toFixed(2)}</strong> · {METHOD_LABELS[pool.method] ?? pool.method}
+                    </p>
+                  </div>
+                  <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
+                    Distributed
+                  </span>
+                </div>
+                {pool.distributions.length > 0 && (
+                  <div className="mt-3 border-t border-slate-100 pt-3">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="text-slate-400 uppercase tracking-wide">
+                          <th className="text-left py-1 font-medium">Employee</th>
+                          <th className="text-right py-1 font-medium">Hours</th>
+                          <th className="text-right py-1 font-medium">Share</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-50">
+                        {pool.distributions.map((d) => (
+                          <tr key={d.id}>
+                            <td className="py-1.5 text-slate-700">{d.employee.firstName} {d.employee.lastName}</td>
+                            <td className="py-1.5 text-right text-slate-500">{d.hoursWorked > 0 ? `${d.hoursWorked}h` : "—"}</td>
+                            <td className="py-1.5 text-right font-semibold text-slate-800">€{d.shareAmount.toFixed(2)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     );
   }
@@ -155,9 +238,14 @@ export default function TipsPage() {
       {/* Compliance notice */}
       <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex gap-3 text-sm">
         <Info className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
-        <p className="text-amber-800">
-          Under the <strong>Payment of Wages (Amendment) (Tips and Gratuities) Act 2022</strong>, Irish employers must distribute customer tips and service charges fairly and transparently. All distribution records must be retained.
-        </p>
+        <div className="text-amber-800 space-y-1">
+          <p>
+            Under the <strong>Payment of Wages (Amendment) (Tips and Gratuities) Act 2022</strong>, Irish employers must distribute customer tips and service charges fairly and transparently. All distribution records must be retained.
+          </p>
+          <p className="text-xs text-amber-700">
+            You are also legally required to display your tip distribution policy to all staff. The policy statement is visible to all team members in their Tips page. Ensure your distribution method is kept up to date.
+          </p>
+        </div>
       </div>
 
       {/* New pool form */}
