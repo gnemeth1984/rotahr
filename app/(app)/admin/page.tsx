@@ -22,7 +22,9 @@ import {
   Eye,
   Link2,
   FileText,
+  Mail,
 } from "lucide-react";
+import { EmailCampaignsTab } from "@/components/admin/email-campaigns-tab";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
@@ -354,7 +356,7 @@ export default function AdminPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
 
-  const [activeTab, setActiveTab] = useState<"users" | "analytics">("users");
+  const [activeTab, setActiveTab] = useState<"users" | "analytics" | "email">("users");
   const [data, setData] = useState<UserApiResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -416,7 +418,9 @@ export default function AdminPage() {
         <p className="text-slate-500 text-sm mt-1">
           {activeTab === "users"
             ? "All registered users across Rotahr"
-            : "Landing page visitor analytics"}
+            : activeTab === "analytics"
+            ? "Landing page visitor analytics"
+            : "Email marketing campaigns & audiences"}
         </p>
       </div>
 
@@ -446,10 +450,25 @@ export default function AdminPage() {
             <BarChart2 className="h-3.5 w-3.5" /> Analytics
           </span>
         </button>
+        <button
+          onClick={() => setActiveTab("email")}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === "email"
+              ? "border-emerald-600 text-emerald-700"
+              : "border-transparent text-slate-500 hover:text-slate-700"
+          }`}
+        >
+          <span className="flex items-center gap-1.5">
+            <Mail className="h-3.5 w-3.5" /> Email Campaigns
+          </span>
+        </button>
       </div>
 
       {/* Analytics tab */}
       {activeTab === "analytics" && <AnalyticsTab />}
+
+      {/* Email Campaigns tab */}
+      {activeTab === "email" && <EmailCampaignsTab />}
 
       {/* Users tab */}
       {activeTab === "users" && (
