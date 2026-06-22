@@ -29,6 +29,7 @@ import {
   Building2,
   CreditCard,
   Settings,
+  ShieldCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -171,6 +172,13 @@ const navItems = [
     label: "Billing",
     icon: CreditCard,
     roles: [Role.MANAGER, Role.ADMIN],
+    permission: null,
+  },
+  {
+    href: "/admin",
+    label: "Platform Admin",
+    icon: ShieldCheck,
+    roles: [Role.ADMIN],
     permission: null,
   },
 ];
