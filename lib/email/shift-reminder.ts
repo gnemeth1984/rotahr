@@ -40,7 +40,7 @@ export async function sendShiftReminderEmail({
   });
 
   await resend.emails.send({
-    from: process.env.EMAIL_FROM ?? "noreply@rotahr.app",
+    from: process.env.EMAIL_FROM ?? "sales@rotahr.com",
     to,
     subject: `Shift Reminder for Tomorrow — ${dateStr}`,
     html: `
