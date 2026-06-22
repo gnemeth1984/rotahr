@@ -10,6 +10,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
+  try {
   const now = new Date();
   const d7 = new Date(now.getTime() - 7 * 86400000);
   const d30 = new Date(now.getTime() - 30 * 86400000);
@@ -82,7 +83,16 @@ export async function GET(req: NextRequest) {
     topPages: topPages.map((p) => ({ path: p.path, count: p._count.path })),
     topCountries: topCountries.map((c) => ({ country: c.country, count: c._count.country })),
     topReferrers: topReferrers.map((r) => ({ referrer: r.referrer, count: r._count.referrer })),
-    daily: daily.map((d) => ({ day: String(d.day), count: Number(d.count) })),
+    daily: daily.map((d) => ({
+      date: d.day instanceof Date
+        ? d.day.toISOString().slice(0, 10)
+        : String(d.day).slice(0, 10),
+      count: Number(d.count),
+    })),
     recent,
   });
+  } catch (e: unknown) {
+    console.error("[analytics]", e);
+    return NextResponse.json({ error: String(e) }, { status: 500 });
+  }
 }
