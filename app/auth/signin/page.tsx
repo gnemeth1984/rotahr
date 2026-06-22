@@ -248,11 +248,17 @@ export default function SignInPage() {
         >
           <SignInForm />
         </Suspense>
-        <p className="text-center text-xs text-slate-500 mt-6">
+        <p className="text-center text-sm text-slate-400 mt-4">
+          Don&apos;t have an account?{" "}
+          <Link href="/auth/register" className="text-blue-400 hover:text-blue-300 font-medium">
+            Start free trial
+          </Link>
+        </p>
+        <p className="text-center text-xs text-slate-500 mt-3">
           By signing in, you agree to our{" "}
-          <a href="/terms" className="underline hover:text-slate-700">Terms of Service</a>{" "}
+          <a href="/terms" className="underline hover:text-slate-400">Terms of Service</a>{" "}
           and{" "}
-          <a href="/privacy" className="underline hover:text-slate-700">Privacy Policy</a>.
+          <a href="/privacy" className="underline hover:text-slate-400">Privacy Policy</a>.
         </p>
       </div>
     </div>

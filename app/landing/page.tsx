@@ -155,7 +155,7 @@ export default function LandingPage() {
               Sign in
             </Link>
             <Link
-              href="/auth/signin"
+              href="/auth/register"
               className="text-sm px-4 py-2 rounded-lg font-medium text-white transition-all hover:opacity-90"
               style={{ background: "linear-gradient(135deg, #F97316, #EC4899)" }}
             >
@@ -194,7 +194,7 @@ export default function LandingPage() {
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
           <Link
-            href="/auth/signin"
+            href="/auth/register"
             className="flex items-center gap-2 text-white px-8 py-3.5 rounded-xl text-base font-semibold hover:opacity-90 transition-all shadow-lg w-full sm:w-auto"
             style={{ background: "linear-gradient(135deg, #F97316, #EC4899)", boxShadow: "0 8px 24px #F9731630" }}
           >
@@ -300,7 +300,7 @@ export default function LandingPage() {
                 </div>
                 <div className="text-sm text-slate-400 mb-6">{plan.staff}</div>
                 <Link
-                  href="/auth/signin"
+                  href={plan.name === "Enterprise" ? "/auth/signin" : "/auth/register"}
                   className={`block text-center py-3 rounded-xl text-sm font-semibold transition-all mb-8 ${
                     plan.highlight
                       ? "text-white hover:opacity-90"
@@ -340,7 +340,7 @@ export default function LandingPage() {
             Join hospitality businesses across Ireland already using Rotahr to manage their teams and venues.
           </p>
           <Link
-            href="/auth/signin"
+            href="/auth/register"
             className="inline-flex items-center gap-2 text-white px-10 py-4 rounded-xl text-base font-semibold hover:opacity-90 transition-all"
             style={{ background: "linear-gradient(135deg, #F97316, #EC4899)", boxShadow: "0 8px 32px #F9731640" }}
           >

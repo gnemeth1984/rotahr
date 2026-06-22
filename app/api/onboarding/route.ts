@@ -10,7 +10,10 @@ export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const businessId = session.user.businessId ?? "christys-bar-seed-id";
+  const businessId = session.user.businessId;
+  if (!businessId) {
+    return NextResponse.json({ error: "No business associated with this account." }, { status: 400 });
+  }
 
   const business = await prisma.business.findUnique({
     where: { id: businessId },
@@ -53,7 +56,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const businessId = session.user.businessId ?? "christys-bar-seed-id";
+  const businessId = session.user.businessId;
+  if (!businessId) {
+    return NextResponse.json({ error: "No business associated with this account." }, { status: 400 });
+  }
   const body = await req.json();
   const { complete, name } = body;
 
