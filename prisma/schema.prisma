@@ -569,6 +569,22 @@ model Venue {
   @@index([businessId])
 }
 
+// ── Page Views / Visitor Analytics ───────────────────────────────────────────
+model PageView {
+  id        String   @id @default(cuid())
+  path      String   // e.g. "/", "/pricing", "/auth/signin"
+  referrer  String?  // where they came from
+  userAgent String?  @db.Text
+  country   String?  // from Vercel geo headers
+  city      String?
+  sessionId String?  // anonymous session cookie
+  createdAt DateTime @default(now())
+
+  @@index([path])
+  @@index([createdAt])
+  @@index([sessionId])
+}
+
 // ── Training & Certifications ─────────────────────────────────────────────────
 // HACCP, alcohol serving certs, manual handling, first aid — Irish legal requirements
 model TrainingCertification {
