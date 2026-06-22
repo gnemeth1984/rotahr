@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = new Resend(process.env.RESEND_API_KEY ?? "re_79E6GNai_8BegbHnA4p9pEoSkna5Sgwpb");
 
 // GET /api/admin/email/contacts?audienceId=xxx
 export async function GET(req: Request) {
