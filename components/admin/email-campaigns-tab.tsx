@@ -16,6 +16,10 @@ import {
   RefreshCw,
   UserPlus,
   X,
+  Inbox,
+  MousePointerClick,
+  AlertCircle,
+  Ban,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -761,11 +765,8 @@ export function EmailCampaignsTab() {
         )}
       </div>
 
-      {/* Note about open tracking */}
-      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-xs text-blue-700">
-        <p className="font-medium mb-1">Open & click tracking</p>
-        <p>Resend tracks opens and clicks automatically on all sent broadcasts. View detailed stats (opens, clicks, unsubscribes, bounces) at <a href="https://resend.com/broadcasts" target="_blank" rel="noopener noreferrer" className="underline font-medium">resend.com/broadcasts</a> in your Resend dashboard.</p>
-      </div>
+      {/* Sent emails log */}
+      <SentEmailsSection />
 
       {showCreate && (
         <CreateBroadcastModal
@@ -773,6 +774,167 @@ export function EmailCampaignsTab() {
           onClose={() => setShowCreate(false)}
           onCreated={load}
         />
+      )}
+    </div>
+  );
+}
+
+// ─── Sent Emails Section ────────────────────────────────────────────────────
+
+type EmailEvent =
+  | "bounced" | "canceled" | "clicked" | "complained"
+  | "delivered" | "delivery_delayed" | "failed" | "opened"
+  | "queued" | "scheduled" | "sent" | "suppressed";
+
+interface SentEmail {
+  id: string;
+  from: string;
+  to: string[];
+  subject: string;
+  created_at: string;
+  last_event: EmailEvent;
+}
+
+function EventBadge({ event }: { event: EmailEvent }) {
+  const map: Record<EmailEvent, { label: string; cls: string; icon: React.ReactNode }> = {
+    opened:          { label: "Opened",   cls: "bg-emerald-100 text-emerald-700", icon: <Mail className="h-3 w-3" /> },
+    clicked:         { label: "Clicked",  cls: "bg-blue-100 text-blue-700",       icon: <MousePointerClick className="h-3 w-3" /> },
+    delivered:       { label: "Delivered",cls: "bg-slate-100 text-slate-600",     icon: <CheckCircle2 className="h-3 w-3" /> },
+    sent:            { label: "Sent",     cls: "bg-slate-100 text-slate-600",     icon: <Send className="h-3 w-3" /> },
+    queued:          { label: "Queued",   cls: "bg-amber-100 text-amber-700",     icon: <Clock className="h-3 w-3" /> },
+    scheduled:       { label: "Scheduled",cls: "bg-amber-100 text-amber-700",     icon: <Clock className="h-3 w-3" /> },
+    bounced:         { label: "Bounced",  cls: "bg-red-100 text-red-700",         icon: <AlertCircle className="h-3 w-3" /> },
+    failed:          { label: "Failed",   cls: "bg-red-100 text-red-700",         icon: <AlertCircle className="h-3 w-3" /> },
+    complained:      { label: "Spam",     cls: "bg-red-100 text-red-700",         icon: <AlertCircle className="h-3 w-3" /> },
+    suppressed:      { label: "Suppressed",cls:"bg-red-100 text-red-700",         icon: <Ban className="h-3 w-3" /> },
+    canceled:        { label: "Canceled", cls: "bg-slate-100 text-slate-500",     icon: <X className="h-3 w-3" /> },
+    delivery_delayed:{ label: "Delayed",  cls: "bg-amber-100 text-amber-700",     icon: <Clock className="h-3 w-3" /> },
+  };
+  const { label, cls, icon } = map[event] ?? { label: event, cls: "bg-slate-100 text-slate-500", icon: null };
+  return (
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${cls}`}>
+      {icon} {label}
+    </span>
+  );
+}
+
+function SentEmailsSection() {
+  const [emails, setEmails] = useState<SentEmail[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [limit, setLimit] = useState(50);
+
+  const load = useCallback(async (lim = limit) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const r = await fetch(`/api/admin/email/sent?limit=${lim}`);
+      const d = await r.json();
+      if (d.error) { setError(d.error); return; }
+      setEmails(d?.data ?? []);
+    } catch {
+      setError("Failed to load sent emails");
+    } finally {
+      setLoading(false);
+    }
+  }, [limit]);
+
+  useEffect(() => { load(); }, [load]);
+
+  // Stats summary
+  const counts = emails.reduce<Record<string, number>>((acc, e) => {
+    acc[e.last_event] = (acc[e.last_event] ?? 0) + 1;
+    return acc;
+  }, {});
+
+  const total     = emails.length;
+  const opened    = (counts.opened ?? 0) + (counts.clicked ?? 0);
+  const delivered = counts.delivered ?? 0;
+  const bounced   = (counts.bounced ?? 0) + (counts.failed ?? 0);
+  const openRate  = total > 0 ? Math.round((opened / total) * 100) : 0;
+
+  return (
+    <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+      <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+        <p className="font-semibold text-slate-800 flex items-center gap-2 text-sm">
+          <Inbox className="h-4 w-4 text-slate-400" /> Sent Emails ({total})
+        </p>
+        <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => load(limit)}>
+          <RefreshCw className="h-3 w-3" /> Refresh
+        </Button>
+      </div>
+
+      {/* Summary stats */}
+      {total > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-px bg-slate-100 border-b border-slate-100">
+          {[
+            { label: "Total Sent", value: total, cls: "text-slate-900" },
+            { label: "Opened / Clicked", value: `${opened} (${openRate}%)`, cls: "text-emerald-600" },
+            { label: "Delivered", value: delivered, cls: "text-slate-700" },
+            { label: "Bounced / Failed", value: bounced, cls: bounced > 0 ? "text-red-600" : "text-slate-400" },
+          ].map((s) => (
+            <div key={s.label} className="bg-white px-4 py-3">
+              <p className="text-xs text-slate-500 uppercase tracking-wide mb-0.5">{s.label}</p>
+              <p className={`text-xl font-bold ${s.cls}`}>{s.value}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {loading ? (
+        <div className="flex items-center justify-center py-10">
+          <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
+        </div>
+      ) : error ? (
+        <p className="text-center py-10 text-sm text-red-500">{error}</p>
+      ) : emails.length === 0 ? (
+        <p className="text-center py-10 text-slate-400 text-sm">No sent emails found</p>
+      ) : (
+        <>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b border-slate-100 bg-slate-50 text-slate-500 uppercase tracking-wide">
+                  <th className="px-4 py-2.5 text-left">To</th>
+                  <th className="px-4 py-2.5 text-left">Subject</th>
+                  <th className="px-4 py-2.5 text-left">Status</th>
+                  <th className="px-4 py-2.5 text-left">Sent</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {emails.map((e) => (
+                  <tr key={e.id} className="hover:bg-slate-50 transition-colors">
+                    <td className="px-4 py-2.5 text-slate-700">
+                      {Array.isArray(e.to) ? e.to.join(", ") : e.to}
+                    </td>
+                    <td className="px-4 py-2.5 text-slate-600 max-w-xs truncate" title={e.subject}>
+                      {e.subject}
+                    </td>
+                    <td className="px-4 py-2.5">
+                      <EventBadge event={e.last_event} />
+                    </td>
+                    <td className="px-4 py-2.5 text-slate-400 whitespace-nowrap">
+                      {fmtDate(e.created_at)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="px-4 py-3 border-t border-slate-100 flex items-center justify-between">
+            <p className="text-xs text-slate-400">Showing last {emails.length} emails</p>
+            {emails.length === limit && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs"
+                onClick={() => { const next = limit + 50; setLimit(next); load(next); }}
+              >
+                Load more
+              </Button>
+            )}
+          </div>
+        </>
       )}
     </div>
   );
