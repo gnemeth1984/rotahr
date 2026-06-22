@@ -2,7 +2,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth/options";
 import { redirect } from "next/navigation";
 import { Sidebar } from "@/components/shared/sidebar";
-import { AIChat } from "@/components/shared/ai-chat";
+import { HelpAssistant } from "@/components/shared/help-assistant";
 import { InstallBanner } from "@/components/shared/InstallBanner";
 import { OnboardingBanner } from "@/components/shared/OnboardingBanner";
 
@@ -25,7 +25,7 @@ export default async function AppLayout({
           {children}
         </div>
       </main>
-      <AIChat />
+      <HelpAssistant />
       <InstallBanner />
     </div>
   );
