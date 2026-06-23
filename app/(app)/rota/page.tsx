@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +14,7 @@ import {
 import {
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   Trash2,
   Download,
   Loader2,
@@ -134,6 +135,87 @@ function fmtHours(h: number): string {
 
 const DEFAULT_FORM = { startTime: "09:00", endTime: "17:00", role: "", published: false, overtimeHours: 0 };
 
+// ─── Compliance Panel ─────────────────────────────────────────────────────────
+
+interface ComplianceAlertItem { empId: string; empName: string; message: string; type: "rest" | "hours" }
+
+function CompliancePanel({ alerts }: { alerts: ComplianceAlertItem[] }) {
+  const [open, setOpen] = useState(false);
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+
+  // Group by employee
+  const grouped = useMemo(() => {
+    const map: Record<string, { name: string; alerts: string[] }> = {};
+    for (const a of alerts) {
+      if (!map[a.empId]) map[a.empId] = { name: a.empName, alerts: [] };
+      // Strip the employee name prefix from message for cleaner display
+      const msg = a.message.replace(/^[^:]+:\s*/, "");
+      map[a.empId].alerts.push(msg);
+    }
+    return Object.entries(map);
+  }, [alerts]);
+
+  const restCount = alerts.filter(a => a.type === "rest").length;
+  const hoursCount = alerts.filter(a => a.type === "hours").length;
+
+  return (
+    <div className="border border-amber-200 bg-amber-50 rounded-xl overflow-hidden">
+      {/* Header — always visible */}
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between px-4 py-3 hover:bg-amber-100/60 transition-colors"
+      >
+        <div className="flex items-center gap-2.5">
+          <AlertTriangle className="h-4 w-4 text-amber-600 flex-shrink-0" />
+          <span className="text-sm font-semibold text-amber-800">
+            Working Time Act 1997
+          </span>
+          <span className="bg-amber-200 text-amber-800 text-xs font-bold px-2 py-0.5 rounded-full">
+            {alerts.length}
+          </span>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="hidden sm:flex items-center gap-2 text-xs text-amber-700">
+            {restCount > 0 && <span className="bg-amber-100 border border-amber-200 px-2 py-0.5 rounded-full">{restCount} break{restCount > 1 ? "s" : ""}</span>}
+            {hoursCount > 0 && <span className="bg-orange-100 border border-orange-200 text-orange-700 px-2 py-0.5 rounded-full">{hoursCount} hours</span>}
+          </div>
+          <ChevronDown className={cn("h-4 w-4 text-amber-600 transition-transform", open && "rotate-180")} />
+        </div>
+      </button>
+
+      {/* Expandable body */}
+      {open && (
+        <div className="border-t border-amber-200 divide-y divide-amber-100">
+          {grouped.map(([empId, { name, alerts: empAlerts }]) => (
+            <div key={empId} className="px-4 py-2">
+              <button
+                onClick={() => setExpanded(e => ({ ...e, [empId]: !e[empId] }))}
+                className="w-full flex items-center justify-between py-1 text-left"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-amber-900">{name}</span>
+                  <span className="text-xs text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded-full">{empAlerts.length}</span>
+                </div>
+                <ChevronDown className={cn("h-3.5 w-3.5 text-amber-500 transition-transform", expanded[empId] && "rotate-180")} />
+              </button>
+              {expanded[empId] && (
+                <ul className="mt-1.5 mb-1 space-y-1 pl-2">
+                  {empAlerts.map((msg, i) => (
+                    <li key={i} className="flex items-start gap-1.5 text-xs text-amber-700">
+                      <span className="mt-0.5 h-1.5 w-1.5 rounded-full bg-amber-400 flex-shrink-0" />
+                      {msg}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function RotaPage() {
@@ -176,8 +258,7 @@ export default function RotaPage() {
   // Organisation of Working Time Act 1997 (Irish transposition of EU WTD):
   //   - 11h rest between shifts
   //   - Max 48h average per week
-  interface ComplianceAlert { empId: string; empName: string; message: string; type: "rest" | "hours" }
-  const [complianceAlerts, setComplianceAlerts] = useState<ComplianceAlert[]>([]);
+  const [complianceAlerts, setComplianceAlerts] = useState<ComplianceAlertItem[]>([]);
 
   const weekDates = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
   // Irish public holidays for this week
@@ -231,7 +312,7 @@ export default function RotaPage() {
   // ── Compliance check — runs whenever shifts or employees change ───────────
   useEffect(() => {
     if (!shifts.length || !employees.length) { setComplianceAlerts([]); return; }
-    const alerts: ComplianceAlert[] = [];
+    const alerts: ComplianceAlertItem[] = [];
     const empMap = Object.fromEntries(employees.map((e) => [e.id, e]));
 
     // Per employee: sort shifts by start time, check 11h rest & 48h/week cap
@@ -701,17 +782,7 @@ export default function RotaPage() {
 
       {/* ── Working Time Compliance Alerts (WTA 1997) ── */}
       {isManager && complianceAlerts.length > 0 && (
-        <div className="border border-amber-200 bg-amber-50 rounded-xl px-4 py-3 space-y-1.5">
-          <div className="flex items-center gap-2 mb-1">
-            <AlertTriangle className="h-4 w-4 text-amber-600 flex-shrink-0" />
-            <p className="text-sm font-semibold text-amber-800">
-              Working Time Act 1997 — {complianceAlerts.length} alert{complianceAlerts.length > 1 ? "s" : ""}
-            </p>
-          </div>
-          {complianceAlerts.map((alert, i) => (
-            <p key={i} className="text-xs text-amber-700 pl-6">{alert.message}</p>
-          ))}
-        </div>
+        <CompliancePanel alerts={complianceAlerts} />
       )}
 
       {/* ── Loading / Empty ── */}
