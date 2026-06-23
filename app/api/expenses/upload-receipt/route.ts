@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
       access: "private",
     });
 
-    // AI extraction via OpenAI GPT-4o vision (uses base64 — no public URL needed)
+    // AI extraction via Google Gemini 1.5 Flash (free tier, vision capable)
     let aiData: {
       vendor?: string;
       date?: string;
@@ -34,24 +34,11 @@ export async function POST(req: NextRequest) {
       rawText?: string;
     } = {};
 
-    if (process.env.OPENAI_API_KEY) {
+    const geminiKey = process.env.GEMINI_API_KEY;
+
+    if (geminiKey) {
       try {
-        const aiRes = await fetch("https://api.openai.com/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: "gpt-4o",
-            max_tokens: 800,
-            messages: [
-              {
-                role: "user",
-                content: [
-                  {
-                    type: "text",
-                    text: `You are a bookkeeping assistant. Extract data from this receipt/invoice image and return ONLY valid JSON with these fields:
+        const prompt = `You are a bookkeeping assistant. Extract data from this receipt/invoice image and return ONLY valid JSON with these fields:
 {
   "vendor": "business name on receipt",
   "date": "YYYY-MM-DD format",
@@ -62,23 +49,37 @@ export async function POST(req: NextRequest) {
   "paymentMethod": one of: cash, card, bank_transfer, direct_debit (or null if unclear),
   "rawText": all text you can read from the receipt
 }
-Return ONLY the JSON object, no markdown, no explanation.`,
-                  },
-                  {
-                    type: "image_url",
-                    image_url: {
-                      url: `data:${mimeType};base64,${base64Image}`,
-                      detail: "high",
+Return ONLY the JSON object, no markdown, no explanation.`;
+
+        const aiRes = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              contents: [
+                {
+                  parts: [
+                    { text: prompt },
+                    {
+                      inline_data: {
+                        mime_type: mimeType,
+                        data: base64Image,
+                      },
                     },
-                  },
-                ],
+                  ],
+                },
+              ],
+              generationConfig: {
+                maxOutputTokens: 800,
+                temperature: 0.1,
               },
-            ],
-          }),
-        });
+            }),
+          }
+        );
 
         const aiJson = await aiRes.json();
-        const content = aiJson.choices?.[0]?.message?.content ?? "";
+        const content = aiJson.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
         const cleaned = content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
         aiData = JSON.parse(cleaned);
       } catch (aiErr: any) {
@@ -92,7 +93,7 @@ Return ONLY the JSON object, no markdown, no explanation.`,
       return NextResponse.json({
         url: blob.url,
         ai: {},
-        aiError: "OPENAI_API_KEY not set",
+        aiError: "GEMINI_API_KEY not set",
       });
     }
 
