@@ -3,6 +3,7 @@
 // Tip / Tronc Management
 // Compliance: Payment of Wages (Amendment) (Tips and Gratuities) Act 2022
 // All distribution records are permanent for audit purposes.
+import { useCurrency } from "@/components/shared/CurrencyProvider";
 
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
@@ -58,6 +59,7 @@ const METHOD_LABELS: Record<string, string> = {
 
 export default function TipsPage() {
   const { data: session } = useSession();
+  const { symbol, fmt } = useCurrency();
   const isManager = session?.user?.role === "MANAGER" || session?.user?.role === "ADMIN";
 
   const [pools, setPools] = useState<TipPool[]>([]);
@@ -177,7 +179,7 @@ export default function TipsPage() {
                       {fmtDate(pool.periodStart)} – {fmtDate(pool.periodEnd)}
                     </p>
                     <p className="text-xs text-slate-500 mt-0.5">
-                      Total pool: <strong>€{pool.totalAmount.toFixed(2)}</strong> · {METHOD_LABELS[pool.method] ?? pool.method}
+                      Total pool: <strong>{fmt(pool.totalAmount)}</strong> · {METHOD_LABELS[pool.method] ?? pool.method}
                     </p>
                   </div>
                   <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
@@ -199,7 +201,7 @@ export default function TipsPage() {
                           <tr key={d.id}>
                             <td className="py-1.5 text-slate-700">{d.employee.firstName} {d.employee.lastName}</td>
                             <td className="py-1.5 text-right text-slate-500">{d.hoursWorked > 0 ? `${d.hoursWorked}h` : "—"}</td>
-                            <td className="py-1.5 text-right font-semibold text-slate-800">€{d.shareAmount.toFixed(2)}</td>
+                            <td className="py-1.5 text-right font-semibold text-slate-800">{fmt(d.shareAmount)}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -264,7 +266,7 @@ export default function TipsPage() {
             </div>
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs">Total tips collected (€)</Label>
+            <Label className="text-xs">Total tips collected ({symbol})</Label>
             <Input
               type="number"
               min="0"
@@ -340,7 +342,7 @@ export default function TipsPage() {
                       <span className="text-xs text-slate-400">{METHOD_LABELS[pool.method] ?? pool.method}</span>
                     </div>
                     <p className="text-xs text-slate-500 mt-0.5">
-                      Total: <strong className="text-slate-700">€{pool.totalAmount.toFixed(2)}</strong>
+                      Total: <strong className="text-slate-700">{fmt(pool.totalAmount)}</strong>
                       {pool.distributions.length > 0 && ` · ${pool.distributions.length} staff`}
                     </p>
                   </div>
@@ -381,7 +383,7 @@ export default function TipsPage() {
                           <tr className="bg-slate-50 text-xs text-slate-500 uppercase tracking-wide">
                             <th className="text-left px-5 py-2 font-semibold">Employee</th>
                             <th className="text-right px-5 py-2 font-semibold">Hours</th>
-                            <th className="text-right px-5 py-2 font-semibold">Share (€)</th>
+                            <th className="text-right px-5 py-2 font-semibold">Share ({symbol})</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-50">
@@ -392,7 +394,7 @@ export default function TipsPage() {
                                 {d.customNote && <span className="ml-1 text-xs text-slate-400">({d.customNote})</span>}
                               </td>
                               <td className="px-5 py-2.5 text-right text-slate-500">{d.hoursWorked > 0 ? `${d.hoursWorked}h` : "—"}</td>
-                              <td className="px-5 py-2.5 text-right font-bold text-slate-900">€{d.shareAmount.toFixed(2)}</td>
+                              <td className="px-5 py-2.5 text-right font-bold text-slate-900">{fmt(d.shareAmount)}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -400,7 +402,7 @@ export default function TipsPage() {
                           <tr className="bg-amber-50 border-t-2 border-amber-100">
                             <td colSpan={2} className="px-5 py-2.5 font-semibold text-slate-700">Total distributed</td>
                             <td className="px-5 py-2.5 text-right font-bold text-amber-700">
-                              €{pool.distributions.reduce((s, d) => s + d.shareAmount, 0).toFixed(2)}
+                              {fmt(pool.distributions.reduce((s, d) => s + d.shareAmount, 0))}
                             </td>
                           </tr>
                         </tfoot>

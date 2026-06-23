@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useSession } from "next-auth/react";
+import { useCurrency } from "@/components/shared/CurrencyProvider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -128,12 +129,8 @@ const EMPTY_FORM = {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function fmt(n: number) {
-  return `€${n.toLocaleString("en-IE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
-
-function monthLabel(date: Date) {
-  return date.toLocaleDateString("en-IE", { month: "long", year: "numeric" });
+function monthLabel(date: Date, locale = "en-IE") {
+  return date.toLocaleDateString(locale, { month: "long", year: "numeric" });
 }
 
 function getCatColor(cat: string) {
@@ -443,6 +440,7 @@ function StockFromReceiptDialog({
 
 export default function BookkeepingPage() {
   const { data: session } = useSession();
+  const { fmt, symbol, vatRate, locale } = useCurrency();
   const isManager =
     session?.user?.role === Role.MANAGER || session?.user?.role === Role.ADMIN;
 
@@ -668,7 +666,7 @@ export default function BookkeepingPage() {
   // ── Export CSV ────────────────────────────────────────────────────────────
 
   function exportCSV() {
-    const rows = [["Date", "Vendor", "Supplier VAT No.", "Category", "Description", "Amount (€)", "VAT (€)", "Net (€)", "Payment Method", "Status"]];
+    const rows = [["Date", "Vendor", "Supplier VAT No.", "Category", "Description", `Amount (${symbol})`, `VAT (${symbol})`, `Net (${symbol})`, "Payment Method", "Status"]];
     expenses.forEach((e) => {
       rows.push([
         e.date.split("T")[0],
@@ -709,7 +707,7 @@ export default function BookkeepingPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Bookkeeping</h1>
-          <p className="text-slate-500 mt-0.5 text-sm">{monthLabel(currentMonth)}</p>
+          <p className="text-slate-500 mt-0.5 text-sm">{monthLabel(currentMonth, locale)}</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           {/* Month nav */}
@@ -914,7 +912,7 @@ export default function BookkeepingPage() {
                       )}
                     >
                       <td className="px-5 py-3 text-sm text-slate-600 whitespace-nowrap">
-                        {new Date(exp.date).toLocaleDateString("en-IE", { day: "numeric", month: "short" })}
+                        {new Date(exp.date).toLocaleDateString(locale, { day: "numeric", month: "short" })}
                       </td>
                       <td className="px-4 py-3 text-sm font-medium text-slate-800 max-w-[140px] truncate">
                         {exp.vendor ?? "—"}
@@ -1051,7 +1049,7 @@ export default function BookkeepingPage() {
                       {/* Info */}
                       <div className="p-3">
                         <p className="text-xs font-semibold text-slate-800 truncate">{exp.vendor ?? "Unknown vendor"}</p>
-                        <p className="text-xs text-slate-400 mt-0.5">{new Date(exp.date).toLocaleDateString("en-IE", { day: "numeric", month: "short", year: "numeric" })}</p>
+                        <p className="text-xs text-slate-400 mt-0.5">{new Date(exp.date).toLocaleDateString(locale, { day: "numeric", month: "short", year: "numeric" })}</p>
                         <p className="text-sm font-bold text-slate-900 mt-1">{fmt(exp.amount)}</p>
                         <span className={cn("mt-1.5 inline-block text-xs font-medium px-1.5 py-0.5 rounded-full", getCatColor(exp.category))}>
                           {getCatLabel(exp.category)}
@@ -1094,7 +1092,7 @@ export default function BookkeepingPage() {
               {/* P&L style table */}
               <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
                 <div className="px-5 py-4 border-b border-slate-100 bg-slate-50/60">
-                  <p className="text-sm font-semibold text-slate-700">Expense Breakdown — {monthLabel(currentMonth)}</p>
+                  <p className="text-sm font-semibold text-slate-700">Expense Breakdown — {monthLabel(currentMonth, locale)}</p>
                 </div>
                 <table className="w-full">
                   <thead>
@@ -1261,7 +1259,7 @@ export default function BookkeepingPage() {
             {/* Amount + VAT */}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label>Amount (€) *</Label>
+                <Label>Amount ({symbol}) *</Label>
                 <Input
                   type="number"
                   min={0}
@@ -1272,7 +1270,7 @@ export default function BookkeepingPage() {
                 />
               </div>
               <div className="space-y-1.5">
-                <Label>VAT (€)</Label>
+                <Label>VAT ({symbol})</Label>
                 <Input
                   type="number"
                   min={0}

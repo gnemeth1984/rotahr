@@ -3,6 +3,7 @@
 
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
+import { useCurrency } from "@/components/shared/CurrencyProvider";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -75,6 +76,7 @@ function fmtTime(iso: string) {
 export default function EmployeeProfilePage() {
   const { id } = useParams<{ id: string }>();
   const { data: session } = useSession();
+  const { fmt } = useCurrency();
   const router = useRouter();
 
   const isManager = session?.user?.role === Role.MANAGER || session?.user?.role === Role.ADMIN;
@@ -239,7 +241,7 @@ export default function EmployeeProfilePage() {
             </div>
             <div className="text-center">
               <p className="text-2xl font-bold text-slate-900">
-                {employee.hourlyRate ? `€${employee.hourlyRate.toFixed(2)}` : "—"}
+                {employee.hourlyRate ? fmt(employee.hourlyRate) : "—"}
               </p>
               <p className="text-xs text-slate-500 mt-0.5">Hourly rate</p>
             </div>

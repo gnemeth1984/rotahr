@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { DollarSign, ChevronLeft, ChevronRight, Download, FileSpreadsheet, AlertTriangle, Info } from "lucide-react";
+import { useCurrency } from "@/components/shared/CurrencyProvider";
 import { Button } from "@/components/ui/button";
 
 type PayrollRow = {
@@ -33,6 +34,7 @@ function getMondayISO(date: Date): string {
 }
 
 export default function PayrollPage() {
+  const { symbol, fmt, locale, nmwLabel } = useCurrency();
   const [data, setData] = useState<PayrollData | null>(null);
   const [loading, setLoading] = useState(true);
   const [monday, setMonday] = useState(() => {
@@ -64,7 +66,7 @@ export default function PayrollPage() {
 
   function exportCSV() {
     if (!data) return;
-    const header = ["Name", "Shifts", "Total Hours", "Hourly Rate (€)", "Total Pay (€)"];
+    const header = ["Name", "Shifts", "Total Hours", `Hourly Rate (${symbol})`, `Total Pay (${symbol})`];
     const rows = data.rows.map((r) => [
       `${r.firstName} ${r.lastName}`,
       r.shiftCount,
@@ -87,7 +89,7 @@ export default function PayrollPage() {
   }
 
   const weekLabel = data
-    ? `${new Date(data.weekStart).toLocaleDateString("en-IE", { day: "numeric", month: "short" })} – ${new Date(data.weekEnd).toLocaleDateString("en-IE", { day: "numeric", month: "short", year: "numeric" })}`
+    ? `${new Date(data.weekStart).toLocaleDateString(locale, { day: "numeric", month: "short" })} – ${new Date(data.weekEnd).toLocaleDateString(locale, { day: "numeric", month: "short", year: "numeric" })}`
     : monday;
 
   return (
@@ -147,7 +149,7 @@ export default function PayrollPage() {
             <p key={i} className="text-xs text-red-700 pl-6">{w}</p>
           ))}
           <p className="text-xs text-red-500 pl-6 mt-1">
-            Irish NMW is €13.50/hr from 1 January 2025 (National Minimum Wage Act 2000 as amended). Update the employee's rate in their profile.
+            {nmwLabel} Update the employee's rate in their profile.
           </p>
         </div>
       )}
@@ -191,16 +193,16 @@ export default function PayrollPage() {
                   <td className="px-6 py-4 text-right text-slate-600">{row.shiftCount}</td>
                   <td className="px-6 py-4 text-right text-slate-600">{row.totalHours}h</td>
                   <td className="px-6 py-4 text-right text-slate-600">
-                    {row.hourlyRate > 0 ? `€${row.hourlyRate.toFixed(2)}` : "—"}
+                    {row.hourlyRate > 0 ? fmt(row.hourlyRate) : "—"}
                   </td>
                   <td className="px-6 py-4 text-right font-semibold text-slate-900">
                     <div className="flex items-center justify-end gap-2">
                       {row.belowNMW && (
-                        <span title="Below Irish NMW €13.50/hr">
+                        <span title={`Below minimum wage — check ${symbol === "£" ? "UK NLW" : "Irish NMW"}`}>
                           <AlertTriangle className="h-3.5 w-3.5 text-red-500" />
                         </span>
                       )}
-                      {row.hourlyRate > 0 ? `€${row.totalPay.toFixed(2)}` : "—"}
+                      {row.hourlyRate > 0 ? fmt(row.totalPay) : "—"}
                     </div>
                   </td>
                 </tr>
@@ -212,7 +214,7 @@ export default function PayrollPage() {
                   Weekly Total
                 </td>
                 <td className="px-6 py-4 text-right font-bold text-blue-700 text-lg">
-                  €{data.grandTotal.toFixed(2)}
+                  {fmt(data.grandTotal)}
                 </td>
               </tr>
             </tfoot>

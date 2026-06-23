@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useSession } from "next-auth/react";
+import { useCurrency } from "@/components/shared/CurrencyProvider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -103,14 +104,14 @@ function toDateStr(date: Date): string {
   return `${y}-${m}-${d}`;
 }
 
-function fmtWeekRange(monday: Date): string {
+function fmtWeekRange(monday: Date, locale = "en-IE"): string {
   const sunday = addDays(monday, 6);
   const opts: Intl.DateTimeFormatOptions = { day: "numeric", month: "short" };
-  return `${monday.toLocaleDateString("en-IE", opts)} – ${sunday.toLocaleDateString("en-IE", { ...opts, year: "numeric" })}`;
+  return `${monday.toLocaleDateString(locale, opts)} – ${sunday.toLocaleDateString(locale, { ...opts, year: "numeric" })}`;
 }
 
-function fmtTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString("en-IE", { hour: "2-digit", minute: "2-digit", hour12: false });
+function fmtTime(iso: string, locale = "en-IE"): string {
+  return new Date(iso).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit", hour12: false });
 }
 
 function shiftHours(shift: Shift): number {
@@ -220,6 +221,7 @@ function CompliancePanel({ alerts }: { alerts: ComplianceAlertItem[] }) {
 
 export default function RotaPage() {
   const { data: session } = useSession();
+  const { symbol, fmt, locale } = useCurrency();
   const isManager =
     session?.user?.role === Role.MANAGER || session?.user?.role === Role.ADMIN;
 
@@ -646,7 +648,7 @@ export default function RotaPage() {
           <div>
             <h1 className="text-2xl font-bold text-slate-900">Rota</h1>
             <p className="text-slate-500 text-sm mt-0.5">
-              {fmtWeekRange(weekStart)}
+              {fmtWeekRange(weekStart, locale)}
               {totalShifts > 0 && (
                 <span className="ml-2 text-xs">· {publishedShifts}/{totalShifts} published</span>
               )}
@@ -726,7 +728,7 @@ export default function RotaPage() {
             <TrendingUp className="h-4 w-4 text-slate-400 flex-shrink-0" />
             <div>
               <p className="text-[11px] text-slate-400 uppercase tracking-wide font-medium">Labour cost</p>
-              <p className="text-lg font-bold text-slate-900">€{totalLabourCost.toFixed(2)}</p>
+              <p className="text-lg font-bold text-slate-900">{fmt(totalLabourCost)}</p>
             </div>
           </div>
 
@@ -754,7 +756,7 @@ export default function RotaPage() {
             <Target className="h-4 w-4 text-slate-400 flex-shrink-0" />
             {editingTarget ? (
               <div className="flex items-center gap-1.5">
-                <span className="text-sm text-slate-500">€</span>
+                <span className="text-sm text-slate-500">{symbol}</span>
                 <Input
                   type="number"
                   value={targetInput}
@@ -773,7 +775,7 @@ export default function RotaPage() {
                 onClick={() => setEditingTarget(true)}
                 className="text-xs text-slate-500 hover:text-slate-800 underline decoration-dotted"
               >
-                {weeklyRevenueTarget ? `Target: €${weeklyRevenueTarget.toLocaleString("en-IE")}` : "Set revenue target"}
+                {weeklyRevenueTarget ? `Target: ${symbol}${weeklyRevenueTarget.toLocaleString(locale)}` : "Set revenue target"}
               </button>
             )}
           </div>
@@ -848,7 +850,7 @@ export default function RotaPage() {
             {/* Selected day heading */}
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-semibold text-slate-700">
-                {selectedDate.toLocaleDateString("en-IE", { weekday: "long", day: "numeric", month: "long" })}
+                {selectedDate.toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long" })}
                 {isToday && (
                   <span className="ml-2 text-xs font-medium text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full">Today</span>
                 )}
@@ -974,7 +976,7 @@ export default function RotaPage() {
             {cellContext && (
               <p className="text-sm text-slate-500">
                 {sheetEmployee ? `${sheetEmployee.firstName} ${sheetEmployee.lastName} · ` : ""}
-                {new Date(cellContext.date + "T12:00:00").toLocaleDateString("en-IE", {
+                {new Date(cellContext.date + "T12:00:00").toLocaleDateString(locale, {
                   weekday: "long",
                   day: "numeric",
                   month: "long",
