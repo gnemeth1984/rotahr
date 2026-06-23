@@ -96,8 +96,8 @@ export async function POST(req: NextRequest) {
   const role = (session.user.role ?? "STAFF") as UserRole;
   const { message, history = [] } = parsed.data;
 
-  const openaiKey = process.env.OPENAI_API_KEY;
-  if (!openaiKey) {
+  const groqKey = process.env.GROQ_API_KEY;
+  if (!groqKey) {
     return NextResponse.json({
       response:
         "AI is not configured yet. Please contact your admin.\n\nCommon questions:\n• \"How do I request time off?\"\n• \"How does the rota work?\"\n• \"How do I export payroll to BrightPay?\"",
@@ -108,19 +108,18 @@ export async function POST(req: NextRequest) {
   try {
     const messages = [
       { role: "system", content: SYSTEM_PROMPT(role) },
-      // Include conversation history for context
       ...history.map((m) => ({ role: m.role, content: m.content })),
       { role: "user", content: message },
     ];
 
-    const res = await fetch("https://api.openai.com/v1/chat/completions", {
+    const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${openaiKey}`,
+        Authorization: `Bearer ${groqKey}`,
       },
       body: JSON.stringify({
-        model: "gpt-4o-mini",
+        model: "llama3-8b-8192",
         messages,
         max_tokens: 500,
         temperature: 0.4,
@@ -129,13 +128,13 @@ export async function POST(req: NextRequest) {
 
     if (!res.ok) {
       const errText = await res.text();
-      console.error("OpenAI error:", res.status, errText);
-      throw new Error(`OpenAI ${res.status}`);
+      console.error("Groq error:", res.status, errText);
+      throw new Error(`Groq ${res.status}`);
     }
 
     const data = await res.json();
     const aiResponse = data.choices?.[0]?.message?.content ?? null;
-    if (!aiResponse) throw new Error("Empty response from OpenAI");
+    if (!aiResponse) throw new Error("Empty response from Groq");
 
     return NextResponse.json({ response: aiResponse, source: "ai" });
   } catch (err) {
