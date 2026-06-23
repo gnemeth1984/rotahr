@@ -41,6 +41,7 @@ import {
   MoreHorizontal,
   X,
   StickyNote,
+  UserCircle,
 } from "lucide-react";
 import { UserRole as Role } from "@/types/roles";
 import { cn } from "@/lib/utils";
@@ -56,6 +57,7 @@ interface Booking {
   duration: number;
   status: string;
   notes: string | null;
+  createdByName: string | null;
   table: { id: string; name: string; capacity: number } | null;
 }
 
@@ -469,6 +471,14 @@ export default function BookingsPage() {
                       </span>
                     )}
                   </div>
+
+                  {/* Booked by */}
+                  {b.createdByName && (
+                    <div className="text-xs text-slate-400 flex items-center gap-1 mt-0.5">
+                      <UserCircle className="h-3 w-3 flex-shrink-0" />
+                      Booked by {b.createdByName}
+                    </div>
+                  )}
                 </div>
 
                 {/* Right: chevron */}

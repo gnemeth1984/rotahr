@@ -63,6 +63,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
+    const userId = (session.user as any).id as string | undefined;
+    const userName = (session.user as any).name || (session.user as any).email || "Staff";
+
     const reservation = await prisma.reservation.create({
       data: {
         businessId,
@@ -74,6 +77,8 @@ export async function POST(req: NextRequest) {
         time,
         notes: notes || null,
         status: "confirmed",
+        createdById: userId || null,
+        createdByName: userName,
       },
       include: {
         table: { select: { id: true, name: true, capacity: true } },
