@@ -59,8 +59,8 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { customerName, customerEmail, customerPhone, partySize, date, time, notes } = body;
 
-    if (!customerName || !partySize || !date || !time) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    if (!customerName || !partySize || !date || !time || !customerPhone) {
+      return NextResponse.json({ error: "Missing required fields (name, phone, party size, date, time)" }, { status: 400 });
     }
 
     const userId = (session.user as any).id as string | undefined;

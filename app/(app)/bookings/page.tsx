@@ -654,12 +654,13 @@ export default function BookingsPage() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label>Phone</Label>
+                <Label>Phone <span className="text-red-500">*</span></Label>
                 <Input
                   value={form.customerPhone}
                   onChange={(e) => setForm({ ...form, customerPhone: e.target.value })}
                   placeholder="+353..."
                   type="tel"
+                  required
                 />
               </div>
               <div className="space-y-1.5">
