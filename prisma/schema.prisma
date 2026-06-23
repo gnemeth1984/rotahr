@@ -215,8 +215,9 @@ model Reservation {
   upsellNotes   String?
   aiWarnings    String?
   createdById   String?
-  createdByName String?
-  tableId       String?
+  createdByName     String?
+  marketingConsent  Boolean @default(false)
+  tableId           String?
   table         Table?   @relation(fields: [tableId], references: [id])
   businessId    String
   business      Business @relation(fields: [businessId], references: [id])

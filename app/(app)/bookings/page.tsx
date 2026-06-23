@@ -58,6 +58,7 @@ interface Booking {
   status: string;
   notes: string | null;
   createdByName: string | null;
+  marketingConsent: boolean;
   table: { id: string; name: string; capacity: number } | null;
 }
 
@@ -84,6 +85,7 @@ const emptyForm = {
   date: "",
   time: "",
   notes: "",
+  marketingConsent: false,
 };
 
 const STATUS_STYLES: Record<string, string> = {
@@ -713,6 +715,30 @@ export default function BookingsPage() {
                 placeholder="Dietary requirements, occasion…"
               />
             </div>
+            {/* Marketing consent — new bookings only */}
+            {!editBooking && (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 space-y-2">
+                <p className="text-xs font-semibold text-amber-800 uppercase tracking-wide">Staff action required</p>
+                <p className="text-sm text-amber-700">
+                  Please inform the customer that we may contact them with offers and updates. Ask if they&apos;re happy to receive these.
+                </p>
+                <label className="flex items-start gap-2.5 cursor-pointer group">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5 h-4 w-4 rounded border-amber-400 accent-amber-600 flex-shrink-0"
+                    checked={form.marketingConsent}
+                    onChange={(e) => setForm({ ...form, marketingConsent: e.target.checked })}
+                  />
+                  <span className="text-sm text-amber-800 font-medium leading-snug">
+                    Customer was informed and <span className="underline">{form.marketingConsent ? "agreed" : "agreed / declined"}</span> — I confirm this was communicated
+                  </span>
+                </label>
+                {!form.marketingConsent && (
+                  <p className="text-xs text-amber-600 italic">Tick to confirm you&apos;ve had the conversation. Leave unticked if they declined.</p>
+                )}
+              </div>
+            )}
+
             <DialogFooter className="gap-2">
               <Button type="button" variant="outline" onClick={() => setDialogOpen(false)} className="flex-1">
                 Cancel

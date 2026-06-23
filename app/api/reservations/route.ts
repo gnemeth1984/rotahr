@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { customerName, customerEmail, customerPhone, partySize, date, time, notes } = body;
+    const { customerName, customerEmail, customerPhone, partySize, date, time, notes, marketingConsent } = body;
 
     if (!customerName || !partySize || !date || !time || !customerPhone) {
       return NextResponse.json({ error: "Missing required fields (name, phone, party size, date, time)" }, { status: 400 });
@@ -79,6 +79,7 @@ export async function POST(req: NextRequest) {
         status: "confirmed",
         createdById: userId || null,
         createdByName: userName,
+        marketingConsent: marketingConsent === true,
       },
       include: {
         table: { select: { id: true, name: true, capacity: true } },
