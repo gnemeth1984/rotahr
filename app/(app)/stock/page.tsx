@@ -212,6 +212,7 @@ function StockItemFormDialog({
   initial?: StockItem | null; suppliers: Supplier[];
   onSaved: (item: StockItem) => void; defaultSupplierId?: string | null;
 }) {
+  const { symbol } = useCurrency();
   const [form, setForm] = useState({
     name: "", supplierId: "", sku: "", unit: "unit", category: "general",
     lastPrice: "", reorderLevel: "", currentStock: "", notes: "",
@@ -351,6 +352,108 @@ function StockItemFormDialog({
 
 // ─── Order Builder Dialog ─────────────────────────────────────────────────────
 
+// ─── ItemCombobox ─────────────────────────────────────────────────────────────
+// Free-text input with dropdown of matching stock items as suggestions.
+
+function ItemCombobox({
+  value,
+  onChange,
+  stockItems,
+  supplierId,
+}: {
+  value: { stockItemId?: string; customName?: string; unit: string };
+  onChange: (v: { stockItemId?: string; customName?: string; unit: string }) => void;
+  stockItems: StockItem[];
+  supplierId: string;
+}) {
+  const [query, setQuery] = useState(
+    value.stockItemId
+      ? (stockItems.find((s) => s.id === value.stockItemId)?.name ?? "")
+      : (value.customName ?? "")
+  );
+  const [open, setOpen] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // All items shown: first supplier-linked, then rest
+  const linked = stockItems.filter((s) => s.supplierId === supplierId);
+  const others = stockItems.filter((s) => s.supplierId !== supplierId);
+  const all = [...linked, ...others];
+
+  const matches = query.trim()
+    ? all.filter((s) => s.name.toLowerCase().includes(query.toLowerCase()))
+    : all;
+
+  const isNew = query.trim() && !all.find((s) => s.name.toLowerCase() === query.toLowerCase());
+
+  function select(item: StockItem) {
+    setQuery(item.name);
+    onChange({ stockItemId: item.id, customName: undefined, unit: item.unit });
+    setOpen(false);
+  }
+
+  function confirm() {
+    const trimmed = query.trim();
+    if (!trimmed) return;
+    const exact = all.find((s) => s.name.toLowerCase() === trimmed.toLowerCase());
+    if (exact) {
+      onChange({ stockItemId: exact.id, customName: undefined, unit: exact.unit });
+    } else {
+      onChange({ stockItemId: undefined, customName: trimmed, unit: value.unit || "unit" });
+    }
+    setOpen(false);
+  }
+
+  return (
+    <div className="relative">
+      <input
+        ref={inputRef}
+        type="text"
+        value={query}
+        placeholder="Type item name or pick from list…"
+        className="w-full h-9 px-3 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-violet-400 bg-white"
+        onChange={(e) => {
+          setQuery(e.target.value);
+          setOpen(true);
+          // If cleared, reset
+          if (!e.target.value.trim()) onChange({ stockItemId: undefined, customName: undefined, unit: "unit" });
+        }}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setTimeout(() => { setOpen(false); confirm(); }, 150)}
+        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); confirm(); } if (e.key === "Escape") setOpen(false); }}
+        autoComplete="off"
+      />
+      {open && (matches.length > 0 || isNew) && (
+        <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-52 overflow-y-auto">
+          {isNew && (
+            <button
+              onMouseDown={(e) => { e.preventDefault(); confirm(); }}
+              className="w-full text-left px-3 py-2 text-sm text-violet-700 font-medium hover:bg-violet-50 flex items-center gap-2 border-b border-slate-100"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Add "<span className="font-semibold">{query.trim()}</span>" as new item
+            </button>
+          )}
+          {matches.slice(0, 20).map((item) => (
+            <button
+              key={item.id}
+              onMouseDown={(e) => { e.preventDefault(); select(item); }}
+              className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50 flex items-center justify-between gap-2"
+            >
+              <span className="text-slate-800">{item.name}</span>
+              <span className="text-xs text-slate-400 shrink-0">{item.unit}{item.supplierId === supplierId ? " · linked" : ""}</span>
+            </button>
+          ))}
+          {matches.length === 0 && !isNew && (
+            <p className="px-3 py-2 text-xs text-slate-400">No matches — keep typing to add a new item</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── OrderBuilderDialog ───────────────────────────────────────────────────────
+
 function OrderBuilderDialog({
   open, onClose, suppliers, stockItems, onCreated,
 }: {
@@ -358,43 +461,60 @@ function OrderBuilderDialog({
   suppliers: Supplier[]; stockItems: StockItem[];
   onCreated: (order: SupplierOrder) => void;
 }) {
+  type Line = {
+    stockItemId?: string;
+    customName?: string;
+    unit: string;
+    quantity: string;
+    unitPrice: string;
+    notes: string;
+  };
+
+  const { symbol, fmt: fmtMoney } = useCurrency();
   const [supplierId, setSupplierId] = useState("");
   const [notes, setNotes] = useState("");
-  const [lines, setLines] = useState<{ stockItemId: string; quantity: string; unitPrice: string; notes: string }[]>([]);
+  const [lines, setLines] = useState<Line[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!open) {
-      setSupplierId(""); setNotes(""); setLines([]); setError(null);
-    }
+    if (!open) { setSupplierId(""); setNotes(""); setLines([]); setError(null); }
   }, [open]);
 
-  const supplierItems = stockItems.filter((s) => !supplierId || s.supplierId === supplierId);
-
   function addLine() {
-    setLines((prev) => [...prev, { stockItemId: "", quantity: "1", unitPrice: "", notes: "" }]);
+    setLines((prev) => [...prev, { stockItemId: undefined, customName: undefined, unit: "unit", quantity: "1", unitPrice: "", notes: "" }]);
   }
 
-  function updateLine(i: number, k: string, v: string) {
-    setLines((prev) => prev.map((l, idx) => idx === i ? { ...l, [k]: v } : l));
-    // Auto-fill unit price from stock item lastPrice
-    if (k === "stockItemId") {
-      const item = stockItems.find((s) => s.id === v);
-      if (item?.lastPrice != null) {
-        setLines((prev) => prev.map((l, idx) => idx === i ? { ...l, stockItemId: v, unitPrice: String(item.lastPrice) } : l));
+  function updateLineItem(i: number, v: { stockItemId?: string; customName?: string; unit: string }) {
+    setLines((prev) => prev.map((l, idx) => {
+      if (idx !== i) return l;
+      const updated = { ...l, ...v };
+      // Auto-fill price if picking an existing item
+      if (v.stockItemId) {
+        const item = stockItems.find((s) => s.id === v.stockItemId);
+        if (item?.lastPrice != null) updated.unitPrice = String(item.lastPrice);
       }
-    }
+      return updated;
+    }));
+  }
+
+  function updateField(i: number, k: keyof Line, v: string) {
+    setLines((prev) => prev.map((l, idx) => idx === i ? { ...l, [k]: v } : l));
   }
 
   function removeLine(i: number) {
     setLines((prev) => prev.filter((_, idx) => idx !== i));
   }
 
+  const lineLabel = (l: Line) => {
+    if (l.stockItemId) return stockItems.find((s) => s.id === l.stockItemId)?.name ?? "";
+    return l.customName ?? "";
+  };
+
   async function handleCreate() {
     if (!supplierId) { setError("Select a supplier"); return; }
-    const validLines = lines.filter((l) => l.stockItemId && parseFloat(l.quantity) > 0);
-    if (validLines.length === 0) { setError("Add at least one item"); return; }
+    const validLines = lines.filter((l) => (l.stockItemId || l.customName?.trim()) && parseFloat(l.quantity) > 0);
+    if (validLines.length === 0) { setError("Add at least one item with a name and quantity"); return; }
     setSaving(true); setError(null);
     try {
       const res = await fetch("/api/orders", {
@@ -404,7 +524,8 @@ function OrderBuilderDialog({
           supplierId,
           notes: notes || null,
           items: validLines.map((l) => ({
-            stockItemId: l.stockItemId,
+            ...(l.stockItemId ? { stockItemId: l.stockItemId } : { customName: l.customName!.trim() }),
+            unit: l.unit || "unit",
             quantity: parseFloat(l.quantity),
             unitPrice: l.unitPrice ? parseFloat(l.unitPrice) : null,
             notes: l.notes || null,
@@ -430,7 +551,7 @@ function OrderBuilderDialog({
         <DialogHeader>
           <DialogTitle>New Order List</DialogTitle>
         </DialogHeader>
-        <div className="space-y-4 py-2">
+        <div className="space-y-5 py-2">
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label>Supplier *</Label>
@@ -451,56 +572,94 @@ function OrderBuilderDialog({
           {/* Line items */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label>Items</Label>
+              <div>
+                <Label>Items</Label>
+                <p className="text-xs text-slate-400 mt-0.5">Pick from your stock list or type any item name</p>
+              </div>
               <Button variant="outline" size="sm" onClick={addLine} className="gap-1.5 h-7 text-xs">
-                <Plus className="h-3 w-3" /> Add Item
+                <Plus className="h-3 w-3" /> Add Row
               </Button>
             </div>
+
             {lines.length === 0 && (
-              <p className="text-sm text-slate-400 italic text-center py-4">
-                No items yet — click Add Item to start building the order.
-              </p>
+              <div className="border-2 border-dashed border-slate-200 rounded-xl py-8 text-center">
+                <ClipboardList className="h-8 w-8 mx-auto mb-2 text-slate-300" />
+                <p className="text-sm text-slate-400">Click <strong>Add Row</strong> to start building your order</p>
+              </div>
             )}
-            {lines.map((line, i) => {
-              const item = stockItems.find((s) => s.id === line.stockItemId);
-              return (
-                <div key={i} className="grid grid-cols-[2fr_1fr_1fr_auto] gap-2 items-end">
-                  <div className="space-y-1">
-                    {i === 0 && <Label className="text-xs text-slate-500">Item</Label>}
-                    <Select value={line.stockItemId || "none"} onValueChange={(v) => updateLine(i, "stockItemId", v === "none" ? "" : v)}>
-                      <SelectTrigger className="text-sm h-9"><SelectValue placeholder="Select item" /></SelectTrigger>
+
+            {lines.length > 0 && (
+              <div className="border border-slate-200 rounded-xl overflow-hidden">
+                {/* Header */}
+                <div className="grid grid-cols-[2.5fr_80px_80px_90px_36px] gap-2 px-3 py-2 bg-slate-50 border-b border-slate-100">
+                  <span className="text-xs font-medium text-slate-500">Item name</span>
+                  <span className="text-xs font-medium text-slate-500">Unit</span>
+                  <span className="text-xs font-medium text-slate-500">Qty</span>
+                  <span className="text-xs font-medium text-slate-500">Unit price</span>
+                  <span />
+                </div>
+
+                {lines.map((line, i) => (
+                  <div key={i} className="grid grid-cols-[2.5fr_80px_80px_90px_36px] gap-2 px-3 py-2 border-b border-slate-50 last:border-0 items-center">
+                    {/* Item name combobox */}
+                    <ItemCombobox
+                      value={line}
+                      onChange={(v) => updateLineItem(i, v)}
+                      stockItems={stockItems}
+                      supplierId={supplierId}
+                    />
+
+                    {/* Unit */}
+                    <Select
+                      value={line.unit || "unit"}
+                      onValueChange={(v) => updateField(i, "unit", v)}
+                    >
+                      <SelectTrigger className="h-9 text-xs px-2">
+                        <SelectValue />
+                      </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="none">Select item</SelectItem>
-                        {supplierItems.map((s) => <SelectItem key={s.id} value={s.id}>{s.name} ({s.unit})</SelectItem>)}
-                        {supplierId && supplierItems.length === 0 && (
-                          <SelectItem value="_empty" disabled>No items for this supplier</SelectItem>
-                        )}
+                        {UNITS.map((u) => <SelectItem key={u} value={u}>{u}</SelectItem>)}
                       </SelectContent>
                     </Select>
+
+                    {/* Qty */}
+                    <Input
+                      type="number" min="0.1" step="0.1"
+                      value={line.quantity}
+                      onChange={(e) => updateField(i, "quantity", e.target.value)}
+                      className="h-9 text-sm"
+                    />
+
+                    {/* Unit price */}
+                    <Input
+                      type="number" min="0" step="0.01"
+                      value={line.unitPrice}
+                      onChange={(e) => updateField(i, "unitPrice", e.target.value)}
+                      className="h-9 text-sm"
+                      placeholder="€0.00"
+                    />
+
+                    <Button variant="ghost" size="icon" className="h-9 w-9 text-slate-300 hover:text-red-500" onClick={() => removeLine(i)}>
+                      <X className="h-4 w-4" />
+                    </Button>
                   </div>
-                  <div className="space-y-1">
-                    {i === 0 && <Label className="text-xs text-slate-500">Qty</Label>}
-                    <Input type="number" min="0.1" step="0.1" value={line.quantity} onChange={(e) => updateLine(i, "quantity", e.target.value)} className="h-9 text-sm" />
+                ))}
+
+                {/* Totals footer */}
+                {total > 0 && (
+                  <div className="flex justify-end px-3 py-2 bg-slate-50 border-t border-slate-100">
+                    <span className="text-sm font-semibold text-slate-700">Est. total: {fmtMoney(total)}</span>
                   </div>
-                  <div className="space-y-1">
-                    {i === 0 && <Label className="text-xs text-slate-500">Unit Price {symbol}</Label>}
-                    <Input type="number" min="0" step="0.01" value={line.unitPrice} onChange={(e) => updateLine(i, "unitPrice", e.target.value)} className="h-9 text-sm" placeholder="Last known" />
-                  </div>
-                  <Button variant="ghost" size="icon" className="h-9 w-9 text-slate-400 hover:text-red-500" onClick={() => removeLine(i)}>
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              );
-            })}
-            {lines.length > 0 && total > 0 && (
-              <div className="flex justify-end pt-1">
-                <span className="text-sm font-semibold text-slate-700">Est. total: {fmtMoney(total)}</span>
+                )}
               </div>
             )}
           </div>
 
-          {error && <p className="text-sm text-red-600">{error}</p>}
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-sm text-red-700">{error}</div>
+          )}
         </div>
+
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
           <Button onClick={handleCreate} disabled={saving} className="bg-violet-600 hover:bg-violet-700 text-white gap-2">

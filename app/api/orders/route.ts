@@ -6,15 +6,31 @@ import { prisma } from "@/lib/db";
 import { UserRole as Role } from "@/types/roles";
 import { z } from "zod";
 
+const orderItemSchema = z.union([
+  // Existing stock item
+  z.object({
+    stockItemId: z.string().min(1),
+    customName: z.undefined().optional(),
+    quantity: z.number().positive(),
+    unitPrice: z.number().optional().nullable(),
+    unit: z.string().optional().nullable(),
+    notes: z.string().optional().nullable(),
+  }),
+  // Free-text custom item — will auto-create a stock item
+  z.object({
+    stockItemId: z.undefined().optional(),
+    customName: z.string().min(1),
+    quantity: z.number().positive(),
+    unitPrice: z.number().optional().nullable(),
+    unit: z.string().optional().nullable(),
+    notes: z.string().optional().nullable(),
+  }),
+]);
+
 const createOrderSchema = z.object({
   supplierId: z.string().min(1),
   notes: z.string().optional().nullable(),
-  items: z.array(z.object({
-    stockItemId: z.string().min(1),
-    quantity: z.number().positive(),
-    unitPrice: z.number().optional().nullable(),
-    notes: z.string().optional().nullable(),
-  })).min(1),
+  items: z.array(orderItemSchema).min(1),
 });
 
 async function requireManager(req: NextRequest) {
@@ -68,18 +84,62 @@ export async function POST(req: NextRequest) {
   });
   if (!supplier) return NextResponse.json({ error: "Supplier not found" }, { status: 404 });
 
+  // Resolve stockItemIds — auto-create stock items for custom names
+  const resolvedItems: { stockItemId: string; quantity: number; unitPrice: number | null; notes: string | null }[] = [];
+
+  for (const item of result.data.items) {
+    let stockItemId: string;
+
+    if (item.stockItemId) {
+      stockItemId = item.stockItemId;
+    } else if (item.customName) {
+      // Check if a stock item with this name already exists for the business
+      const existing = await prisma.stockItem.findFirst({
+        where: {
+          businessId: auth.businessId,
+          name: { equals: item.customName, mode: "insensitive" },
+        },
+      });
+
+      if (existing) {
+        stockItemId = existing.id;
+      } else {
+        // Auto-create a new stock item
+        const created = await prisma.stockItem.create({
+          data: {
+            businessId: auth.businessId,
+            supplierId: result.data.supplierId,
+            name: item.customName,
+            unit: item.unit || "unit",
+            category: "general",
+            ...(item.unitPrice != null ? { lastPrice: item.unitPrice } : {}),
+          },
+        });
+        stockItemId = created.id;
+      }
+    } else {
+      continue; // skip invalid items
+    }
+
+    resolvedItems.push({
+      stockItemId,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice ?? null,
+      notes: item.notes ?? null,
+    });
+  }
+
+  if (resolvedItems.length === 0) {
+    return NextResponse.json({ error: "No valid items" }, { status: 400 });
+  }
+
   const order = await prisma.supplierOrder.create({
     data: {
       businessId: auth.businessId,
       supplierId: result.data.supplierId,
       notes: result.data.notes,
       items: {
-        create: result.data.items.map((item) => ({
-          stockItemId: item.stockItemId,
-          quantity: item.quantity,
-          unitPrice: item.unitPrice ?? null,
-          notes: item.notes ?? null,
-        })),
+        create: resolvedItems,
       },
     },
     include: {
