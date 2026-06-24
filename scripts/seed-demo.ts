@@ -16,7 +16,8 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
-const prisma = new PrismaClient();
+// NOTE: No top-level PrismaClient instantiation here — each caller creates its own instance.
+// This prevents Next.js from running DB connections at build time when this file is imported.
 
 // ─── IDs ──────────────────────────────────────────────────────────────────────
 const BIZ   = "demo-anchor-tap-biz";
@@ -886,7 +887,8 @@ const isMain =
     : import.meta.url === `file://${process.argv[1]}`;
 
 if (isMain) {
-  main(prisma)
+  const cliPrisma = new PrismaClient();
+  main(cliPrisma)
     .catch((e) => { console.error(e); process.exit(1); })
-    .finally(() => prisma.$disconnect());
+    .finally(() => cliPrisma.$disconnect());
 }
