@@ -28,6 +28,7 @@ import {
   Award,
   Building2,
   CreditCard,
+  RadioTower,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -162,6 +163,13 @@ const navItems = [
     label: "Billing",
     icon: CreditCard,
     roles: [Role.MANAGER, Role.ADMIN],
+    permission: null,
+  },
+  {
+    href: "/outreach",
+    label: "Email Outreach",
+    icon: RadioTower,
+    roles: [Role.ADMIN],
     permission: null,
   },
 ];
