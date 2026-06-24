@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { prisma } from "@/lib/db";
+import { sendPushToUser } from "@/lib/services/push.service";
 
 export async function getEmployeeByEmail(email: string, businessId: string) {
   return prisma.employee.findFirst({
@@ -16,9 +17,38 @@ export async function sendNotification({
   employeeId: string;
   message?: string;
 }) {
-  return prisma.bookingNotification.create({
+  // Save to DB
+  const notification = await prisma.bookingNotification.create({
     data: { reservationId, employeeId, message },
+    include: {
+      reservation: { select: { customerName: true, date: true, time: true } },
+    },
   });
+
+  // Look up the employee's linked userId and fire a web push
+  try {
+    const employee = await prisma.employee.findUnique({
+      where: { id: employeeId },
+      select: { userId: true },
+    });
+    if (employee?.userId) {
+      const res = notification.reservation;
+      const title = "New booking notification";
+      const body = message
+        ? message
+        : res
+        ? `${res.customerName} — ${new Date(res.date).toLocaleDateString("en-IE")} at ${res.time}`
+        : "You have a new booking notification";
+      await sendPushToUser(employee.userId, title, body, {
+        url: "/reservations",
+        notificationId: notification.id,
+      });
+    }
+  } catch (err) {
+    console.error("[sendNotification] push failed", err);
+  }
+
+  return notification;
 }
 
 export async function getNotificationsForEmployee(employeeId: string) {
