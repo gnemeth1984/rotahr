@@ -5,11 +5,13 @@ import { Bell, BellOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function PushSubscribeButton() {
+  const [mounted, setMounted] = useState(false);
   const [supported, setSupported] = useState(false);
   const [subscribed, setSubscribed] = useState(false);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     if ("serviceWorker" in navigator && "PushManager" in window) {
       setSupported(true);
       navigator.serviceWorker.ready.then(async (reg) => {
@@ -19,7 +21,7 @@ export default function PushSubscribeButton() {
     }
   }, []);
 
-  if (!supported) return null;
+  if (!mounted || !supported) return null;
 
   async function subscribe() {
     setLoading(true);
