@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import {
-  User, Mail, Lock, Bell, ShieldAlert, Loader2, Check, Eye, EyeOff,
+  User, Mail, Lock, Bell, ShieldAlert, Loader2, Check, Eye, EyeOff, Globe,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,10 +13,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
+import { useCurrency } from "@/components/shared/CurrencyProvider";
 
 export default function GeneralSettingsPage() {
   const { data: session, update } = useSession();
   const router = useRouter();
+  const { currency: currentCurrency, ready: currencyReady } = useCurrency();
+  const isAdmin = session?.user?.role === "ADMIN" || session?.user?.role === "MANAGER";
+
+  // Business localisation
+  const [currency, setCurrency] = useState<"EUR" | "GBP">("EUR");
+  const [savingLocale, setSavingLocale] = useState(false);
+  const [localeMsg, setLocaleMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   // Profile
   const [name, setName] = useState("");
@@ -46,6 +54,29 @@ export default function GeneralSettingsPage() {
       setEmail(session.user.email ?? "");
     }
   }, [session]);
+
+  useEffect(() => {
+    if (currencyReady) setCurrency(currentCurrency as "EUR" | "GBP");
+  }, [currencyReady, currentCurrency]);
+
+  async function saveLocale() {
+    setSavingLocale(true);
+    setLocaleMsg(null);
+    try {
+      const country = currency === "GBP" ? "GB" : "IE";
+      const res = await fetch("/api/business/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currency, country }),
+      });
+      if (!res.ok) throw new Error("Failed to save");
+      setLocaleMsg({ ok: true, text: "Saved. Reload the page to see updated currency throughout the app." });
+    } catch (e: any) {
+      setLocaleMsg({ ok: false, text: e.message });
+    } finally {
+      setSavingLocale(false);
+    }
+  }
 
   async function saveProfile() {
     if (!name.trim()) return;
@@ -269,6 +300,54 @@ export default function GeneralSettingsPage() {
           </Button>
         </CardContent>
       </Card>
+
+      {/* Business Localisation — managers/admins only */}
+      {isAdmin && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Globe className="h-4 w-4 text-blue-600" /> Business Localisation
+            </CardTitle>
+            <CardDescription>
+              Set the currency and region for your business. Affects all money formatting across the app.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-slate-900">Currency</p>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  {currency === "GBP"
+                    ? "British Pound (£) — 20% UK VAT"
+                    : "Euro (€) — 23% Irish VAT"}
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className={`text-sm font-semibold ${currency === "EUR" ? "text-slate-900" : "text-slate-400"}`}>€ EUR</span>
+                <Switch
+                  checked={currency === "GBP"}
+                  onCheckedChange={(v) => {
+                    setCurrency(v ? "GBP" : "EUR");
+                    setLocaleMsg(null);
+                  }}
+                />
+                <span className={`text-sm font-semibold ${currency === "GBP" ? "text-slate-900" : "text-slate-400"}`}>£ GBP</span>
+              </div>
+            </div>
+
+            {localeMsg && (
+              <p className={`text-sm ${localeMsg.ok ? "text-green-600" : "text-red-500"}`}>
+                {localeMsg.text}
+              </p>
+            )}
+
+            <Button onClick={saveLocale} disabled={savingLocale}>
+              {savingLocale ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Check className="h-4 w-4 mr-2" />}
+              Save
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Danger zone */}
       <Card className="border-red-200">
