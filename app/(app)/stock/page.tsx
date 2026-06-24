@@ -470,15 +470,48 @@ function OrderBuilderDialog({
     notes: string;
   };
 
+  const DRAFT_KEY = "rotahr_order_draft";
+
   const { symbol, fmt: fmtMoney } = useCurrency();
   const [supplierId, setSupplierId] = useState("");
   const [notes, setNotes] = useState("");
   const [lines, setLines] = useState<Line[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [draftRestored, setDraftRestored] = useState(false);
+
+  // Restore draft on open
+  useEffect(() => {
+    if (!open) return;
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY);
+      if (raw) {
+        const draft = JSON.parse(raw);
+        if (draft.supplierId) setSupplierId(draft.supplierId);
+        if (draft.notes) setNotes(draft.notes);
+        if (Array.isArray(draft.lines) && draft.lines.length > 0) {
+          setLines(draft.lines);
+          setDraftRestored(true);
+        }
+      }
+    } catch {}
+  }, [open]);
+
+  // Auto-save draft on every change
+  useEffect(() => {
+    if (!open) return;
+    try {
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({ supplierId, notes, lines }));
+    } catch {}
+  }, [supplierId, notes, lines, open]);
+
+  function clearDraft() {
+    try { localStorage.removeItem(DRAFT_KEY); } catch {}
+    setDraftRestored(false);
+  }
 
   useEffect(() => {
-    if (!open) { setSupplierId(""); setNotes(""); setLines([]); setError(null); }
+    if (!open) { setSupplierId(""); setNotes(""); setLines([]); setError(null); setDraftRestored(false); }
   }, [open]);
 
   function addLine() {
@@ -534,6 +567,7 @@ function OrderBuilderDialog({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed");
+      clearDraft();
       onCreated(data.order);
     } catch (e: any) { setError(e.message); }
     finally { setSaving(false); }
@@ -549,7 +583,14 @@ function OrderBuilderDialog({
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>New Order List</DialogTitle>
+          <div className="flex items-center gap-3">
+            <DialogTitle>New Order List</DialogTitle>
+            {draftRestored && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
+                Draft restored
+              </span>
+            )}
+          </div>
         </DialogHeader>
         <div className="space-y-5 py-2">
           <div className="grid grid-cols-2 gap-3">
@@ -660,8 +701,20 @@ function OrderBuilderDialog({
           )}
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
+        <DialogFooter className="flex-col sm:flex-row gap-2">
+          <div className="flex gap-2 sm:mr-auto">
+            {(lines.length > 0 || supplierId) && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs text-red-400 hover:text-red-600 hover:bg-red-50"
+                onClick={() => { clearDraft(); setSupplierId(""); setNotes(""); setLines([]); }}
+              >
+                Discard draft
+              </Button>
+            )}
+          </div>
+          <Button variant="outline" onClick={onClose}>Save & close</Button>
           <Button onClick={handleCreate} disabled={saving} className="bg-violet-600 hover:bg-violet-700 text-white gap-2">
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <ClipboardList className="h-4 w-4" />}
             Create Order List
@@ -1228,9 +1281,9 @@ function StockListTab({ items, suppliers, loading, onAdd, onEdit, onDelete, onSc
 
 // ─── Order Lists Tab ──────────────────────────────────────────────────────────
 
-function OrdersTab({ orders, suppliers, stockItems, loading, onNew, onRefresh }: {
+function OrdersTab({ orders, suppliers, stockItems, loading, onNew, onRefresh, hasDraft }: {
   orders: SupplierOrder[]; suppliers: Supplier[]; stockItems: StockItem[];
-  loading: boolean; onNew: () => void; onRefresh: () => void;
+  loading: boolean; onNew: () => void; onRefresh: () => void; hasDraft?: boolean;
 }) {
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState("all");
@@ -1297,8 +1350,12 @@ function OrdersTab({ orders, suppliers, stockItems, loading, onNew, onRefresh }:
             <SelectItem value="received">Received</SelectItem>
           </SelectContent>
         </Select>
-        <Button onClick={onNew} size="sm" className="gap-2 bg-violet-600 hover:bg-violet-700 text-white">
-          <Plus className="h-4 w-4" /> New Order List
+        <Button onClick={onNew} size="sm" className="gap-2 bg-violet-600 hover:bg-violet-700 text-white relative">
+          <Plus className="h-4 w-4" />
+          {hasDraft ? "Continue Draft" : "New Order List"}
+          {hasDraft && (
+            <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-amber-400 border-2 border-white" />
+          )}
         </Button>
       </div>
 
@@ -1444,6 +1501,18 @@ export default function StockPage() {
   const [orderDialog, setOrderDialog] = useState(false);
   const [scanDialog, setScanDialog] = useState(false);
 
+  // Track whether an order draft exists in localStorage (for badge on button)
+  const [hasDraft, setHasDraft] = useState(false);
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("rotahr_order_draft");
+      if (raw) {
+        const d = JSON.parse(raw);
+        setHasDraft(!!(d.supplierId || (d.lines && d.lines.length > 0)));
+      }
+    } catch {}
+  }, [orderDialog]); // re-check whenever dialog closes
+
   const loadSuppliers = useCallback(async () => {
     setLoadingSuppliers(true);
     try {
@@ -1566,6 +1635,7 @@ export default function StockPage() {
           loading={loadingOrders}
           onNew={() => setOrderDialog(true)}
           onRefresh={loadOrders}
+          hasDraft={hasDraft}
         />
       )}
 
