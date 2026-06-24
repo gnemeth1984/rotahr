@@ -1,7 +1,7 @@
 // @ts-nocheck
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { useCurrency } from "@/components/shared/CurrencyProvider";
 import {
@@ -22,6 +22,7 @@ import {
   Package, Truck, ClipboardList, Plus, Pencil, Trash2, Loader2,
   Search, ChevronDown, ChevronUp, Receipt, ArrowRight, CheckCircle2,
   AlertTriangle, Send, PackageCheck, FileDown, X, RefreshCw,
+  ScanLine, Upload,
 } from "lucide-react";
 import { UserRole as Role } from "@/types/roles";
 import { cn } from "@/lib/utils";
@@ -573,11 +574,357 @@ function SuppliersTab({ suppliers, loading, onAdd, onEdit, onDelete }: {
   );
 }
 
+// ─── Stock Receipt Scan Dialog ────────────────────────────────────────────────
+
+interface ScanSuggestion {
+  name: string;
+  quantity: number;
+  unit: string;
+  unitPrice: number | null;
+  existingItemId: string | null;
+  existingName: string | null;
+  existingPrice: number | null;
+  priceChanged: boolean;
+}
+
+function StockReceiptScanDialog({
+  open,
+  onClose,
+  onApplied,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onApplied: () => void;
+}) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [step, setStep] = useState<"upload" | "review" | "done">("upload");
+  const [uploading, setUploading] = useState(false);
+  const [applying, setApplying] = useState(false);
+  const [error, setError] = useState("");
+  const [previewUrl, setPreviewUrl] = useState("");
+  const [vendor, setVendor] = useState<string | null>(null);
+  const [invoiceDate, setInvoiceDate] = useState<string | null>(null);
+  const [suggestions, setSuggestions] = useState<ScanSuggestion[]>([]);
+  const [selected, setSelected] = useState<Record<number, boolean>>({});
+  const [appliedCount, setAppliedCount] = useState(0);
+  const [dragging, setDragging] = useState(false);
+
+  function reset() {
+    setStep("upload");
+    setUploading(false);
+    setApplying(false);
+    setError("");
+    setPreviewUrl("");
+    setVendor(null);
+    setInvoiceDate(null);
+    setSuggestions([]);
+    setSelected({});
+    setAppliedCount(0);
+  }
+
+  function handleClose() {
+    reset();
+    onClose();
+  }
+
+  async function processFile(file: File) {
+    if (!file) return;
+    setPreviewUrl(URL.createObjectURL(file));
+    setUploading(true);
+    setError("");
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/stock/scan-receipt", { method: "POST", body: fd });
+      const data = await res.json();
+      if (!res.ok || data.error) { setError(data.error ?? "Scan failed"); setUploading(false); return; }
+
+      setVendor(data.vendor ?? null);
+      setInvoiceDate(data.invoiceDate ?? null);
+      setSuggestions(data.suggestions ?? []);
+      const init: Record<number, boolean> = {};
+      (data.suggestions ?? []).forEach((_: ScanSuggestion, i: number) => { init[i] = true; });
+      setSelected(init);
+      setStep("review");
+    } catch (e: any) {
+      setError(e.message ?? "Scan failed");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function handleApply() {
+    setApplying(true);
+    setError("");
+    let count = 0;
+    for (let i = 0; i < suggestions.length; i++) {
+      if (!selected[i]) continue;
+      const s = suggestions[i];
+      try {
+        if (s.existingItemId) {
+          await fetch(`/api/stock/${s.existingItemId}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              ...(s.unitPrice !== null ? { lastPrice: s.unitPrice } : {}),
+              lastOrdered: invoiceDate ?? new Date().toISOString().split("T")[0],
+            }),
+          });
+        } else {
+          await fetch("/api/stock", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              name: s.name,
+              unit: s.unit,
+              category: "general",
+              ...(s.unitPrice !== null ? { lastPrice: s.unitPrice } : {}),
+              lastOrdered: invoiceDate ?? new Date().toISOString().split("T")[0],
+            }),
+          });
+        }
+        count++;
+      } catch {/* skip */}
+    }
+    setAppliedCount(count);
+    setApplying(false);
+    setStep("done");
+    onApplied();
+  }
+
+  const toggleAll = (val: boolean) => {
+    const next: Record<number, boolean> = {};
+    suggestions.forEach((_, i) => { next[i] = val; });
+    setSelected(next);
+  };
+
+  const anySelected = Object.values(selected).some(Boolean);
+
+  return (
+    <Dialog open={open} onOpenChange={handleClose}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <ScanLine className="h-5 w-5 text-violet-600" />
+            Scan Delivery Note / Invoice
+          </DialogTitle>
+        </DialogHeader>
+
+        {/* STEP: Upload */}
+        {step === "upload" && (
+          <div className="space-y-4">
+            <p className="text-sm text-slate-500">
+              Upload a photo or scan of a supplier invoice or delivery note. AI will read all line items and update your stock automatically.
+            </p>
+
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700">{error}</div>
+            )}
+
+            {/* Drop zone */}
+            <div
+              onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+              onDragLeave={() => setDragging(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDragging(false);
+                const file = e.dataTransfer.files?.[0];
+                if (file) processFile(file);
+              }}
+              onClick={() => !uploading && fileRef.current?.click()}
+              className={cn(
+                "border-2 border-dashed rounded-xl p-10 text-center cursor-pointer transition-all",
+                dragging ? "border-violet-400 bg-violet-50" : "border-slate-200 hover:border-violet-300 hover:bg-slate-50",
+                uploading && "opacity-50 cursor-not-allowed"
+              )}
+            >
+              {uploading ? (
+                <div className="flex flex-col items-center gap-3">
+                  <Loader2 className="h-8 w-8 animate-spin text-violet-500" />
+                  <p className="text-sm font-medium text-slate-700">Scanning with AI…</p>
+                  <p className="text-xs text-slate-400">Reading line items from your document</p>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center gap-3">
+                  <div className="h-14 w-14 bg-violet-50 rounded-2xl flex items-center justify-center">
+                    <Upload className="h-6 w-6 text-violet-500" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-slate-700">Drop your invoice here</p>
+                    <p className="text-xs text-slate-400 mt-1">or click to browse — JPG, PNG, PDF</p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*,.pdf"
+              className="hidden"
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) processFile(f); e.target.value = ""; }}
+            />
+
+            {previewUrl && !uploading && (
+              <div className="rounded-xl overflow-hidden border border-slate-200 max-h-48">
+                <img src={previewUrl} alt="Preview" className="w-full object-contain max-h-48" />
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* STEP: Review */}
+        {step === "review" && (
+          <div className="space-y-4">
+            {/* Vendor / date header */}
+            {(vendor || invoiceDate) && (
+              <div className="flex flex-wrap gap-3 bg-violet-50 border border-violet-200 rounded-xl px-4 py-3">
+                {vendor && (
+                  <div className="text-sm"><span className="text-violet-500 font-medium">Supplier:</span> <span className="text-slate-800 font-semibold">{vendor}</span></div>
+                )}
+                {invoiceDate && (
+                  <div className="text-sm"><span className="text-violet-500 font-medium">Date:</span> <span className="text-slate-800">{invoiceDate}</span></div>
+                )}
+              </div>
+            )}
+
+            {/* Preview thumbnail */}
+            {previewUrl && (
+              <div className="rounded-xl overflow-hidden border border-slate-200 max-h-32">
+                <img src={previewUrl} alt="Receipt" className="w-full object-contain max-h-32" />
+              </div>
+            )}
+
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700">{error}</div>
+            )}
+
+            {suggestions.length === 0 ? (
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 text-center">
+                <AlertTriangle className="h-8 w-8 mx-auto mb-2 text-amber-400" />
+                <p className="text-sm font-medium text-amber-800">No line items found</p>
+                <p className="text-xs text-amber-600 mt-1">AI couldn't read any line items. Try a clearer photo or add items manually.</p>
+              </div>
+            ) : (
+              <>
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-slate-500">{suggestions.length} item{suggestions.length !== 1 ? "s" : ""} found</p>
+                  <div className="flex gap-2">
+                    <button onClick={() => toggleAll(true)} className="text-xs text-violet-600 hover:underline">Select all</button>
+                    <span className="text-slate-300">·</span>
+                    <button onClick={() => toggleAll(false)} className="text-xs text-slate-500 hover:underline">None</button>
+                  </div>
+                </div>
+
+                <div className="border border-slate-200 rounded-xl overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-slate-50 border-b border-slate-100">
+                        <th className="px-3 py-2.5"></th>
+                        <th className="px-3 py-2.5 text-left text-xs font-medium text-slate-500">Item</th>
+                        <th className="px-3 py-2.5 text-center text-xs font-medium text-slate-500">Qty</th>
+                        <th className="px-3 py-2.5 text-center text-xs font-medium text-slate-500">Unit</th>
+                        <th className="px-3 py-2.5 text-right text-xs font-medium text-slate-500">Unit Price</th>
+                        <th className="px-3 py-2.5 text-center text-xs font-medium text-slate-500">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {suggestions.map((s, i) => (
+                        <tr key={i} className={cn("border-b border-slate-50 transition-colors", selected[i] ? "bg-white" : "bg-slate-50/50 opacity-60")}>
+                          <td className="px-3 py-3">
+                            <input
+                              type="checkbox"
+                              checked={!!selected[i]}
+                              onChange={(e) => setSelected((p) => ({ ...p, [i]: e.target.checked }))}
+                              className="rounded border-slate-300 text-violet-600 focus:ring-violet-500"
+                            />
+                          </td>
+                          <td className="px-3 py-3">
+                            <p className="font-medium text-slate-800">{s.name}</p>
+                            {s.existingName && s.existingName !== s.name && (
+                              <p className="text-xs text-slate-400 mt-0.5">→ matches "{s.existingName}"</p>
+                            )}
+                          </td>
+                          <td className="px-3 py-3 text-center text-slate-600">{s.quantity}</td>
+                          <td className="px-3 py-3 text-center text-xs text-slate-500">{s.unit}</td>
+                          <td className="px-3 py-3 text-right">
+                            {s.unitPrice !== null ? (
+                              <span className={cn("font-medium", s.priceChanged ? "text-amber-700" : "text-slate-800")}>
+                                €{s.unitPrice.toFixed(2)}
+                              </span>
+                            ) : <span className="text-slate-400">—</span>}
+                          </td>
+                          <td className="px-3 py-3 text-center">
+                            {s.existingItemId ? (
+                              <span className={cn("inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium",
+                                s.priceChanged ? "bg-amber-100 text-amber-700" : "bg-green-100 text-green-700"
+                              )}>
+                                {s.priceChanged ? <><AlertTriangle className="h-3 w-3" /> Price changed</> : <><CheckCircle2 className="h-3 w-3" /> Update</>}
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium bg-violet-100 text-violet-700">
+                                <Plus className="h-3 w-3" /> New item
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {suggestions.some((s) => s.priceChanged) && (
+                  <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm">
+                    <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
+                    <span className="text-amber-800">
+                      Some items have a different price from what's on record. Confirming will update the price in Stock.
+                    </span>
+                  </div>
+                )}
+              </>
+            )}
+
+            <DialogFooter className="gap-2">
+              <Button variant="outline" size="sm" onClick={() => { setStep("upload"); setSuggestions([]); }}>
+                Scan Again
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleClose}>Cancel</Button>
+              {suggestions.length > 0 && (
+                <Button size="sm" onClick={handleApply} disabled={applying || !anySelected} className="bg-violet-600 hover:bg-violet-700">
+                  {applying && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
+                  Apply {Object.values(selected).filter(Boolean).length} item{Object.values(selected).filter(Boolean).length !== 1 ? "s" : ""}
+                </Button>
+              )}
+            </DialogFooter>
+          </div>
+        )}
+
+        {/* STEP: Done */}
+        {step === "done" && (
+          <div className="flex flex-col items-center gap-3 py-12">
+            <div className="h-14 w-14 bg-green-50 rounded-full flex items-center justify-center">
+              <CheckCircle2 className="h-7 w-7 text-green-600" />
+            </div>
+            <p className="text-base font-semibold text-slate-800">
+              {appliedCount} item{appliedCount !== 1 ? "s" : ""} updated in Stock
+            </p>
+            <p className="text-sm text-slate-400 text-center max-w-sm">
+              Prices and last-ordered dates have been updated.
+            </p>
+            <Button size="sm" onClick={handleClose} className="mt-2">Done</Button>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ─── Stock List Tab ───────────────────────────────────────────────────────────
 
-function StockListTab({ items, suppliers, loading, onAdd, onEdit, onDelete }: {
+function StockListTab({ items, suppliers, loading, onAdd, onEdit, onDelete, onScan }: {
   items: StockItem[]; suppliers: Supplier[]; loading: boolean;
   onAdd: () => void; onEdit: (i: StockItem) => void; onDelete: (id: string) => void;
+  onScan: () => void;
 }) {
   const [search, setSearch] = useState("");
   const [filterSupplier, setFilterSupplier] = useState("all");
@@ -637,9 +984,14 @@ function StockListTab({ items, suppliers, loading, onAdd, onEdit, onDelete }: {
             </SelectContent>
           </Select>
         </div>
-        <Button onClick={onAdd} size="sm" className="gap-2 bg-violet-600 hover:bg-violet-700 text-white">
-          <Plus className="h-4 w-4" /> Add Item
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={onScan} size="sm" variant="outline" className="gap-2 border-violet-200 text-violet-700 hover:bg-violet-50">
+            <ScanLine className="h-4 w-4" /> Scan Receipt
+          </Button>
+          <Button onClick={onAdd} size="sm" className="gap-2 bg-violet-600 hover:bg-violet-700 text-white">
+            <Plus className="h-4 w-4" /> Add Item
+          </Button>
+        </div>
       </div>
 
       {loading ? (
@@ -931,6 +1283,7 @@ export default function StockPage() {
   const [supplierDialog, setSupplierDialog] = useState<{ open: boolean; editing: Supplier | null }>({ open: false, editing: null });
   const [stockDialog, setStockDialog] = useState<{ open: boolean; editing: StockItem | null; defaultSupplier?: string }>({ open: false, editing: null });
   const [orderDialog, setOrderDialog] = useState(false);
+  const [scanDialog, setScanDialog] = useState(false);
 
   const loadSuppliers = useCallback(async () => {
     setLoadingSuppliers(true);
@@ -1044,6 +1397,7 @@ export default function StockPage() {
           onAdd={() => setStockDialog({ open: true, editing: null })}
           onEdit={(i) => setStockDialog({ open: true, editing: i })}
           onDelete={deleteStockItem}
+          onScan={() => setScanDialog(true)}
         />
       )}
 
@@ -1079,6 +1433,12 @@ export default function StockPage() {
         suppliers={suppliers}
         stockItems={stockItems}
         onCreated={() => { setOrderDialog(false); loadOrders(); setTab("orders"); }}
+      />
+
+      <StockReceiptScanDialog
+        open={scanDialog}
+        onClose={() => setScanDialog(false)}
+        onApplied={() => { loadStock(); }}
       />
     </div>
   );

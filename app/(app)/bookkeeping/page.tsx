@@ -160,6 +160,7 @@ function StockFromReceiptDialog({
   open: boolean;
   onClose: () => void;
 }) {
+  const { fmt } = useCurrency();
   const [loading, setLoading] = useState(false);
   const [applying, setApplying] = useState(false);
   const [result, setResult] = useState<StockFromReceiptResult | null>(null);
