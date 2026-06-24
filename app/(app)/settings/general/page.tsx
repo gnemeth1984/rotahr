@@ -276,9 +276,11 @@ export default function GeneralSettingsPage() {
           <CardDescription>Choose what triggers in-app notifications for you.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="pb-2 border-b border-slate-100">
-            <p className="text-sm font-medium text-slate-900 mb-1">Browser push notifications</p>
-            <p className="text-xs text-slate-500 mb-3">Get notified even when the app isn&apos;t open in your browser.</p>
+          <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+            <div>
+              <p className="text-sm font-medium text-slate-900">Browser push notifications</p>
+              <p className="text-xs text-slate-500">Get notified even when the app isn&apos;t open.</p>
+            </div>
             <PushSubscribeButton />
           </div>
           {[
