@@ -1,8 +1,11 @@
-// @ts-nocheck
-import Expo from "expo-server-sdk";
+import webpush from "web-push";
 import { prisma } from "@/lib/db";
 
-const expo = new Expo();
+webpush.setVapidDetails(
+  process.env.VAPID_SUBJECT ?? "mailto:gnemeth1984@gmail.com",
+  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? "",
+  process.env.VAPID_PRIVATE_KEY ?? ""
+);
 
 export async function sendPushToUser(
   userId: string,
@@ -13,26 +16,17 @@ export async function sendPushToUser(
   try {
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { pushToken: true },
+      select: { pushSubscription: true },
     });
 
-    if (!user?.pushToken) return; // no token registered
-    if (!Expo.isExpoPushToken(user.pushToken)) return; // invalid token
+    if (!user?.pushSubscription) return;
 
-    const messages = [
-      {
-        to: user.pushToken,
-        sound: "default" as const,
-        title,
-        body,
-        data: data ?? {},
-      },
-    ];
+    const subscription = JSON.parse(user.pushSubscription) as webpush.PushSubscription;
 
-    const chunks = expo.chunkPushNotifications(messages);
-    for (const chunk of chunks) {
-      await expo.sendPushNotificationsAsync(chunk);
-    }
+    await webpush.sendNotification(
+      subscription,
+      JSON.stringify({ title, body, data: data ?? {} })
+    );
   } catch (err) {
     // Never let push failures break the main flow
     console.error("[push.service] Error sending push:", err);

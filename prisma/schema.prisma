@@ -62,7 +62,7 @@ model User {
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
 
-  pushToken           String?   // Expo push token for mobile notifications
+  pushSubscription    String?   // Web Push subscription JSON
 
   employees           Employee[]
   passwordResetTokens PasswordResetToken[]

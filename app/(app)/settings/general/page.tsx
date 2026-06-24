@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import {
   User, Mail, Lock, Bell, ShieldAlert, Loader2, Check, Eye, EyeOff, Globe,
 } from "lucide-react";
+import PushSubscribeButton from "@/components/PushSubscribeButton";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -275,6 +276,11 @@ export default function GeneralSettingsPage() {
           <CardDescription>Choose what triggers in-app notifications for you.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          <div className="pb-2 border-b border-slate-100">
+            <p className="text-sm font-medium text-slate-900 mb-1">Browser push notifications</p>
+            <p className="text-xs text-slate-500 mb-3">Get notified even when the app isn&apos;t open in your browser.</p>
+            <PushSubscribeButton />
+          </div>
           {[
             { label: "New or changed shifts", desc: "When your shift is created, updated or cancelled", val: notifShift, set: setNotifShift },
             { label: "Messages", desc: "When you receive a new direct or group message", val: notifMessage, set: setNotifMessage },

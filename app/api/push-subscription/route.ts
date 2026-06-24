@@ -1,32 +1,30 @@
-// @ts-nocheck
-import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth/options";
+import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import Expo from "expo-server-sdk";
 
-export async function POST(req: NextRequest) {
+// POST /api/push-subscription — save Web Push subscription JSON
+export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { token } = await req.json().catch(() => ({}));
-
-  if (!token || !Expo.isExpoPushToken(token)) {
-    return NextResponse.json({ error: "Invalid push token" }, { status: 400 });
+  const body = await req.json();
+  if (!body?.endpoint) {
+    return NextResponse.json({ error: "Invalid subscription" }, { status: 400 });
   }
 
   await prisma.user.update({
     where: { id: session.user.id },
-    data: { pushToken: token },
+    data: { pushSubscription: JSON.stringify(body) },
   });
 
   return NextResponse.json({ ok: true });
 }
 
-// Allow clearing the token on logout
-export async function DELETE(req: NextRequest) {
+// DELETE /api/push-subscription — clear subscription
+export async function DELETE() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -34,7 +32,7 @@ export async function DELETE(req: NextRequest) {
 
   await prisma.user.update({
     where: { id: session.user.id },
-    data: { pushToken: null },
+    data: { pushSubscription: null },
   });
 
   return NextResponse.json({ ok: true });
