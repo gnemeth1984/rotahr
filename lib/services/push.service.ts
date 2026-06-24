@@ -1,11 +1,15 @@
 import webpush from "web-push";
 import { prisma } from "@/lib/db";
 
-webpush.setVapidDetails(
-  process.env.VAPID_SUBJECT ?? "mailto:gnemeth1984@gmail.com",
-  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? "",
-  process.env.VAPID_PRIVATE_KEY ?? ""
-);
+// Only initialise at runtime — keys are not available at build time
+function initWebPush() {
+  const pub = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+  const priv = process.env.VAPID_PRIVATE_KEY;
+  const subject = process.env.VAPID_SUBJECT ?? "mailto:gnemeth1984@gmail.com";
+  if (pub && priv) {
+    webpush.setVapidDetails(subject, pub, priv);
+  }
+}
 
 export async function sendPushToUser(
   userId: string,
@@ -13,6 +17,7 @@ export async function sendPushToUser(
   body: string,
   data?: Record<string, unknown>
 ) {
+  initWebPush();
   try {
     const user = await prisma.user.findUnique({
       where: { id: userId },
