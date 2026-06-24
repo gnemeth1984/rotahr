@@ -24,6 +24,12 @@ export default function PushSubscribeButton() {
   async function subscribe() {
     setLoading(true);
     try {
+      // Must request permission first
+      const permission = await Notification.requestPermission();
+      if (permission !== "granted") {
+        alert("Notifications blocked. Please allow them in your browser settings.");
+        return;
+      }
       const reg = await navigator.serviceWorker.ready;
       const sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
