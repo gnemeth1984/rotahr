@@ -56,10 +56,10 @@ export async function POST(req: NextRequest) {
 
     // Notify both parties
     if (swap.offerer.userId) {
-      await createNotification(swap.offerer.userId, "shift", "Shift swap approved", `Your shift swap request was approved by management.`);
+      await createNotification({ userId: swap.offerer.userId, type: "shift", title: "Shift swap approved", body: "Your shift swap request was approved by management." });
     }
     if (swap.receiver?.userId) {
-      await createNotification(swap.receiver.userId, "shift", "Shift swap approved", `Your shift swap with ${swap.offerer.firstName} was approved.`);
+      await createNotification({ userId: swap.receiver.userId, type: "shift", title: "Shift swap approved", body: `Your shift swap with ${swap.offerer.firstName} was approved.` });
     }
   } else {
     await prisma.shiftSwapRequest.update({
@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
       data: { status: "rejected", managedById: session.user.id, managerNote: managerNote ?? null },
     });
     if (swap.receiver?.userId) {
-      await createNotification(swap.receiver.userId, "shift", "Shift swap rejected", `The swap request was not approved. ${managerNote ?? ""}`);
+      await createNotification({ userId: swap.receiver.userId, type: "shift", title: "Shift swap rejected", body: `The swap request was not approved. ${managerNote ?? ""}` });
     }
   }
 

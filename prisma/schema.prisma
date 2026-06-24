@@ -62,6 +62,8 @@ model User {
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
 
+  pushToken           String?   // Expo push token for mobile notifications
+
   employees           Employee[]
   passwordResetTokens PasswordResetToken[]
   appNotifications    AppNotification[]

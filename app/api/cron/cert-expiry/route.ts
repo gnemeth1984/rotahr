@@ -4,6 +4,7 @@
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { createNotification } from "@/lib/services/appNotification.service";
 
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
@@ -78,16 +79,12 @@ export async function GET(req: NextRequest) {
       : `Expires on ${cert.expiryDate.toLocaleDateString("en-IE")}. Arrange renewal soon.`;
 
     for (const manager of managers) {
-      await prisma.appNotification.create({
-        data: {
-          userId: manager.id,
-          type: "cert_expiry",
-          title,
-          body,
-          referenceId: cert.id,
-          link: "/training",
-          read: false,
-        },
+      await createNotification({
+        userId: manager.id,
+        type: "cert_expiry",
+        title,
+        body,
+        link: "/training",
       });
     }
 

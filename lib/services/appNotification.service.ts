@@ -1,7 +1,8 @@
 // @ts-nocheck
 import { prisma } from "@/lib/db";
+import { sendPushToUser, sendPushToUsers } from "./push.service";
 
-export type NotifType = "message" | "shift" | "timeoff" | "booking" | "rota";
+export type NotifType = "message" | "shift" | "timeoff" | "booking" | "rota" | "late_checkin" | "cert_expiry";
 
 export async function createNotification({
   userId,
@@ -16,9 +17,14 @@ export async function createNotification({
   body: string;
   link?: string;
 }) {
-  return prisma.appNotification.create({
+  const notif = await prisma.appNotification.create({
     data: { userId, type, title, body, link: link ?? null },
   });
+
+  // Fire push in background — never blocks the main flow
+  sendPushToUser(userId, title, body, { type, link }).catch(() => {});
+
+  return notif;
 }
 
 /** Notify multiple users at once — errors are swallowed per-user */
@@ -26,9 +32,14 @@ export async function notifyUsers(
   userIds: string[],
   payload: { type: NotifType; title: string; body: string; link?: string }
 ) {
-  return Promise.allSettled(
+  const results = await Promise.allSettled(
     userIds.map((userId) => createNotification({ userId, ...payload }))
   );
+
+  // Also batch-push
+  sendPushToUsers(userIds, payload.title, payload.body, { type: payload.type, link: payload.link }).catch(() => {});
+
+  return results;
 }
 
 export async function getUnreadCount(userId: string) {

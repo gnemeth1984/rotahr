@@ -6,6 +6,7 @@
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { createNotification } from "@/lib/services/appNotification.service";
 
 export async function GET(req: NextRequest) {
   // Verify cron secret
@@ -92,15 +93,11 @@ export async function GET(req: NextRequest) {
     });
 
     for (const manager of managers) {
-      await prisma.appNotification.create({
-        data: {
-          userId: manager.id,
-          type: "late_checkin",
-          title: `${empName} hasn't clocked in`,
-          body: `Shift started at ${shiftTime} (${minutesLate} min ago). No clock-in recorded.`,
-          referenceId: shift.id,
-          read: false,
-        },
+      await createNotification({
+        userId: manager.id,
+        type: "late_checkin",
+        title: `${empName} hasn't clocked in`,
+        body: `Shift started at ${shiftTime} (${minutesLate} min ago). No clock-in recorded.`,
       });
     }
 

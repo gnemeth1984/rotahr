@@ -4,7 +4,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth/options";
 import { requireRole, isResponse } from "@/lib/auth/middleware";
 import { reservationService } from "@/lib/services/reservation.service";
-import { sendNotification } from "@/lib/services/notification.service";
+import { notifyUsers } from "@/lib/services/appNotification.service";
 import { detectConflicts } from "@/lib/ai/conflict-detection";
 import { prisma } from "@/lib/db";
 import { z } from "zod";
@@ -93,25 +93,26 @@ export async function POST(req: NextRequest) {
       businessId,
       session.user.id
     );
-    // Notify all managers & admins
+    // Notify all managers & admins (push + in-app)
     const managers = await prisma.employee.findMany({
       where: {
         businessId,
         role: { in: ["manager", "admin", "MANAGER", "ADMIN"] },
         active: true,
+        userId: { not: null },
       },
-      select: { id: true },
+      select: { userId: true },
     });
+    const managerUserIds = managers.map((m) => m.userId).filter(Boolean) as string[];
 
-    await Promise.allSettled(
-      managers.map((m) =>
-        sendNotification({
-          reservationId: reservation.id,
-          employeeId: m.id,
-          message: `New booking: ${data.customerName}, party of ${data.partySize} on ${data.date} at ${data.time}`,
-        })
-      )
-    );
+    if (managerUserIds.length > 0) {
+      await notifyUsers(managerUserIds, {
+        type: "booking",
+        title: "New Booking",
+        body: `${data.customerName}, party of ${data.partySize} on ${data.date} at ${data.time}`,
+        link: `/bookings`,
+      });
+    }
 
     return NextResponse.json({ reservation }, { status: 201 });
   } catch (err) {
