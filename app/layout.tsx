@@ -4,6 +4,7 @@ import { Providers } from "@/components/shared/providers"
 import { ServiceWorkerRegister } from "@/components/shared/ServiceWorkerRegister"
 
 export const metadata = {
+  metadataBase: new URL("https://rotahr.vercel.app"),
   title: "Rotahr — Venue Management for Irish Hospitality",
   description: "Staff rotas, table reservations, bookkeeping and HR — all in one app. Built for Irish bars, restaurants and cafes.",
   manifest: "/manifest.json",
