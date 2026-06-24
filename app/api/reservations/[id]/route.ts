@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth/options";
 import { prisma } from "@/lib/db";
+import { UserRole as Role } from "@/types/roles";
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   try {
@@ -11,8 +12,19 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const userRole = (session.user as any).role;
+    const isManager = userRole === Role.MANAGER || userRole === Role.ADMIN;
+
     const body = await req.json();
     const { customerName, customerEmail, customerPhone, partySize, date, time, notes, status } = body;
+
+    // Non-managers can only cancel — not edit details
+    if (!isManager) {
+      const allowedKeys = Object.keys(body).filter(k => k !== "status");
+      if (allowedKeys.length > 0 || (status && status !== "cancelled")) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+    }
 
     const reservation = await prisma.reservation.update({
       where: { id: params.id },
@@ -38,7 +50,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   }
 }
 
-// DELETE — anonymises PII instead of hard-deleting.
+// DELETE — anonymises PII instead of hard-deleting (managers/admins only).
 // GDPR: right to erasure is balanced against legitimate interest (business records, Revenue audit trail).
 // Financial data (partySize, date, time) is retained; personal data (name, email, phone) is wiped.
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
@@ -46,6 +58,12 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
     const session = await getServerSession(authOptions);
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const userRole = (session.user as any).role;
+    const isManager = userRole === Role.MANAGER || userRole === Role.ADMIN;
+    if (!isManager) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     await prisma.reservation.update({

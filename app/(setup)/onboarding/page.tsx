@@ -15,7 +15,7 @@ type Steps = {
   complete: boolean;
 };
 
-type Business = { id: string; name: string; onboardingComplete: boolean };
+type Business = { id: string; name: string; onboardingComplete: boolean } | null;
 
 const STEPS = [
   { key: "businessName", label: "Business Name", icon: Building2, desc: "Set your business name" },
@@ -27,28 +27,29 @@ const STEPS = [
 export default function OnboardingPage() {
   const router = useRouter();
   const [steps, setSteps] = useState<Steps | null>(null);
-  const [business, setBusiness] = useState<Business | null>(null);
+  const [business, setBusiness] = useState<Business>(null);
   const [loading, setLoading] = useState(true);
   const [activeStep, setActiveStep] = useState(0);
   const [businessName, setBusinessName] = useState("");
   const [saving, setSaving] = useState(false);
 
+  async function fetchState() {
+    const d = await fetch("/api/onboarding").then((r) => r.json());
+    setSteps(d.steps);
+    setBusiness(d.business ?? null);
+    setBusinessName(d.business?.name ?? "");
+    if (d.business?.onboardingComplete) {
+      router.push("/dashboard");
+      return;
+    }
+    const keys = ["businessName", "departments", "employees", "hourlyRates"] as const;
+    const idx = keys.findIndex((k) => !d.steps?.[k]);
+    setActiveStep(idx === -1 ? 3 : idx);
+    setLoading(false);
+  }
+
   useEffect(() => {
-    fetch("/api/onboarding")
-      .then((r) => r.json())
-      .then((d) => {
-        setSteps(d.steps);
-        setBusiness(d.business);
-        setBusinessName(d.business?.name ?? "");
-        if (d.business?.onboardingComplete) {
-          router.push("/dashboard");
-        }
-        // Find first incomplete step
-        const keys = ["businessName", "departments", "employees", "hourlyRates"] as const;
-        const idx = keys.findIndex((k) => !d.steps?.[k]);
-        setActiveStep(idx === -1 ? 3 : idx);
-        setLoading(false);
-      });
+    fetchState();
   }, []);
 
   const completedCount = steps
@@ -60,15 +61,22 @@ export default function OnboardingPage() {
   async function saveBusinessName() {
     if (!businessName.trim()) return;
     setSaving(true);
-    await fetch("/api/onboarding", {
+    const res = await fetch("/api/onboarding", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: businessName.trim() }),
     });
-    // Refresh
-    const d = await fetch("/api/onboarding").then((r) => r.json());
-    setSteps(d.steps);
-    setBusiness(d.business);
+    const data = await res.json();
+
+    // If a new business was just created (Google OAuth user), reload the session
+    // by doing a soft page refresh so the JWT picks up the new businessId
+    if (data.newBusiness) {
+      // Force session refresh — navigate to the same page via router
+      window.location.href = "/onboarding";
+      return;
+    }
+
+    await fetchState();
     setSaving(false);
     setActiveStep(1);
   }
@@ -85,8 +93,8 @@ export default function OnboardingPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-slate-400">Loading…</p>
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <p className="text-slate-400">Setting up your workspace…</p>
       </div>
     );
   }
@@ -96,9 +104,15 @@ export default function OnboardingPage() {
       <div className="w-full max-w-2xl">
         {/* Header */}
         <div className="text-center mb-10">
-          <h1 className="text-3xl font-bold text-slate-900">Welcome to Rotahr</h1>
+          <div className="inline-flex items-center gap-2 mb-4">
+            <div className="h-10 w-10 bg-blue-600 rounded-xl flex items-center justify-center">
+              <span className="text-white font-bold text-lg">R</span>
+            </div>
+            <span className="text-xl font-bold text-slate-900">Rotahr</span>
+          </div>
+          <h1 className="text-3xl font-bold text-slate-900">Welcome! Let's get you set up</h1>
           <p className="text-slate-500 mt-2">
-            Complete these steps to get your business set up
+            Takes about 5 minutes. You can skip steps and come back later.
           </p>
           {/* Progress bar */}
           <div className="mt-6 bg-slate-200 rounded-full h-2 w-full max-w-sm mx-auto">
@@ -120,7 +134,7 @@ export default function OnboardingPage() {
               <div
                 key={step.key}
                 className={`bg-white rounded-xl border p-5 transition-all cursor-pointer ${
-                  isActive ? "border-blue-300 shadow-md" : "border-slate-200"
+                  isActive ? "border-blue-300 shadow-md" : "border-slate-200 hover:border-slate-300"
                 }`}
                 onClick={() => setActiveStep(idx)}
               >
@@ -161,6 +175,7 @@ export default function OnboardingPage() {
                             onChange={(e) => setBusinessName(e.target.value)}
                             placeholder="e.g. Christy's Bar"
                             onKeyDown={(e) => e.key === "Enter" && saveBusinessName()}
+                            autoFocus
                           />
                           <Button
                             onClick={saveBusinessName}
@@ -218,9 +233,15 @@ export default function OnboardingPage() {
           })}
         </div>
 
-        {/* Complete button */}
-        {completedCount === 4 && (
-          <div className="text-center">
+        {/* Skip / Complete */}
+        <div className="flex items-center justify-between">
+          <button
+            onClick={() => router.push("/dashboard")}
+            className="text-sm text-slate-400 hover:text-slate-600 underline underline-offset-2"
+          >
+            Skip for now
+          </button>
+          {completedCount === 4 && (
             <Button
               onClick={completeOnboarding}
               disabled={saving}
@@ -229,8 +250,8 @@ export default function OnboardingPage() {
             >
               {saving ? "Setting up…" : "Launch Rotahr 🚀"}
             </Button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );

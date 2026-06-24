@@ -85,7 +85,7 @@ export default function PitchDeckClient() {
           </svg>
           <span style={{fontSize:20,fontWeight:700,color:'#fff',letterSpacing:'-0.3px'}}>rotahr</span>
         </a>
-        <a href="/auth/signin" style={{background:'#f97316',color:'#fff',border:'none',padding:'10px 22px',borderRadius:'100px',fontSize:14,fontWeight:600,cursor:'pointer',textDecoration:'none'}}>
+        <a href="/auth/register" style={{background:'#f97316',color:'#fff',border:'none',padding:'10px 22px',borderRadius:'100px',fontSize:14,fontWeight:600,cursor:'pointer',textDecoration:'none'}}>
           Start Free Trial
         </a>
       </header>
@@ -102,7 +102,7 @@ export default function PitchDeckClient() {
           Rotas · Clock-In · Reservations · Bookkeeping · Payroll — built for Irish hospitality.
         </p>
         <div style={{display:'flex',gap:12,justifyContent:'center',flexWrap:'wrap'}}>
-          <a href="/auth/signin" style={{background:'#f97316',color:'#fff',padding:'14px 28px',borderRadius:'100px',fontSize:15,fontWeight:600,textDecoration:'none'}}>
+          <a href="/auth/register" style={{background:'#f97316',color:'#fff',padding:'14px 28px',borderRadius:'100px',fontSize:15,fontWeight:600,textDecoration:'none'}}>
             Start Free Trial
           </a>
           <button onClick={() => document.getElementById('pitch-viewer')?.scrollIntoView({behavior:'smooth'})}
@@ -167,7 +167,7 @@ export default function PitchDeckClient() {
           Ready to simplify<br/><span style={{color:'#f97316'}}>your venue?</span>
         </h2>
         <p style={{color:'rgba(255,255,255,0.5)',fontSize:16,marginBottom:32}}>First month free. No credit card required. Cancel anytime.</p>
-        <a href="/auth/signin" style={{background:'#f97316',color:'#fff',padding:'16px 36px',borderRadius:'100px',fontSize:16,fontWeight:600,textDecoration:'none'}}>
+        <a href="/auth/register" style={{background:'#f97316',color:'#fff',padding:'16px 36px',borderRadius:'100px',fontSize:16,fontWeight:600,textDecoration:'none'}}>
           Get Started Free — rotahr.com
         </a>
         <div style={{display:'flex',justifyContent:'center',gap:24,flexWrap:'wrap',marginTop:24}}>

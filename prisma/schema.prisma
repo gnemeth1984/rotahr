@@ -37,6 +37,10 @@ model Business {
   shiftSwapRequests ShiftSwapRequest[]
   tipPools     TipPool[]
 
+  // Locale / currency
+  currency           String   @default("EUR") // "EUR" | "GBP"
+  country            String   @default("IE")  // "IE" | "GB"
+
   // Lemon Squeezy subscription
   lsCustomerId       String?   // Lemon Squeezy customer ID
   lsSubscriptionId   String?   // Lemon Squeezy subscription ID
@@ -215,7 +219,9 @@ model Reservation {
   upsellNotes   String?
   aiWarnings    String?
   createdById   String?
-  tableId       String?
+  createdByName     String?
+  marketingConsent  Boolean @default(false)
+  tableId           String?
   table         Table?   @relation(fields: [tableId], references: [id])
   businessId    String
   business      Business @relation(fields: [businessId], references: [id])
@@ -567,6 +573,22 @@ model Venue {
   updatedAt   DateTime @updatedAt
 
   @@index([businessId])
+}
+
+// ── Page Views / Visitor Analytics ───────────────────────────────────────────
+model PageView {
+  id        String   @id @default(cuid())
+  path      String   // e.g. "/", "/pricing", "/auth/signin"
+  referrer  String?  // where they came from
+  userAgent String?  @db.Text
+  country   String?  // from Vercel geo headers
+  city      String?
+  sessionId String?  // anonymous session cookie
+  createdAt DateTime @default(now())
+
+  @@index([path])
+  @@index([createdAt])
+  @@index([sessionId])
 }
 
 // ── Training & Certifications ─────────────────────────────────────────────────

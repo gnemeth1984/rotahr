@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
     const resetUrl = `${baseUrl}/auth/reset-password?token=${token}`;
 
     await resend.emails.send({
-      from: "Rotahr <onboarding@resend.dev>",
+      from: "Rotahr <sales@rotahr.com>",
       to: email,
       subject: "Reset your Rotahr password",
       html: `

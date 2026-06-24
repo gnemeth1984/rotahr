@@ -57,11 +57,14 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { customerName, customerEmail, customerPhone, partySize, date, time, notes } = body;
+    const { customerName, customerEmail, customerPhone, partySize, date, time, notes, marketingConsent } = body;
 
-    if (!customerName || !partySize || !date || !time) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    if (!customerName || !partySize || !date || !time || !customerPhone) {
+      return NextResponse.json({ error: "Missing required fields (name, phone, party size, date, time)" }, { status: 400 });
     }
+
+    const userId = (session.user as any).id as string | undefined;
+    const userName = (session.user as any).name || (session.user as any).email || "Staff";
 
     const reservation = await prisma.reservation.create({
       data: {
@@ -74,6 +77,9 @@ export async function POST(req: NextRequest) {
         time,
         notes: notes || null,
         status: "confirmed",
+        createdById: userId || null,
+        createdByName: userName,
+        marketingConsent: marketingConsent === true,
       },
       include: {
         table: { select: { id: true, name: true, capacity: true } },

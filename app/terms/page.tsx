@@ -5,7 +5,7 @@ export default function TermsPage() {
     <div className="min-h-screen bg-white">
       <div className="max-w-3xl mx-auto px-6 py-16">
         <h1 className="text-3xl font-bold text-slate-900 mb-2">Terms of Service</h1>
-        <p className="text-sm text-slate-400 mb-10">Last updated: June 2025</p>
+        <p className="text-sm text-slate-400 mb-10">Last updated: June 2026</p>
 
         <div className="prose prose-slate max-w-none space-y-8 text-sm leading-relaxed text-slate-700">
 
@@ -45,6 +45,22 @@ export default function TermsPage() {
             <p className="mt-2">
               Subscriptions are billed monthly. You may cancel at any time; cancellation takes effect at the
               end of the current billing period. No refunds for partial months.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-lg font-semibold text-slate-800 mb-2">4a. Right of withdrawal (Consumer Rights Act 2022)</h2>
+            <p>
+              If you are a <strong>consumer</strong> (i.e. an individual acting outside of a trade, business, craft or profession) and you subscribe to Rotahr online or by any other distance means, you have the right to withdraw from the contract without giving any reason within <strong>14 days</strong> from the date of your subscription (the "cooling-off period"), in accordance with the European Union (Consumer Information, Cancellation and Other Rights) Regulations 2013 and the Consumer Rights Act 2022.
+            </p>
+            <p className="mt-2">
+              <strong>Waiver of cooling-off period:</strong> By starting to use Rotahr during the 14-day cooling-off period, you expressly request that the service begins immediately and you acknowledge that you lose your right of withdrawal once the service has been fully performed. Where the service has not been fully performed, you remain entitled to a pro-rata refund for the unused portion.
+            </p>
+            <p className="mt-2">
+              To exercise your right of withdrawal, notify us within 14 days at <a href="mailto:legal@rotahr.com" className="text-blue-600 hover:underline">legal@rotahr.com</a> with your account name and the statement that you wish to withdraw. We will process any refund due within 14 days of receiving your notice.
+            </p>
+            <p className="mt-2 text-xs text-slate-500">
+              Note: Most Rotahr subscribers are businesses (B2B). The right of withdrawal under this clause applies only to consumers as defined by Irish and EU consumer law.
             </p>
           </section>
 

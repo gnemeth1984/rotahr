@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
+import { useCurrency } from "@/components/shared/CurrencyProvider";
 import {
   Card, CardContent, CardHeader, CardTitle, CardDescription,
 } from "@/components/ui/card";
@@ -98,10 +99,7 @@ function statusColor(status: string) {
   return "bg-slate-100 text-slate-600";
 }
 
-function fmt(n: number | null | undefined) {
-  if (n == null) return "—";
-  return `€${n.toFixed(2)}`;
-}
+// fmt is provided by useCurrency() hook — see component below
 
 // ─── Supplier Form ────────────────────────────────────────────────────────────
 
@@ -320,7 +318,7 @@ function StockItemFormDialog({
           </div>
           <div className="grid grid-cols-3 gap-3">
             <div className="space-y-1.5">
-              <Label>Last Price (€)</Label>
+              <Label>Last Price ({symbol})</Label>
               <Input type="number" step="0.01" value={form.lastPrice} onChange={f("lastPrice")} placeholder="0.00" />
             </div>
             <div className="space-y-1.5">
@@ -484,7 +482,7 @@ function OrderBuilderDialog({
                     <Input type="number" min="0.1" step="0.1" value={line.quantity} onChange={(e) => updateLine(i, "quantity", e.target.value)} className="h-9 text-sm" />
                   </div>
                   <div className="space-y-1">
-                    {i === 0 && <Label className="text-xs text-slate-500">Unit Price €</Label>}
+                    {i === 0 && <Label className="text-xs text-slate-500">Unit Price {symbol}</Label>}
                     <Input type="number" min="0" step="0.01" value={line.unitPrice} onChange={(e) => updateLine(i, "unitPrice", e.target.value)} className="h-9 text-sm" placeholder="Last known" />
                   </div>
                   <Button variant="ghost" size="icon" className="h-9 w-9 text-slate-400 hover:text-red-500" onClick={() => removeLine(i)}>
@@ -495,7 +493,7 @@ function OrderBuilderDialog({
             })}
             {lines.length > 0 && total > 0 && (
               <div className="flex justify-end pt-1">
-                <span className="text-sm font-semibold text-slate-700">Est. total: €{total.toFixed(2)}</span>
+                <span className="text-sm font-semibold text-slate-700">Est. total: {fmtMoney(total)}</span>
               </div>
             )}
           </div>
@@ -816,9 +814,9 @@ function OrdersTab({ orders, suppliers, stockItems, loading, onNew, onRefresh }:
                         </Badge>
                       </div>
                       <p className="text-xs text-slate-400 mt-0.5">
-                        {new Date(order.createdAt).toLocaleDateString("en-IE", { day: "numeric", month: "short", year: "numeric" })}
-                        {order.sentAt && ` · Sent ${new Date(order.sentAt).toLocaleDateString("en-IE", { day: "numeric", month: "short" })}`}
-                        {order.receivedAt && ` · Received ${new Date(order.receivedAt).toLocaleDateString("en-IE", { day: "numeric", month: "short" })}`}
+                        {new Date(order.createdAt).toLocaleDateString(locale, { day: "numeric", month: "short", year: "numeric" })}
+                        {order.sentAt && ` · Sent ${new Date(order.sentAt).toLocaleDateString(locale, { day: "numeric", month: "short" })}`}
+                        {order.receivedAt && ` · Received ${new Date(order.receivedAt).toLocaleDateString(locale, { day: "numeric", month: "short" })}`}
                       </p>
                     </div>
                     <div className="flex gap-1 shrink-0">
@@ -860,7 +858,7 @@ function OrdersTab({ orders, suppliers, stockItems, loading, onNew, onRefresh }:
                         <tfoot className="border-t border-slate-200 bg-slate-50">
                           <tr>
                             <td colSpan={3} className="px-3 py-2 text-right font-semibold text-slate-600 text-xs">Est. Total</td>
-                            <td className="px-3 py-2 text-right font-bold text-slate-900">€{estTotal.toFixed(2)}</td>
+                            <td className="px-3 py-2 text-right font-bold text-slate-900">{fmtMoney(estTotal)}</td>
                           </tr>
                         </tfoot>
                       )}
@@ -916,6 +914,9 @@ function OrdersTab({ orders, suppliers, stockItems, loading, onNew, onRefresh }:
 
 export default function StockPage() {
   const { data: session } = useSession();
+  const { symbol, locale, fmt: fmtMoney } = useCurrency();
+  // local fmt wrapper handles null/undefined
+  const fmt = (n: number | null | undefined) => (n == null ? "—" : fmtMoney(n));
   const isManager = session?.user?.role === Role.MANAGER || session?.user?.role === Role.ADMIN;
 
   const [tab, setTab] = useState<"stock" | "suppliers" | "orders">("stock");

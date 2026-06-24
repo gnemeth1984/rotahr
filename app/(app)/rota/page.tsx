@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useSession } from "next-auth/react";
+import { useCurrency } from "@/components/shared/CurrencyProvider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,6 +15,7 @@ import {
 import {
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   Trash2,
   Download,
   Loader2,
@@ -102,14 +104,14 @@ function toDateStr(date: Date): string {
   return `${y}-${m}-${d}`;
 }
 
-function fmtWeekRange(monday: Date): string {
+function fmtWeekRange(monday: Date, locale = "en-IE"): string {
   const sunday = addDays(monday, 6);
   const opts: Intl.DateTimeFormatOptions = { day: "numeric", month: "short" };
-  return `${monday.toLocaleDateString("en-IE", opts)} – ${sunday.toLocaleDateString("en-IE", { ...opts, year: "numeric" })}`;
+  return `${monday.toLocaleDateString(locale, opts)} – ${sunday.toLocaleDateString(locale, { ...opts, year: "numeric" })}`;
 }
 
-function fmtTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString("en-IE", { hour: "2-digit", minute: "2-digit", hour12: false });
+function fmtTime(iso: string, locale = "en-IE"): string {
+  return new Date(iso).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit", hour12: false });
 }
 
 function shiftHours(shift: Shift): number {
@@ -134,10 +136,92 @@ function fmtHours(h: number): string {
 
 const DEFAULT_FORM = { startTime: "09:00", endTime: "17:00", role: "", published: false, overtimeHours: 0 };
 
+// ─── Compliance Panel ─────────────────────────────────────────────────────────
+
+interface ComplianceAlertItem { empId: string; empName: string; message: string; type: "rest" | "hours" }
+
+function CompliancePanel({ alerts }: { alerts: ComplianceAlertItem[] }) {
+  const [open, setOpen] = useState(false);
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+
+  // Group by employee
+  const grouped = useMemo(() => {
+    const map: Record<string, { name: string; alerts: string[] }> = {};
+    for (const a of alerts) {
+      if (!map[a.empId]) map[a.empId] = { name: a.empName, alerts: [] };
+      // Strip the employee name prefix from message for cleaner display
+      const msg = a.message.replace(/^[^:]+:\s*/, "");
+      map[a.empId].alerts.push(msg);
+    }
+    return Object.entries(map);
+  }, [alerts]);
+
+  const restCount = alerts.filter(a => a.type === "rest").length;
+  const hoursCount = alerts.filter(a => a.type === "hours").length;
+
+  return (
+    <div className="border border-amber-200 bg-amber-50 rounded-xl overflow-hidden">
+      {/* Header — always visible */}
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between px-4 py-3 hover:bg-amber-100/60 transition-colors"
+      >
+        <div className="flex items-center gap-2.5">
+          <AlertTriangle className="h-4 w-4 text-amber-600 flex-shrink-0" />
+          <span className="text-sm font-semibold text-amber-800">
+            Working Time Act 1997
+          </span>
+          <span className="bg-amber-200 text-amber-800 text-xs font-bold px-2 py-0.5 rounded-full">
+            {alerts.length}
+          </span>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="hidden sm:flex items-center gap-2 text-xs text-amber-700">
+            {restCount > 0 && <span className="bg-amber-100 border border-amber-200 px-2 py-0.5 rounded-full">{restCount} break{restCount > 1 ? "s" : ""}</span>}
+            {hoursCount > 0 && <span className="bg-orange-100 border border-orange-200 text-orange-700 px-2 py-0.5 rounded-full">{hoursCount} hours</span>}
+          </div>
+          <ChevronDown className={cn("h-4 w-4 text-amber-600 transition-transform", open && "rotate-180")} />
+        </div>
+      </button>
+
+      {/* Expandable body */}
+      {open && (
+        <div className="border-t border-amber-200 divide-y divide-amber-100">
+          {grouped.map(([empId, { name, alerts: empAlerts }]) => (
+            <div key={empId} className="px-4 py-2">
+              <button
+                onClick={() => setExpanded(e => ({ ...e, [empId]: !e[empId] }))}
+                className="w-full flex items-center justify-between py-1 text-left"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-amber-900">{name}</span>
+                  <span className="text-xs text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded-full">{empAlerts.length}</span>
+                </div>
+                <ChevronDown className={cn("h-3.5 w-3.5 text-amber-500 transition-transform", expanded[empId] && "rotate-180")} />
+              </button>
+              {expanded[empId] && (
+                <ul className="mt-1.5 mb-1 space-y-1 pl-2">
+                  {empAlerts.map((msg, i) => (
+                    <li key={i} className="flex items-start gap-1.5 text-xs text-amber-700">
+                      <span className="mt-0.5 h-1.5 w-1.5 rounded-full bg-amber-400 flex-shrink-0" />
+                      {msg}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function RotaPage() {
   const { data: session } = useSession();
+  const { symbol, fmt, locale } = useCurrency();
   const isManager =
     session?.user?.role === Role.MANAGER || session?.user?.role === Role.ADMIN;
 
@@ -176,8 +260,7 @@ export default function RotaPage() {
   // Organisation of Working Time Act 1997 (Irish transposition of EU WTD):
   //   - 11h rest between shifts
   //   - Max 48h average per week
-  interface ComplianceAlert { empId: string; empName: string; message: string; type: "rest" | "hours" }
-  const [complianceAlerts, setComplianceAlerts] = useState<ComplianceAlert[]>([]);
+  const [complianceAlerts, setComplianceAlerts] = useState<ComplianceAlertItem[]>([]);
 
   const weekDates = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
   // Irish public holidays for this week
@@ -231,7 +314,7 @@ export default function RotaPage() {
   // ── Compliance check — runs whenever shifts or employees change ───────────
   useEffect(() => {
     if (!shifts.length || !employees.length) { setComplianceAlerts([]); return; }
-    const alerts: ComplianceAlert[] = [];
+    const alerts: ComplianceAlertItem[] = [];
     const empMap = Object.fromEntries(employees.map((e) => [e.id, e]));
 
     // Per employee: sort shifts by start time, check 11h rest & 48h/week cap
@@ -270,9 +353,57 @@ export default function RotaPage() {
         alerts.push({
           empId,
           empName,
-          message: `${empName}: ${totalHrs.toFixed(1)}h scheduled this week — exceeds 48h weekly limit (Working Time Act 1997)`,
+          message: `${empName}: ${totalHrs.toFixed(1)}h scheduled this week — exceeds 48h weekly limit (OWT Act 1997 s.15)`,
           type: "hours",
         });
+      }
+
+      // Rest break check — OWT Act 1997 s.12
+      // >4.5h worked → 15 min break; >6h worked → 30 min break
+      // We can only check scheduled duration; actual break compliance is on the employer.
+      for (const s of empShifts) {
+        const hrs = shiftHours(s);
+        if (hrs > 6) {
+          alerts.push({
+            empId,
+            empName,
+            message: `${empName}: shift ${fmtTime(s.startTime)}–${fmtTime(s.endTime)} (${hrs.toFixed(1)}h) — employee is entitled to a 30-min rest break (OWT Act 1997 s.12)`,
+            type: "rest",
+          });
+        } else if (hrs > 4.5) {
+          alerts.push({
+            empId,
+            empName,
+            message: `${empName}: shift ${fmtTime(s.startTime)}–${fmtTime(s.endTime)} (${hrs.toFixed(1)}h) — employee is entitled to a 15-min rest break (OWT Act 1997 s.12)`,
+            type: "rest",
+          });
+        }
+      }
+
+      // 24h weekly rest check — OWT Act 1997 s.13
+      // Employee must have at least one 24h continuous rest in each 7-day period
+      if (sorted.length >= 2) {
+        let hasOneDayOff = false;
+        for (let i = 1; i < sorted.length; i++) {
+          const gapMs = new Date(sorted[i].startTime).getTime() - new Date(sorted[i - 1].endTime).getTime();
+          if (gapMs >= 24 * 3600000) { hasOneDayOff = true; break; }
+        }
+        // Also check gap before first shift (Mon start) and after last (Sun end)
+        const mondayMs = weekDates[0].getTime();
+        const beforeFirst = new Date(sorted[0].startTime).getTime() - mondayMs;
+        if (beforeFirst >= 24 * 3600000) hasOneDayOff = true;
+        const sundayEndMs = weekDates[6].getTime() + 24 * 3600000;
+        const afterLast = sundayEndMs - new Date(sorted[sorted.length - 1].endTime).getTime();
+        if (afterLast >= 24 * 3600000) hasOneDayOff = true;
+
+        if (!hasOneDayOff) {
+          alerts.push({
+            empId,
+            empName,
+            message: `${empName}: no 24h continuous rest period found this week — required by OWT Act 1997 s.13`,
+            type: "rest",
+          });
+        }
       }
     }
 
@@ -517,7 +648,7 @@ export default function RotaPage() {
           <div>
             <h1 className="text-2xl font-bold text-slate-900">Rota</h1>
             <p className="text-slate-500 text-sm mt-0.5">
-              {fmtWeekRange(weekStart)}
+              {fmtWeekRange(weekStart, locale)}
               {totalShifts > 0 && (
                 <span className="ml-2 text-xs">· {publishedShifts}/{totalShifts} published</span>
               )}
@@ -597,7 +728,7 @@ export default function RotaPage() {
             <TrendingUp className="h-4 w-4 text-slate-400 flex-shrink-0" />
             <div>
               <p className="text-[11px] text-slate-400 uppercase tracking-wide font-medium">Labour cost</p>
-              <p className="text-lg font-bold text-slate-900">€{totalLabourCost.toFixed(2)}</p>
+              <p className="text-lg font-bold text-slate-900">{fmt(totalLabourCost)}</p>
             </div>
           </div>
 
@@ -625,7 +756,7 @@ export default function RotaPage() {
             <Target className="h-4 w-4 text-slate-400 flex-shrink-0" />
             {editingTarget ? (
               <div className="flex items-center gap-1.5">
-                <span className="text-sm text-slate-500">€</span>
+                <span className="text-sm text-slate-500">{symbol}</span>
                 <Input
                   type="number"
                   value={targetInput}
@@ -644,7 +775,7 @@ export default function RotaPage() {
                 onClick={() => setEditingTarget(true)}
                 className="text-xs text-slate-500 hover:text-slate-800 underline decoration-dotted"
               >
-                {weeklyRevenueTarget ? `Target: €${weeklyRevenueTarget.toLocaleString("en-IE")}` : "Set revenue target"}
+                {weeklyRevenueTarget ? `Target: ${symbol}${weeklyRevenueTarget.toLocaleString(locale)}` : "Set revenue target"}
               </button>
             )}
           </div>
@@ -653,17 +784,7 @@ export default function RotaPage() {
 
       {/* ── Working Time Compliance Alerts (WTA 1997) ── */}
       {isManager && complianceAlerts.length > 0 && (
-        <div className="border border-amber-200 bg-amber-50 rounded-xl px-4 py-3 space-y-1.5">
-          <div className="flex items-center gap-2 mb-1">
-            <AlertTriangle className="h-4 w-4 text-amber-600 flex-shrink-0" />
-            <p className="text-sm font-semibold text-amber-800">
-              Working Time Act 1997 — {complianceAlerts.length} alert{complianceAlerts.length > 1 ? "s" : ""}
-            </p>
-          </div>
-          {complianceAlerts.map((alert, i) => (
-            <p key={i} className="text-xs text-amber-700 pl-6">{alert.message}</p>
-          ))}
-        </div>
+        <CompliancePanel alerts={complianceAlerts} />
       )}
 
       {/* ── Loading / Empty ── */}
@@ -729,7 +850,7 @@ export default function RotaPage() {
             {/* Selected day heading */}
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-semibold text-slate-700">
-                {selectedDate.toLocaleDateString("en-IE", { weekday: "long", day: "numeric", month: "long" })}
+                {selectedDate.toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long" })}
                 {isToday && (
                   <span className="ml-2 text-xs font-medium text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full">Today</span>
                 )}
@@ -855,7 +976,7 @@ export default function RotaPage() {
             {cellContext && (
               <p className="text-sm text-slate-500">
                 {sheetEmployee ? `${sheetEmployee.firstName} ${sheetEmployee.lastName} · ` : ""}
-                {new Date(cellContext.date + "T12:00:00").toLocaleDateString("en-IE", {
+                {new Date(cellContext.date + "T12:00:00").toLocaleDateString(locale, {
                   weekday: "long",
                   day: "numeric",
                   month: "long",

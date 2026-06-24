@@ -88,8 +88,12 @@ export async function GET(req: NextRequest) {
   const periodStart = monday.toISOString().split("T")[0];
   const periodEnd = sunday.toISOString().split("T")[0];
 
+  // PPSN (Personal Public Service Number) is required by BrightPay for Revenue submissions.
+  // Rotahr does not store PPSNs — column is included blank; employer must complete before import.
+  // Legal basis: TCA 1997 s.886, Social Welfare (Consolidation) Act 2005.
   const rows: string[] = [
-    ["Surname", "Forename", "Email", "Period Start", "Period End", "Hours", "Basic Pay (EUR)"].join(","),
+    // NOTE: PPSN column intentionally blank — must be filled by employer before submitting to Revenue/BrightPay
+    ["Surname", "Forename", "Email", "PPSN (required — add before import)", "Period Start", "Period End", "Hours", "Basic Pay (EUR)", "Note"].join(","),
   ];
 
   for (const emp of Object.values(byEmployee)) {
@@ -97,12 +101,18 @@ export async function GET(req: NextRequest) {
       `"${emp.lastName}"`,
       `"${emp.firstName}"`,
       `"${emp.email}"`,
+      `""`, // PPSN — blank, employer must fill
       periodStart,
       periodEnd,
       emp.totalHours.toFixed(2),
       emp.totalPay.toFixed(2),
+      `"Gross pay only — PAYE/PRSI/USC via BrightPay"`,
     ].join(","));
   }
+
+  // Disclaimer row
+  rows.push(`"IMPORTANT","PPSN column is blank — add employee PPSNs before importing to BrightPay / submitting to Revenue","","","","","","",""`);
+  rows.push(`"IMPORTANT","This file contains gross pay only. PAYE/PRSI/USC deductions must be calculated in BrightPay or equivalent payroll software.","","","","","","",""`);
 
   const csv = rows.join("\r\n");
 

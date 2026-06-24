@@ -41,6 +41,7 @@ import {
   MoreHorizontal,
   X,
   StickyNote,
+  UserCircle,
 } from "lucide-react";
 import { UserRole as Role } from "@/types/roles";
 import { cn } from "@/lib/utils";
@@ -56,6 +57,8 @@ interface Booking {
   duration: number;
   status: string;
   notes: string | null;
+  createdByName: string | null;
+  marketingConsent: boolean;
   table: { id: string; name: string; capacity: number } | null;
 }
 
@@ -82,6 +85,7 @@ const emptyForm = {
   date: "",
   time: "",
   notes: "",
+  marketingConsent: false,
 };
 
 const STATUS_STYLES: Record<string, string> = {
@@ -469,6 +473,14 @@ export default function BookingsPage() {
                       </span>
                     )}
                   </div>
+
+                  {/* Booked by */}
+                  {b.createdByName && (
+                    <div className="text-xs text-slate-400 flex items-center gap-1 mt-0.5">
+                      <UserCircle className="h-3 w-3 flex-shrink-0" />
+                      Booked by {b.createdByName}
+                    </div>
+                  )}
                 </div>
 
                 {/* Right: chevron */}
@@ -644,12 +656,13 @@ export default function BookingsPage() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label>Phone</Label>
+                <Label>Phone <span className="text-red-500">*</span></Label>
                 <Input
                   value={form.customerPhone}
                   onChange={(e) => setForm({ ...form, customerPhone: e.target.value })}
                   placeholder="+353..."
                   type="tel"
+                  required
                 />
               </div>
               <div className="space-y-1.5">
@@ -702,6 +715,30 @@ export default function BookingsPage() {
                 placeholder="Dietary requirements, occasion…"
               />
             </div>
+            {/* Marketing consent — new bookings only */}
+            {!editBooking && (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 space-y-2">
+                <p className="text-xs font-semibold text-amber-800 uppercase tracking-wide">Staff action required</p>
+                <p className="text-sm text-amber-700">
+                  Please inform the customer that we may contact them with offers and updates. Ask if they&apos;re happy to receive these.
+                </p>
+                <label className="flex items-start gap-2.5 cursor-pointer group">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5 h-4 w-4 rounded border-amber-400 accent-amber-600 flex-shrink-0"
+                    checked={form.marketingConsent}
+                    onChange={(e) => setForm({ ...form, marketingConsent: e.target.checked })}
+                  />
+                  <span className="text-sm text-amber-800 font-medium leading-snug">
+                    Customer was informed and <span className="underline">{form.marketingConsent ? "agreed" : "agreed / declined"}</span> — I confirm this was communicated
+                  </span>
+                </label>
+                {!form.marketingConsent && (
+                  <p className="text-xs text-amber-600 italic">Tick to confirm you&apos;ve had the conversation. Leave unticked if they declined.</p>
+                )}
+              </div>
+            )}
+
             <DialogFooter className="gap-2">
               <Button type="button" variant="outline" onClick={() => setDialogOpen(false)} className="flex-1">
                 Cancel

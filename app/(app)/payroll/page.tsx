@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { DollarSign, ChevronLeft, ChevronRight, Download, FileSpreadsheet } from "lucide-react";
+import { DollarSign, ChevronLeft, ChevronRight, Download, FileSpreadsheet, AlertTriangle, Info } from "lucide-react";
+import { useCurrency } from "@/components/shared/CurrencyProvider";
 import { Button } from "@/components/ui/button";
 
 type PayrollRow = {
@@ -12,6 +13,7 @@ type PayrollRow = {
   totalHours: number;
   totalPay: number;
   shiftCount: number;
+  belowNMW?: boolean;
 };
 
 type PayrollData = {
@@ -19,6 +21,8 @@ type PayrollData = {
   weekEnd: string;
   rows: PayrollRow[];
   grandTotal: number;
+  nmwWarnings?: string[];
+  grossOnly?: boolean;
 };
 
 function getMondayISO(date: Date): string {
@@ -30,6 +34,7 @@ function getMondayISO(date: Date): string {
 }
 
 export default function PayrollPage() {
+  const { symbol, fmt, locale, nmwLabel } = useCurrency();
   const [data, setData] = useState<PayrollData | null>(null);
   const [loading, setLoading] = useState(true);
   const [monday, setMonday] = useState(() => {
@@ -61,7 +66,7 @@ export default function PayrollPage() {
 
   function exportCSV() {
     if (!data) return;
-    const header = ["Name", "Shifts", "Total Hours", "Hourly Rate (€)", "Total Pay (€)"];
+    const header = ["Name", "Shifts", "Total Hours", `Hourly Rate (${symbol})`, `Total Pay (${symbol})`];
     const rows = data.rows.map((r) => [
       `${r.firstName} ${r.lastName}`,
       r.shiftCount,
@@ -84,7 +89,7 @@ export default function PayrollPage() {
   }
 
   const weekLabel = data
-    ? `${new Date(data.weekStart).toLocaleDateString("en-IE", { day: "numeric", month: "short" })} – ${new Date(data.weekEnd).toLocaleDateString("en-IE", { day: "numeric", month: "short", year: "numeric" })}`
+    ? `${new Date(data.weekStart).toLocaleDateString(locale, { day: "numeric", month: "short" })} – ${new Date(data.weekEnd).toLocaleDateString(locale, { day: "numeric", month: "short", year: "numeric" })}`
     : monday;
 
   return (
@@ -122,6 +127,32 @@ export default function PayrollPage() {
           <ChevronRight className="h-5 w-5" />
         </Button>
       </div>
+
+      {/* Gross-only disclaimer */}
+      <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 flex gap-3 text-sm">
+        <Info className="h-4 w-4 text-blue-600 flex-shrink-0 mt-0.5" />
+        <p className="text-blue-800">
+          <strong>Gross pay only.</strong> PAYE, PRSI, and USC deductions must be calculated via BrightPay or equivalent payroll software before paying employees. Use the BrightPay Export button to transfer data.
+        </p>
+      </div>
+
+      {/* NMW warnings */}
+      {data?.nmwWarnings && data.nmwWarnings.length > 0 && (
+        <div className="border border-red-200 bg-red-50 rounded-xl px-4 py-3 space-y-1.5">
+          <div className="flex items-center gap-2 mb-1">
+            <AlertTriangle className="h-4 w-4 text-red-600 flex-shrink-0" />
+            <p className="text-sm font-semibold text-red-800">
+              National Minimum Wage — {data.nmwWarnings.length} alert{data.nmwWarnings.length > 1 ? "s" : ""}
+            </p>
+          </div>
+          {data.nmwWarnings.map((w, i) => (
+            <p key={i} className="text-xs text-red-700 pl-6">{w}</p>
+          ))}
+          <p className="text-xs text-red-500 pl-6 mt-1">
+            {nmwLabel} Update the employee's rate in their profile.
+          </p>
+        </div>
+      )}
 
       {/* Table */}
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
@@ -162,10 +193,17 @@ export default function PayrollPage() {
                   <td className="px-6 py-4 text-right text-slate-600">{row.shiftCount}</td>
                   <td className="px-6 py-4 text-right text-slate-600">{row.totalHours}h</td>
                   <td className="px-6 py-4 text-right text-slate-600">
-                    {row.hourlyRate > 0 ? `€${row.hourlyRate.toFixed(2)}` : "—"}
+                    {row.hourlyRate > 0 ? fmt(row.hourlyRate) : "—"}
                   </td>
                   <td className="px-6 py-4 text-right font-semibold text-slate-900">
-                    {row.hourlyRate > 0 ? `€${row.totalPay.toFixed(2)}` : "—"}
+                    <div className="flex items-center justify-end gap-2">
+                      {row.belowNMW && (
+                        <span title={`Below minimum wage — check ${symbol === "£" ? "UK NLW" : "Irish NMW"}`}>
+                          <AlertTriangle className="h-3.5 w-3.5 text-red-500" />
+                        </span>
+                      )}
+                      {row.hourlyRate > 0 ? fmt(row.totalPay) : "—"}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -176,7 +214,7 @@ export default function PayrollPage() {
                   Weekly Total
                 </td>
                 <td className="px-6 py-4 text-right font-bold text-blue-700 text-lg">
-                  €{data.grandTotal.toFixed(2)}
+                  {fmt(data.grandTotal)}
                 </td>
               </tr>
             </tfoot>

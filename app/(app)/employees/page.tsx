@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
+import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -311,14 +312,18 @@ export default function EmployeesPage() {
             <Card key={emp.id} className={`hover:shadow-md transition-shadow ${!emp.active ? "opacity-50" : ""}`}>
               <CardContent className="p-4">
                 <div className="flex items-center gap-4">
-                  <Avatar className="h-10 w-10 flex-shrink-0">
-                    <AvatarFallback className="bg-blue-100 text-blue-700 text-sm font-semibold">
-                      {getInitials(`${emp.firstName} ${emp.lastName}`)}
-                    </AvatarFallback>
-                  </Avatar>
+                  <Link href={`/employees/${emp.id}`} className="flex-shrink-0">
+                    <Avatar className="h-10 w-10 hover:ring-2 hover:ring-blue-400 transition-all cursor-pointer">
+                      <AvatarFallback className="bg-blue-100 text-blue-700 text-sm font-semibold">
+                        {getInitials(`${emp.firstName} ${emp.lastName}`)}
+                      </AvatarFallback>
+                    </Avatar>
+                  </Link>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <p className="font-semibold text-slate-900">{emp.firstName} {emp.lastName}</p>
+                      <Link href={`/employees/${emp.id}`} className="font-semibold text-slate-900 hover:text-blue-600 transition-colors">
+                        {emp.firstName} {emp.lastName}
+                      </Link>
                       <Badge variant={roleColor(emp.role)} className="capitalize text-xs">{emp.role}</Badge>
                       {!emp.active && <Badge variant="destructive" className="text-xs">Inactive</Badge>}
                     </div>

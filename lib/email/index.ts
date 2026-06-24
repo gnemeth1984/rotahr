@@ -23,7 +23,7 @@ export async function sendTimeOffStatusEmail({
   const statusText = status === "APPROVED" ? "Approved ✅" : "Rejected ❌";
 
   await resend.emails.send({
-    from: process.env.EMAIL_FROM ?? "noreply@rotahr.app",
+    from: process.env.EMAIL_FROM ?? "sales@rotahr.com",
     to,
     subject: `Time Off Request ${statusText} — Rotahr`,
     html: `
@@ -60,7 +60,7 @@ export async function sendNewTimeOffRequestEmail({
 }) {
   const resend = getResend();
   await resend.emails.send({
-    from: process.env.EMAIL_FROM ?? "noreply@rotahr.app",
+    from: process.env.EMAIL_FROM ?? "sales@rotahr.com",
     to,
     subject: `New Time Off Request — ${employeeName}`,
     html: `
