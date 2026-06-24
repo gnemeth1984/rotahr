@@ -93,7 +93,7 @@ async function hash(pw: string) {
 }
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
-async function main() {
+async function main(prisma: PrismaClient = new PrismaClient()) {
   console.log("🌱 Seeding demo: The Anchor & Tap...");
 
   const pw = await hash(PW);
@@ -865,6 +865,28 @@ async function main() {
   console.log("Password for all: Demo1234!");
 }
 
-main()
-  .catch((e) => { console.error(e); process.exit(1); })
-  .finally(() => prisma.$disconnect());
+/**
+ * seedDemo() — exported for in-process use (e.g. Vercel serverless, API routes).
+ * Runs all the seed logic with its own Prisma client instance.
+ */
+export async function seedDemo(): Promise<void> {
+  const seedPrisma = new PrismaClient();
+  try {
+    await main(seedPrisma);
+  } finally {
+    await seedPrisma.$disconnect();
+  }
+}
+
+// ─── CLI entry point (only runs when executed directly, not when imported) ─────
+// detect: node/tsx running this file directly
+const isMain =
+  typeof require !== "undefined"
+    ? require.main === module
+    : import.meta.url === `file://${process.argv[1]}`;
+
+if (isMain) {
+  main(prisma)
+    .catch((e) => { console.error(e); process.exit(1); })
+    .finally(() => prisma.$disconnect());
+}
