@@ -8,12 +8,16 @@ export default function PushSubscribeButton() {
   const [mounted, setMounted] = useState(false);
   const [supported, setSupported] = useState(false);
   const [subscribed, setSubscribed] = useState(false);
+  const [blocked, setBlocked] = useState(false);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     setMounted(true);
     if ("serviceWorker" in navigator && "PushManager" in window) {
       setSupported(true);
+      if (Notification.permission === "denied") {
+        setBlocked(true);
+      }
       navigator.serviceWorker.ready.then(async (reg) => {
         const sub = await reg.pushManager.getSubscription();
         setSubscribed(!!sub);
@@ -21,7 +25,13 @@ export default function PushSubscribeButton() {
     }
   }, []);
 
-  if (!mounted || !supported) return null;
+  if (!mounted) return null;
+
+  if (!supported) {
+    return (
+      <p className="text-xs text-slate-400">Push notifications are not supported in this browser.</p>
+    );
+  }
 
   async function subscribe() {
     setLoading(true);
@@ -65,6 +75,14 @@ export default function PushSubscribeButton() {
     } finally {
       setLoading(false);
     }
+  }
+
+  if (blocked) {
+    return (
+      <p className="text-xs text-amber-600">
+        Notifications are blocked in your browser. Click the lock icon in the address bar and allow notifications, then refresh.
+      </p>
+    );
   }
 
   return (
