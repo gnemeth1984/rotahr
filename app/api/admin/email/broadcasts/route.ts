@@ -41,7 +41,7 @@ export async function POST(req: Request) {
       previewText,
       html,
       audienceId,
-      from: "Gabor from Rotahr <gabor@rotahr.app>",
+      from: "Gabor from Rotahr <sales@rotahr.com>",
     });
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
     return NextResponse.json(data);
