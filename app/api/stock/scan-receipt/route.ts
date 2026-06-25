@@ -72,7 +72,7 @@ Extract every line item you can see. If you can't read a field, use null.`;
         Authorization: `Bearer ${openaiKey}`,
       },
       body: JSON.stringify({
-        model: "gpt-4o-mini",
+        model: "gpt-4o",
         messages: [
           {
             role: "user",
