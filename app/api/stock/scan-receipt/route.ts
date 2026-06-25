@@ -9,7 +9,6 @@ export const maxDuration = 60;
 export async function POST(req: NextRequest) {
   const session = await requirePermission("stocktaking");
   if (isResponse(session)) return session;
-
   const businessId = session.user.businessId!;
 
   try {
@@ -19,88 +18,55 @@ export async function POST(req: NextRequest) {
 
     const fileBuffer = await file.arrayBuffer();
     const mimeType = file.type || "image/jpeg";
-
-    // Upload to Vercel Blob (do in parallel with AI)
-    const blobPromise = put(`stock-receipts/${Date.now()}-${file.name}`, file, { access: "private" });
-
-    // Load existing stock items for matching
-    const existingItems = await prisma.stockItem.findMany({
-      where: { businessId },
-      select: { id: true, name: true, unit: true, lastPrice: true, supplierId: true, supplier: { select: { name: true } } },
-    });
-    const existingNames = existingItems.map((e) => e.name).join(", ");
-
-    const openaiKey = process.env.OPENAI_API_KEY;
-    if (!openaiKey) {
-      const blob = await blobPromise;
-      return NextResponse.json({ url: blob.url, suggestions: [], error: "OPENAI_API_KEY not set" });
-    }
-
-    // Compress: cap base64 at ~1MB — resize large images client-side isn't possible server-side
-    // but we can send as "auto" detail and let OpenAI decide
     const base64Image = Buffer.from(fileBuffer).toString("base64");
 
-    const prompt = `You are a stock management assistant for a hospitality business. Scan this supplier invoice/delivery note/receipt and extract every line item.
+    const openaiKey = process.env.OPENAI_API_KEY;
+    if (!openaiKey) return NextResponse.json({ error: "OPENAI_API_KEY not set" }, { status: 500 });
 
-Return ONLY valid JSON — no markdown, no explanation, no extra text. Exactly this format:
-{"vendor":"name or null","invoiceDate":"YYYY-MM-DD or null","invoiceTotal":0,"items":[{"name":"product name","quantity":1,"unit":"unit","unitPrice":0}]}
-
-Units must be one of: unit, kg, g, litre, ml, case, box, bottle, pack, pcs
-Existing stock items to help normalise names: ${existingNames || "none yet"}
-Extract every line item visible. Use null for any field you cannot read.`;
-
-    const aiRes = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${openaiKey}`,
-      },
-      body: JSON.stringify({
-        model: "gpt-4o",
-        messages: [
-          {
+    // Run blob upload + DB fetch in parallel with AI call
+    const [blob, existingItems, aiRes] = await Promise.all([
+      put(`stock-receipts/${Date.now()}-${file.name}`, file, { access: "private" }),
+      prisma.stockItem.findMany({
+        where: { businessId },
+        select: { id: true, name: true, unit: true, lastPrice: true },
+      }),
+      fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${openaiKey}` },
+        body: JSON.stringify({
+          model: "gpt-4o",
+          response_format: { type: "json_object" },
+          messages: [{
             role: "user",
             content: [
-              { type: "text", text: prompt },
-              { type: "image_url", image_url: { url: `data:${mimeType};base64,${base64Image}`, detail: "auto" } },
+              { type: "text", text: `Extract every line item from this supplier invoice. Return ONLY valid JSON:\n{"vendor":"string or null","invoiceDate":"YYYY-MM-DD or null","invoiceTotal":null,"items":[{"name":"string","quantity":1,"unit":"unit","unitPrice":null}]}\nUnits must be one of: unit, kg, g, litre, ml, case, box, bottle, pack, pcs\nUse null for any field you cannot read.` },
+              { type: "image_url", image_url: { url: `data:${mimeType};base64,${base64Image}`, detail: "high" } },
             ],
-          },
-        ],
-        max_tokens: 4000,
-        temperature: 0,
-        response_format: { type: "json_object" },
+          }],
+          max_tokens: 4000,
+          temperature: 0,
+        }),
       }),
-    });
+    ]);
 
-    const [blob, aiJson] = await Promise.all([blobPromise, aiRes.json()]);
+    if (!aiRes.ok) {
+      const errText = await aiRes.text();
+      console.error("[scan-receipt] OpenAI error:", aiRes.status, errText.slice(0, 300));
+      return NextResponse.json({ error: `OpenAI error: ${aiRes.status}` }, { status: 500 });
+    }
 
-    const content = aiJson.choices?.[0]?.message?.content ?? "";
-    console.log("[scan-receipt] raw:", content.slice(0, 300));
+    const aiJson = await aiRes.json();
+    const content = aiJson.choices?.[0]?.message?.content ?? "{}";
+    console.log("[scan-receipt] OpenAI response:", content.slice(0, 400));
 
     let aiData: any = {};
-    try {
-      aiData = JSON.parse(content);
-    } catch {
-      // regex fallback
-      const vendorMatch = content.match(/"vendor"\s*:\s*"([^"]*)"/);
-      const dateMatch = content.match(/"invoiceDate"\s*:\s*"([^"]*)"/);
-      const totalMatch = content.match(/"invoiceTotal"\s*:\s*([\d.]+)/);
-      const itemsMatch = content.match(/"items"\s*:\s*(\[[\s\S]*)/);
-      let items: any[] = [];
-      if (itemsMatch) {
-        let raw = itemsMatch[1];
-        const open = (raw.match(/\{/g) || []).length - (raw.match(/\}/g) || []).length;
-        raw += "}".repeat(Math.max(0, open)) + "]";
-        try { items = JSON.parse(raw); } catch { items = []; }
-      }
-      aiData = { vendor: vendorMatch?.[1], invoiceDate: dateMatch?.[1] ?? null, invoiceTotal: totalMatch ? parseFloat(totalMatch[1]) : null, items };
-    }
+    try { aiData = JSON.parse(content); } catch { aiData = {}; }
 
     const suggestions = (aiData.items ?? []).map((item: any) => {
       const match = existingItems.find(
         (e) =>
-          e.name.toLowerCase().includes(item.name?.toLowerCase().slice(0, 6) ?? "") ||
-          item.name?.toLowerCase().includes(e.name.toLowerCase().slice(0, 6))
+          e.name.toLowerCase().includes((item.name ?? "").toLowerCase().slice(0, 6)) ||
+          (item.name ?? "").toLowerCase().includes(e.name.toLowerCase().slice(0, 6))
       );
       return {
         name: item.name,
@@ -110,11 +76,9 @@ Extract every line item visible. Use null for any field you cannot read.`;
         existingItemId: match?.id ?? null,
         existingName: match?.name ?? null,
         existingPrice: match?.lastPrice ?? null,
-        priceChanged: !!(match && item.unitPrice !== null && match.lastPrice !== item.unitPrice),
+        priceChanged: !!(match && item.unitPrice != null && match.lastPrice !== item.unitPrice),
       };
     });
-
-    console.log("[scan-receipt] suggestions:", suggestions.length);
 
     return NextResponse.json({
       url: blob.url,

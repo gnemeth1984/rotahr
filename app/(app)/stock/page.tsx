@@ -845,62 +845,16 @@ function StockReceiptScanDialog({
     setUploading(true);
     setError("");
     try {
-      // Step 1: get OpenAI key from authenticated proxy (no timeout issue — tiny request)
-      const tokenRes = await fetch("/api/stock/ai-token");
-      if (!tokenRes.ok) { setError("Not authorised"); setUploading(false); return; }
-      const { key } = await tokenRes.json();
-
-      // Step 2: convert image to base64 in browser
-      const base64Image = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve((reader.result as string).split(",")[1]);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-      const mimeType = file.type || "image/jpeg";
-
-      // Step 3: call OpenAI directly from browser — no Vercel timeout
-      const aiRes = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
-        body: JSON.stringify({
-          model: "gpt-4o",
-          response_format: { type: "json_object" },
-          messages: [{
-            role: "user",
-            content: [
-              { type: "text", text: `You are a stock management assistant. Extract every line item from this supplier invoice/delivery note.\n\nReturn ONLY valid JSON:\n{"vendor":"name or null","invoiceDate":"YYYY-MM-DD or null","invoiceTotal":0,"items":[{"name":"product name","quantity":1,"unit":"unit","unitPrice":0}]}\n\nUnits: unit, kg, g, litre, ml, case, box, bottle, pack, pcs\nUse null for any field you cannot read.` },
-              { type: "image_url", image_url: { url: `data:${mimeType};base64,${base64Image}`, detail: "high" } },
-            ],
-          }],
-          max_tokens: 4000,
-          temperature: 0,
-        }),
-      });
-
-      const aiJson = await aiRes.json();
-      const content = aiJson.choices?.[0]?.message?.content ?? "{}";
-      const aiData = JSON.parse(content);
-
-      // Step 4: upload to blob via server (no AI, fast)
       const fd = new FormData();
       fd.append("file", file);
-      const uploadRes = await fetch("/api/stock/upload-receipt-blob", { method: "POST", body: fd });
-      const uploadData = uploadRes.ok ? await uploadRes.json() : { url: null };
-
-      // Step 5: match items to existing stock via server
-      const matchRes = await fetch("/api/stock/match-items", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items: aiData.items ?? [] }),
-      });
-      const matchData = matchRes.ok ? await matchRes.json() : { suggestions: [] };
-
-      setVendor(aiData.vendor ?? null);
-      setInvoiceDate(aiData.invoiceDate ?? null);
-      setSuggestions(matchData.suggestions ?? []);
+      const res = await fetch("/api/stock/scan-receipt", { method: "POST", body: fd });
+      const data = await res.json();
+      if (!res.ok || data.error) { setError(data.error ?? "Scan failed"); setUploading(false); return; }
+      setVendor(data.vendor ?? null);
+      setInvoiceDate(data.invoiceDate ?? null);
+      setSuggestions(data.suggestions ?? []);
       const init: Record<number, boolean> = {};
-      (matchData.suggestions ?? []).forEach((_: ScanSuggestion, i: number) => { init[i] = true; });
+      (data.suggestions ?? []).forEach((_: ScanSuggestion, i: number) => { init[i] = true; });
       setSelected(init);
       setStep("review");
     } catch (e: any) {
