@@ -88,12 +88,15 @@ Extract every line item you can see. If you can't read a field, use null.`;
     });
 
     const aiJson = await aiRes.json();
+    console.log("[scan-receipt] OpenAI raw response:", JSON.stringify(aiJson).slice(0, 500));
     const content = aiJson.choices?.[0]?.message?.content ?? "";
+    console.log("[scan-receipt] content:", content.slice(0, 500));
     const cleaned = content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
 
     // Safe JSON parse — attempt to recover truncated JSON
     try {
       aiData = JSON.parse(cleaned);
+      console.log("[scan-receipt] parsed items:", aiData.items?.length ?? 0);
     } catch {
       // Try to extract partial items array if truncated
       const vendorMatch = cleaned.match(/"vendor"\s*:\s*"([^"]*)"/);
