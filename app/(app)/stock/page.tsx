@@ -1133,10 +1133,10 @@ function StockReceiptScanDialog({
 
 // ─── Stock List Tab ───────────────────────────────────────────────────────────
 
-function StockListTab({ items, suppliers, loading, onAdd, onEdit, onDelete, onScan }: {
+function StockListTab({ items, suppliers, loading, onAdd, onEdit, onDelete, onScan, fmt }: {
   items: StockItem[]; suppliers: Supplier[]; loading: boolean;
   onAdd: () => void; onEdit: (i: StockItem) => void; onDelete: (id: string) => void;
-  onScan: () => void;
+  onScan: () => void; fmt: (n: number | null | undefined) => string;
 }) {
   const [search, setSearch] = useState("");
   const [filterSupplier, setFilterSupplier] = useState("all");
@@ -1626,6 +1626,7 @@ export default function StockPage() {
           onEdit={(i) => setStockDialog({ open: true, editing: i })}
           onDelete={deleteStockItem}
           onScan={() => setScanDialog(true)}
+          fmt={fmt}
         />
       )}
 
