@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requirePermission, isResponse } from "@/lib/auth/middleware";
 import { put } from "@vercel/blob";
 import { prisma } from "@/lib/db";
+import OpenAI from "openai";
 
 export const maxDuration = 60;
 
@@ -16,48 +17,40 @@ export async function POST(req: NextRequest) {
     const file = formData.get("file") as File;
     if (!file) return NextResponse.json({ error: "No file provided" }, { status: 400 });
 
+    if (!process.env.OPENAI_API_KEY) {
+      return NextResponse.json({ error: "OPENAI_API_KEY not set" }, { status: 500 });
+    }
+
     const fileBuffer = await file.arrayBuffer();
     const mimeType = file.type || "image/jpeg";
     const base64Image = Buffer.from(fileBuffer).toString("base64");
 
-    const openaiKey = process.env.OPENAI_API_KEY;
-    if (!openaiKey) return NextResponse.json({ error: "OPENAI_API_KEY not set" }, { status: 500 });
+    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
     // Run blob upload + DB fetch in parallel with AI call
-    const [blob, existingItems, aiRes] = await Promise.all([
+    const [blob, existingItems, aiResponse] = await Promise.all([
       put(`stock-receipts/${Date.now()}-${file.name}`, file, { access: "private" }),
       prisma.stockItem.findMany({
         where: { businessId },
         select: { id: true, name: true, unit: true, lastPrice: true },
       }),
-      fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${openaiKey}` },
-        body: JSON.stringify({
-          model: "gpt-4o",
-          response_format: { type: "json_object" },
-          messages: [{
-            role: "user",
-            content: [
-              { type: "text", text: `Extract every line item from this supplier invoice. Return ONLY valid JSON:\n{"vendor":"string or null","invoiceDate":"YYYY-MM-DD or null","invoiceTotal":null,"items":[{"name":"string","quantity":1,"unit":"unit","unitPrice":null}]}\nUnits must be one of: unit, kg, g, litre, ml, case, box, bottle, pack, pcs\nUse null for any field you cannot read.` },
-              { type: "image_url", image_url: { url: `data:${mimeType};base64,${base64Image}`, detail: "high" } },
-            ],
-          }],
-          max_tokens: 4000,
-          temperature: 0,
-        }),
+      openai.chat.completions.create({
+        model: "gpt-4o",
+        response_format: { type: "json_object" },
+        messages: [{
+          role: "user",
+          content: [
+            { type: "text", text: `Extract every line item from this supplier invoice. Return ONLY valid JSON:\n{"vendor":"string or null","invoiceDate":"YYYY-MM-DD or null","invoiceTotal":null,"items":[{"name":"string","quantity":1,"unit":"unit","unitPrice":null}]}\nUnits must be one of: unit, kg, g, litre, ml, case, box, bottle, pack, pcs\nUse null for any field you cannot read.` },
+            { type: "image_url", image_url: { url: `data:${mimeType};base64,${base64Image}`, detail: "high" } },
+          ],
+        }],
+        max_tokens: 4000,
+        temperature: 0,
       }),
     ]);
 
-    if (!aiRes.ok) {
-      const errText = await aiRes.text();
-      console.error("[scan-receipt] OpenAI error:", aiRes.status, errText.slice(0, 300));
-      return NextResponse.json({ error: `OpenAI error: ${aiRes.status}` }, { status: 500 });
-    }
-
-    const aiJson = await aiRes.json();
-    const content = aiJson.choices?.[0]?.message?.content ?? "{}";
-    console.log("[scan-receipt] OpenAI response:", content.slice(0, 400));
+    const content = aiResponse.choices?.[0]?.message?.content ?? "{}";
+    console.log("[scan-receipt] response:", content.slice(0, 300));
 
     let aiData: any = {};
     try { aiData = JSON.parse(content); } catch { aiData = {}; }
