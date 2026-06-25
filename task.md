@@ -1,31 +1,35 @@
-# Rotahr Full Audit — Fixes Needed
+# Menu Planning Feature
 
-## Issues Found
+## Tabs inside Menu & Specials page
+1. **Specials** (existing tab — current page content)
+2. **Menu Planner** (weekly grid Mon-Sun × Breakfast/Lunch/Dinner)
+3. **Dish Library** (CRUD dishes: name, category, sell price, cost price, margin)
+4. **Recipe Cards** (ingredients from stock items → food cost %)
+5. **Templates** (save week as template, copy to week)
 
-### 1. CRITICAL - Vercel Blob hostname missing from next.config
-Blob receipt images won't render via Next.js Image component.
-- Add `*.public.blob.vercel-storage.com` and `*.vercel-storage.com` to remotePatterns
+## DB Models needed
+- `Dish` — id, businessId, name, category, sellPrice, costPrice, description, imageUrl
+- `DishIngredient` — id, dishId, stockItemId, qty, unit
+- `MenuTemplate` — id, businessId, name, weekData (JSON)
+- `WeeklyMenuPlan` — id, businessId, weekStart (Date), planData (JSON {mon:{breakfast:[dishId],...},...})
 
-### 2. HIGH - Forgot password email sends from `onboarding@resend.dev`
-Should send from `noreply@rotahr.com` or `team@rotahr.com` (verified Resend domain).
-Fix: `app/api/auth/forgot-password/route.ts`
+## Permissions
+- ADMIN / MANAGER: full access always
+- Employee with permission "menu_planning" can edit
+- All staff: read-only view
 
-### 3. HIGH - /settings has no index page  
-Navigating to /settings gives a 404. Sidebar links to /settings/venues.
-Fix: Add redirect from /settings → /settings/venues
+## AI suggestions
+- GET /api/menu/ai-suggestions → reads overstock items → GPT → returns dish ideas
 
-### 4. MEDIUM - No OPENAI_API_KEY env check in next.config
-No image domain for Vercel Blob presigned URLs in next.config (for <Image> tags)
+## APIs needed
+- /api/menu/dishes — CRUD
+- /api/menu/dishes/[id]/ingredients — CRUD
+- /api/menu/plans — GET/POST weekly plan
+- /api/menu/templates — CRUD
+- /api/menu/ai-suggestions — AI overstock suggestions
 
-### 5. INFO - Two separate Prisma clients (lib/db vs lib/prisma)
-Both use globalThis singleton so no real risk, but messy.
-Fix: Make lib/prisma.ts re-export from lib/db to consolidate
-
-### 6. INFO - Google OAuth user onboarding - session not refreshed after business creation
-Fixed in previous session (window.location.href reload) ✓
-
-## Status
-- [ ] next.config blob hostname fix
-- [ ] forgot-password email sender fix  
-- [ ] /settings redirect page
-- [ ] lib/prisma consolidation
+## Steps
+1. Add Prisma models + migrate
+2. Build API routes
+3. Build page with tabs
+4. Wire AI suggestions

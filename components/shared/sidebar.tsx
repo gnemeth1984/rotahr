@@ -135,7 +135,7 @@ const navItems = [
   },
   {
     href: "/menu-specials",
-    label: "Menu & Specials",
+    label: "Menu & Planning",
     icon: Utensils,
     roles: [Role.EMPLOYEE, Role.MANAGER, Role.ADMIN],
     permission: null,

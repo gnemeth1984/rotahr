@@ -36,6 +36,9 @@ model Business {
   supplierOrders SupplierOrder[]
   shiftSwapRequests ShiftSwapRequest[]
   tipPools     TipPool[]
+  dishes       Dish[]
+  weeklyMenuPlans WeeklyMenuPlan[]
+  menuTemplates   MenuTemplate[]
 
   // Locale / currency
   currency           String   @default("EUR") // "EUR" | "GBP"
@@ -435,6 +438,7 @@ model StockItem {
   lastExpenseId String?         // which expense/receipt last updated this item
 
   orderItems   OrderItem[]
+  dishIngredients DishIngredient[]
 
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -618,4 +622,70 @@ model TrainingCertification {
   @@index([businessId, category])
   @@index([employeeId])
   @@index([expiryDate])
+}
+
+// ── Menu Planning ─────────────────────────────────────────────────────────────
+
+model Dish {
+  id          String   @id @default(cuid())
+  businessId  String
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  name        String
+  description String?  @db.Text
+  category    String   @default("main") // starter | main | dessert | drinks | sides | other
+  sellPrice   Float?
+  costPrice   Float?   // auto-calculated from ingredients if set
+  imageUrl    String?
+  active      Boolean  @default(true)
+
+  ingredients DishIngredient[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([businessId, active])
+}
+
+model DishIngredient {
+  id          String    @id @default(cuid())
+  dishId      String
+  dish        Dish      @relation(fields: [dishId], references: [id], onDelete: Cascade)
+  stockItemId String?
+  stockItem   StockItem? @relation(fields: [stockItemId], references: [id], onDelete: SetNull)
+
+  name        String    // free-text fallback if no stockItemId
+  qty         Float     @default(1)
+  unit        String    @default("unit")
+
+  @@index([dishId])
+}
+
+model WeeklyMenuPlan {
+  id          String   @id @default(cuid())
+  businessId  String
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  weekStart   DateTime // Monday date (date only, no time)
+  planData    Json     // { mon: { breakfast: [dishId,...], lunch: [...], dinner: [...] }, tue: {...}, ... }
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([businessId, weekStart])
+  @@index([businessId, weekStart])
+}
+
+model MenuTemplate {
+  id          String   @id @default(cuid())
+  businessId  String
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  name        String
+  planData    Json     // same shape as WeeklyMenuPlan.planData
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([businessId])
 }
