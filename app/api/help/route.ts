@@ -96,8 +96,8 @@ export async function POST(req: NextRequest) {
   const role = (session.user.role ?? "STAFF") as UserRole;
   const { message, history = [] } = parsed.data;
 
-  const groqKey = process.env.GROQ_API_KEY;
-  if (!groqKey) {
+  const openaiKey = process.env.OPENAI_API_KEY;
+  if (!openaiKey) {
     return NextResponse.json({
       response:
         "AI is not configured yet. Please contact your admin.\n\nCommon questions:\n• \"How do I request time off?\"\n• \"How does the rota work?\"\n• \"How do I export payroll to BrightPay?\"",
@@ -112,14 +112,14 @@ export async function POST(req: NextRequest) {
       { role: "user", content: message },
     ];
 
-    const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    const res = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${groqKey}`,
+        Authorization: `Bearer ${openaiKey}`,
       },
       body: JSON.stringify({
-        model: "llama3-8b-8192",
+        model: "gpt-4o-mini",
         messages,
         max_tokens: 500,
         temperature: 0.4,
