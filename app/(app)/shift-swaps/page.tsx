@@ -269,13 +269,10 @@ export default function ShiftSwapsPage() {
               Offer your shift for swapping — a colleague accepts, manager approves.
             </p>
           </div>
-          {/* Staff (non-managers) get the request button */}
-          {!isManager && (
-            <Button size="sm" onClick={() => setShowModal(true)} className="flex-shrink-0">
-              <Plus className="h-4 w-4 mr-1.5" />
-              Request swap
-            </Button>
-          )}
+          <Button size="sm" onClick={() => setShowModal(true)} className="flex-shrink-0">
+            <Plus className="h-4 w-4 mr-1.5" />
+            Request swap
+          </Button>
         </div>
 
         {error && (
