@@ -12,7 +12,6 @@ export async function POST(req: NextRequest) {
     const file = formData.get("file") as File;
     if (!file) return NextResponse.json({ error: "No file provided" }, { status: 400 });
 
-    // Read file bytes and convert to base64 BEFORE uploading
     const fileBuffer = await file.arrayBuffer();
     const base64Image = Buffer.from(fileBuffer).toString("base64");
     const mimeType = file.type || "image/jpeg";
@@ -22,7 +21,6 @@ export async function POST(req: NextRequest) {
       access: "private",
     });
 
-    // AI extraction via Google Gemini 1.5 Flash (free tier, vision capable)
     let aiData: {
       vendor?: string;
       date?: string;
@@ -34,9 +32,9 @@ export async function POST(req: NextRequest) {
       rawText?: string;
     } = {};
 
-    const geminiKey = process.env.GEMINI_API_KEY;
+    const openaiKey = process.env.OPENAI_API_KEY;
 
-    if (geminiKey) {
+    if (openaiKey) {
       try {
         const prompt = `You are a bookkeeping assistant. Extract data from this receipt/invoice image and return ONLY valid JSON with these fields:
 {
@@ -51,35 +49,30 @@ export async function POST(req: NextRequest) {
 }
 Return ONLY the JSON object, no markdown, no explanation.`;
 
-        const aiRes = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              contents: [
-                {
-                  parts: [
-                    { text: prompt },
-                    {
-                      inline_data: {
-                        mime_type: mimeType,
-                        data: base64Image,
-                      },
-                    },
-                  ],
-                },
-              ],
-              generationConfig: {
-                maxOutputTokens: 800,
-                temperature: 0.1,
+        const aiRes = await fetch("https://api.openai.com/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${openaiKey}`,
+          },
+          body: JSON.stringify({
+            model: "gpt-4o-mini",
+            messages: [
+              {
+                role: "user",
+                content: [
+                  { type: "text", text: prompt },
+                  { type: "image_url", image_url: { url: `data:${mimeType};base64,${base64Image}`, detail: "high" } },
+                ],
               },
-            }),
-          }
-        );
+            ],
+            max_tokens: 800,
+            temperature: 0.1,
+          }),
+        });
 
         const aiJson = await aiRes.json();
-        const content = aiJson.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+        const content = aiJson.choices?.[0]?.message?.content ?? "";
         const cleaned = content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
         aiData = JSON.parse(cleaned);
       } catch (aiErr: any) {
@@ -93,11 +86,10 @@ Return ONLY the JSON object, no markdown, no explanation.`;
       return NextResponse.json({
         url: blob.url,
         ai: {},
-        aiError: "GEMINI_API_KEY not set",
+        aiError: "OPENAI_API_KEY not set",
       });
     }
 
-    // Build a data URI so the caller can store it permanently in the DB
     const dataUri = `data:${mimeType};base64,${base64Image}`;
 
     return NextResponse.json({

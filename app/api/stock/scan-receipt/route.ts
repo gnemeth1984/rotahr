@@ -15,7 +15,6 @@ export async function POST(req: NextRequest) {
     const file = formData.get("file") as File;
     if (!file) return NextResponse.json({ error: "No file provided" }, { status: 400 });
 
-    // Read bytes for AI
     const fileBuffer = await file.arrayBuffer();
     const base64Image = Buffer.from(fileBuffer).toString("base64");
     const mimeType = file.type || "image/jpeg";
@@ -33,9 +32,9 @@ export async function POST(req: NextRequest) {
 
     const existingNames = existingItems.map((e) => e.name).join(", ");
 
-    const geminiKey = process.env.GEMINI_API_KEY;
-    if (!geminiKey) {
-      return NextResponse.json({ url: blob.url, suggestions: [], error: "GEMINI_API_KEY not set" });
+    const openaiKey = process.env.OPENAI_API_KEY;
+    if (!openaiKey) {
+      return NextResponse.json({ url: blob.url, suggestions: [], error: "OPENAI_API_KEY not set" });
     }
 
     const prompt = `You are a stock management assistant for a hospitality business. Scan this supplier invoice/delivery note/receipt and extract every line item.
@@ -66,27 +65,30 @@ Extract every line item you can see. If you can't read a field, use null.`;
       items?: Array<{ name: string; quantity: number; unit: string; unitPrice: number | null }>;
     } = {};
 
-    const aiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [
-                { text: prompt },
-                { inline_data: { mime_type: mimeType, data: base64Image } },
-              ],
-            },
-          ],
-          generationConfig: { maxOutputTokens: 1200, temperature: 0.1 },
-        }),
-      }
-    );
+    const aiRes = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${openaiKey}`,
+      },
+      body: JSON.stringify({
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: prompt },
+              { type: "image_url", image_url: { url: `data:${mimeType};base64,${base64Image}`, detail: "high" } },
+            ],
+          },
+        ],
+        max_tokens: 1200,
+        temperature: 0.1,
+      }),
+    });
 
     const aiJson = await aiRes.json();
-    const content = aiJson.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+    const content = aiJson.choices?.[0]?.message?.content ?? "";
     const cleaned = content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
     aiData = JSON.parse(cleaned);
 
