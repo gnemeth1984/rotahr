@@ -82,7 +82,7 @@ Extract every line item you can see. If you can't read a field, use null.`;
             ],
           },
         ],
-        max_tokens: 1200,
+        max_tokens: 4000,
         temperature: 0.1,
       }),
     });
@@ -90,7 +90,32 @@ Extract every line item you can see. If you can't read a field, use null.`;
     const aiJson = await aiRes.json();
     const content = aiJson.choices?.[0]?.message?.content ?? "";
     const cleaned = content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-    aiData = JSON.parse(cleaned);
+
+    // Safe JSON parse — attempt to recover truncated JSON
+    try {
+      aiData = JSON.parse(cleaned);
+    } catch {
+      // Try to extract partial items array if truncated
+      const vendorMatch = cleaned.match(/"vendor"\s*:\s*"([^"]*)"/);
+      const dateMatch = cleaned.match(/"invoiceDate"\s*:\s*"([^"]*)"/);
+      const totalMatch = cleaned.match(/"invoiceTotal"\s*:\s*([\d.]+)/);
+      const itemsMatch = cleaned.match(/"items"\s*:\s*(\[[\s\S]*)/);
+      let items: any[] = [];
+      if (itemsMatch) {
+        // Try parsing whatever we got of the array, closing it if truncated
+        let raw = itemsMatch[1];
+        // Close any open object and the array
+        const openBraces = (raw.match(/\{/g) || []).length - (raw.match(/\}/g) || []).length;
+        raw += "}".repeat(Math.max(0, openBraces)) + "]";
+        try { items = JSON.parse(raw); } catch { items = []; }
+      }
+      aiData = {
+        vendor: vendorMatch?.[1] ?? undefined,
+        invoiceDate: dateMatch?.[1] ?? null,
+        invoiceTotal: totalMatch ? parseFloat(totalMatch[1]) : null,
+        items,
+      };
+    }
 
     // Match each AI item to existing stock
     const suggestions = (aiData.items ?? []).map((item) => {

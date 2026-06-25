@@ -66,7 +66,7 @@ Return ONLY the JSON object, no markdown, no explanation.`;
                 ],
               },
             ],
-            max_tokens: 800,
+            max_tokens: 2000,
             temperature: 0.1,
           }),
         });
@@ -74,7 +74,25 @@ Return ONLY the JSON object, no markdown, no explanation.`;
         const aiJson = await aiRes.json();
         const content = aiJson.choices?.[0]?.message?.content ?? "";
         const cleaned = content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-        aiData = JSON.parse(cleaned);
+        try {
+          aiData = JSON.parse(cleaned);
+        } catch {
+          // Partial extraction fallback
+          const vendorMatch = cleaned.match(/"vendor"\s*:\s*"([^"]*)"/);
+          const dateMatch = cleaned.match(/"date"\s*:\s*"([^"]*)"/);
+          const amountMatch = cleaned.match(/"amount"\s*:\s*([\d.]+)/);
+          const vatMatch = cleaned.match(/"vatAmount"\s*:\s*([\d.]+)/);
+          const catMatch = cleaned.match(/"category"\s*:\s*"([^"]*)"/);
+          const descMatch = cleaned.match(/"description"\s*:\s*"([^"]*)"/);
+          aiData = {
+            vendor: vendorMatch?.[1],
+            date: dateMatch?.[1],
+            amount: amountMatch ? parseFloat(amountMatch[1]) : undefined,
+            vatAmount: vatMatch ? parseFloat(vatMatch[1]) : undefined,
+            category: catMatch?.[1],
+            description: descMatch?.[1],
+          };
+        }
       } catch (aiErr: any) {
         return NextResponse.json({
           url: blob.url,
