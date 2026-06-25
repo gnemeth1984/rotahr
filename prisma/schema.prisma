@@ -39,6 +39,7 @@ model Business {
   dishes       Dish[]
   weeklyMenuPlans WeeklyMenuPlan[]
   menuTemplates   MenuTemplate[]
+  functionMenus   FunctionMenu[]
 
   // Locale / currency
   currency           String   @default("EUR") // "EUR" | "GBP"
@@ -688,4 +689,79 @@ model MenuTemplate {
   updatedAt   DateTime @updatedAt
 
   @@index([businessId])
+}
+
+// ── Function Menus ────────────────────────────────────────────────────────────
+
+model FunctionMenu {
+  id          String   @id @default(cuid())
+  businessId  String
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  name        String                // e.g. "Wedding Package A"
+  description String?  @db.Text
+  pricePerHead Float?
+  minGuests   Int?
+  maxGuests   Int?
+  isActive    Boolean  @default(true)
+  shareToken  String   @unique @default(cuid()) // for public shareable link
+
+  courses     FunctionMenuCourse[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([businessId, isActive])
+}
+
+model FunctionMenuCourse {
+  id             String       @id @default(cuid())
+  functionMenuId String
+  functionMenu   FunctionMenu @relation(fields: [functionMenuId], references: [id], onDelete: Cascade)
+
+  courseType     String       // starter | soup | main | dessert | cheese | tea_coffee | canapes | kids | buffet
+  label          String?      // custom label override e.g. "Amuse Bouche"
+  choiceCount    Int          @default(1)  // "Choose X from below"
+  sortOrder      Int          @default(0)
+
+  dishes         FunctionMenuDish[]
+
+  @@index([functionMenuId, sortOrder])
+}
+
+model FunctionMenuDish {
+  id       String             @id @default(cuid())
+  courseId String
+  course   FunctionMenuCourse @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  name        String
+  description String?  @db.Text
+  notes       String?  @db.Text  // staff notes
+
+  // Dietary badges
+  isVegan        Boolean @default(false)
+  isVegetarian   Boolean @default(false)
+  isGlutenFree   Boolean @default(false)
+  isHalal        Boolean @default(false)
+  isKosher       Boolean @default(false)
+
+  // 14 EU allergens (true = CONTAINS)
+  allergenGluten     Boolean @default(false)
+  allergenCrustacean Boolean @default(false)
+  allergenEgg        Boolean @default(false)
+  allergenFish       Boolean @default(false)
+  allergenPeanut     Boolean @default(false)
+  allergenSoy        Boolean @default(false)
+  allergenMilk       Boolean @default(false)
+  allergenNuts       Boolean @default(false)  // tree nuts
+  allergenCelery     Boolean @default(false)
+  allergenMustard    Boolean @default(false)
+  allergenSesame     Boolean @default(false)
+  allergenSulphites  Boolean @default(false)
+  allergenLupin      Boolean @default(false)
+  allergenMollusc    Boolean @default(false)
+
+  sortOrder Int @default(0)
+
+  @@index([courseId, sortOrder])
 }

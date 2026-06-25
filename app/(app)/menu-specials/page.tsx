@@ -22,6 +22,7 @@ import {
 import { UserRole as Role } from "@/types/roles";
 import { cn } from "@/lib/utils";
 import { SpecialsTab } from "./_specials-tab";
+import { FunctionMenusTab } from "./_function-menus-tab";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -100,6 +101,7 @@ const TABS = [
   { id: "planner", label: "Weekly Planner", icon: CalendarDays },
   { id: "dishes", label: "Dish Library", icon: BookOpen },
   { id: "templates", label: "Templates", icon: Layers },
+  { id: "functions", label: "Function Menus", icon: ChefHat },
 ];
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
@@ -157,6 +159,7 @@ export default function MenuPage() {
       {activeTab === "planner" && <PlannerTab canEdit={canEdit} />}
       {activeTab === "dishes" && <DishLibraryTab canEdit={canEdit} />}
       {activeTab === "templates" && <TemplatesTab canEdit={canEdit} />}
+      {activeTab === "functions" && <FunctionMenusTab canEdit={canEdit} />}
     </div>
   );
 }
