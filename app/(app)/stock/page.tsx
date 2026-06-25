@@ -845,8 +845,30 @@ function StockReceiptScanDialog({
     setUploading(true);
     setError("");
     try {
+      // Compress image in browser before sending — reduces 2-3MB phone photo to ~150KB
+      const compressedFile = await new Promise<File>((resolve) => {
+        const img = new Image();
+        const url = URL.createObjectURL(file);
+        img.onload = () => {
+          const MAX = 1200;
+          let { width, height } = img;
+          if (width > MAX || height > MAX) {
+            if (width > height) { height = Math.round(height * MAX / width); width = MAX; }
+            else { width = Math.round(width * MAX / height); height = MAX; }
+          }
+          const canvas = document.createElement("canvas");
+          canvas.width = width; canvas.height = height;
+          canvas.getContext("2d")!.drawImage(img, 0, 0, width, height);
+          canvas.toBlob((blob) => {
+            resolve(new File([blob!], file.name, { type: "image/jpeg" }));
+            URL.revokeObjectURL(url);
+          }, "image/jpeg", 0.82);
+        };
+        img.src = url;
+      });
+
       const fd = new FormData();
-      fd.append("file", file);
+      fd.append("file", compressedFile);
       const res = await fetch("/api/stock/scan-receipt", { method: "POST", body: fd });
       const data = await res.json();
       if (!res.ok || data.error) { setError(data.error ?? "Scan failed"); setUploading(false); return; }
