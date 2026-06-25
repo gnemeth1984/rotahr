@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { requirePermission, isResponse } from "@/lib/auth/middleware";
 import { put } from "@vercel/blob";
 
+export const maxDuration = 60;
+
 export async function POST(req: NextRequest) {
   const session = await requirePermission("bookkeeping");
   if (isResponse(session)) return session;
@@ -67,7 +69,8 @@ Return ONLY the JSON object, no markdown, no explanation.`;
               },
             ],
             max_tokens: 2000,
-            temperature: 0.1,
+            temperature: 0,
+            response_format: { type: "json_object" },
           }),
         });
 

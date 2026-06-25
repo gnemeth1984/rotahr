@@ -1,4 +1,8 @@
 {
+  "functions": {
+    "app/api/stock/scan-receipt/route.ts": { "maxDuration": 60 },
+    "app/api/expenses/upload-receipt/route.ts": { "maxDuration": 60 }
+  },
   "crons": [
     {
       "path": "/api/email/shift-reminder",

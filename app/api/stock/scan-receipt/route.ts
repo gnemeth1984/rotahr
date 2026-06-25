@@ -4,6 +4,8 @@ import { requirePermission, isResponse } from "@/lib/auth/middleware";
 import { put } from "@vercel/blob";
 import { prisma } from "@/lib/db";
 
+export const maxDuration = 60;
+
 export async function POST(req: NextRequest) {
   const session = await requirePermission("stocktaking");
   if (isResponse(session)) return session;
@@ -16,54 +18,36 @@ export async function POST(req: NextRequest) {
     if (!file) return NextResponse.json({ error: "No file provided" }, { status: 400 });
 
     const fileBuffer = await file.arrayBuffer();
-    const base64Image = Buffer.from(fileBuffer).toString("base64");
     const mimeType = file.type || "image/jpeg";
 
-    // Upload to Vercel Blob
-    const blob = await put(`stock-receipts/${Date.now()}-${file.name}`, file, {
-      access: "private",
-    });
+    // Upload to Vercel Blob (do in parallel with AI)
+    const blobPromise = put(`stock-receipts/${Date.now()}-${file.name}`, file, { access: "private" });
 
     // Load existing stock items for matching
     const existingItems = await prisma.stockItem.findMany({
       where: { businessId },
       select: { id: true, name: true, unit: true, lastPrice: true, supplierId: true, supplier: { select: { name: true } } },
     });
-
     const existingNames = existingItems.map((e) => e.name).join(", ");
 
     const openaiKey = process.env.OPENAI_API_KEY;
     if (!openaiKey) {
+      const blob = await blobPromise;
       return NextResponse.json({ url: blob.url, suggestions: [], error: "OPENAI_API_KEY not set" });
     }
 
+    // Compress: cap base64 at ~1MB — resize large images client-side isn't possible server-side
+    // but we can send as "auto" detail and let OpenAI decide
+    const base64Image = Buffer.from(fileBuffer).toString("base64");
+
     const prompt = `You are a stock management assistant for a hospitality business. Scan this supplier invoice/delivery note/receipt and extract every line item.
 
-Return ONLY valid JSON (no markdown, no explanation) in this exact format:
-{
-  "vendor": "supplier or company name if visible",
-  "invoiceDate": "YYYY-MM-DD if visible, else null",
-  "invoiceTotal": total amount as number if visible else null,
-  "items": [
-    {
-      "name": "product name (clean, concise)",
-      "quantity": number,
-      "unit": one of: unit, kg, g, litre, ml, case, box, bottle, pack, pcs,
-      "unitPrice": price per unit as number or null if not clear
-    }
-  ]
-}
+Return ONLY valid JSON — no markdown, no explanation, no extra text. Exactly this format:
+{"vendor":"name or null","invoiceDate":"YYYY-MM-DD or null","invoiceTotal":0,"items":[{"name":"product name","quantity":1,"unit":"unit","unitPrice":0}]}
 
-Existing stock items in the system (use these to help normalise names): ${existingNames || "none yet"}
-
-Extract every line item you can see. If you can't read a field, use null.`;
-
-    let aiData: {
-      vendor?: string;
-      invoiceDate?: string | null;
-      invoiceTotal?: number | null;
-      items?: Array<{ name: string; quantity: number; unit: string; unitPrice: number | null }>;
-    } = {};
+Units must be one of: unit, kg, g, litre, ml, case, box, bottle, pack, pcs
+Existing stock items to help normalise names: ${existingNames || "none yet"}
+Extract every line item visible. Use null for any field you cannot read.`;
 
     const aiRes = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
@@ -78,54 +62,45 @@ Extract every line item you can see. If you can't read a field, use null.`;
             role: "user",
             content: [
               { type: "text", text: prompt },
-              { type: "image_url", image_url: { url: `data:${mimeType};base64,${base64Image}`, detail: "high" } },
+              { type: "image_url", image_url: { url: `data:${mimeType};base64,${base64Image}`, detail: "auto" } },
             ],
           },
         ],
         max_tokens: 4000,
-        temperature: 0.1,
+        temperature: 0,
+        response_format: { type: "json_object" },
       }),
     });
 
-    const aiJson = await aiRes.json();
-    console.log("[scan-receipt] OpenAI raw response:", JSON.stringify(aiJson).slice(0, 500));
-    const content = aiJson.choices?.[0]?.message?.content ?? "";
-    console.log("[scan-receipt] content:", content.slice(0, 500));
-    const cleaned = content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+    const [blob, aiJson] = await Promise.all([blobPromise, aiRes.json()]);
 
-    // Safe JSON parse — attempt to recover truncated JSON
+    const content = aiJson.choices?.[0]?.message?.content ?? "";
+    console.log("[scan-receipt] raw:", content.slice(0, 300));
+
+    let aiData: any = {};
     try {
-      aiData = JSON.parse(cleaned);
-      console.log("[scan-receipt] parsed items:", aiData.items?.length ?? 0);
+      aiData = JSON.parse(content);
     } catch {
-      // Try to extract partial items array if truncated
-      const vendorMatch = cleaned.match(/"vendor"\s*:\s*"([^"]*)"/);
-      const dateMatch = cleaned.match(/"invoiceDate"\s*:\s*"([^"]*)"/);
-      const totalMatch = cleaned.match(/"invoiceTotal"\s*:\s*([\d.]+)/);
-      const itemsMatch = cleaned.match(/"items"\s*:\s*(\[[\s\S]*)/);
+      // regex fallback
+      const vendorMatch = content.match(/"vendor"\s*:\s*"([^"]*)"/);
+      const dateMatch = content.match(/"invoiceDate"\s*:\s*"([^"]*)"/);
+      const totalMatch = content.match(/"invoiceTotal"\s*:\s*([\d.]+)/);
+      const itemsMatch = content.match(/"items"\s*:\s*(\[[\s\S]*)/);
       let items: any[] = [];
       if (itemsMatch) {
-        // Try parsing whatever we got of the array, closing it if truncated
         let raw = itemsMatch[1];
-        // Close any open object and the array
-        const openBraces = (raw.match(/\{/g) || []).length - (raw.match(/\}/g) || []).length;
-        raw += "}".repeat(Math.max(0, openBraces)) + "]";
+        const open = (raw.match(/\{/g) || []).length - (raw.match(/\}/g) || []).length;
+        raw += "}".repeat(Math.max(0, open)) + "]";
         try { items = JSON.parse(raw); } catch { items = []; }
       }
-      aiData = {
-        vendor: vendorMatch?.[1] ?? undefined,
-        invoiceDate: dateMatch?.[1] ?? null,
-        invoiceTotal: totalMatch ? parseFloat(totalMatch[1]) : null,
-        items,
-      };
+      aiData = { vendor: vendorMatch?.[1], invoiceDate: dateMatch?.[1] ?? null, invoiceTotal: totalMatch ? parseFloat(totalMatch[1]) : null, items };
     }
 
-    // Match each AI item to existing stock
-    const suggestions = (aiData.items ?? []).map((item) => {
+    const suggestions = (aiData.items ?? []).map((item: any) => {
       const match = existingItems.find(
         (e) =>
-          e.name.toLowerCase().includes(item.name.toLowerCase().slice(0, 6)) ||
-          item.name.toLowerCase().includes(e.name.toLowerCase().slice(0, 6))
+          e.name.toLowerCase().includes(item.name?.toLowerCase().slice(0, 6) ?? "") ||
+          item.name?.toLowerCase().includes(e.name.toLowerCase().slice(0, 6))
       );
       return {
         name: item.name,
@@ -139,6 +114,8 @@ Extract every line item you can see. If you can't read a field, use null.`;
       };
     });
 
+    console.log("[scan-receipt] suggestions:", suggestions.length);
+
     return NextResponse.json({
       url: blob.url,
       vendor: aiData.vendor ?? null,
@@ -147,6 +124,7 @@ Extract every line item you can see. If you can't read a field, use null.`;
       suggestions,
     });
   } catch (err: any) {
+    console.error("[scan-receipt] error:", err);
     return NextResponse.json({ error: err.message ?? "Scan failed" }, { status: 500 });
   }
 }
