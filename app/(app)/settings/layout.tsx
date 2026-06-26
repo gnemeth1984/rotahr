@@ -9,6 +9,7 @@ import { UserRole as Role } from "@/types/roles";
 const tabs = [
   { href: "/settings/general", label: "Account", roles: ["EMPLOYEE", "MANAGER", "ADMIN"] },
   { href: "/settings/venues", label: "Venues", roles: ["MANAGER", "ADMIN"] },
+  { href: "/settings/features", label: "Features & Menu", roles: ["MANAGER", "ADMIN"] },
   { href: "/settings/billing", label: "Billing", roles: ["MANAGER", "ADMIN"] },
 ];
 

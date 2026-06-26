@@ -46,6 +46,11 @@ model Business {
   currency           String   @default("EUR") // "EUR" | "GBP"
   country            String   @default("IE")  // "IE" | "GB"
 
+  // Feature flags — controls which modules are enabled and who can see them
+  // Stored as JSON: { [featureKey]: { enabled: boolean, roles: string[] } }
+  // roles = subset of ["EMPLOYEE","MANAGER","ADMIN"] — who can SEE this feature
+  featureFlags       Json?     // null = all features on with default roles
+
   // Lemon Squeezy subscription
   lsCustomerId       String?   // Lemon Squeezy customer ID
   lsSubscriptionId   String?   // Lemon Squeezy subscription ID

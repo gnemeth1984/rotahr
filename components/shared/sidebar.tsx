@@ -40,6 +40,8 @@ import { Role } from "@/types/roles";
 import { useState } from "react";
 import { BellButton } from "@/components/shared/BellButton";
 import { VenueSwitcher } from "@/components/shared/VenueSwitcher";
+import { useFeatureFlags } from "@/components/shared/FeatureFlagsProvider";
+import type { FeatureKey } from "@/lib/features";
 
 const navItems = [
   {
@@ -48,6 +50,7 @@ const navItems = [
     icon: LayoutDashboard,
     roles: [Role.EMPLOYEE, Role.MANAGER, Role.ADMIN],
     permission: null,
+    featureKey: "dashboard" as FeatureKey,
   },
   {
     href: "/timeoff",
@@ -55,6 +58,7 @@ const navItems = [
     icon: Clock,
     roles: [Role.EMPLOYEE, Role.MANAGER, Role.ADMIN],
     permission: null,
+    featureKey: "timeoff" as FeatureKey,
   },
   {
     href: "/bookings",
@@ -62,6 +66,7 @@ const navItems = [
     icon: BookOpen,
     roles: [Role.EMPLOYEE, Role.MANAGER, Role.ADMIN],
     permission: "bookings",
+    featureKey: "bookings" as FeatureKey,
   },
   {
     href: "/rota",
@@ -69,6 +74,7 @@ const navItems = [
     icon: TableProperties,
     roles: [Role.EMPLOYEE, Role.MANAGER, Role.ADMIN],
     permission: null,
+    featureKey: "rota" as FeatureKey,
   },
   {
     href: "/messages",
@@ -76,6 +82,7 @@ const navItems = [
     icon: MessageSquare,
     roles: [Role.EMPLOYEE, Role.MANAGER, Role.ADMIN],
     permission: null,
+    featureKey: "messages" as FeatureKey,
   },
   {
     href: "/clock",
@@ -83,6 +90,7 @@ const navItems = [
     icon: Clock,
     roles: [Role.EMPLOYEE, Role.MANAGER, Role.ADMIN],
     permission: null,
+    featureKey: "clock" as FeatureKey,
   },
   {
     href: "/availability",
@@ -90,6 +98,7 @@ const navItems = [
     icon: CalendarCheck,
     roles: [Role.EMPLOYEE, Role.MANAGER, Role.ADMIN],
     permission: null,
+    featureKey: "availability" as FeatureKey,
   },
   {
     href: "/bookkeeping",
@@ -97,6 +106,7 @@ const navItems = [
     icon: BookMarked,
     roles: [Role.MANAGER, Role.ADMIN],
     permission: "bookkeeping",
+    featureKey: "bookkeeping" as FeatureKey,
   },
   {
     href: "/stock",
@@ -104,6 +114,7 @@ const navItems = [
     icon: Package,
     roles: [Role.MANAGER, Role.ADMIN],
     permission: "stocktaking",
+    featureKey: "stock" as FeatureKey,
   },
   {
     href: "/payroll",
@@ -111,6 +122,7 @@ const navItems = [
     icon: DollarSign,
     roles: [Role.MANAGER, Role.ADMIN],
     permission: "payroll",
+    featureKey: "payroll" as FeatureKey,
   },
   {
     href: "/shift-swaps",
@@ -118,6 +130,7 @@ const navItems = [
     icon: ArrowRightLeft,
     roles: [Role.EMPLOYEE, Role.MANAGER, Role.ADMIN],
     permission: null,
+    featureKey: "shiftswaps" as FeatureKey,
   },
   {
     href: "/tips",
@@ -125,6 +138,7 @@ const navItems = [
     icon: Coins,
     roles: [Role.MANAGER, Role.ADMIN],
     permission: "tips",
+    featureKey: "tips" as FeatureKey,
   },
   {
     href: "/employees",
@@ -132,6 +146,7 @@ const navItems = [
     icon: Users,
     roles: [Role.MANAGER, Role.ADMIN],
     permission: null,
+    featureKey: "employees" as FeatureKey,
   },
   {
     href: "/menu-specials",
@@ -139,6 +154,7 @@ const navItems = [
     icon: Utensils,
     roles: [Role.EMPLOYEE, Role.MANAGER, Role.ADMIN],
     permission: null,
+    featureKey: "menu-specials" as FeatureKey,
   },
   {
     href: "/training",
@@ -146,6 +162,7 @@ const navItems = [
     icon: Award,
     roles: [Role.MANAGER, Role.ADMIN],
     permission: "training",
+    featureKey: "training" as FeatureKey,
   },
   {
     href: "/settings/venues",
@@ -153,6 +170,7 @@ const navItems = [
     icon: Building2,
     roles: [Role.MANAGER, Role.ADMIN],
     permission: null,
+    featureKey: null, // always visible
   },
   {
     href: "/ai",
@@ -160,6 +178,7 @@ const navItems = [
     icon: Sparkles,
     roles: [Role.MANAGER, Role.ADMIN],
     permission: null,
+    featureKey: "ai" as FeatureKey,
   },
   {
     href: "/settings/general",
@@ -167,6 +186,7 @@ const navItems = [
     icon: Settings,
     roles: [Role.EMPLOYEE, Role.MANAGER, Role.ADMIN],
     permission: null,
+    featureKey: null, // always visible
   },
   {
     href: "/settings/billing",
@@ -174,13 +194,15 @@ const navItems = [
     icon: CreditCard,
     roles: [Role.MANAGER, Role.ADMIN],
     permission: null,
+    featureKey: null, // always visible
   },
   {
-href: "/outreach",
+    href: "/outreach",
     label: "Email Outreach",
     icon: RadioTower,
     roles: [Role.ADMIN],
     permission: null,
+    featureKey: null,
   },
   {
     href: "/admin",
@@ -188,6 +210,7 @@ href: "/outreach",
     icon: ShieldCheck,
     roles: [Role.ADMIN],
     permission: null,
+    featureKey: null,
   },
 ];
 
@@ -195,17 +218,28 @@ export function Sidebar() {
   const pathname = usePathname();
   const { data: session } = useSession();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { flags } = useFeatureFlags();
 
   const userRole = (session?.user?.role ?? Role.EMPLOYEE) as Role;
   const userPermissions: string[] = (session?.user as any)?.permissions ?? [];
   const isManager = userRole === Role.MANAGER || userRole === Role.ADMIN;
 
   const visibleItems = navItems.filter((item) => {
-    // Always visible if user's role is in the allowed roles
-    if (item.roles.includes(userRole)) return true;
-    // For EMPLOYEE: also show if they have the specific permission grant
-    if (!isManager && item.permission && userPermissions.includes(item.permission)) return true;
-    return false;
+    // Role check — user must be in allowed roles list
+    const roleAllowed = item.roles.includes(userRole) ||
+      (!isManager && item.permission && userPermissions.includes(item.permission));
+    if (!roleAllowed) return false;
+
+    // Feature flag check — if feature is disabled or role not in allowed list, hide it
+    if (item.featureKey && flags) {
+      const flag = flags[item.featureKey];
+      if (flag) {
+        if (!flag.enabled) return false;
+        if (!flag.roles.includes(userRole)) return false;
+      }
+    }
+
+    return true;
   });
 
   const sidebarInner = (
