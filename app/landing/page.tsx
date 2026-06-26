@@ -70,7 +70,7 @@ const features = [
 const plans = [
   {
     name: "Starter",
-    price: "€79",
+    price: "€49",
     period: "/month incl. VAT",
     desc: "Perfect for small cafés and independent restaurants.",
     staff: "Up to 10 staff",
@@ -92,12 +92,12 @@ const plans = [
   },
   {
     name: "Pro",
-    price: "€149",
+    price: "€99",
     period: "/month incl. VAT",
     desc: "For busy restaurants and bars with larger teams.",
     staff: "Up to 30 staff",
     highlight: true,
-    cta: "Start Free Trial",
+    cta: "Get Started",
     features: [
       "Everything in Starter",
       "Up to 30 staff members",
@@ -112,7 +112,7 @@ const plans = [
   },
   {
     name: "Enterprise",
-    price: "€249+",
+    price: "€179+",
     period: "/month incl. VAT",
     desc: "For multi-venue groups, hotel F&B, and franchises.",
     staff: "Unlimited staff",
@@ -124,7 +124,7 @@ const plans = [
       "Multi-location management",
       "Custom onboarding & training",
       "Dedicated account manager",
-      "SLA guarantee",
+      "Priority support",
       "Custom integrations",
       "Volume discounts available",
     ],
@@ -191,7 +191,7 @@ export default function LandingPage() {
           Rotas, clock-in, reservations, bookkeeping, payroll, team messaging and more — all in one place.
         </p>
         <p className="text-base text-slate-400 max-w-xl mx-auto mb-10">
-          Replace 4 separate tools with one. Starting at <strong className="text-slate-600">€79/month</strong> incl. VAT.
+          Replace 4 separate tools with one. Starting at <strong className="text-slate-600">€49/month</strong> incl. VAT.
         </p>
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -200,7 +200,7 @@ export default function LandingPage() {
             className="flex items-center gap-2 text-white px-8 py-3.5 rounded-xl text-base font-semibold hover:opacity-90 transition-all shadow-lg w-full sm:w-auto"
             style={{ background: "linear-gradient(135deg, #F97316, #EC4899)", boxShadow: "0 8px 24px #F9731630" }}
           >
-            Start Free Trial <ArrowRight className="w-4 h-4" />
+            Get Started <ArrowRight className="w-4 h-4" />
           </Link>
           <a
             href="#pricing"
@@ -231,7 +231,7 @@ export default function LandingPage() {
                 <Image src="/logo-icon.png" alt="" width={20} height={20} className="object-contain" />
                 Rotahr — everything included
               </span>
-              <span className="text-sm font-bold" style={{ color: "#F97316" }}>from €79/mo</span>
+              <span className="text-sm font-bold" style={{ color: "#F97316" }}>from €49/mo</span>
             </div>
           </div>
         </div>
@@ -264,17 +264,6 @@ export default function LandingPage() {
           <div className="text-center mb-16">
             <h2 className="text-3xl font-extrabold mb-4">Simple, transparent pricing</h2>
             <p className="text-slate-500 text-lg">All prices include 23% Irish VAT. No setup fees. Cancel anytime.</p>
-          </div>
-
-          {/* Free trial banner */}
-          <div className="mb-10 flex justify-center">
-            <div className="inline-flex items-center gap-3 rounded-2xl border border-orange-200 bg-gradient-to-r from-orange-50 to-pink-50 px-6 py-3.5 shadow-sm">
-              <span className="text-xl">🎉</span>
-              <div>
-                <span className="font-bold text-slate-800 text-sm">First month free for new venues</span>
-                <span className="text-slate-500 text-sm ml-2">— no credit card required</span>
-              </div>
-            </div>
           </div>
 
           <div className="grid md:grid-cols-3 gap-8 items-start">
@@ -310,7 +299,7 @@ export default function LandingPage() {
                   }`}
                   style={plan.highlight ? { background: "linear-gradient(135deg, #F97316, #EC4899)" } : {}}
                 >
-                  {plan.name === "Enterprise" ? plan.cta : "Start Free Trial"}
+                  {plan.cta}
                 </Link>
                 <ul className="space-y-3">
                   {plan.features.map((feat) => (
@@ -325,7 +314,7 @@ export default function LandingPage() {
           </div>
 
           <p className="text-center text-sm text-slate-400 mt-8">
-            Free trial applies to Starter and Pro plans. Enterprise pricing is custom — <Link href="/auth/signin" className="text-orange-500 hover:underline">contact us</Link> to get started.
+            Enterprise pricing is custom — <Link href="/auth/signin" className="text-orange-500 hover:underline">contact us</Link> to get started.
           </p>
         </div>
       </section>

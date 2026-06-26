@@ -89,7 +89,7 @@ export default function RegisterPage() {
           {/* Free trial badge */}
           <div className="mb-6 text-center">
             <span className="inline-block bg-green-500/20 border border-green-500/30 text-green-300 text-xs font-semibold px-3 py-1 rounded-full">
-              First month free — no credit card required
+              Simple, transparent pricing from €49/month incl. VAT
             </span>
           </div>
 

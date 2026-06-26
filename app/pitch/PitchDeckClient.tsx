@@ -86,7 +86,7 @@ export default function PitchDeckClient() {
           <span style={{fontSize:20,fontWeight:700,color:'#fff',letterSpacing:'-0.3px'}}>rotahr</span>
         </a>
         <a href="/auth/register" style={{background:'#f97316',color:'#fff',border:'none',padding:'10px 22px',borderRadius:'100px',fontSize:14,fontWeight:600,cursor:'pointer',textDecoration:'none'}}>
-          Start Free Trial
+          Get Started
         </a>
       </header>
 
@@ -103,7 +103,7 @@ export default function PitchDeckClient() {
         </p>
         <div style={{display:'flex',gap:12,justifyContent:'center',flexWrap:'wrap'}}>
           <a href="/auth/register" style={{background:'#f97316',color:'#fff',padding:'14px 28px',borderRadius:'100px',fontSize:15,fontWeight:600,textDecoration:'none'}}>
-            Start Free Trial
+            Get Started
           </a>
           <button onClick={() => document.getElementById('pitch-viewer')?.scrollIntoView({behavior:'smooth'})}
             style={{background:'rgba(255,255,255,0.08)',color:'rgba(255,255,255,0.8)',padding:'14px 28px',borderRadius:'100px',fontSize:15,fontWeight:600,border:'1px solid rgba(255,255,255,0.12)',cursor:'pointer'}}>
@@ -152,7 +152,7 @@ export default function PitchDeckClient() {
           {num:'€290', label:'avg. monthly saving vs. separate tools'},
           {num:'4.8 hrs', label:'saved per manager per week'},
           {num:'12', label:'tools replaced by one platform'},
-          {num:'€79', label:'starting price incl. 23% VAT'},
+          {num:'€49', label:'starting price incl. 23% VAT'},
         ].map(s => (
           <div key={s.num} style={{textAlign:'center'}}>
             <div style={{fontSize:36,fontWeight:800,color:'#f97316',lineHeight:1}}>{s.num}</div>

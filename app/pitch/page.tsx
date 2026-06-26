@@ -94,14 +94,14 @@ export default function PitchPage() {
           </svg>
           <span className="logo-text">rotahr</span>
         </a>
-        <a className="header-cta" href="/auth/register">Start Free Trial</a>
+        <a className="header-cta" href="/auth/register">Get Started</a>
       </header>
 
       <section className="hero">
         <div className="hero-label">Pitch Deck · 11 Slides</div>
         <h1>One app to run<br /><span>your entire venue</span></h1>
         <p>Rotas · Clock-In · Reservations · Bookkeeping — built for hospitality.</p>
-        <a className="btn-primary" href="/auth/register">Start Free Trial</a>
+        <a className="btn-primary" href="/auth/register">Get Started</a>
       </section>
 
       <div className="slides-stack">
@@ -116,7 +116,7 @@ export default function PitchPage() {
         <div className="stat"><div className="stat-num">€290</div><div className="stat-label">avg. monthly saving vs. separate tools</div></div>
         <div className="stat"><div className="stat-num">4.8 hrs</div><div className="stat-label">saved per manager per week</div></div>
         <div className="stat"><div className="stat-num">12</div><div className="stat-label">tools replaced by one platform</div></div>
-        <div className="stat"><div className="stat-num">€79</div><div className="stat-label">starting price incl. 23% VAT</div></div>
+        <div className="stat"><div className="stat-num">€49</div><div className="stat-label">starting price incl. 23% VAT</div></div>
       </div>
 
       <section className="bottom-cta">
