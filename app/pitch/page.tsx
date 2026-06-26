@@ -14,7 +14,6 @@ export default function PitchPage() {
     "https://storage.googleapis.com/runable-templates/cli-uploads%2FnpR7iwoxdmjjem91IBsyOE3SjrOrbdCS%2FeLaHSlkaiQWt3Cfra0DtX%2Fslide-08.png",
     "https://storage.googleapis.com/runable-templates/cli-uploads%2FnpR7iwoxdmjjem91IBsyOE3SjrOrbdCS%2FeQC1bTyeQBqJtYaXhaVEp%2Fslide-09.png",
     "https://storage.googleapis.com/runable-templates/cli-uploads%2FnpR7iwoxdmjjem91IBsyOE3SjrOrbdCS%2FeCMVe4vHAQ-PrsknvOquJ%2Fslide-10.png",
-    "https://storage.googleapis.com/runable-templates/cli-uploads%2FnpR7iwoxdmjjem91IBsyOE3SjrOrbdCS%2Fw6bn1Rsr6n_i19A1YgqaW%2Fslide-11.png",
     "https://storage.googleapis.com/runable-templates/cli-uploads%2FnpR7iwoxdmjjem91IBsyOE3SjrOrbdCS%2FdA81Ex6x0ncIMIm1rYdqF%2Fslide-12.png",
   ];
 
@@ -99,7 +98,7 @@ export default function PitchPage() {
       </header>
 
       <section className="hero">
-        <div className="hero-label">Pitch Deck · 12 Slides</div>
+        <div className="hero-label">Pitch Deck · 11 Slides</div>
         <h1>One app to run<br /><span>your entire venue</span></h1>
         <p>Rotas · Clock-In · Reservations · Bookkeeping — built for hospitality.</p>
         <a className="btn-primary" href="/auth/register">Start Free Trial</a>
