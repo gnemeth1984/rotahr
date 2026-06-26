@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
 import { useSession } from "next-auth/react";
 import { useSearchParams, useRouter } from "next/navigation";
 import {
@@ -106,7 +106,7 @@ const TABS = [
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
-export default function MenuPage() {
+function MenuInner() {
   const { data: session } = useSession();
   const role = session?.user?.role;
   const permissions = session?.user?.permissions ?? [];
@@ -925,5 +925,13 @@ function TemplatesTab({ canEdit }: { canEdit: boolean }) {
         })}
       </div>
     </div>
+  );
+}
+
+export default function MenuPage() {
+  return (
+    <Suspense fallback={null}>
+      <MenuInner />
+    </Suspense>
   );
 }

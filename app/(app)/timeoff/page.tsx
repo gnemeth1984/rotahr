@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { useSession } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -38,7 +38,7 @@ interface TimeOffRequest {
   };
 }
 
-export default function TimeOffPage() {
+function TimeOffInner() {
   const { data: session } = useSession();
   const searchParams = useSearchParams();
   const deepLinkId = searchParams.get("id");
@@ -534,3 +534,11 @@ export default function TimeOffPage() {
   );
 }
 
+
+export default function TimeOffPage() {
+  return (
+    <Suspense fallback={null}>
+      <TimeOffInner />
+    </Suspense>
+  );
+}

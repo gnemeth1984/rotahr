@@ -225,6 +225,7 @@ function BookingsInner() {
       date: b.date.split("T")[0],
       time: b.time,
       notes: b.notes ?? "",
+      marketingConsent: b.marketingConsent ?? false,
     });
     setActionSheetOpen(false);
     setDialogOpen(true);

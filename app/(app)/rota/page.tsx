@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo, Suspense } from "react";
 import { useSession } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 import { useCurrency } from "@/components/shared/CurrencyProvider";
@@ -220,7 +220,7 @@ function CompliancePanel({ alerts }: { alerts: ComplianceAlertItem[] }) {
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-export default function RotaPage() {
+function RotaInner() {
   const { data: session } = useSession();
   const { symbol, fmt, locale } = useCurrency();
   const searchParams = useSearchParams();
@@ -1223,5 +1223,13 @@ function DeptBlock({
         </table>
       </div>
     </div>
+  );
+}
+
+export default function RotaPage() {
+  return (
+    <Suspense fallback={null}>
+      <RotaInner />
+    </Suspense>
   );
 }

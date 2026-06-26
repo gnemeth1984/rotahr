@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, Component, ReactNode } from "react";
+import { useEffect, useRef, useState, Component, ReactNode, Suspense } from "react";
 import { useSession } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 import { Send, MessageSquare, User, ArrowLeft, AlertCircle, Users, Check, Loader2 } from "lucide-react";
@@ -482,7 +482,9 @@ function MessagesInner() {
 export default function MessagesPage() {
   return (
     <ErrorBoundary>
-      <MessagesInner />
+      <Suspense fallback={null}>
+        <MessagesInner />
+      </Suspense>
     </ErrorBoundary>
   );
 }
