@@ -1306,6 +1306,7 @@ function OrdersTab({ orders, suppliers, stockItems, loading, onNew, onRefresh, h
   orders: SupplierOrder[]; suppliers: Supplier[]; stockItems: StockItem[];
   loading: boolean; onNew: () => void; onRefresh: () => void; hasDraft?: boolean;
 }) {
+  const { locale } = useCurrency();
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState("all");
 
