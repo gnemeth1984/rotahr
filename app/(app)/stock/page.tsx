@@ -1,7 +1,7 @@
 // @ts-nocheck
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, Component } from "react";
 import { useSession } from "next-auth/react";
 import { useCurrency } from "@/components/shared/CurrencyProvider";
 import {
@@ -1501,7 +1501,28 @@ function OrdersTab({ orders, suppliers, stockItems, loading, onNew, onRefresh, h
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
-export default function StockPage() {
+class StockErrorBoundary extends Component<
+  { children: React.ReactNode },
+  { error: Error | null }
+> {
+  constructor(props: any) { super(props); this.state = { error: null }; }
+  static getDerivedStateFromError(error: Error) { return { error }; }
+  render() {
+    if (this.state.error) {
+      return (
+        <div className="p-6 m-4 rounded-2xl bg-red-50 border border-red-200 text-sm">
+          <p className="font-bold text-red-700 mb-2">Stock page crashed — error details:</p>
+          <pre className="text-xs text-red-600 whitespace-pre-wrap break-all">
+            {this.state.error.message}{"\n\n"}{this.state.error.stack}
+          </pre>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+function StockPageInner() {
   const { data: session } = useSession();
   const { symbol, locale, fmt: fmtMoney } = useCurrency();
   // local fmt wrapper handles null/undefined
@@ -1692,5 +1713,13 @@ export default function StockPage() {
         onApplied={() => { loadStock(); }}
       />
     </div>
+  );
+}
+
+export default function StockPage() {
+  return (
+    <StockErrorBoundary>
+      <StockPageInner />
+    </StockErrorBoundary>
   );
 }
