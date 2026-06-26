@@ -24,18 +24,30 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const employees = await prisma.user.findMany({
+    const businessId = (session.user as any).businessId as string | undefined;
+    if (!businessId) return NextResponse.json({ employees: [] });
+
+    // Query Employee model (has businessId) — not User which has no business filter
+    const employees = await prisma.employee.findMany({
+      where: { businessId, active: true },
       select: {
         id: true,
-        name: true,
+        firstName: true,
+        lastName: true,
         email: true,
         role: true,
         createdAt: true,
       },
-      orderBy: { createdAt: "asc" },
+      orderBy: { firstName: "asc" },
     });
 
-    return NextResponse.json(employees);
+    // Return both the { employees } shape AND flat array for backwards compat
+    const mapped = employees.map((e) => ({
+      ...e,
+      name: `${e.firstName} ${e.lastName}`,
+    }));
+
+    return NextResponse.json({ employees: mapped });
   } catch (e) {
     console.error("[GET /api/employees]", e);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

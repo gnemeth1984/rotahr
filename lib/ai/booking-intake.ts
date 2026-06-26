@@ -42,8 +42,9 @@ function extractPartySize(msg: string): number | null {
   const patterns = [
     /\bfor\s+(\d+)\b/i,
     /\b(\d+)\s+(?:people|guests?|persons?|covers?|pax)\b/i,
-    /\bparty\s+of\s+(\d+)\b/i,
+    /\bparty\s+(?:of\s+|size\s+)(\d+)\b/i,
     /\btable\s+(?:of|for)\s+(\d+)\b/i,
+    /\bsize\s+(\d+)\b/i,
   ];
   for (const p of patterns) {
     const m = msg.match(p);
@@ -55,9 +56,12 @@ function extractPartySize(msg: string): number | null {
 function extractCustomerName(msg: string): string | null {
   // "booking for John Smith", "under the name Walsh", "name: Christy", "name walsh"
   const patterns = [
-    /\bname[:\s]+([A-Za-z][a-zA-Z]+(?:\s+[A-Za-z][a-zA-Z]+)?)\b/i,
-    /\bunder\s+(?:the\s+name\s+)?([A-Za-z][a-zA-Z]+(?:\s+[A-Za-z][a-zA-Z]+)?)\b/i,
-    /\bfor\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\b/,
+    // "name James O'Brien", "name: Walsh"
+    /\bname[:\s]+([A-Za-z][a-zA-Z']+(?:\s+[A-Za-z][a-zA-Z']+)?)\b/i,
+    // "under the name O'Brien"
+    /\bunder\s+(?:the\s+name\s+)?([A-Za-z][a-zA-Z']+(?:\s+[A-Za-z][a-zA-Z']+)?)\b/i,
+    // "for James O'Brien" — capitalised first name
+    /\bfor\s+([A-Z][a-zA-Z']+(?:\s+[A-Z][a-zA-Z']+)?)\b/,
   ];
   const stopWords = new Set(["the", "a", "an", "this", "that", "table", "us", "our", "my"]);
   for (const p of patterns) {
@@ -177,8 +181,11 @@ export async function processBookingIntake(
 
   if (chronoParsed.length > 0) {
     dateTime = chronoParsed[0].start.date();
-    dateStr = dateTime.toISOString().split("T")[0];
-    timeStr = dateTime.toISOString();
+    // Use local time values directly from the parsed result — avoids UTC offset shifting "5pm" to "13:00"
+    const h = chronoParsed[0].start.get("hour") ?? dateTime.getHours();
+    const m = chronoParsed[0].start.get("minute") ?? dateTime.getMinutes();
+    dateStr = `${dateTime.getFullYear()}-${String(dateTime.getMonth() + 1).padStart(2, "0")}-${String(dateTime.getDate()).padStart(2, "0")}`;
+    timeStr = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
   }
 
   if (!dateTime) warnings.push("Could not parse date/time — please specify clearly.");

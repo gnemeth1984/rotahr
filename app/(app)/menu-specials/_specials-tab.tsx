@@ -51,7 +51,7 @@ import {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Category = "special" | "change" | "announcement" | "86'd";
+type Category = "special" | "change" | "announcement" | "86'd" | "out_of_stock";
 
 interface MenuSpecial {
   id: string;
@@ -95,7 +95,7 @@ const CATEGORIES: CategoryMeta[] = [
   },
   {
     value: "86'd",
-    label: "86'd (Out of Stock)",
+    label: "Out of Stock / 86'd",
     icon: Ban,
     color: "bg-red-100 text-red-800 border-red-200",
   },
