@@ -833,9 +833,17 @@ function RotaInner() {
                   setWeekStart(getMondayOfWeek(new Date()));
                   setSelectedDay(todayIdx);
                 }}
-                className="px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-md transition-colors"
+                className="px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-md transition-colors min-w-[52px] text-center"
               >
-                Today
+                {toDateStr(weekStart) === toDateStr(getMondayOfWeek(new Date()))
+                  ? "Today"
+                  : (() => {
+                      const d = new Date(weekStart);
+                      const startOfYear = new Date(d.getFullYear(), 0, 1);
+                      const weekNo = Math.ceil(((d.getTime() - startOfYear.getTime()) / 86400000 + startOfYear.getDay() + 1) / 7);
+                      return `Wk ${weekNo}`;
+                    })()
+                }
               </button>
               <button
                 onClick={() => setWeekStart((w) => addDays(w, 7))}
