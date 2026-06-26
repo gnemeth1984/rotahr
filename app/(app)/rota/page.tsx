@@ -1008,6 +1008,7 @@ function RotaInner() {
                   const isTodayDate = dateStr === toDateStr(new Date());
                   const ph = holidayMap[dateStr];
                   const dayShiftCount = shifts.filter((s) => s.date.split("T")[0] === dateStr).length;
+                  if (dayShiftCount === 0) return null;
                   return (
                     <div key={dateStr} className="space-y-2">
                       {/* Day heading */}
@@ -1152,6 +1153,8 @@ function RotaInner() {
                     {dailyScopeDates.map((date) => {
                       const dateStr = toDateStr(date);
                       const isTodayDate = dateStr === toDateStr(new Date());
+                      const dayShiftCount = shifts.filter((s) => s.date.split("T")[0] === dateStr).length;
+                      if (dayShiftCount === 0) return null;
                       return (
                         <div key={dateStr} className="space-y-2">
                           <div className="flex items-center justify-between">
