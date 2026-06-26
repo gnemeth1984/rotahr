@@ -29,6 +29,9 @@ export async function POST(req: NextRequest) {
       receiver: { select: { userId: true, firstName: true } },
     },
   });
+  // Get the offered shift date for deep-linking
+  const offeredShift = swap ? await prisma.shift.findUnique({ where: { id: swap.offeredShiftId }, select: { date: true } }) : null;
+  const shiftDateStr = offeredShift?.date ? new Date(offeredShift.date).toISOString().split("T")[0] : "";
   if (!swap || swap.businessId !== businessId) {
     return NextResponse.json({ error: "Swap not found" }, { status: 404 });
   }
@@ -56,10 +59,10 @@ export async function POST(req: NextRequest) {
 
     // Notify both parties
     if (swap.offerer.userId) {
-      await createNotification({ userId: swap.offerer.userId, type: "shift", title: "Shift swap approved", body: "Your shift swap request was approved by management." });
+      await createNotification({ userId: swap.offerer.userId, type: "shift", title: "Shift swap approved", body: "Your shift swap request was approved by management.", link: shiftDateStr ? `/rota?date=${shiftDateStr}` : "/rota" });
     }
     if (swap.receiver?.userId) {
-      await createNotification({ userId: swap.receiver.userId, type: "shift", title: "Shift swap approved", body: `Your shift swap with ${swap.offerer.firstName} was approved.` });
+      await createNotification({ userId: swap.receiver.userId, type: "shift", title: "Shift swap approved", body: `Your shift swap with ${swap.offerer.firstName} was approved.`, link: shiftDateStr ? `/rota?date=${shiftDateStr}` : "/rota" });
     }
   } else {
     await prisma.shiftSwapRequest.update({
@@ -67,7 +70,7 @@ export async function POST(req: NextRequest) {
       data: { status: "rejected", managedById: session.user.id, managerNote: managerNote ?? null },
     });
     if (swap.receiver?.userId) {
-      await createNotification({ userId: swap.receiver.userId, type: "shift", title: "Shift swap rejected", body: `The swap request was not approved. ${managerNote ?? ""}` });
+      await createNotification({ userId: swap.receiver.userId, type: "shift", title: "Shift swap rejected", body: `The swap request was not approved. ${managerNote ?? ""}`, link: "/rota" });
     }
   }
 

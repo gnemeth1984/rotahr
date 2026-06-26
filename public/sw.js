@@ -47,30 +47,37 @@ self.addEventListener("fetch", (event) => {
 self.addEventListener("push", (event) => {
   const data = event.data?.json() ?? {};
   const title = data.title ?? "Rotahr";
+  // Payload structure: { title, body, data: { type, link } }
+  const link = data.data?.link ?? data.url ?? "/dashboard";
   const options = {
     body: data.body ?? "",
     icon: "/icons/icon-192.png",
     badge: "/icons/icon-192.png",
-    data: { url: data.url ?? "/dashboard" },
+    data: { url: link },
     vibrate: [200, 100, 200],
+    tag: data.data?.type ?? "rotahr", // collapse duplicate type notifications
+    renotify: true,
   };
   event.waitUntil(self.registration.showNotification(title, options));
 });
 
-// Notification click — open the relevant page
+// Notification click — open the exact deep-link page
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
   const url = event.notification.data?.url ?? "/dashboard";
+  const fullUrl = url.startsWith("http") ? url : self.location.origin + url;
   event.waitUntil(
     clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
+      // If app is already open, navigate the existing tab
       for (const client of clientList) {
-        if (client.url.includes(self.location.origin) && "focus" in client) {
+        if (client.url.startsWith(self.location.origin) && "focus" in client) {
           client.focus();
-          client.navigate(url);
+          client.navigate(fullUrl);
           return;
         }
       }
-      if (clients.openWindow) clients.openWindow(url);
+      // Otherwise open a new tab
+      if (clients.openWindow) clients.openWindow(fullUrl);
     })
   );
 });

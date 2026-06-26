@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
       type: "message",
       title: `New message from ${me.firstName} ${me.lastName}`,
       body: body.trim().slice(0, 120),
-      link: "/messages",
+      link: `/messages?thread=${me.id}`,
     }).catch(() => {});
   }
 

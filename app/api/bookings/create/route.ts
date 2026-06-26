@@ -110,7 +110,7 @@ export async function POST(req: NextRequest) {
         type: "booking",
         title: "New Booking",
         body: `${data.customerName}, party of ${data.partySize} on ${data.date} at ${data.time}`,
-        link: `/bookings`,
+        link: `/bookings?id=${reservation.id}`,
       });
     }
 

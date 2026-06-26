@@ -40,7 +40,7 @@ export async function sendNotification({
         ? `${res.customerName} — ${new Date(res.date).toLocaleDateString("en-IE")} at ${res.time}`
         : "You have a new booking notification";
       await sendPushToUser(employee.userId, title, body, {
-        url: "/reservations",
+        url: `/bookings?id=${reservationId}`,
         notificationId: notification.id,
       });
     }

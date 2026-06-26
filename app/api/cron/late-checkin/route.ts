@@ -98,6 +98,7 @@ export async function GET(req: NextRequest) {
         type: "late_checkin",
         title: `${empName} hasn't clocked in`,
         body: `Shift started at ${shiftTime} (${minutesLate} min ago). No clock-in recorded.`,
+        link: `/rota?date=${shift.date.toISOString().split("T")[0]}`,
       });
     }
 

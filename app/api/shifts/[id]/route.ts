@@ -36,7 +36,7 @@ async function handleUpdate(req: NextRequest, { params }: { params: { id: string
         type: "shift",
         title: "Shift Updated",
         body: `Your shift on ${shiftDate} has been updated.`,
-        link: "/shifts",
+        link: `/rota?date=${new Date(shift.date).toISOString().split("T")[0]}`,
       }).catch(() => {});
     }
 
@@ -82,7 +82,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: { id: stri
           type: "shift",
           title: "Shift Cancelled",
           body: `Your shift on ${shiftDate} has been cancelled.`,
-          link: "/shifts",
+          link: `/rota?date=${new Date(shift.date).toISOString().split("T")[0]}`,
         }).catch(() => {});
       }
     }

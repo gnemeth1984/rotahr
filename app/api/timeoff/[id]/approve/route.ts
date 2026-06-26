@@ -26,7 +26,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
         type: "timeoff",
         title: "Time off approved ✓",
         body: `Your time off request has been approved.`,
-        link: "/timeoff",
+        link: `/timeoff?id=${params.id}`,
       }).catch(() => {});
     }
 

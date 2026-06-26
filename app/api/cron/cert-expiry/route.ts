@@ -84,7 +84,7 @@ export async function GET(req: NextRequest) {
         type: "cert_expiry",
         title,
         body,
-        link: "/training",
+        link: `/training?employeeId=${emp.id}`,
       });
     }
 

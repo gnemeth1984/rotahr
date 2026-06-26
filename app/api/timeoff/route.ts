@@ -118,7 +118,7 @@ export async function POST(req: NextRequest) {
         type: "timeoff",
         title: "New time off request",
         body: `${employeeName} requested time off.`,
-        link: "/timeoff",
+        link: `/timeoff?id=${request.id}`,
       }).catch(() => {});
     }
 
