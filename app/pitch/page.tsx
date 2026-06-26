@@ -4,18 +4,18 @@ import { useEffect } from "react";
 
 export default function PitchPage() {
   const slides = [
-    "https://storage.googleapis.com/runable-templates/cli-uploads%2FnpR7iwoxdmjjem91IBsyOE3SjrOrbdCS%2FCrgxhP2MJXbx87efI2p01%2Fslide-01.png",
-    "https://storage.googleapis.com/runable-templates/cli-uploads%2FnpR7iwoxdmjjem91IBsyOE3SjrOrbdCS%2FBgaYpiY3-JUa_oL959JSU%2Fslide-02.png",
-    "https://storage.googleapis.com/runable-templates/cli-uploads%2FnpR7iwoxdmjjem91IBsyOE3SjrOrbdCS%2FY7nH1pnU_UEgsiDhnHU6y%2Fslide-03.png",
-    "https://storage.googleapis.com/runable-templates/cli-uploads%2FnpR7iwoxdmjjem91IBsyOE3SjrOrbdCS%2FO8QcvCkPqGTbli5OUGjav%2Fslide-04.png",
-    "https://storage.googleapis.com/runable-templates/cli-uploads%2FnpR7iwoxdmjjem91IBsyOE3SjrOrbdCS%2F7BwnCSbo1yMpXh_YB3seO%2Fslide-05.png",
-    "https://storage.googleapis.com/runable-templates/cli-uploads%2FnpR7iwoxdmjjem91IBsyOE3SjrOrbdCS%2FOAeIRaeDq68iQDNyiT47W%2Fslide-06.png",
-    "https://storage.googleapis.com/runable-templates/cli-uploads%2FnpR7iwoxdmjjem91IBsyOE3SjrOrbdCS%2FSCvBYkxNoqnStTm41BLLD%2Fslide-07.png",
-    "https://storage.googleapis.com/runable-templates/cli-uploads%2FnpR7iwoxdmjjem91IBsyOE3SjrOrbdCS%2FKG5c_vpNriWdRz4siNd87%2Fslide-08.png",
-    "https://storage.googleapis.com/runable-templates/cli-uploads%2FnpR7iwoxdmjjem91IBsyOE3SjrOrbdCS%2FMUQjxFaJENjFmrpa2qPQn%2Fslide-09.png",
-    "https://storage.googleapis.com/runable-templates/cli-uploads%2FnpR7iwoxdmjjem91IBsyOE3SjrOrbdCS%2FY_Zh5Un59mQ8AyE2lZPlG%2Fslide-10.png",
-    "https://storage.googleapis.com/runable-templates/cli-uploads%2FnpR7iwoxdmjjem91IBsyOE3SjrOrbdCS%2Fpk4r7ZTaS1nlixQXG2miX%2Fslide-11.png",
-    "https://storage.googleapis.com/runable-templates/cli-uploads%2FnpR7iwoxdmjjem91IBsyOE3SjrOrbdCS%2FOjziMdnxOaPCjHXhn_4hI%2Fslide-12.png",
+    "https://storage.googleapis.com/runable-templates/cli-uploads%2FnpR7iwoxdmjjem91IBsyOE3SjrOrbdCS%2F0LTVIRTTUWEteDgknuit-%2Fslide-01.png",
+    "https://storage.googleapis.com/runable-templates/cli-uploads%2FnpR7iwoxdmjjem91IBsyOE3SjrOrbdCS%2FnUQdD2o6TK-uTXJoJ99pL%2Fslide-02.png",
+    "https://storage.googleapis.com/runable-templates/cli-uploads%2FnpR7iwoxdmjjem91IBsyOE3SjrOrbdCS%2Fr74FtHzc0a9jD9PF0D8Mg%2Fslide-03.png",
+    "https://storage.googleapis.com/runable-templates/cli-uploads%2FnpR7iwoxdmjjem91IBsyOE3SjrOrbdCS%2FygX7O2JsHz63-8ogPcZQr%2Fslide-04.png",
+    "https://storage.googleapis.com/runable-templates/cli-uploads%2FnpR7iwoxdmjjem91IBsyOE3SjrOrbdCS%2FjRjPIh9O8_GRqQQ6hJ8am%2Fslide-05.png",
+    "https://storage.googleapis.com/runable-templates/cli-uploads%2FnpR7iwoxdmjjem91IBsyOE3SjrOrbdCS%2FF7O7ILH_24FxJLJ98fRGu%2Fslide-06.png",
+    "https://storage.googleapis.com/runable-templates/cli-uploads%2FnpR7iwoxdmjjem91IBsyOE3SjrOrbdCS%2FVFA7aoE8U9CpkWx7J_9vp%2Fslide-07.png",
+    "https://storage.googleapis.com/runable-templates/cli-uploads%2FnpR7iwoxdmjjem91IBsyOE3SjrOrbdCS%2FeLaHSlkaiQWt3Cfra0DtX%2Fslide-08.png",
+    "https://storage.googleapis.com/runable-templates/cli-uploads%2FnpR7iwoxdmjjem91IBsyOE3SjrOrbdCS%2FeQC1bTyeQBqJtYaXhaVEp%2Fslide-09.png",
+    "https://storage.googleapis.com/runable-templates/cli-uploads%2FnpR7iwoxdmjjem91IBsyOE3SjrOrbdCS%2FeCMVe4vHAQ-PrsknvOquJ%2Fslide-10.png",
+    "https://storage.googleapis.com/runable-templates/cli-uploads%2FnpR7iwoxdmjjem91IBsyOE3SjrOrbdCS%2Fw6bn1Rsr6n_i19A1YgqaW%2Fslide-11.png",
+    "https://storage.googleapis.com/runable-templates/cli-uploads%2FnpR7iwoxdmjjem91IBsyOE3SjrOrbdCS%2FdA81Ex6x0ncIMIm1rYdqF%2Fslide-12.png",
   ];
 
   useEffect(() => {
@@ -38,7 +38,6 @@ export default function PitchPage() {
 
     window.addEventListener("scroll", updateActive, { passive: true });
     window.addEventListener("resize", updateActive);
-    // slight delay so layout is fully painted
     const t = setTimeout(updateActive, 100);
     return () => {
       window.removeEventListener("scroll", updateActive);
@@ -102,7 +101,7 @@ export default function PitchPage() {
       <section className="hero">
         <div className="hero-label">Pitch Deck · 12 Slides</div>
         <h1>One app to run<br /><span>your entire venue</span></h1>
-        <p>Rotas · Clock-In · Reservations · Bookkeeping · Payroll — built for Irish hospitality.</p>
+        <p>Rotas · Clock-In · Reservations · Bookkeeping — built for hospitality.</p>
         <a className="btn-primary" href="/auth/register">Start Free Trial</a>
       </section>
 
@@ -129,14 +128,14 @@ export default function PitchPage() {
         </a>
         <div className="trust-badges">
           <span className="badge">🔒 GDPR Compliant</span>
-          <span className="badge">☘️ Built for Ireland</span>
+          <span className="badge">🌍 Built for Hospitality</span>
           <span className="badge">✓ No Setup Fees</span>
           <span className="badge">📱 iOS &amp; Android</span>
         </div>
       </section>
 
       <footer>
-        <p>© 2025 Rotahr. Built for Irish hospitality.</p>
+        <p>© 2026 Rotahr. Built for hospitality.</p>
         <div style={{ display: "flex", gap: "20px" }}>
           <a href="/landing">rotahr.com</a>
           <a href="/privacy">Privacy</a>
