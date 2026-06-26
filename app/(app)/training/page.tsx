@@ -1,8 +1,9 @@
 // @ts-nocheck
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSession } from "next-auth/react";
+import { useSearchParams } from "next/navigation";
 import {
   Award, Plus, AlertTriangle, CheckCircle2, Clock, Loader2,
   Trash2, Edit2, X, Upload, Filter, Search,
@@ -73,8 +74,10 @@ const EMPTY_FORM = {
   notes: "",
 };
 
-export default function TrainingPage() {
+function TrainingInner() {
   const { data: session } = useSession();
+  const searchParams = useSearchParams();
+  const empParam = searchParams.get("employeeId");
   const role = session?.user?.role;
   const isManager = role === Role.MANAGER || role === Role.ADMIN;
 
@@ -84,6 +87,7 @@ export default function TrainingPage() {
   const [search, setSearch] = useState("");
   const [filterCat, setFilterCat] = useState("ALL");
   const [filterStatus, setFilterStatus] = useState("ALL");
+  const [filterEmp, setFilterEmp] = useState<string>(empParam ?? "");
 
   const [showDialog, setShowDialog] = useState(false);
   const [editing, setEditing] = useState<Cert | null>(null);
@@ -179,7 +183,8 @@ export default function TrainingPage() {
     const matchSearch = !search || name.includes(search.toLowerCase()) || c.title.toLowerCase().includes(search.toLowerCase());
     const matchCat = filterCat === "ALL" || c.category === filterCat;
     const matchStatus = filterStatus === "ALL" || c.status === filterStatus;
-    return matchSearch && matchCat && matchStatus;
+    const matchEmp = !filterEmp || c.employeeId === filterEmp;
+    return matchSearch && matchCat && matchStatus && matchEmp;
   });
 
   // Summary counts
@@ -195,8 +200,34 @@ export default function TrainingPage() {
     );
   }
 
+  // Find employee name for banner
+  const filteredEmpName = filterEmp
+    ? employees.find((e) => e.id === filterEmp)
+    : null;
+
   return (
     <div className="space-y-6">
+      {/* Deep-link employee filter banner */}
+      {filterEmp && (
+        <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg px-4 py-2.5 text-sm text-blue-800">
+          <span>
+            Showing certifications for{" "}
+            <strong>
+              {filteredEmpName
+                ? `${filteredEmpName.firstName} ${filteredEmpName.lastName}`
+                : "this employee"}
+            </strong>
+          </span>
+          <button
+            onClick={() => setFilterEmp("")}
+            className="ml-4 flex items-center gap-1 text-blue-600 hover:text-blue-800 font-medium"
+          >
+            <X className="h-3.5 w-3.5" />
+            Clear filter
+          </button>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -489,5 +520,13 @@ export default function TrainingPage() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+export default function TrainingPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center h-64"><div className="h-6 w-6 animate-spin rounded-full border-2 border-slate-300 border-t-slate-600" /></div>}>
+      <TrainingInner />
+    </Suspense>
   );
 }

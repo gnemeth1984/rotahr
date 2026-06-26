@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, Component, ReactNode } from "react";
 import { useSession } from "next-auth/react";
+import { useSearchParams } from "next/navigation";
 import { Send, MessageSquare, User, ArrowLeft, AlertCircle, Users, Check, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -46,8 +47,10 @@ type Message = {
 
 function MessagesInner() {
   const { data: session } = useSession();
+  const searchParams = useSearchParams();
+  const threadParam = searchParams.get("thread");
   const [employees, setEmployees] = useState<Employee[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(threadParam);
   const [messages, setMessages] = useState<Message[]>([]);
   const [meId, setMeId] = useState<string | null>(null);
   const [body, setBody] = useState("");
@@ -78,6 +81,13 @@ function MessagesInner() {
       })
       .catch(() => setContactsError("Failed to load contacts"));
   }, []);
+
+  // Validate threadParam against loaded employees (clear if ghost ID)
+  useEffect(() => {
+    if (!threadParam || employees.length === 0) return;
+    const exists = employees.some((e) => e.id === threadParam);
+    if (!exists) setSelectedId(null);
+  }, [employees, threadParam]);
 
   // Fetch unread counts
   useEffect(() => {

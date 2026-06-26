@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useSession } from "next-auth/react";
+import { useSearchParams } from "next/navigation";
 import { useCurrency } from "@/components/shared/CurrencyProvider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -222,10 +223,19 @@ function CompliancePanel({ alerts }: { alerts: ComplianceAlertItem[] }) {
 export default function RotaPage() {
   const { data: session } = useSession();
   const { symbol, fmt, locale } = useCurrency();
+  const searchParams = useSearchParams();
   const isManager =
     session?.user?.role === Role.MANAGER || session?.user?.role === Role.ADMIN;
 
-  const [weekStart, setWeekStart] = useState<Date>(() => getMondayOfWeek(new Date()));
+  // Deep-link: ?date=YYYY-MM-DD — jump to the week containing that date
+  const [weekStart, setWeekStart] = useState<Date>(() => {
+    const dateParam = searchParams.get("date");
+    if (dateParam) {
+      const d = new Date(dateParam + "T12:00:00");
+      if (!isNaN(d.getTime())) return getMondayOfWeek(d);
+    }
+    return getMondayOfWeek(new Date());
+  });
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [shifts, setShifts] = useState<Shift[]>([]);

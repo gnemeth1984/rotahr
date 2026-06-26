@@ -1,8 +1,9 @@
 // @ts-nocheck
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useSession } from "next-auth/react";
+import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -112,9 +113,14 @@ const TOMORROW = new Date(Date.now() + 86400000).toISOString().split("T")[0];
 
 export default function BookingsPage() {
   const { data: session } = useSession();
+  const searchParams = useSearchParams();
+  const deepLinkId = searchParams.get("id");
+
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterDate, setFilterDate] = useState(TODAY);
+  const bookingRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const deepLinkedRef = useRef(false);
 
   // Selected booking for action sheet
   const [activeBooking, setActiveBooking] = useState<Booking | null>(null);
@@ -155,6 +161,23 @@ export default function BookingsPage() {
 
   useEffect(() => { fetchBookings(); }, [filterDate]);
 
+  // Deep-link: when ?id= is present, switch to that booking's date and open it
+  useEffect(() => {
+    if (!deepLinkId || loading || deepLinkedRef.current) return;
+    const target = bookings.find((b) => b.id === deepLinkId);
+    if (target) {
+      deepLinkedRef.current = true;
+      openActions(target);
+      // Scroll the row into view after a short paint delay
+      setTimeout(() => {
+        bookingRefs.current[deepLinkId]?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 200);
+    } else if (!loading) {
+      // Booking not on current date filter — switch to its date and re-fetch
+      // We'll handle this once we know the date from the API (below)
+    }
+  }, [deepLinkId, bookings, loading]);
+
   async function fetchBookings() {
     setLoading(true);
     try {
@@ -162,7 +185,20 @@ export default function BookingsPage() {
       const res = await fetch(url);
       if (!res.ok) throw new Error("Failed");
       const data = await res.json();
-      setBookings(Array.isArray(data.reservations) ? data.reservations : []);
+      const list: Booking[] = Array.isArray(data.reservations) ? data.reservations : [];
+      setBookings(list);
+
+      // If deep-linking and the booking isn't on today's filter, switch to its date
+      if (deepLinkId && !deepLinkedRef.current) {
+        const match = list.find((b) => b.id === deepLinkId);
+        if (!match) {
+          // Fetch single booking to get its date
+          const single = await fetch(`/api/reservations/${deepLinkId}`).then((r) => r.ok ? r.json() : null).catch(() => null);
+          if (single?.reservation?.date) {
+            setFilterDate(single.reservation.date.split("T")[0]);
+          }
+        }
+      }
     } catch {
       setBookings([]);
     } finally {
@@ -422,8 +458,11 @@ export default function BookingsPage() {
           bookings.map((b) => (
             <button
               key={b.id}
+              ref={(el) => { bookingRefs.current[b.id] = el; }}
               onClick={() => openActions(b)}
-              className="w-full text-left bg-white border border-slate-200 rounded-2xl p-4 active:scale-[0.98] transition-transform shadow-sm hover:shadow-md"
+              className={`w-full text-left bg-white border rounded-2xl p-4 active:scale-[0.98] transition-all shadow-sm hover:shadow-md ${
+                b.id === deepLinkId ? "border-blue-400 ring-2 ring-blue-200" : "border-slate-200"
+              }`}
             >
               <div className="flex items-start justify-between gap-3">
                 {/* Left: name + info */}

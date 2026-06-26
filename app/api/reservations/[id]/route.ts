@@ -5,6 +5,32 @@ import { authOptions } from "@/lib/auth/options";
 import { prisma } from "@/lib/db";
 import { UserRole as Role } from "@/types/roles";
 
+export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const businessId = (session.user as any).businessId as string | undefined;
+    const reservation = await prisma.reservation.findFirst({
+      where: { id: params.id, ...(businessId ? { businessId } : {}) },
+      include: {
+        table: { select: { id: true, name: true, capacity: true } },
+      },
+    });
+
+    if (!reservation) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
+    return NextResponse.json({ reservation });
+  } catch (e) {
+    console.error("[GET /api/reservations/[id]]", e);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}
+
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   try {
     const session = await getServerSession(authOptions);

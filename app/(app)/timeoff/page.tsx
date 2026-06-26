@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useSession } from "next-auth/react";
+import { useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -39,6 +40,11 @@ interface TimeOffRequest {
 
 export default function TimeOffPage() {
   const { data: session } = useSession();
+  const searchParams = useSearchParams();
+  const deepLinkId = searchParams.get("id");
+  const requestRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const deepLinkedRef = useRef(false);
+
   const [requests, setRequests] = useState<TimeOffRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -75,6 +81,18 @@ export default function TimeOffPage() {
     fetchRequests();
     fetchEntitlement();
   }, []);
+
+  // Deep-link: scroll to and highlight the specific request
+  useEffect(() => {
+    if (!deepLinkId || !requests.length || deepLinkedRef.current) return;
+    const target = requests.find((r) => r.id === deepLinkId);
+    if (target) {
+      deepLinkedRef.current = true;
+      setTimeout(() => {
+        requestRefs.current[deepLinkId]?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 200);
+    }
+  }, [deepLinkId, requests]);
 
   const fetchEntitlement = async () => {
     setEntitlementLoading(true);
@@ -225,7 +243,11 @@ export default function TimeOffPage() {
                 {isManager ? `Pending Approval (${pendingRequests.length})` : "Pending"}
               </h2>
               {pendingRequests.map((req) => (
-                <Card key={req.id} className="border-orange-200 bg-orange-50">
+                <Card
+                  key={req.id}
+                  ref={(el) => { requestRefs.current[req.id] = el as any; }}
+                  className={`border-orange-200 bg-orange-50 ${req.id === deepLinkId ? "ring-2 ring-blue-400 border-blue-400" : ""}`}
+                >
                   <CardContent className="p-4">
                     <div className="flex items-start gap-3">
                       {isManager && (
@@ -307,7 +329,11 @@ export default function TimeOffPage() {
                 History
               </h2>
               {otherRequests.map((req) => (
-                <Card key={req.id}>
+                <Card
+                  key={req.id}
+                  ref={(el) => { requestRefs.current[req.id] = el as any; }}
+                  className={req.id === deepLinkId ? "ring-2 ring-blue-400 border-blue-400" : ""}
+                >
                   <CardContent className="p-5">
                     <div className="flex items-center gap-4">
                       {isManager && (
