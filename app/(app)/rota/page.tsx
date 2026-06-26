@@ -999,86 +999,281 @@ function RotaInner() {
           )}
           {/* ── MOBILE VIEW (< lg) ── */}
           <div className="lg:hidden space-y-4">
-            {/* Day selector strip — shown in weekly mode OR when daily+dept shows full week */}
-            {(viewMode === "weekly" || !activeDeptId || dayScope === "week") && (
-              <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-                {weekDates.map((date, i) => {
-                  const dateStr = toDateStr(date);
-                  const isTodayDate = dateStr === toDateStr(new Date());
-                  const isSelected = i === selectedDay;
-                  const dayShifts = shifts.filter((s) => s.date.split("T")[0] === dateStr);
-                  return (
-                    <button
-                      key={i}
-                      onClick={() => setSelectedDay(i)}
-                      className={cn(
-                        "flex flex-col items-center px-3 py-2 rounded-xl text-xs font-medium transition-all flex-shrink-0 min-w-[48px]",
-                        isSelected
-                          ? "bg-blue-600 text-white shadow-sm"
-                          : isTodayDate
-                          ? "bg-blue-50 text-blue-600 border border-blue-200"
-                          : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
-                      )}
-                    >
-                      <span className="text-[11px] uppercase tracking-wide opacity-80">{DAYS[i]}</span>
-                      <span className="text-base font-bold leading-tight">{date.getDate()}</span>
-                      {holidayMap[toDateStr(date)] && (
-                        <span className={cn(
-                          "mt-0.5 h-1.5 w-1.5 rounded-full",
-                          isSelected ? "bg-amber-300" : "bg-amber-400"
-                        )} title={holidayMap[toDateStr(date)]?.name} />
-                      )}
-                      {!holidayMap[toDateStr(date)] && dayShifts.length > 0 && (
-                        <span className={cn(
-                          "mt-0.5 h-1 w-1 rounded-full",
-                          isSelected ? "bg-white/70" : "bg-blue-400"
-                        )} />
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
 
-            {/* Daily dept view: iterate over dailyScopeDates */}
-            {activeDeptId && viewMode === "daily" ? (
+            {/* ── WEEKLY MODE: all 7 days stacked, every employee visible ── */}
+            {viewMode === "weekly" ? (
               <div className="space-y-5">
-                {dailyScopeDates.map((date) => {
+                {weekDates.map((date) => {
                   const dateStr = toDateStr(date);
                   const isTodayDate = dateStr === toDateStr(new Date());
+                  const ph = holidayMap[dateStr];
+                  const dayShiftCount = shifts.filter((s) => s.date.split("T")[0] === dateStr).length;
                   return (
                     <div key={dateStr} className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <h2 className="text-sm font-semibold text-slate-700">
-                          {date.toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long" })}
-                          {isTodayDate && (
-                            <span className="ml-2 text-xs font-medium text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full">Today</span>
-                          )}
-                          {holidayMap[dateStr] && (
-                            <span className="ml-2 text-xs font-medium text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded-full">
-                              {holidayMap[dateStr].name}
-                            </span>
-                          )}
-                        </h2>
-                        <span className="text-xs text-slate-400">
-                          {shifts.filter((s) => s.date.split("T")[0] === dateStr).length} shifts
-                        </span>
+                      {/* Day heading */}
+                      <div className="flex items-center justify-between px-0.5">
+                        <div className="flex items-center gap-2">
+                          <div className={cn(
+                            "h-8 w-8 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0",
+                            isTodayDate ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600"
+                          )}>
+                            {date.getDate()}
+                          </div>
+                          <div>
+                            <p className={cn("text-sm font-semibold leading-tight", isTodayDate ? "text-blue-700" : "text-slate-700")}>
+                              {date.toLocaleDateString(locale, { weekday: "long" })}
+                              {isTodayDate && <span className="ml-1.5 text-xs font-medium text-blue-500">Today</span>}
+                            </p>
+                            <p className="text-xs text-slate-400">
+                              {date.toLocaleDateString(locale, { day: "numeric", month: "short" })}
+                              {ph && <span className="ml-1.5 text-amber-600 font-medium">{ph.name}</span>}
+                            </p>
+                          </div>
+                        </div>
+                        <span className="text-xs text-slate-400">{dayShiftCount} shift{dayShiftCount !== 1 ? "s" : ""}</span>
                       </div>
-                      {filteredGroups.map(({ dept, colors, emps }) => (
-                        <div key={dept.id} className="space-y-1.5">
-                          {filteredGroups.length > 1 && (
-                            <div className="flex items-center gap-1.5 px-0.5">
-                              <span className={cn("h-2 w-2 rounded-full flex-shrink-0", colors.dot)} />
-                              <span className={cn("text-xs font-semibold uppercase tracking-wide", colors.text)}>{dept.name}</span>
-                            </div>
-                          )}
-                          {emps.map((emp) => {
+
+                      {/* All employee cards for this day */}
+                      <div className="space-y-1.5">
+                        {filteredGroups.map(({ dept, colors, emps }) =>
+                          emps.map((emp) => {
                             const shift = getShift(emp.id, dateStr);
-                            const weekHrs = empWeekHours(emp.id, weekDates, getShift);
+                            if (!shift && !isManager) return null; // staff only see their own shifts
                             return (
                               <button
                                 key={emp.id}
                                 onClick={() => handleCellClick(emp.id, dateStr, shift)}
+                                disabled={!isManager}
+                                className={cn(
+                                  "w-full flex items-center justify-between rounded-xl px-4 py-3 border transition-all text-left",
+                                  shift
+                                    ? shift.published
+                                      ? "bg-white border-slate-200 hover:border-blue-300 hover:shadow-sm active:scale-[0.99]"
+                                      : "bg-amber-50/60 border-amber-200 hover:border-amber-300 active:scale-[0.99]"
+                                    : isManager
+                                    ? "bg-white border-dashed border-slate-200 hover:border-blue-300 hover:bg-blue-50/30 active:scale-[0.99]"
+                                    : "bg-slate-50 border-slate-100 cursor-default"
+                                )}
+                              >
+                                <div className="flex items-center gap-3">
+                                  <div className={cn(
+                                    "h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0",
+                                    shift ? colors.cardBg + " " + colors.cardText : "bg-slate-100 text-slate-400"
+                                  )}>
+                                    {emp.firstName[0]}{emp.lastName[0]}
+                                  </div>
+                                  <div>
+                                    <p className="text-sm font-semibold text-slate-800 leading-tight">
+                                      {emp.firstName} {emp.lastName}
+                                    </p>
+                                    {shift ? (
+                                      <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                                        <span className="text-xs text-slate-500 flex items-center gap-0.5">
+                                          <Clock className="h-3 w-3" />
+                                          {fmtTime(shift.startTime)}–{fmtTime(shift.endTime)}
+                                        </span>
+                                        {shift.role && <span className="text-xs text-slate-400">· {shift.role}</span>}
+                                        {(shift.overtimeHours ?? 0) > 0 && (
+                                          <span className="text-[10px] font-bold bg-orange-500 text-white px-1.5 py-0.5 rounded-full">
+                                            +{shift.overtimeHours}h OT
+                                          </span>
+                                        )}
+                                      </div>
+                                    ) : (
+                                      <p className="text-xs text-slate-400 mt-0.5">
+                                        <span className={cn("text-[10px] font-medium px-1.5 py-0.5 rounded-full", colors.bg, colors.text)}>{dept.name}</span>
+                                        <span className="ml-1">· No shift</span>
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="flex-shrink-0 flex items-center gap-1.5">
+                                  {shift ? (
+                                    shift.published
+                                      ? <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                                      : <AlertCircle className="h-4 w-4 text-amber-500" />
+                                  ) : isManager ? (
+                                    <div className="h-7 w-7 rounded-full bg-blue-50 border border-blue-200 flex items-center justify-center">
+                                      <Plus className="h-3.5 w-3.5 text-blue-500" />
+                                    </div>
+                                  ) : null}
+                                </div>
+                              </button>
+                            );
+                          })
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+            ) : (
+              /* ── DAILY MODE ── */
+              <div className="space-y-4">
+                {/* Day selector strip — daily mode only */}
+                {(!activeDeptId || dayScope === "week") && (
+                  <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+                    {weekDates.map((date, i) => {
+                      const dateStr = toDateStr(date);
+                      const isTodayDate = dateStr === toDateStr(new Date());
+                      const isSelected = i === selectedDay;
+                      const dayShifts = shifts.filter((s) => s.date.split("T")[0] === dateStr);
+                      return (
+                        <button
+                          key={i}
+                          onClick={() => setSelectedDay(i)}
+                          className={cn(
+                            "flex flex-col items-center px-3 py-2 rounded-xl text-xs font-medium transition-all flex-shrink-0 min-w-[48px]",
+                            isSelected
+                              ? "bg-blue-600 text-white shadow-sm"
+                              : isTodayDate
+                              ? "bg-blue-50 text-blue-600 border border-blue-200"
+                              : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
+                          )}
+                        >
+                          <span className="text-[11px] uppercase tracking-wide opacity-80">{DAYS[i]}</span>
+                          <span className="text-base font-bold leading-tight">{date.getDate()}</span>
+                          {holidayMap[toDateStr(date)] && (
+                            <span className={cn("mt-0.5 h-1.5 w-1.5 rounded-full", isSelected ? "bg-amber-300" : "bg-amber-400")} title={holidayMap[toDateStr(date)]?.name} />
+                          )}
+                          {!holidayMap[toDateStr(date)] && dayShifts.length > 0 && (
+                            <span className={cn("mt-0.5 h-1 w-1 rounded-full", isSelected ? "bg-white/70" : "bg-blue-400")} />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Daily dept view: iterate over dailyScopeDates */}
+                {activeDeptId ? (
+                  <div className="space-y-5">
+                    {dailyScopeDates.map((date) => {
+                      const dateStr = toDateStr(date);
+                      const isTodayDate = dateStr === toDateStr(new Date());
+                      return (
+                        <div key={dateStr} className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <h2 className="text-sm font-semibold text-slate-700">
+                              {date.toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long" })}
+                              {isTodayDate && (
+                                <span className="ml-2 text-xs font-medium text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full">Today</span>
+                              )}
+                              {holidayMap[dateStr] && (
+                                <span className="ml-2 text-xs font-medium text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded-full">
+                                  {holidayMap[dateStr].name}
+                                </span>
+                              )}
+                            </h2>
+                            <span className="text-xs text-slate-400">
+                              {shifts.filter((s) => s.date.split("T")[0] === dateStr).length} shifts
+                            </span>
+                          </div>
+                          {filteredGroups.map(({ dept, colors, emps }) => (
+                            <div key={dept.id} className="space-y-1.5">
+                              {filteredGroups.length > 1 && (
+                                <div className="flex items-center gap-1.5 px-0.5">
+                                  <span className={cn("h-2 w-2 rounded-full flex-shrink-0", colors.dot)} />
+                                  <span className={cn("text-xs font-semibold uppercase tracking-wide", colors.text)}>{dept.name}</span>
+                                </div>
+                              )}
+                              {emps.map((emp) => {
+                                const shift = getShift(emp.id, dateStr);
+                                const weekHrs = empWeekHours(emp.id, weekDates, getShift);
+                                return (
+                                  <button
+                                    key={emp.id}
+                                    onClick={() => handleCellClick(emp.id, dateStr, shift)}
+                                    disabled={!isManager}
+                                    className={cn(
+                                      "w-full flex items-center justify-between rounded-xl px-4 py-3 border transition-all text-left",
+                                      shift
+                                        ? shift.published
+                                          ? "bg-white border-slate-200 hover:border-blue-300 hover:shadow-sm active:scale-[0.99]"
+                                          : "bg-amber-50/60 border-amber-200 hover:border-amber-300 active:scale-[0.99]"
+                                        : isManager
+                                        ? "bg-white border-dashed border-slate-200 hover:border-blue-300 hover:bg-blue-50/30 active:scale-[0.99]"
+                                        : "bg-slate-50 border-slate-100 cursor-default"
+                                    )}
+                                  >
+                                    <div className="flex items-center gap-3">
+                                      <div className={cn(
+                                        "h-9 w-9 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0",
+                                        shift ? colors.cardBg + " " + colors.cardText : "bg-slate-100 text-slate-400"
+                                      )}>
+                                        {emp.firstName[0]}{emp.lastName[0]}
+                                      </div>
+                                      <div>
+                                        <p className="text-sm font-semibold text-slate-800">{emp.firstName} {emp.lastName}</p>
+                                        {shift ? (
+                                          <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                                            <span className="text-xs text-slate-500 flex items-center gap-0.5">
+                                              <Clock className="h-3 w-3" />
+                                              {fmtTime(shift.startTime)}–{fmtTime(shift.endTime)}
+                                            </span>
+                                            {shift.role && <span className="text-xs text-slate-400">· {shift.role}</span>}
+                                            {(shift.overtimeHours ?? 0) > 0 && (
+                                              <span className="text-[10px] font-bold bg-orange-500 text-white px-1.5 py-0.5 rounded-full">
+                                                +{shift.overtimeHours}h OT
+                                              </span>
+                                            )}
+                                          </div>
+                                        ) : (
+                                          <p className="text-xs text-slate-400 mt-0.5">
+                                            {weekHrs > 0 ? `${fmtHours(weekHrs)} this week` : "No shift"}
+                                          </p>
+                                        )}
+                                      </div>
+                                    </div>
+                                    <div className="flex-shrink-0 flex items-center gap-1.5">
+                                      {shift ? (
+                                        shift.published
+                                          ? <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                                          : <AlertCircle className="h-4 w-4 text-amber-500" />
+                                      ) : isManager ? (
+                                        <div className="h-7 w-7 rounded-full bg-blue-50 border border-blue-200 flex items-center justify-center">
+                                          <Plus className="h-3.5 w-3.5 text-blue-500" />
+                                        </div>
+                                      ) : null}
+                                    </div>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  /* Daily, no dept filter — single day picker */
+                  <>
+                    <div className="flex items-center justify-between">
+                      <h2 className="text-sm font-semibold text-slate-700">
+                        {selectedDate.toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long" })}
+                        {isToday && (
+                          <span className="ml-2 text-xs font-medium text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full">Today</span>
+                        )}
+                      </h2>
+                      <span className="text-xs text-slate-400">
+                        {shifts.filter((s) => s.date.split("T")[0] === selectedDateStr).length} shifts
+                      </span>
+                    </div>
+                    <div className="space-y-3">
+                      {filteredGroups.map(({ dept, colors, emps }) => (
+                        <div key={dept.id} className="space-y-1.5">
+                          <div className="flex items-center gap-1.5 px-0.5">
+                            <span className={cn("h-2 w-2 rounded-full flex-shrink-0", colors.dot)} />
+                            <span className={cn("text-xs font-semibold uppercase tracking-wide", colors.text)}>{dept.name}</span>
+                          </div>
+                          {emps.map((emp) => {
+                            const shift = getShift(emp.id, selectedDateStr);
+                            const weekHrs = empWeekHours(emp.id, weekDates, getShift);
+                            return (
+                              <button
+                                key={emp.id}
+                                onClick={() => handleCellClick(emp.id, selectedDateStr, shift)}
                                 disabled={!isManager}
                                 className={cn(
                                   "w-full flex items-center justify-between rounded-xl px-4 py-3 border transition-all text-left",
@@ -1099,9 +1294,7 @@ function RotaInner() {
                                     {emp.firstName[0]}{emp.lastName[0]}
                                   </div>
                                   <div>
-                                    <p className="text-sm font-semibold text-slate-800">
-                                      {emp.firstName} {emp.lastName}
-                                    </p>
+                                    <p className="text-sm font-semibold text-slate-800">{emp.firstName} {emp.lastName}</p>
                                     {shift ? (
                                       <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                                         <span className="text-xs text-slate-500 flex items-center gap-0.5">
@@ -1139,106 +1332,9 @@ function RotaInner() {
                         </div>
                       ))}
                     </div>
-                  );
-                })}
+                  </>
+                )}
               </div>
-            ) : (
-              /* Standard weekly mobile view (or daily with no dept filter) */
-              <>
-                {/* Selected day heading */}
-                <div className="flex items-center justify-between">
-                  <h2 className="text-sm font-semibold text-slate-700">
-                    {selectedDate.toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long" })}
-                    {isToday && (
-                      <span className="ml-2 text-xs font-medium text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full">Today</span>
-                    )}
-                  </h2>
-                  <span className="text-xs text-slate-400">
-                    {shifts.filter((s) => s.date.split("T")[0] === selectedDateStr).length} shifts
-                  </span>
-                </div>
-
-                {/* Employee cards for selected day */}
-                <div className="space-y-3">
-                  {filteredGroups.map(({ dept, colors, emps }) => (
-                    <div key={dept.id} className="space-y-1.5">
-                      <div className="flex items-center gap-1.5 px-0.5">
-                        <span className={cn("h-2 w-2 rounded-full flex-shrink-0", colors.dot)} />
-                        <span className={cn("text-xs font-semibold uppercase tracking-wide", colors.text)}>{dept.name}</span>
-                      </div>
-
-                      {emps.map((emp) => {
-                        const shift = getShift(emp.id, selectedDateStr);
-                        const weekHrs = empWeekHours(emp.id, weekDates, getShift);
-                        return (
-                          <button
-                            key={emp.id}
-                            onClick={() => handleCellClick(emp.id, selectedDateStr, shift)}
-                            disabled={!isManager}
-                            className={cn(
-                              "w-full flex items-center justify-between rounded-xl px-4 py-3 border transition-all text-left",
-                              shift
-                                ? shift.published
-                                  ? "bg-white border-slate-200 hover:border-blue-300 hover:shadow-sm active:scale-[0.99]"
-                                  : "bg-amber-50/60 border-amber-200 hover:border-amber-300 active:scale-[0.99]"
-                                : isManager
-                                ? "bg-white border-dashed border-slate-200 hover:border-blue-300 hover:bg-blue-50/30 active:scale-[0.99]"
-                                : "bg-slate-50 border-slate-100 cursor-default"
-                            )}
-                          >
-                            <div className="flex items-center gap-3">
-                              <div className={cn(
-                                "h-9 w-9 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0",
-                                shift ? colors.cardBg + " " + colors.cardText : "bg-slate-100 text-slate-400"
-                              )}>
-                                {emp.firstName[0]}{emp.lastName[0]}
-                              </div>
-                              <div>
-                                <p className="text-sm font-semibold text-slate-800">
-                                  {emp.firstName} {emp.lastName}
-                                </p>
-                                {shift ? (
-                                  <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                                    <span className="text-xs text-slate-500 flex items-center gap-0.5">
-                                      <Clock className="h-3 w-3" />
-                                      {fmtTime(shift.startTime)}–{fmtTime(shift.endTime)}
-                                    </span>
-                                    {shift.role && (
-                                      <span className="text-xs text-slate-400">· {shift.role}</span>
-                                    )}
-                                    {(shift.overtimeHours ?? 0) > 0 && (
-                                      <span className="text-[10px] font-bold bg-orange-500 text-white px-1.5 py-0.5 rounded-full">
-                                        +{shift.overtimeHours}h OT
-                                      </span>
-                                    )}
-                                  </div>
-                                ) : (
-                                  <p className="text-xs text-slate-400 mt-0.5">
-                                    {weekHrs > 0 ? `${fmtHours(weekHrs)} this week` : "No shift"}
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                            <div className="flex-shrink-0 flex items-center gap-1.5">
-                              {shift ? (
-                                shift.published ? (
-                                  <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                                ) : (
-                                  <AlertCircle className="h-4 w-4 text-amber-500" />
-                                )
-                              ) : isManager ? (
-                                <div className="h-7 w-7 rounded-full bg-blue-50 border border-blue-200 flex items-center justify-center">
-                                  <Plus className="h-3.5 w-3.5 text-blue-500" />
-                                </div>
-                              ) : null}
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  ))}
-                </div>
-              </>
             )}
           </div>
 
