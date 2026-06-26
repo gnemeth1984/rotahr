@@ -267,6 +267,14 @@ function RotaInner() {
   const [copyingWeek, setCopyingWeek] = useState(false);
   const isFirstLoad = useRef(true);
 
+  // ── Shift templates ────────────────────────────────────────────────────────
+  const [templates, setTemplates] = useState<string[]>([]);
+  const [templateMenuOpen, setTemplateMenuOpen] = useState(false);
+  const [saveTemplateOpen, setSaveTemplateOpen] = useState(false);
+  const [templateNameInput, setTemplateNameInput] = useState("");
+  const [savingTemplate, setSavingTemplate] = useState(false);
+  const [applyingTemplate, setApplyingTemplate] = useState(false);
+
   // ── View mode & department filter ─────────────────────────────────────────
   // viewMode: "weekly" = full week grid/cards | "daily" = single-day focused view
   const [viewMode, setViewMode] = useState<"weekly" | "daily">("weekly");
@@ -387,6 +395,57 @@ function RotaInner() {
   }, [weekStart, isManager]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
+
+  // Fetch saved templates
+  useEffect(() => {
+    if (!isManager) return;
+    fetch("/api/shifts/templates")
+      .then((r) => r.ok ? r.json() : { templates: [] })
+      .then((d) => setTemplates(d.templates ?? []))
+      .catch(() => {});
+  }, [isManager]);
+
+  async function saveAsTemplate() {
+    const name = templateNameInput.trim();
+    if (!name) return;
+    setSavingTemplate(true);
+    try {
+      const monday = toDateStr(weekStart);
+      await fetch("/api/shifts/templates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ templateName: name, monday, keepAssignments: true }),
+      });
+      const d = await fetch("/api/shifts/templates").then((r) => r.json());
+      setTemplates(d.templates ?? []);
+      setSaveTemplateOpen(false);
+      setTemplateNameInput("");
+    } finally {
+      setSavingTemplate(false);
+    }
+  }
+
+  async function applyTemplate(name: string) {
+    if (applyingTemplate) return;
+    setApplyingTemplate(true);
+    setTemplateMenuOpen(false);
+    try {
+      const monday = toDateStr(weekStart);
+      await fetch("/api/shifts/templates/apply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ templateName: name, monday }),
+      });
+      // Refresh shifts
+      const from = toDateStr(weekStart);
+      const to = toDateStr(addDays(weekStart, 6));
+      const shiftsRes = await fetch(`/api/shifts?from=${from}&to=${to}`);
+      const shiftsData = await shiftsRes.json();
+      setShifts(shiftsData.shifts ?? shiftsData ?? []);
+    } finally {
+      setApplyingTemplate(false);
+    }
+  }
 
   // Fetch current user's own department once (for "My Department" filter)
   useEffect(() => {
@@ -902,9 +961,81 @@ function RotaInner() {
               <ArrowRightLeft className="h-3.5 w-3.5" />
               Swap requests
             </a>
+
+            {/* ── Templates dropdown ── */}
+            <div className="relative">
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
+                onClick={() => setTemplateMenuOpen((o) => !o)}
+              >
+                <LayoutGrid className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Templates</span>
+                <ChevronDown className="h-3 w-3" />
+              </Button>
+              {templateMenuOpen && (
+                <div className="absolute right-0 top-full mt-1 z-50 w-52 bg-white border border-slate-200 rounded-xl shadow-lg py-1">
+                  <button
+                    className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 font-medium text-emerald-600"
+                    onClick={() => { setTemplateMenuOpen(false); setSaveTemplateOpen(true); }}
+                  >
+                    Save this week as template…
+                  </button>
+                  {templates.length > 0 && (
+                    <>
+                      <div className="border-t border-slate-100 my-1" />
+                      <p className="px-4 py-1 text-xs text-slate-400 uppercase tracking-wide">Apply template</p>
+                      {templates.map((tpl) => (
+                        <button
+                          key={tpl}
+                          className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 text-slate-700"
+                          onClick={() => applyTemplate(tpl)}
+                          disabled={applyingTemplate}
+                        >
+                          {applyingTemplate ? <Loader2 className="h-3 w-3 inline animate-spin mr-1" /> : null}
+                          {tpl}
+                        </button>
+                      ))}
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
+
+      {/* ── Save Template Dialog ── */}
+      {saveTemplateOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-2xl shadow-xl p-6 w-80">
+            <h3 className="font-semibold text-slate-900 mb-4">Save week as template</h3>
+            <label className="block text-sm text-slate-600 mb-1">Template name</label>
+            <input
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              placeholder="e.g. Summer weekday"
+              value={templateNameInput}
+              onChange={(e) => setTemplateNameInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && saveAsTemplate()}
+              autoFocus
+            />
+            <div className="flex gap-2 justify-end">
+              <button
+                className="px-4 py-2 text-sm rounded-lg border border-slate-200 hover:bg-slate-50"
+                onClick={() => { setSaveTemplateOpen(false); setTemplateNameInput(""); }}
+              >Cancel</button>
+              <button
+                className="px-4 py-2 text-sm rounded-lg bg-emerald-600 text-white hover:bg-emerald-500 disabled:opacity-50"
+                onClick={saveAsTemplate}
+                disabled={savingTemplate || !templateNameInput.trim()}
+              >
+                {savingTemplate ? "Saving…" : "Save"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Labour Cost Banner (managers only) ── */}
       {isManager && !loading && shifts.length > 0 && (
