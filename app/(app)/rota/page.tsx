@@ -1036,14 +1036,9 @@ function RotaInner() {
                       {/* All employee cards for this day */}
                       <div className="space-y-1.5">
                         {filteredGroups.map(({ dept, colors, emps }) => {
-                          const sortedEmps = [...emps].sort((a, b) => {
-                            const aHas = !!getShift(a.id, dateStr);
-                            const bHas = !!getShift(b.id, dateStr);
-                            return aHas === bHas ? 0 : aHas ? -1 : 1;
-                          });
+                          const sortedEmps = emps.filter((emp) => !!getShift(emp.id, dateStr));
                           return sortedEmps.map((emp) => {
                             const shift = getShift(emp.id, dateStr);
-                            if (!shift && !isManager) return null; // staff only see their own shifts
                             return (
                               <button
                                 key={emp.id}
