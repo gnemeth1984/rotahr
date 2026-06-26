@@ -1,7 +1,7 @@
 // @ts-nocheck
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { useSession } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -111,7 +111,7 @@ function formatDate(dateStr: string) {
 const TODAY = new Date().toISOString().split("T")[0];
 const TOMORROW = new Date(Date.now() + 86400000).toISOString().split("T")[0];
 
-export default function BookingsPage() {
+function BookingsInner() {
   const { data: session } = useSession();
   const searchParams = useSearchParams();
   const deepLinkId = searchParams.get("id");
@@ -984,6 +984,15 @@ export default function BookingsPage() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+// ── Suspense wrapper — required for useSearchParams in Next.js App Router ─────
+export default function BookingsPage() {
+  return (
+    <Suspense fallback={null}>
+      <BookingsInner />
+    </Suspense>
   );
 }
 
