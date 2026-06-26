@@ -1141,13 +1141,34 @@ function RotaInner() {
 
             {/* ── WEEKLY MODE: all 7 days stacked, every employee visible ── */}
             {viewMode === "weekly" ? (
-              <div className="space-y-5">
+              <div className="space-y-2">
                 {weekDates.map((date) => {
                   const dateStr = toDateStr(date);
-                  const isTodayDate = dateStr === toDateStr(new Date());
+                  const todayStr = toDateStr(new Date());
+                  const isTodayDate = dateStr === todayStr;
+                  const isPastDay = dateStr < todayStr;
                   const ph = holidayMap[dateStr];
                   const dayShiftCount = shifts.filter((s) => s.date.split("T")[0] === dateStr).length;
-                  if (dayShiftCount === 0) return null;
+                  if (dayShiftCount === 0 && !isTodayDate) return null;
+
+                  // ── Past day: collapsed pill ──
+                  if (isPastDay) {
+                    return (
+                      <div key={dateStr} className="flex items-center gap-3 px-3 py-2 rounded-xl bg-slate-100/70 border border-slate-200/60 opacity-60">
+                        <div className="h-6 w-6 rounded-full bg-slate-300 flex items-center justify-center text-xs font-bold text-slate-500 flex-shrink-0">
+                          {date.getDate()}
+                        </div>
+                        <span className="text-xs font-medium text-slate-500">
+                          {date.toLocaleDateString(locale, { weekday: "short" })} · {date.toLocaleDateString(locale, { day: "numeric", month: "short" })}
+                        </span>
+                        {dayShiftCount > 0 && (
+                          <span className="ml-auto text-xs text-slate-400">{dayShiftCount} shift{dayShiftCount !== 1 ? "s" : ""}</span>
+                        )}
+                        {ph && <span className="text-xs text-amber-600 font-medium">{ph.name}</span>}
+                      </div>
+                    );
+                  }
+
                   return (
                     <div key={dateStr} className="space-y-2">
                       {/* Day heading */}
@@ -1984,23 +2005,27 @@ function DeptBlock({
               <th className="text-left px-4 py-2.5 text-xs font-medium text-slate-500 w-40">Employee</th>
               <th className="text-center px-2 py-2.5 text-xs font-medium text-slate-400 w-14">Hrs</th>
               {weekDates.map((date, i) => {
-                const isToday = toDateStr(date) === toDateStr(new Date());
-                const ph = holidayMap[toDateStr(date)];
+                const todayStr = toDateStr(new Date());
+                const dateStr = toDateStr(date);
+                const isToday = dateStr === todayStr;
+                const isPast = dateStr < todayStr;
+                const ph = holidayMap[dateStr];
                 return (
                   <th
                     key={i}
                     className={cn(
-                      "text-center px-1 py-2.5 text-xs font-medium",
-                      ph ? "bg-amber-50" : "",
+                      "text-center py-2.5 text-xs font-medium transition-all",
+                      isPast ? "px-1 w-10 opacity-40" : "px-1",
+                      ph && !isPast ? "bg-amber-50" : "",
                       isToday ? "text-blue-600" : "text-slate-500"
                     )}
                     title={ph?.name}
                   >
-                    <div>{DAYS[i]}</div>
-                    <div className={cn("text-[11px] mt-0.5", isToday ? "font-bold text-blue-600" : "text-slate-400 font-normal")}>
+                    <div className={isPast ? "text-[10px]" : ""}>{DAYS[i]}</div>
+                    <div className={cn("mt-0.5", isPast ? "text-[10px]" : "text-[11px]", isToday ? "font-bold text-blue-600" : "text-slate-400 font-normal")}>
                       {date.getDate()}
                     </div>
-                    {ph && (
+                    {ph && !isPast && (
                       <div className="text-[9px] text-amber-600 font-semibold mt-0.5 leading-tight truncate max-w-[60px] mx-auto" title={ph.name}>
                         PH
                       </div>
@@ -2025,11 +2050,13 @@ function DeptBlock({
                   </td>
                   {weekDates.map((date, di) => {
                     const dateStr = toDateStr(date);
+                    const todayStr = toDateStr(new Date());
                     const shift = getShift(emp.id, dateStr);
-                    const isToday = dateStr === toDateStr(new Date());
+                    const isToday = dateStr === todayStr;
+                    const isPast = dateStr < todayStr;
                     const isDraggingThis = draggingShiftId && shift?.id === draggingShiftId;
                     return (
-                      <td key={di} className={cn("px-1 py-1.5 text-center align-middle", isToday && "bg-blue-50/40", holidayMap[dateStr] && "bg-amber-50/60")}>
+                      <td key={di} className={cn("px-1 py-1.5 text-center align-middle", isPast && "opacity-35 pointer-events-none w-10", isToday && "bg-blue-50/40", !isPast && holidayMap[dateStr] && "bg-amber-50/60")}>
                         <DroppableCell empId={emp.id} dateStr={dateStr} isManager={isManager}>
                           {shift ? (
                             <DraggableShift shiftId={shift.id} disabled={!isManager}>
