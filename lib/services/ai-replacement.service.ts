@@ -3,8 +3,8 @@ import { prisma } from "@/lib/db";
 import { z } from "zod";
 
 export const suggestReplacementSchema = z.object({
-  timeOffRequestId: z.string().cuid(),
-  businessId: z.string().cuid(),
+  timeOffRequestId: z.string().min(1),
+  businessId: z.string().min(1),
 });
 
 interface Candidate {
