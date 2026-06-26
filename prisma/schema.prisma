@@ -125,6 +125,7 @@ model Employee {
   sentMessages    Message[]              @relation("MessageSender")
   receivedMessages Message[]             @relation("MessageRecipient")
   availability    AvailabilityPreference[]
+  extraAvailability ExtraAvailability[]
   shiftTemplates  ShiftTemplate[]
   shiftSwapRequestsOffered  ShiftSwapRequest[] @relation("SwapOfferer")
   shiftSwapRequestsReceived ShiftSwapRequest[] @relation("SwapReceiver")
@@ -307,6 +308,23 @@ model AvailabilityPreference {
   employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
   @@unique([employeeId, dayOfWeek])
+}
+
+// ── Extra Shift Availability (date-specific volunteer board) ──────────────────
+model ExtraAvailability {
+  id         String   @id @default(cuid())
+  employeeId String
+  businessId String
+  date       DateTime // specific date they're available for extras
+  fromTime   String?  // "09:00" optional preferred window
+  toTime     String?  // "17:00"
+  note       String?
+  createdAt  DateTime @default(now())
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeId, date])
+  @@index([businessId, date])
 }
 
 // ── Repeating Shift Templates ──────────────────────────────────────────────────

@@ -274,6 +274,9 @@ function RotaInner() {
   const [templateNameInput, setTemplateNameInput] = useState("");
   const [savingTemplate, setSavingTemplate] = useState(false);
   const [applyingTemplate, setApplyingTemplate] = useState(false);
+  // ── Extra shift availability (managers see green dots on rota) ────────────
+  const [extraAvailMap, setExtraAvailMap] = useState<Record<string, string[]>>({});
+
   const [expandedPastDays, setExpandedPastDays] = useState<Set<string>>(new Set());
   function togglePastDay(dateStr: string) {
     setExpandedPastDays((prev) => {
@@ -380,18 +383,28 @@ function RotaInner() {
         fetch(`/api/shifts/list?from=${from}&to=${to}`),
       ];
       if (isManager) requests.push(fetch("/api/business/revenue-target"));
+      if (isManager) requests.push(fetch(`/api/extra-availability?from=${from}&to=${to}`));
 
-      const [empRes, deptRes, shiftRes, targetRes] = await Promise.all(requests);
+      const [empRes, deptRes, shiftRes, targetRes, extraAvailRes] = await Promise.all(requests);
       const empData = empRes.ok ? await empRes.json() : { employees: [] };
       const deptData = deptRes.ok ? await deptRes.json() : { departments: [] };
       const shiftData = shiftRes.ok ? await shiftRes.json() : { shifts: [] };
       const targetData = targetRes?.ok ? await targetRes.json() : {};
+      const extraAvailData = extraAvailRes?.ok ? await extraAvailRes.json() : { entries: [] };
       setEmployees(empData.employees ?? []);
       setDepartments(deptData.departments ?? []);
       setShifts(shiftData.shifts ?? []);
       if (isManager) {
         setWeeklyRevenueTarget(targetData.weeklyRevenueTarget ?? null);
         setTargetInput(targetData.weeklyRevenueTarget ? String(targetData.weeklyRevenueTarget) : "");
+        // Build extraAvailMap: dateStr → [employeeId, ...]
+        const avMap: Record<string, string[]> = {};
+        for (const entry of (extraAvailData.entries ?? [])) {
+          const dStr = entry.date.split("T")[0];
+          if (!avMap[dStr]) avMap[dStr] = [];
+          avMap[dStr].push(entry.employee?.id ?? entry.employeeId);
+        }
+        setExtraAvailMap(avMap);
       }
     } catch {
       // silently fail
@@ -1246,9 +1259,14 @@ function RotaInner() {
                       {/* All employee cards for this day */}
                       <div className="space-y-1.5">
                         {filteredGroups.map(({ dept, colors, emps }) => {
-                          const sortedEmps = emps.filter((emp) => !!getShift(emp.id, dateStr));
-                          return sortedEmps.map((emp) => {
+                          // Show employees with a shift OR available for extras (managers only)
+                          const availIds = extraAvailMap[dateStr] ?? [];
+                          const visibleEmps = isManager
+                            ? emps.filter((emp) => !!getShift(emp.id, dateStr) || availIds.includes(emp.id))
+                            : emps.filter((emp) => !!getShift(emp.id, dateStr));
+                          return visibleEmps.map((emp) => {
                             const shift = getShift(emp.id, dateStr);
+                            const isExtraAvail = !shift && availIds.includes(emp.id);
                             return (
                               <button
                                 key={emp.id}
@@ -1260,6 +1278,8 @@ function RotaInner() {
                                     ? shift.published
                                       ? "bg-white border-slate-200 hover:border-blue-300 hover:shadow-sm active:scale-[0.99]"
                                       : "bg-amber-50/60 border-amber-200 hover:border-amber-300 active:scale-[0.99]"
+                                    : isExtraAvail
+                                    ? "bg-emerald-50/50 border-emerald-200 hover:border-emerald-300 hover:bg-emerald-50 active:scale-[0.99]"
                                     : isManager
                                     ? "bg-white border-dashed border-slate-200 hover:border-blue-300 hover:bg-blue-50/30 active:scale-[0.99]"
                                     : "bg-slate-50 border-slate-100 cursor-default"
@@ -1268,7 +1288,7 @@ function RotaInner() {
                                 <div className="flex items-center gap-3">
                                   <div className={cn(
                                     "h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0",
-                                    shift ? colors.cardBg + " " + colors.cardText : "bg-slate-100 text-slate-400"
+                                    shift ? colors.cardBg + " " + colors.cardText : isExtraAvail ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-400"
                                   )}>
                                     {emp.firstName[0]}{emp.lastName[0]}
                                   </div>
@@ -1289,6 +1309,8 @@ function RotaInner() {
                                           </span>
                                         )}
                                       </div>
+                                    ) : isExtraAvail ? (
+                                      <p className="text-xs text-emerald-600 font-medium mt-0.5">Available for extra shift</p>
                                     ) : (
                                       <p className="text-xs text-slate-400 mt-0.5">
                                         <span className={cn("text-[10px] font-medium px-1.5 py-0.5 rounded-full", colors.bg, colors.text)}>{dept.name}</span>
@@ -1302,6 +1324,8 @@ function RotaInner() {
                                     shift.published
                                       ? <CheckCircle2 className="h-4 w-4 text-emerald-500" />
                                       : <AlertCircle className="h-4 w-4 text-amber-500" />
+                                  ) : isExtraAvail ? (
+                                    <div className="h-2 w-2 rounded-full bg-emerald-500" />
                                   ) : isManager ? (
                                     <div className="h-7 w-7 rounded-full bg-blue-50 border border-blue-200 flex items-center justify-center">
                                       <Plus className="h-3.5 w-3.5 text-blue-500" />
@@ -1674,6 +1698,7 @@ function RotaInner() {
                     onCellClick={handleCellClick}
                     holidayMap={holidayMap}
                     draggingShiftId={draggingShiftId}
+                    extraAvailMap={extraAvailMap}
                   />
                 ))}
               <DragOverlay>
@@ -2020,6 +2045,7 @@ function DeptBlock({
   onCellClick,
   holidayMap,
   draggingShiftId,
+  extraAvailMap,
 }: {
   dept: Department;
   colors: { bg: string; text: string; dot: string };
@@ -2030,6 +2056,7 @@ function DeptBlock({
   onCellClick: (empId: string, dateStr: string, existing?: Shift) => void;
   holidayMap: Record<string, { date: string; name: string; isPremiumPay: boolean }>;
   draggingShiftId?: string | null;
+  extraAvailMap?: Record<string, string[]>;
 }) {
   const totalHours = employees.reduce((acc, emp) => {
     return acc + empWeekHours(emp.id, weekDates, getShift);
@@ -2134,12 +2161,26 @@ function DeptBlock({
                               </button>
                             </DraggableShift>
                           ) : isManager ? (
-                            <button
-                              onClick={() => onCellClick(emp.id, dateStr)}
-                              className="w-full h-10 rounded-md border border-dashed border-slate-200 text-slate-300 hover:border-blue-300 hover:text-blue-400 hover:bg-blue-50/50 transition-all text-lg leading-none"
-                            >
-                              +
-                            </button>
+                            (() => {
+                              const isAvail = extraAvailMap?.[dateStr]?.includes(emp.id);
+                              return (
+                                <button
+                                  onClick={() => onCellClick(emp.id, dateStr)}
+                                  className={cn(
+                                    "relative w-full h-10 rounded-md border border-dashed text-slate-300 transition-all text-lg leading-none",
+                                    isAvail
+                                      ? "border-emerald-300 bg-emerald-50/60 hover:border-emerald-400 hover:bg-emerald-50"
+                                      : "border-slate-200 hover:border-blue-300 hover:text-blue-400 hover:bg-blue-50/50"
+                                  )}
+                                  title={isAvail ? "Available for extra shift" : undefined}
+                                >
+                                  {isAvail ? (
+                                    <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-emerald-500" />
+                                  ) : null}
+                                  +
+                                </button>
+                              );
+                            })()
                           ) : (
                             <div className="h-10" />
                           )}
