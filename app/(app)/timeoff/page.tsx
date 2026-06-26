@@ -356,6 +356,17 @@ function TimeOffInner() {
                         {req.reason && (
                           <p className="text-xs text-slate-400 mt-0.5">{req.reason}</p>
                         )}
+                        {isManager && req.status === "APPROVED" && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="border-violet-300 text-violet-700 hover:bg-violet-50 gap-1 mt-2"
+                            onClick={() => openSuggestCover(req.id)}
+                          >
+                            <Sparkles className="h-3 w-3" />
+                            Suggest Cover
+                          </Button>
+                        )}
                       </div>
                       <Badge variant={statusVariant(req.status) as any}>
                         {req.status.charAt(0) + req.status.slice(1).toLowerCase()}
