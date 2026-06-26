@@ -69,6 +69,9 @@ export async function suggestReplacements(
     },
   });
 
+  console.log("[suggest-replacement] absent:", absent.id, "dept:", departmentId, "candidates found:", departmentEmployees.length);
+  departmentEmployees.forEach(e => console.log("  candidate:", e.id, e.firstName, e.lastName, "timeOffOverlap:", e.timeOffRequests.length, "shifts:", e.shifts.length));
+
   if (departmentEmployees.length === 0) {
     topLevelWarnings.push("No other employees in this department — department will be understaffed.");
   }
