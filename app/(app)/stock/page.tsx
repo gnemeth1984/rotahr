@@ -22,7 +22,7 @@ import {
   Package, Truck, ClipboardList, Plus, Pencil, Trash2, Loader2,
   Search, ChevronDown, ChevronUp, Receipt, ArrowRight, CheckCircle2,
   AlertTriangle, Send, PackageCheck, FileDown, X, RefreshCw,
-  ScanLine, Upload,
+  ScanLine, Upload, FileText, Sparkles, CheckCheck, CircleDot,
 } from "lucide-react";
 import { UserRole as Role } from "@/types/roles";
 import { cn } from "@/lib/utils";
@@ -75,6 +75,29 @@ interface SupplierOrder {
   receivedAt: string | null;
   createdAt: string;
   items: OrderItem[];
+}
+
+interface StatementLineItem {
+  description: string;
+  quantity: number | null;
+  unitPrice: number | null;
+  total: number | null;
+  matchedItemId: string | null;
+  matchedItemName: string | null;
+}
+
+interface SupplierStatement {
+  id: string;
+  supplierId: string;
+  supplier: { id: string; name: string };
+  imageUrl: string;
+  invoiceNumber: string | null;
+  invoiceDate: string | null;
+  totalAmount: number | null;
+  status: string;
+  lineItems: StatementLineItem[];
+  notes: string | null;
+  createdAt: string;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -1500,6 +1523,315 @@ function OrdersTab({ orders, suppliers, stockItems, loading, onNew, onRefresh, h
   );
 }
 
+// ─── Supplier Statements Tab ─────────────────────────────────────────────────
+
+function SupplierStatementsTab({
+  suppliers, stockItems, fmt,
+}: {
+  suppliers: Supplier[]; stockItems: StockItem[];
+  fmt: (n: number | null | undefined) => string;
+}) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [statements, setStatements] = useState<SupplierStatement[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [filterSupplier, setFilterSupplier] = useState("all");
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [reconcilingId, setReconcilingId] = useState<string | null>(null);
+  const [dragging, setDragging] = useState(false);
+
+  async function loadStatements() {
+    setLoading(true);
+    try {
+      const url = filterSupplier !== "all" ? `/api/suppliers/statements?supplierId=${filterSupplier}` : "/api/suppliers/statements";
+      const res = await fetch(url);
+      const data = await res.json();
+      setStatements(data.statements ?? []);
+    } finally { setLoading(false); }
+  }
+
+  useEffect(() => { loadStatements(); }, [filterSupplier]);
+
+  async function handleUpload(file: File) {
+    setUploading(true);
+    setError(null);
+    try {
+      // 1. Upload to blob
+      const fd = new FormData();
+      fd.append("file", file);
+      const uploadRes = await fetch("/api/stock/upload-receipt-blob", { method: "POST", body: fd });
+      const uploadData = await uploadRes.json();
+      if (!uploadRes.ok) throw new Error(uploadData.error || "Upload failed");
+
+      // 2. Create statement (AI reads it server-side)
+      const res = await fetch("/api/suppliers/statements", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageUrl: uploadData.url }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to process statement");
+      await loadStatements();
+      setExpandedId(data.statement?.id ?? null);
+    } catch (e: any) { setError(e.message); }
+    finally { setUploading(false); if (fileRef.current) fileRef.current.value = ""; }
+  }
+
+  async function reconcile(id: string) {
+    setReconcilingId(id);
+    try {
+      const res = await fetch(`/api/suppliers/statements/${id}/reconcile`, { method: "POST" });
+      if (!res.ok) { const d = await res.json(); throw new Error(d.error); }
+      await loadStatements();
+    } catch (e: any) { setError(e.message); }
+    finally { setReconcilingId(null); }
+  }
+
+  const statusColor = (s: string) => {
+    if (s === "reconciled") return "bg-green-100 text-green-700";
+    if (s === "pending") return "bg-amber-100 text-amber-700";
+    return "bg-slate-100 text-slate-600";
+  };
+
+  const filtered = statements.filter((s) => filterSupplier === "all" || s.supplierId === filterSupplier);
+
+  return (
+    <div className="space-y-4">
+      {/* Controls */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <Select value={filterSupplier} onValueChange={setFilterSupplier}>
+            <SelectTrigger className="h-8 text-xs w-44">
+              <SelectValue placeholder="All suppliers" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All suppliers</SelectItem>
+              {suppliers.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <span className="text-xs text-slate-400">{filtered.length} statement{filtered.length !== 1 ? "s" : ""}</span>
+        </div>
+        <div className="flex gap-2">
+          <Button
+            size="sm" variant="outline"
+            className="gap-1.5 h-8 text-xs"
+            onClick={() => fileRef.current?.click()}
+            disabled={uploading}
+          >
+            {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+            Upload Statement
+          </Button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*,.pdf"
+            className="hidden"
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) handleUpload(f); }}
+          />
+        </div>
+      </div>
+
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-sm text-red-700 flex items-start gap-2">
+          <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+          {error}
+          <button onClick={() => setError(null)} className="ml-auto text-red-400 hover:text-red-600"><X className="h-3.5 w-3.5" /></button>
+        </div>
+      )}
+
+      {/* Drop zone */}
+      <div
+        onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={(e) => {
+          e.preventDefault(); setDragging(false);
+          const f = e.dataTransfer.files?.[0];
+          if (f) handleUpload(f);
+        }}
+        onClick={() => !uploading && fileRef.current?.click()}
+        className={cn(
+          "border-2 border-dashed rounded-xl py-6 text-center cursor-pointer transition-all",
+          dragging ? "border-violet-400 bg-violet-50" : "border-slate-200 hover:border-violet-300 hover:bg-slate-50/60",
+          uploading && "opacity-50 cursor-not-allowed"
+        )}
+      >
+        {uploading ? (
+          <div className="flex flex-col items-center gap-2">
+            <Loader2 className="h-6 w-6 animate-spin text-violet-500" />
+            <p className="text-sm text-slate-600 font-medium">AI is reading your invoice…</p>
+            <p className="text-xs text-slate-400">Extracting line items, prices, supplier</p>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center gap-2">
+            <div className="h-10 w-10 bg-violet-50 rounded-xl flex items-center justify-center">
+              <Sparkles className="h-5 w-5 text-violet-500" />
+            </div>
+            <p className="text-sm font-medium text-slate-700">Drop a supplier invoice here</p>
+            <p className="text-xs text-slate-400">JPG, PNG, PDF — AI extracts all line items automatically</p>
+          </div>
+        )}
+      </div>
+
+      {/* Statements list */}
+      {loading ? (
+        <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-slate-300" /></div>
+      ) : filtered.length === 0 ? (
+        <div className="text-center py-12 text-slate-400">
+          <FileText className="h-10 w-10 mx-auto mb-3 opacity-30" />
+          <p className="text-sm">No statements yet — upload a supplier invoice above.</p>
+          <p className="text-xs mt-1 opacity-70">AI will extract all line items and match them to your stock.</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {filtered.map((stmt) => {
+            const isExpanded = expandedId === stmt.id;
+            const lineItems: StatementLineItem[] = Array.isArray(stmt.lineItems) ? stmt.lineItems : [];
+            return (
+              <Card key={stmt.id} className="border-slate-200 overflow-hidden">
+                <CardContent className="p-0">
+                  {/* Header row */}
+                  <button
+                    className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-slate-50/60 transition-colors text-left"
+                    onClick={() => setExpandedId(isExpanded ? null : stmt.id)}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="h-9 w-9 bg-slate-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <FileText className="h-4 w-4 text-slate-500" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-sm font-semibold text-slate-900">{stmt.supplier?.name ?? "Unknown Supplier"}</p>
+                          {stmt.invoiceNumber && (
+                            <span className="text-xs text-slate-400">#{stmt.invoiceNumber}</span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-3 mt-0.5 flex-wrap">
+                          {stmt.invoiceDate && (
+                            <span className="text-xs text-slate-500">{stmt.invoiceDate}</span>
+                          )}
+                          <span className="text-xs text-slate-400">{lineItems.length} line item{lineItems.length !== 1 ? "s" : ""}</span>
+                          <span className={cn("inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium", statusColor(stmt.status))}>
+                            {stmt.status === "reconciled" ? <CheckCheck className="h-3 w-3" /> : <CircleDot className="h-3 w-3" />}
+                            {stmt.status}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 flex-shrink-0">
+                      {stmt.totalAmount != null && (
+                        <span className="text-sm font-bold text-slate-900">{fmt(stmt.totalAmount)}</span>
+                      )}
+                      <ChevronDown className={cn("h-4 w-4 text-slate-400 transition-transform", isExpanded && "rotate-180")} />
+                    </div>
+                  </button>
+
+                  {/* Expanded: line items + reconcile */}
+                  {isExpanded && (
+                    <div className="border-t border-slate-100 px-4 pb-4">
+                      {/* Invoice image thumbnail */}
+                      {stmt.imageUrl && (
+                        <div className="mt-3 mb-3 max-h-28 rounded-lg overflow-hidden border border-slate-100">
+                          <img src={stmt.imageUrl} alt="Invoice" className="w-full object-contain max-h-28" />
+                        </div>
+                      )}
+
+                      {lineItems.length === 0 ? (
+                        <p className="text-xs text-slate-400 py-3">No line items extracted.</p>
+                      ) : (
+                        <div className="mt-3 border border-slate-200 rounded-lg overflow-hidden">
+                          <table className="w-full text-sm">
+                            <thead>
+                              <tr className="bg-slate-50 border-b border-slate-100">
+                                <th className="text-left px-3 py-2 text-xs font-medium text-slate-500">Description</th>
+                                <th className="text-center px-3 py-2 text-xs font-medium text-slate-500">Qty</th>
+                                <th className="text-right px-3 py-2 text-xs font-medium text-slate-500">Unit Price</th>
+                                <th className="text-right px-3 py-2 text-xs font-medium text-slate-500">Total</th>
+                                <th className="text-center px-3 py-2 text-xs font-medium text-slate-500">Match</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {lineItems.map((item, i) => (
+                                <tr key={i} className="border-b border-slate-50 last:border-0">
+                                  <td className="px-3 py-2.5">
+                                    <p className="text-slate-800 font-medium">{item.description}</p>
+                                    {item.matchedItemName && item.matchedItemName !== item.description && (
+                                      <p className="text-xs text-slate-400 mt-0.5">→ {item.matchedItemName}</p>
+                                    )}
+                                  </td>
+                                  <td className="px-3 py-2.5 text-center text-slate-600 text-xs">{item.quantity ?? "—"}</td>
+                                  <td className="px-3 py-2.5 text-right text-slate-600 text-xs">
+                                    {item.unitPrice != null ? fmt(item.unitPrice) : "—"}
+                                  </td>
+                                  <td className="px-3 py-2.5 text-right font-medium text-slate-800 text-xs">
+                                    {item.total != null ? fmt(item.total) : "—"}
+                                  </td>
+                                  <td className="px-3 py-2.5 text-center">
+                                    {item.matchedItemId ? (
+                                      <span className="inline-flex items-center gap-0.5 text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-medium">
+                                        <CheckCircle2 className="h-2.5 w-2.5" /> Matched
+                                      </span>
+                                    ) : (
+                                      <span className="inline-flex items-center gap-0.5 text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-full">
+                                        No match
+                                      </span>
+                                    )}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                            {stmt.totalAmount != null && (
+                              <tfoot>
+                                <tr className="bg-slate-50 border-t border-slate-200">
+                                  <td colSpan={3} className="px-3 py-2 text-right text-xs font-medium text-slate-500">Invoice Total</td>
+                                  <td className="px-3 py-2 text-right font-bold text-slate-900 text-sm">{fmt(stmt.totalAmount)}</td>
+                                  <td />
+                                </tr>
+                              </tfoot>
+                            )}
+                          </table>
+                        </div>
+                      )}
+
+                      {/* Actions */}
+                      <div className="flex items-center gap-2 mt-3 pt-2 border-t border-slate-100">
+                        {stmt.status !== "reconciled" && (
+                          <Button
+                            size="sm" variant="outline"
+                            className="gap-1.5 h-7 text-xs border-green-200 text-green-700 hover:bg-green-50"
+                            disabled={reconcilingId === stmt.id}
+                            onClick={() => reconcile(stmt.id)}
+                          >
+                            {reconcilingId === stmt.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCheck className="h-3 w-3" />}
+                            Mark Reconciled
+                          </Button>
+                        )}
+                        {stmt.imageUrl && (
+                          <a
+                            href={stmt.imageUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 text-xs h-7 px-3 rounded-md border border-slate-200 text-slate-600 hover:bg-slate-50"
+                          >
+                            <FileText className="h-3 w-3" /> View Invoice
+                          </a>
+                        )}
+                        <span className="ml-auto text-xs text-slate-400">
+                          Added {new Date(stmt.createdAt).toLocaleDateString("en-IE")}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 class StockErrorBoundary extends Component<
@@ -1530,7 +1862,7 @@ function StockPageInner() {
   const fmt = (n: number | null | undefined) => (n == null ? "—" : fmtMoney(n));
   const isManager = session?.user?.role === Role.MANAGER || session?.user?.role === Role.ADMIN;
 
-  const [tab, setTab] = useState<"stock" | "suppliers" | "orders">("stock");
+  const [tab, setTab] = useState<"stock" | "suppliers" | "orders" | "statements">("stock");
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [stockItems, setStockItems] = useState<StockItem[]>([]);
   const [orders, setOrders] = useState<SupplierOrder[]>([]);
@@ -1610,6 +1942,7 @@ function StockPageInner() {
     { key: "stock", label: "Stock List", icon: Package, count: stockItems.length },
     { key: "suppliers", label: "Suppliers", icon: Truck, count: suppliers.length },
     { key: "orders", label: "Order Lists", icon: ClipboardList, count: orders.filter((o) => o.status !== "received").length || undefined },
+    { key: "statements", label: "Statements", icon: FileText, count: undefined },
   ] as const;
 
   return (
@@ -1680,6 +2013,14 @@ function StockPageInner() {
           onNew={() => setOrderDialog(true)}
           onRefresh={loadOrders}
           hasDraft={hasDraft}
+        />
+      )}
+
+      {tab === "statements" && (
+        <SupplierStatementsTab
+          suppliers={suppliers}
+          stockItems={stockItems}
+          fmt={fmt}
         />
       )}
 

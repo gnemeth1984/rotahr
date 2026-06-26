@@ -29,7 +29,19 @@ import {
   AlertTriangle,
   Target,
   ArrowRightLeft,
+  Sparkles,
+  Users,
+  CalendarDays,
 } from "lucide-react";
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  useDroppable,
+  useDraggable,
+} from "@dnd-kit/core";
 import { UserRole as Role } from "@/types/roles";
 import { cn } from "@/lib/utils";
 import { getHolidaysInRange, type PublicHoliday } from "@/lib/irish-public-holidays";
@@ -271,6 +283,48 @@ function RotaInner() {
   //   - 11h rest between shifts
   //   - Max 48h average per week
   const [complianceAlerts, setComplianceAlerts] = useState<ComplianceAlertItem[]>([]);
+
+  // ── Drag and Drop (desktop grid only) ────────────────────────────────────
+  const [draggingShiftId, setDraggingShiftId] = useState<string | null>(null);
+  const dndSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
+  );
+
+  async function handleDragEnd(event: any) {
+    const { active, over } = event;
+    setDraggingShiftId(null);
+    if (!over) return;
+
+    // Parse IDs: active = "shift-{shiftId}", over = "cell-{empId}-{dateStr}"
+    const shiftId = String(active.id).replace("shift-", "");
+    const cellParts = String(over.id).replace("cell-", "").split("-");
+    // dateStr is last 10 chars (YYYY-MM-DD), empId is the rest
+    const dateStr = cellParts.slice(-3).join("-"); // YYYY-MM-DD
+    const empId = cellParts.slice(0, -3).join("-");
+
+    const shift = shifts.find((s) => s.id === shiftId);
+    if (!shift) return;
+    // No-op if dropped on own cell
+    if (shift.employeeId === empId && shift.date.startsWith(dateStr)) return;
+
+    // Optimistic update
+    setShifts((prev) => prev.map((s) =>
+      s.id === shiftId
+        ? { ...s, employeeId: empId, employee: employees.find((e) => e.id === empId) ? { id: empId, firstName: employees.find((e) => e.id === empId)!.firstName, lastName: employees.find((e) => e.id === empId)!.lastName } : s.employee, date: dateStr + "T00:00:00.000Z" }
+        : s
+    ));
+
+    try {
+      await fetch(`/api/shifts/${shiftId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ employeeId: empId, date: dateStr }),
+      });
+    } catch {
+      // Revert on failure
+      fetchAll();
+    }
+  }
 
   const weekDates = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
   // Irish public holidays for this week
@@ -792,6 +846,11 @@ function RotaInner() {
         </div>
       )}
 
+      {/* ── AI Labour Forecast (managers only) ── */}
+      {isManager && !loading && (
+        <LabourForecastPanel weekStart={weekStart} shifts={shifts} />
+      )}
+
       {/* ── Working Time Compliance Alerts (WTA 1997) ── */}
       {isManager && complianceAlerts.length > 0 && (
         <CompliancePanel alerts={complianceAlerts} />
@@ -959,19 +1018,39 @@ function RotaInner() {
 
           {/* ── DESKTOP VIEW (>= lg) ── */}
           <div className="hidden lg:block space-y-6">
-            {groups.map(({ dept, colors, emps }) => (
-              <DeptBlock
-                key={dept.id}
-                dept={dept}
-                colors={colors}
-                employees={emps}
-                weekDates={weekDates}
-                getShift={getShift}
-                isManager={isManager}
-                onCellClick={handleCellClick}
-                holidayMap={holidayMap}
-              />
-            ))}
+            <DndContext
+              sensors={dndSensors}
+              onDragStart={(e) => setDraggingShiftId(String(e.active.id).replace("shift-", ""))}
+              onDragEnd={handleDragEnd}
+              onDragCancel={() => setDraggingShiftId(null)}
+            >
+              {groups.map(({ dept, colors, emps }) => (
+                <DeptBlock
+                  key={dept.id}
+                  dept={dept}
+                  colors={colors}
+                  employees={emps}
+                  weekDates={weekDates}
+                  getShift={getShift}
+                  isManager={isManager}
+                  onCellClick={handleCellClick}
+                  holidayMap={holidayMap}
+                  draggingShiftId={draggingShiftId}
+                />
+              ))}
+              <DragOverlay>
+                {draggingShiftId ? (() => {
+                  const s = shifts.find((x) => x.id === draggingShiftId);
+                  if (!s) return null;
+                  return (
+                    <div className="bg-blue-600 text-white text-[11px] font-semibold rounded-md px-2 py-2 shadow-lg min-w-[60px] text-center opacity-90 pointer-events-none">
+                      <div>{fmtTime(s.startTime)}</div>
+                      <div className="opacity-80">–{fmtTime(s.endTime)}</div>
+                    </div>
+                  );
+                })() : null}
+              </DragOverlay>
+            </DndContext>
           </div>
         </div>
       )}
@@ -1091,6 +1170,205 @@ function RotaInner() {
   );
 }
 
+// ─── AI Labour Forecast Panel ────────────────────────────────────────────────
+
+interface ForecastDay {
+  date: string;
+  dayLabel: string;
+  expectedCovers: number;
+  suggestedStaff: number;
+  scheduledStaff: number;
+  status: "ok" | "understaffed" | "overstaffed";
+}
+
+function LabourForecastPanel({ weekStart, shifts }: { weekStart: Date; shifts: Shift[] }) {
+  const [forecast, setForecast] = useState<ForecastDay[] | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const fetched = useRef<string | null>(null);
+
+  const weekKey = toDateStr(weekStart);
+
+  async function load() {
+    if (fetched.current === weekKey) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/ai/labour-forecast?weekStart=${weekKey}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Forecast failed");
+      // Merge with actual scheduled counts
+      const byDate: Record<string, number> = {};
+      for (const s of shifts) {
+        const d = s.date.split("T")[0];
+        byDate[d] = (byDate[d] ?? 0) + 1;
+      }
+      const enriched: ForecastDay[] = (data.forecast ?? []).map((f: any) => {
+        const scheduled = byDate[f.date] ?? 0;
+        let status: ForecastDay["status"] = "ok";
+        if (scheduled < f.suggestedStaff) status = "understaffed";
+        else if (scheduled > f.suggestedStaff + 2) status = "overstaffed";
+        return { ...f, scheduledStaff: scheduled, status };
+      });
+      setForecast(enriched);
+      fetched.current = weekKey;
+    } catch (e: any) { setError(e.message); }
+    finally { setLoading(false); }
+  }
+
+  // Reset when week changes
+  useEffect(() => { fetched.current = null; setForecast(null); }, [weekKey]);
+
+  function handleToggle() {
+    const next = !open;
+    setOpen(next);
+    if (next && !forecast) load();
+  }
+
+  const issues = forecast?.filter((d) => d.status !== "ok") ?? [];
+
+  return (
+    <div className="border border-violet-200 bg-white rounded-xl overflow-hidden">
+      <button
+        onClick={handleToggle}
+        className="w-full flex items-center justify-between px-4 py-3 hover:bg-violet-50/40 transition-colors"
+      >
+        <div className="flex items-center gap-2.5">
+          <div className="h-7 w-7 bg-violet-100 rounded-lg flex items-center justify-center flex-shrink-0">
+            <Sparkles className="h-3.5 w-3.5 text-violet-600" />
+          </div>
+          <span className="text-sm font-semibold text-slate-800">AI Labour Forecast</span>
+          {issues.length > 0 && !loading && (
+            <span className="bg-amber-100 text-amber-700 text-xs font-bold px-2 py-0.5 rounded-full">
+              {issues.length} {issues.length === 1 ? "issue" : "issues"}
+            </span>
+          )}
+          {loading && <Loader2 className="h-3.5 w-3.5 animate-spin text-violet-500" />}
+        </div>
+        <ChevronDown className={cn("h-4 w-4 text-slate-400 transition-transform", open && "rotate-180")} />
+      </button>
+
+      {open && (
+        <div className="border-t border-violet-100 px-4 pb-4 pt-3">
+          {error && (
+            <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>
+          )}
+          {loading && (
+            <div className="flex items-center gap-2 py-4 justify-center">
+              <Loader2 className="h-5 w-5 animate-spin text-violet-400" />
+              <span className="text-sm text-slate-500">Analysing reservations…</span>
+            </div>
+          )}
+          {forecast && (
+            <>
+              <div className="grid grid-cols-7 gap-1.5 mb-3">
+                {forecast.map((day) => {
+                  const isOk = day.status === "ok";
+                  const isUnder = day.status === "understaffed";
+                  const isOver = day.status === "overstaffed";
+                  return (
+                    <div
+                      key={day.date}
+                      className={cn(
+                        "rounded-xl p-2 text-center",
+                        isUnder ? "bg-red-50 border border-red-200" :
+                        isOver ? "bg-amber-50 border border-amber-200" :
+                        "bg-slate-50 border border-slate-100"
+                      )}
+                    >
+                      <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">{day.dayLabel}</p>
+                      <div className="mt-1.5 space-y-1">
+                        <div className="flex items-center justify-center gap-0.5">
+                          <CalendarDays className="h-2.5 w-2.5 text-slate-400" />
+                          <span className="text-xs font-bold text-slate-700">{day.expectedCovers}</span>
+                        </div>
+                        <div className="flex items-center justify-center gap-0.5">
+                          <Users className="h-2.5 w-2.5 text-slate-400" />
+                          <span className={cn(
+                            "text-xs font-bold",
+                            isUnder ? "text-red-600" : isOver ? "text-amber-600" : "text-emerald-600"
+                          )}>
+                            {day.scheduledStaff}/{day.suggestedStaff}
+                          </span>
+                        </div>
+                      </div>
+                      <div className={cn(
+                        "mt-1.5 h-1 rounded-full",
+                        isUnder ? "bg-red-400" : isOver ? "bg-amber-400" : "bg-emerald-400"
+                      )} />
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="flex flex-wrap gap-3 text-xs text-slate-500">
+                <span className="flex items-center gap-1"><CalendarDays className="h-3 w-3" /> = expected covers</span>
+                <span className="flex items-center gap-1"><Users className="h-3 w-3" /> = rostered / suggested staff</span>
+                <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-emerald-400 inline-block" /> ok</span>
+                <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-red-400 inline-block" /> understaffed</span>
+                <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-amber-400 inline-block" /> overstaffed</span>
+              </div>
+              {issues.length > 0 && (
+                <div className="mt-3 space-y-1.5">
+                  {issues.map((d) => (
+                    <div key={d.date} className={cn(
+                      "flex items-center gap-2 px-3 py-2 rounded-lg text-sm",
+                      d.status === "understaffed" ? "bg-red-50 text-red-700 border border-red-200" : "bg-amber-50 text-amber-700 border border-amber-200"
+                    )}>
+                      <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0" />
+                      <span>
+                        <strong>{d.dayLabel}</strong>: {d.expectedCovers} covers expected —
+                        {d.status === "understaffed"
+                          ? ` ${d.scheduledStaff} rostered but ${d.suggestedStaff} suggested`
+                          : ` ${d.scheduledStaff} rostered vs ${d.suggestedStaff} suggested (overstaffed)`}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── DnD Wrappers ────────────────────────────────────────────────────────────
+
+function DraggableShift({
+  shiftId, children, disabled,
+}: { shiftId: string; children: React.ReactNode; disabled?: boolean }) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: `shift-${shiftId}`,
+    disabled,
+  });
+  return (
+    <div
+      ref={setNodeRef}
+      {...listeners}
+      {...attributes}
+      style={{ opacity: isDragging ? 0.4 : 1, cursor: disabled ? "default" : "grab", touchAction: "none" }}
+    >
+      {children}
+    </div>
+  );
+}
+
+function DroppableCell({
+  empId, dateStr, children, isManager,
+}: { empId: string; dateStr: string; children: React.ReactNode; isManager: boolean }) {
+  const { setNodeRef, isOver } = useDroppable({ id: `cell-${empId}-${dateStr}` });
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ outline: isOver && isManager ? "2px solid #7c3aed" : undefined, borderRadius: 8, transition: "outline 0.1s" }}
+    >
+      {children}
+    </div>
+  );
+}
+
 // ─── DeptBlock (desktop only) ────────────────────────────────────────────────
 
 function DeptBlock({
@@ -1102,6 +1380,7 @@ function DeptBlock({
   isManager,
   onCellClick,
   holidayMap,
+  draggingShiftId,
 }: {
   dept: Department;
   colors: { bg: string; text: string; dot: string };
@@ -1111,6 +1390,7 @@ function DeptBlock({
   isManager: boolean;
   onCellClick: (empId: string, dateStr: string, existing?: Shift) => void;
   holidayMap: Record<string, { date: string; name: string; isPremiumPay: boolean }>;
+  draggingShiftId?: string | null;
 }) {
   const totalHours = employees.reduce((acc, emp) => {
     return acc + empWeekHours(emp.id, weekDates, getShift);
@@ -1178,41 +1458,47 @@ function DeptBlock({
                     const dateStr = toDateStr(date);
                     const shift = getShift(emp.id, dateStr);
                     const isToday = dateStr === toDateStr(new Date());
+                    const isDraggingThis = draggingShiftId && shift?.id === draggingShiftId;
                     return (
                       <td key={di} className={cn("px-1 py-1.5 text-center align-middle", isToday && "bg-blue-50/40", holidayMap[dateStr] && "bg-amber-50/60")}>
-                        {shift ? (
-                          <button
-                            onClick={() => onCellClick(emp.id, dateStr, shift)}
-                            className={cn(
-                              "w-full rounded-md px-1.5 py-1.5 text-[11px] font-medium leading-tight transition-all",
-                              shift.published
-                                ? "bg-blue-100 text-blue-700 hover:bg-blue-200"
-                                : "bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100"
-                            )}
-                          >
-                            <div>{fmtTime(shift.startTime)}</div>
-                            <div className="opacity-70">–{fmtTime(shift.endTime)}</div>
-                            {shift.role && (
-                              <div className="text-[10px] opacity-60 truncate mt-0.5">{shift.role}</div>
-                            )}
-                            {(shift.overtimeHours ?? 0) > 0 && (
-                              <div className="mt-0.5">
-                                <span className="inline-block bg-orange-500 text-white text-[9px] font-bold px-1 py-0.5 rounded leading-none">
-                                  +{shift.overtimeHours}h OT
-                                </span>
-                              </div>
-                            )}
-                          </button>
-                        ) : isManager ? (
-                          <button
-                            onClick={() => onCellClick(emp.id, dateStr)}
-                            className="w-full h-10 rounded-md border border-dashed border-slate-200 text-slate-300 hover:border-blue-300 hover:text-blue-400 hover:bg-blue-50/50 transition-all text-lg leading-none"
-                          >
-                            +
-                          </button>
-                        ) : (
-                          <div className="h-10" />
-                        )}
+                        <DroppableCell empId={emp.id} dateStr={dateStr} isManager={isManager}>
+                          {shift ? (
+                            <DraggableShift shiftId={shift.id} disabled={!isManager}>
+                              <button
+                                onClick={() => onCellClick(emp.id, dateStr, shift)}
+                                className={cn(
+                                  "w-full rounded-md px-1.5 py-1.5 text-[11px] font-medium leading-tight transition-all",
+                                  isDraggingThis ? "opacity-30" : "",
+                                  shift.published
+                                    ? "bg-blue-100 text-blue-700 hover:bg-blue-200"
+                                    : "bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100"
+                                )}
+                              >
+                                <div>{fmtTime(shift.startTime)}</div>
+                                <div className="opacity-70">–{fmtTime(shift.endTime)}</div>
+                                {shift.role && (
+                                  <div className="text-[10px] opacity-60 truncate mt-0.5">{shift.role}</div>
+                                )}
+                                {(shift.overtimeHours ?? 0) > 0 && (
+                                  <div className="mt-0.5">
+                                    <span className="inline-block bg-orange-500 text-white text-[9px] font-bold px-1 py-0.5 rounded leading-none">
+                                      +{shift.overtimeHours}h OT
+                                    </span>
+                                  </div>
+                                )}
+                              </button>
+                            </DraggableShift>
+                          ) : isManager ? (
+                            <button
+                              onClick={() => onCellClick(emp.id, dateStr)}
+                              className="w-full h-10 rounded-md border border-dashed border-slate-200 text-slate-300 hover:border-blue-300 hover:text-blue-400 hover:bg-blue-50/50 transition-all text-lg leading-none"
+                            >
+                              +
+                            </button>
+                          ) : (
+                            <div className="h-10" />
+                          )}
+                        </DroppableCell>
                       </td>
                     );
                   })}

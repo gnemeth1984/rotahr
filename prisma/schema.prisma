@@ -34,6 +34,7 @@ model Business {
   suppliers    Supplier[]
   stockItems   StockItem[]
   supplierOrders SupplierOrder[]
+  supplierStatements SupplierStatement[]
   shiftSwapRequests ShiftSwapRequest[]
   tipPools     TipPool[]
   dishes       Dish[]
@@ -132,6 +133,8 @@ model Employee {
   venueId          String?
   venue            Venue?   @relation(fields: [venueId], references: [id], onDelete: SetNull)
   permissions      String[] @default([])
+  documents        EmployeeDocument[]
+  onboardingTasks  OnboardingTask[]
 }
 
 model Shift {
@@ -410,6 +413,7 @@ model Supplier {
 
   stockItems  StockItem[]
   orders      SupplierOrder[]
+  statements  SupplierStatement[]
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -764,4 +768,71 @@ model FunctionMenuDish {
   sortOrder Int @default(0)
 
   @@index([courseId, sortOrder])
+}
+
+// ── HR: Employee Documents ─────────────────────────────────────────────────────
+model EmployeeDocument {
+  id          String   @id @default(cuid())
+  businessId  String
+  employeeId  String
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  title       String
+  category    String   @default("OTHER") // CONTRACT | ID | CERT | HANDBOOK | TAX | OTHER
+  fileUrl     String   // Vercel Blob URL
+  fileName    String
+  fileSize    Int?     // bytes
+
+  uploadedById String?  // userId who uploaded
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([businessId, employeeId])
+  @@index([employeeId, category])
+}
+
+// ── HR: Onboarding Tasks ──────────────────────────────────────────────────────
+model OnboardingTask {
+  id          String   @id @default(cuid())
+  businessId  String
+  employeeId  String
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  title       String
+  description String?
+  completed   Boolean  @default(false)
+  dueDate     DateTime?
+  completedAt DateTime?
+  sortOrder   Int      @default(0)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([businessId, employeeId])
+}
+
+// ── Supplier Statements ────────────────────────────────────────────────────────
+model SupplierStatement {
+  id          String   @id @default(cuid())
+  businessId  String
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  supplierId  String
+  supplier    Supplier @relation(fields: [supplierId], references: [id])
+
+  fileUrl     String   // Vercel Blob URL
+  fileName    String
+  status      String   @default("pending") // pending | matched | discrepancy | accepted
+
+  aiExtracted Json?    // raw AI-parsed line items array
+  matchedOrderId String? // SupplierOrder.id if matched
+
+  totalAmount Float?   // AI-extracted invoice total
+  invoiceRef  String?  // invoice number from document
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([businessId, supplierId])
+  @@index([businessId, status])
 }
