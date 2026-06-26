@@ -274,6 +274,14 @@ function RotaInner() {
   const [templateNameInput, setTemplateNameInput] = useState("");
   const [savingTemplate, setSavingTemplate] = useState(false);
   const [applyingTemplate, setApplyingTemplate] = useState(false);
+  const [expandedPastDays, setExpandedPastDays] = useState<Set<string>>(new Set());
+  function togglePastDay(dateStr: string) {
+    setExpandedPastDays((prev) => {
+      const next = new Set(prev);
+      next.has(dateStr) ? next.delete(dateStr) : next.add(dateStr);
+      return next;
+    });
+  }
 
   // ── View mode & department filter ─────────────────────────────────────────
   // viewMode: "weekly" = full week grid/cards | "daily" = single-day focused view
@@ -1151,20 +1159,61 @@ function RotaInner() {
                   const dayShiftCount = shifts.filter((s) => s.date.split("T")[0] === dateStr).length;
                   if (dayShiftCount === 0 && !isTodayDate) return null;
 
-                  // ── Past day: collapsed pill ──
+                  // ── Past day: collapsed pill (expandable) ──
                   if (isPastDay) {
+                    const isExpanded = expandedPastDays.has(dateStr);
                     return (
-                      <div key={dateStr} className="flex items-center gap-3 px-3 py-2 rounded-xl bg-slate-100/70 border border-slate-200/60 opacity-60">
-                        <div className="h-6 w-6 rounded-full bg-slate-300 flex items-center justify-center text-xs font-bold text-slate-500 flex-shrink-0">
-                          {date.getDate()}
-                        </div>
-                        <span className="text-xs font-medium text-slate-500">
-                          {date.toLocaleDateString(locale, { weekday: "short" })} · {date.toLocaleDateString(locale, { day: "numeric", month: "short" })}
-                        </span>
-                        {dayShiftCount > 0 && (
-                          <span className="ml-auto text-xs text-slate-400">{dayShiftCount} shift{dayShiftCount !== 1 ? "s" : ""}</span>
+                      <div key={dateStr} className="space-y-2">
+                        <button
+                          onClick={() => togglePastDay(dateStr)}
+                          className="w-full flex items-center gap-3 px-3 py-2 rounded-xl bg-slate-100/70 border border-slate-200/60 opacity-60 hover:opacity-80 transition-opacity text-left"
+                        >
+                          <div className="h-6 w-6 rounded-full bg-slate-300 flex items-center justify-center text-xs font-bold text-slate-500 flex-shrink-0">
+                            {date.getDate()}
+                          </div>
+                          <span className="text-xs font-medium text-slate-500">
+                            {date.toLocaleDateString(locale, { weekday: "short" })} · {date.toLocaleDateString(locale, { day: "numeric", month: "short" })}
+                          </span>
+                          {ph && <span className="text-xs text-amber-600 font-medium">{ph.name}</span>}
+                          <span className="ml-auto flex items-center gap-1.5 text-xs text-slate-400">
+                            {dayShiftCount > 0 && <span>{dayShiftCount} shift{dayShiftCount !== 1 ? "s" : ""}</span>}
+                            <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", isExpanded && "rotate-180")} />
+                          </span>
+                        </button>
+                        {isExpanded && (
+                          <div className="space-y-1.5 opacity-60">
+                            {filteredGroups.map(({ dept, colors, emps }) => {
+                              const sortedEmps = emps.filter((emp) => !!getShift(emp.id, dateStr));
+                              return sortedEmps.map((emp) => {
+                                const shift = getShift(emp.id, dateStr);
+                                return (
+                                  <button
+                                    key={emp.id}
+                                    onClick={() => handleCellClick(emp.id, dateStr, shift)}
+                                    disabled={!isManager}
+                                    className="w-full flex items-center justify-between rounded-xl px-4 py-2.5 border bg-white border-slate-200 text-left"
+                                  >
+                                    <div className="flex items-center gap-3">
+                                      <div className={cn("h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0", colors.cardBg, colors.cardText)}>
+                                        {emp.firstName[0]}{emp.lastName[0]}
+                                      </div>
+                                      <div>
+                                        <p className="text-sm font-medium text-slate-700 leading-tight">{emp.firstName} {emp.lastName}</p>
+                                        {shift && (
+                                          <span className="text-xs text-slate-400 flex items-center gap-0.5">
+                                            <Clock className="h-3 w-3" />
+                                            {fmtTime(shift.startTime)}–{fmtTime(shift.endTime)}
+                                            {shift.role && <span className="ml-1">· {shift.role}</span>}
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </button>
+                                );
+                              });
+                            })}
+                          </div>
                         )}
-                        {ph && <span className="text-xs text-amber-600 font-medium">{ph.name}</span>}
                       </div>
                     );
                   }
