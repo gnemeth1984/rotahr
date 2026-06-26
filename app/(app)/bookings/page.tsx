@@ -1,7 +1,7 @@
 // @ts-nocheck
 "use client";
 
-import { useState, useEffect, useRef, Suspense } from "react";
+import { useState, useEffect, useRef, Suspense, Component } from "react";
 import { useSession } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -107,18 +107,26 @@ function formatDate(dateStr: string) {
   return d.toLocaleDateString("en-IE", { weekday: "short", day: "numeric", month: "short" });
 }
 
-// Quick date pill filters
-const TODAY = new Date().toISOString().split("T")[0];
-const TOMORROW = new Date(Date.now() + 86400000).toISOString().split("T")[0];
+// Quick date pill filters — computed client-side only to avoid SSR hydration mismatch
+function getTodayStr() { return new Date().toISOString().split("T")[0]; }
+function getTomorrowStr() { return new Date(Date.now() + 86400000).toISOString().split("T")[0]; }
 
 function BookingsInner() {
   const { data: session } = useSession();
   const searchParams = useSearchParams();
   const deepLinkId = searchParams.get("id");
 
+  // Use empty string on first render to match SSR, then set correct date client-side
+  const [TODAY, setTODAY] = useState("");
+  const [TOMORROW, setTOMORROW] = useState("");
+  useEffect(() => {
+    setTODAY(getTodayStr());
+    setTOMORROW(getTomorrowStr());
+  }, []);
+
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filterDate, setFilterDate] = useState(TODAY);
+  const [filterDate, setFilterDate] = useState("");
   const bookingRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const deepLinkedRef = useRef(false);
 
@@ -159,7 +167,14 @@ function BookingsInner() {
   const isManager =
     session?.user?.role === Role.MANAGER || session?.user?.role === Role.ADMIN;
 
-  useEffect(() => { fetchBookings(); }, [filterDate]);
+  // Once TODAY is computed client-side, set initial filter
+  useEffect(() => {
+    if (TODAY && filterDate === "") setFilterDate(TODAY);
+  }, [TODAY]);
+
+  useEffect(() => {
+    if (filterDate !== "") fetchBookings();
+  }, [filterDate]);
 
   // Deep-link: when ?id= is present, switch to that booking's date and open it
   useEffect(() => {
@@ -233,7 +248,7 @@ function BookingsInner() {
 
   function openNew() {
     setEditBooking(null);
-    setForm({ ...emptyForm, date: TODAY });
+    setForm({ ...emptyForm, date: getTodayStr() });
     setDialogOpen(true);
   }
 
@@ -988,12 +1003,43 @@ function BookingsInner() {
   );
 }
 
+// ── Error boundary to surface real error message on screen ────────────────────
+class BookingsErrorBoundary extends Component<
+  { children: React.ReactNode },
+  { error: Error | null }
+> {
+  constructor(props: any) {
+    super(props);
+    this.state = { error: null };
+  }
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <div className="p-6 m-4 rounded-2xl bg-red-50 border border-red-200 text-sm">
+          <p className="font-bold text-red-700 mb-2">Bookings crashed — error details:</p>
+          <pre className="text-xs text-red-600 whitespace-pre-wrap break-all">
+            {this.state.error.message}
+            {"\n\n"}
+            {this.state.error.stack}
+          </pre>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 // ── Suspense wrapper — required for useSearchParams in Next.js App Router ─────
 export default function BookingsPage() {
   return (
-    <Suspense fallback={null}>
-      <BookingsInner />
-    </Suspense>
+    <BookingsErrorBoundary>
+      <Suspense fallback={null}>
+        <BookingsInner />
+      </Suspense>
+    </BookingsErrorBoundary>
   );
 }
 
