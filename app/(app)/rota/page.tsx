@@ -1170,7 +1170,10 @@ function RotaInner() {
                               {shifts.filter((s) => s.date.split("T")[0] === dateStr).length} shifts
                             </span>
                           </div>
-                          {filteredGroups.map(({ dept, colors, emps }) => (
+                          {filteredGroups.map(({ dept, colors, emps }) => {
+                            const scheduledEmps = emps.filter((emp) => !!getShift(emp.id, dateStr));
+                            if (scheduledEmps.length === 0) return null;
+                            return (
                             <div key={dept.id} className="space-y-1.5">
                               {filteredGroups.length > 1 && (
                                 <div className="flex items-center gap-1.5 px-0.5">
@@ -1178,7 +1181,7 @@ function RotaInner() {
                                   <span className={cn("text-xs font-semibold uppercase tracking-wide", colors.text)}>{dept.name}</span>
                                 </div>
                               )}
-                              {emps.map((emp) => {
+                              {scheduledEmps.map((emp) => {
                                 const shift = getShift(emp.id, dateStr);
                                 const weekHrs = empWeekHours(emp.id, weekDates, getShift);
                                 return (
@@ -1241,7 +1244,8 @@ function RotaInner() {
                                 );
                               })}
                             </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       );
                     })}
@@ -1261,13 +1265,16 @@ function RotaInner() {
                       </span>
                     </div>
                     <div className="space-y-3">
-                      {filteredGroups.map(({ dept, colors, emps }) => (
+                      {filteredGroups.map(({ dept, colors, emps }) => {
+                        const scheduledEmps = emps.filter((emp) => !!getShift(emp.id, selectedDateStr));
+                        if (scheduledEmps.length === 0) return null;
+                        return (
                         <div key={dept.id} className="space-y-1.5">
                           <div className="flex items-center gap-1.5 px-0.5">
                             <span className={cn("h-2 w-2 rounded-full flex-shrink-0", colors.dot)} />
                             <span className={cn("text-xs font-semibold uppercase tracking-wide", colors.text)}>{dept.name}</span>
                           </div>
-                          {emps.map((emp) => {
+                          {scheduledEmps.map((emp) => {
                             const shift = getShift(emp.id, selectedDateStr);
                             const weekHrs = empWeekHours(emp.id, weekDates, getShift);
                             return (
@@ -1330,7 +1337,8 @@ function RotaInner() {
                             );
                           })}
                         </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </>
                 )}
