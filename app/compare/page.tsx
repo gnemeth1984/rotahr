@@ -1,4 +1,3 @@
-import { CheckIcon, XMarkIcon, MinusIcon } from "@heroicons/react/24/solid";
 import Link from "next/link";
 
 const YES = "yes";
@@ -71,9 +70,9 @@ const cols = [
 ];
 
 function Cell({ val }: { val: Val }) {
-  if (val === YES) return <CheckIcon className="w-5 h-5 text-emerald-500 mx-auto" />;
-  if (val === NO) return <XMarkIcon className="w-5 h-5 text-red-400 mx-auto" />;
-  return <MinusIcon className="w-5 h-5 text-amber-400 mx-auto" title="Partial" />;
+  if (val === YES) return <span className="text-emerald-500 font-bold text-lg leading-none">✓</span>;
+  if (val === NO) return <span className="text-red-400 font-bold text-lg leading-none">✕</span>;
+  return <span className="text-amber-400 font-bold text-lg leading-none" title="Partial">—</span>;
 }
 
 const categories = Array.from(new Set(rows.map((r) => r.category)));
@@ -97,9 +96,9 @@ export default function ComparePage() {
 
         {/* Legend */}
         <div className="flex gap-6 justify-center mb-8 text-sm text-gray-400">
-          <span className="flex items-center gap-1.5"><CheckIcon className="w-4 h-4 text-emerald-500" /> Available</span>
-          <span className="flex items-center gap-1.5"><XMarkIcon className="w-4 h-4 text-red-400" /> Not available</span>
-          <span className="flex items-center gap-1.5"><MinusIcon className="w-4 h-4 text-amber-400" /> Partial / add-on</span>
+          <span className="flex items-center gap-1.5"><span className="text-emerald-500 font-bold">✓</span> Available</span>
+          <span className="flex items-center gap-1.5"><span className="text-red-400 font-bold">✕</span> Not available</span>
+          <span className="flex items-center gap-1.5"><span className="text-amber-400 font-bold">—</span> Partial / add-on</span>
         </div>
 
         {/* Table */}
