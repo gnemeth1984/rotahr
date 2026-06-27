@@ -13,7 +13,7 @@ export default function PitchPage() {
     "https://storage.googleapis.com/runable-templates/cli-uploads%2FnpR7iwoxdmjjem91IBsyOE3SjrOrbdCS%2FVFA7aoE8U9CpkWx7J_9vp%2Fslide-07.png",
     "https://storage.googleapis.com/runable-templates/cli-uploads%2FnpR7iwoxdmjjem91IBsyOE3SjrOrbdCS%2FeLaHSlkaiQWt3Cfra0DtX%2Fslide-08.png",
     "https://storage.googleapis.com/runable-templates/cli-uploads%2FnpR7iwoxdmjjem91IBsyOE3SjrOrbdCS%2FeQC1bTyeQBqJtYaXhaVEp%2Fslide-09.png",
-    "https://storage.googleapis.com/runable-templates/cli-uploads%2FnpR7iwoxdmjjem91IBsyOE3SjrOrbdCS%2FeCMVe4vHAQ-PrsknvOquJ%2Fslide-10.png",
+    "https://storage.googleapis.com/runable-templates/cli-uploads%2FnpR7iwoxdmjjem91IBsyOE3SjrOrbdCS%2F1bcniVO__E1AGMafNAxXJ%2Fpitch-pricing-slide.png",
     "https://storage.googleapis.com/runable-templates/cli-uploads%2FnpR7iwoxdmjjem91IBsyOE3SjrOrbdCS%2Fl7DSqDT0H65hum-LPN2xe%2Fslide-11-new.png",
   ];
 
@@ -116,7 +116,7 @@ export default function PitchPage() {
         <div className="stat"><div className="stat-num">€290</div><div className="stat-label">avg. monthly saving vs. separate tools</div></div>
         <div className="stat"><div className="stat-num">4.8 hrs</div><div className="stat-label">saved per manager per week</div></div>
         <div className="stat"><div className="stat-num">12</div><div className="stat-label">tools replaced by one platform</div></div>
-        <div className="stat"><div className="stat-num">€49</div><div className="stat-label">starting price incl. 23% VAT</div></div>
+        <div className="stat"><div className="stat-num">€79</div><div className="stat-label">starting price incl. 23% VAT</div></div>
       </div>
 
       <section className="bottom-cta">
