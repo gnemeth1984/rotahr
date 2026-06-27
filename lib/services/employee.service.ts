@@ -33,6 +33,18 @@ export const updateEmployeeSchema = z.object({
   departmentId: z.string().nullable().optional(),
   active: z.boolean().optional(),
   permissions: z.array(z.string()).optional(),
+  hourlyRate: z.number().nullable().optional(),
+  // HR / Payroll
+  startDate: z.string().nullable().optional(),
+  contractType: z.string().nullable().optional(),
+  address: z.string().nullable().optional(),
+  nationality: z.string().nullable().optional(),
+  ppsn: z.string().nullable().optional(),
+  bankIban: z.string().nullable().optional(),
+  bankBic: z.string().nullable().optional(),
+  emergencyName: z.string().nullable().optional(),
+  emergencyPhone: z.string().nullable().optional(),
+  emergencyRel: z.string().nullable().optional(),
 });
 
 export const employeeService = {
@@ -82,6 +94,15 @@ export const employeeService = {
   async update(id: string, businessId: string, data: z.infer<typeof updateEmployeeSchema>) {
     const employee = await prisma.employee.findFirst({ where: { id, businessId } });
     if (!employee) throw new Error("Employee not found");
-    return prisma.employee.update({ where: { id }, data });
+    const { startDate, ...rest } = data;
+    return prisma.employee.update({
+      where: { id },
+      data: {
+        ...rest,
+        ...(startDate !== undefined
+          ? { startDate: startDate ? new Date(startDate) : null }
+          : {}),
+      },
+    });
   },
 };

@@ -127,6 +127,18 @@ model Employee {
   userId       String?
   user         User?       @relation(fields: [userId], references: [id])
 
+  // HR / Payroll fields
+  startDate       DateTime?
+  contractType    String?   // full-time | part-time | casual | zero-hours
+  address         String?
+  nationality     String?
+  ppsn            String?   // PPS Number (encrypted at app layer ideally)
+  bankIban        String?   // IBAN (sensitive)
+  bankBic         String?
+  emergencyName   String?
+  emergencyPhone  String?
+  emergencyRel    String?   // relationship
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
