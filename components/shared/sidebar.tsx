@@ -32,6 +32,7 @@ import {
   Settings,
   ShieldCheck,
   ContactRound,
+  FileText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -328,6 +329,16 @@ export function Sidebar() {
           <Smartphone className="h-4 w-4" />
           Get the App
         </Link>
+        {/* Legal links */}
+        <div className="flex gap-3 px-3 py-1 mb-1">
+          <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-xs text-slate-500 hover:text-slate-300 transition-colors">
+            Privacy
+          </a>
+          <span className="text-slate-600 text-xs">·</span>
+          <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-xs text-slate-500 hover:text-slate-300 transition-colors">
+            Terms
+          </a>
+        </div>
         <button
           className="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"
           onClick={() => signOut({ callbackUrl: "/" })}

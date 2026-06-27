@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { getInitials } from "@/lib/utils";
-import { Users, Search, Pencil, Plus, Loader2, Phone, ShieldCheck } from "lucide-react";
+import { Users, Search, Pencil, Plus, Loader2, Phone, ShieldCheck, Info } from "lucide-react";
 import { UserRole as Role } from "@/types/roles";
 
 const GRANTABLE_PERMISSIONS = [
@@ -371,6 +371,16 @@ export default function EmployeesPage() {
           </DialogHeader>
           <form onSubmit={handleAdd} className="space-y-4 py-1">
             {renderFormFields(addForm, setAddForm)}
+
+            {/* GDPR notice — required: manager must confirm staff have been informed */}
+            <div className="flex items-start gap-2 bg-blue-50 border border-blue-100 rounded-lg p-3">
+              <Info className="h-4 w-4 text-blue-500 mt-0.5 flex-shrink-0" />
+              <p className="text-xs text-blue-700 leading-relaxed">
+                <strong>Data notice:</strong> The employee's name, contact details, role, and pay information will be stored and processed for HR and payroll purposes under GDPR Art.6(1)(b)&(c). Ensure this staff member has been informed their data is held in Rotahr. See our{" "}
+                <a href="/privacy" target="_blank" rel="noopener noreferrer" className="underline hover:text-blue-900">Privacy Policy</a> for full details.
+              </p>
+            </div>
+
             {addError && <p className="text-sm text-red-500">{addError}</p>}
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setAddOpen(false)}>Cancel</Button>

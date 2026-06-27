@@ -21,6 +21,7 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState("");
+  const [agreed, setAgreed] = useState(false);
 
   const set = (field: string) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm((f) => ({ ...f, [field]: e.target.value }));
@@ -194,10 +195,29 @@ export default function RegisterPage() {
               />
             </div>
 
+            {/* Consent checkbox — required for GDPR Art.6 / Irish ePrivacy */}
+            <div className="flex items-start gap-3 pt-1">
+              <input
+                id="agree"
+                type="checkbox"
+                checked={agreed}
+                onChange={(e) => setAgreed(e.target.checked)}
+                className="mt-0.5 h-4 w-4 rounded border-slate-600 bg-slate-700 accent-blue-500 cursor-pointer flex-shrink-0"
+                required
+              />
+              <label htmlFor="agree" className="text-xs text-slate-400 leading-relaxed cursor-pointer">
+                I have read and agree to Rotahr's{" "}
+                <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">Terms of Service</a>
+                {" "}and{" "}
+                <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">Privacy Policy</a>.
+                I confirm I am authorised to add staff data on behalf of my business and that staff have been informed their data will be stored and processed for HR and payroll purposes.
+              </label>
+            </div>
+
             <Button
               type="submit"
               className="w-full bg-blue-600 hover:bg-blue-700 gap-2 mt-2"
-              disabled={loading}
+              disabled={loading || !agreed}
             >
               {loading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -215,13 +235,6 @@ export default function RegisterPage() {
             </Link>
           </div>
         </div>
-
-        <p className="text-center text-xs text-slate-500 mt-6">
-          By creating an account, you agree to our{" "}
-          <a href="/terms" className="underline hover:text-slate-400">Terms of Service</a>{" "}
-          and{" "}
-          <a href="/privacy" className="underline hover:text-slate-400">Privacy Policy</a>.
-        </p>
       </div>
     </div>
   );
