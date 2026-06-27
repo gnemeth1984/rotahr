@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { usePathname } from "next/navigation";
+import DOMPurify from "isomorphic-dompurify";
 import {
   HelpCircle,
   X,
@@ -33,12 +34,13 @@ const QUICK_TOPICS = [
 ];
 
 function formatMessage(text: string) {
-  return text
+  const raw = text
     .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
     .replace(/\n• /g, "<br/>• ")
     .replace(/\n\n/g, "<br/><br/>")
     .replace(/\n(\d+)\./g, "<br/>$1.")
     .replace(/\n/g, "<br/>");
+  return DOMPurify.sanitize(raw, { ALLOWED_TAGS: ["strong", "em", "br", "b"], ALLOWED_ATTR: [] });
 }
 
 export function HelpAssistant() {

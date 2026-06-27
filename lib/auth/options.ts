@@ -8,6 +8,7 @@ import { UserRole } from "@/types/roles";
 import bcrypt from "bcryptjs";
 import { isDemoEmail, triggerDemoReset } from "@/lib/demo/reset";
 import { triggerWelcomeEmail } from "@/lib/email/marketing";
+import { isRateLimited } from "@/lib/auth/rate-limit";
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma) as any,
@@ -20,6 +21,12 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
+
+        // Brute-force protection: 10 attempts per email per 15 minutes
+        if (isRateLimited(`login:${credentials.email.toLowerCase()}`, 10, 15 * 60 * 1000)) {
+          throw new Error("Too many login attempts. Please try again later.");
+        }
+
         const user = await prisma.user.findUnique({
           where: { email: credentials.email },
         });
@@ -42,7 +49,10 @@ export const authOptions: NextAuthOptions = {
     }),
 
   ],
-  session: { strategy: "jwt" },
+  session: {
+    strategy: "jwt",
+    maxAge: 8 * 60 * 60, // 8 hours — appropriate for a payroll/HR app
+  },
   callbacks: {
     async jwt({ token, user }) {
       // Always re-fetch from DB so role/businessId/permissions are always current

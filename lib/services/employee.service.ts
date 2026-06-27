@@ -67,12 +67,30 @@ export const employeeService = {
   },
 
   async list(businessId: string, departmentId?: string) {
+    // NOTE: Never include ppsn, bankIban, bankBic, address, emergencyName/Phone/Rel
+    // in list results — these are only returned by getById (manager/admin only route).
     return prisma.employee.findMany({
       where: {
         businessId,
         ...(departmentId ? { departmentId } : {}),
       },
-      include: {
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        phone: true,
+        role: true,
+        active: true,
+        hourlyRate: true,
+        startDate: true,
+        contractType: true,
+        permissions: true,
+        userId: true,
+        departmentId: true,
+        venueId: true,
+        createdAt: true,
+        updatedAt: true,
         department: { select: { id: true, name: true } },
         _count: { select: { shifts: true } },
       },
@@ -81,6 +99,7 @@ export const employeeService = {
   },
 
   async getById(id: string, businessId: string) {
+    // Full record — only called by manager/admin routes
     return prisma.employee.findFirst({
       where: { id, businessId },
       include: {
