@@ -46,6 +46,9 @@ model Business {
   posConnection  PosConnection?
   posSnapshots   PosSnapshot[]
 
+  // CRM
+  customers      Customer[]
+
   // Locale / currency
   currency           String   @default("EUR") // "EUR" | "GBP"
   country            String   @default("IE")  // "IE" | "GB"
@@ -82,6 +85,8 @@ model User {
   passwordResetTokens PasswordResetToken[]
   appNotifications    AppNotification[]
   menuSpecials        MenuSpecial[]     @relation("MenuSpecialAuthor")
+  crmNotes            CrmNote[]
+  crmEmails           CrmEmail[]
 }
 
 model PasswordResetToken {
@@ -244,6 +249,8 @@ model Reservation {
   table         Table?   @relation(fields: [tableId], references: [id])
   businessId    String
   business      Business @relation(fields: [businessId], references: [id])
+  customerId    String?
+  customer      Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -899,4 +906,61 @@ model PosSnapshot {
 
   @@unique([businessId, date])
   @@index([businessId, date])
+}
+
+// ─── CRM ─────────────────────────────────────────────────────────────────────
+
+model Customer {
+  id            String    @id @default(cuid())
+  businessId    String
+  business      Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  name          String
+  email         String?
+  phone         String?
+  birthday      DateTime?
+  dietaryNotes  String?
+  allergies     String?
+  tags          String[]  @default([])
+  internalNotes String?
+
+  gdprConsent   Boolean   @default(false)
+  gdprConsentAt DateTime?
+  isAnonymised  Boolean   @default(false)
+
+  reservations  Reservation[]
+  crmNotes      CrmNote[]
+  crmEmails     CrmEmail[]
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([businessId])
+  @@index([businessId, email])
+}
+
+model CrmNote {
+  id         String   @id @default(cuid())
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  authorId   String
+  author     User     @relation(fields: [authorId], references: [id])
+  note       String
+  createdAt  DateTime @default(now())
+
+  @@index([customerId])
+}
+
+model CrmEmail {
+  id         String   @id @default(cuid())
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  sentById   String
+  sentBy     User     @relation(fields: [sentById], references: [id])
+  subject    String
+  preview    String
+  body       String
+  sentAt     DateTime @default(now())
+
+  @@index([customerId])
 }

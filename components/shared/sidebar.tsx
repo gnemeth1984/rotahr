@@ -31,6 +31,7 @@ import {
   RadioTower,
   Settings,
   ShieldCheck,
+  ContactRound,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -139,6 +140,14 @@ const navItems = [
     roles: [Role.MANAGER, Role.ADMIN],
     permission: "tips",
     featureKey: "tips" as FeatureKey,
+  },
+  {
+    href: "/crm",
+    label: "Customer CRM",
+    icon: ContactRound,
+    roles: [Role.MANAGER, Role.ADMIN],
+    permission: null,
+    featureKey: null,
   },
   {
     href: "/employees",

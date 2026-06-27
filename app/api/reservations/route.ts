@@ -66,6 +66,43 @@ export async function POST(req: NextRequest) {
     const userId = (session.user as any).id as string | undefined;
     const userName = (session.user as any).name || (session.user as any).email || "Staff";
 
+    // Auto-upsert CRM Customer
+    let customerId: string | null = null;
+    try {
+      if (customerEmail) {
+        const emailNorm = customerEmail.toLowerCase();
+        let crmCustomer = await prisma.customer.findFirst({
+          where: { businessId, email: emailNorm, isAnonymised: false },
+        });
+        if (!crmCustomer) {
+          crmCustomer = await prisma.customer.create({
+            data: {
+              businessId,
+              name: customerName,
+              email: emailNorm,
+              phone: customerPhone || null,
+              gdprConsent: marketingConsent === true,
+              gdprConsentAt: marketingConsent === true ? new Date() : null,
+            },
+          });
+        } else {
+          // Update phone/name if blank, and gdprConsent if newly granted
+          await prisma.customer.update({
+            where: { id: crmCustomer.id },
+            data: {
+              phone: crmCustomer.phone ?? (customerPhone || null),
+              gdprConsent: crmCustomer.gdprConsent || marketingConsent === true,
+              gdprConsentAt: (!crmCustomer.gdprConsent && marketingConsent === true) ? new Date() : crmCustomer.gdprConsentAt,
+            },
+          });
+        }
+        customerId = crmCustomer.id;
+      }
+    } catch (crmErr) {
+      console.error("[CRM upsert]", crmErr);
+      // Non-fatal — reservation still saves
+    }
+
     const reservation = await prisma.reservation.create({
       data: {
         businessId,
@@ -80,6 +117,7 @@ export async function POST(req: NextRequest) {
         createdById: userId || null,
         createdByName: userName,
         marketingConsent: marketingConsent === true,
+        customerId,
       },
       include: {
         table: { select: { id: true, name: true, capacity: true } },
