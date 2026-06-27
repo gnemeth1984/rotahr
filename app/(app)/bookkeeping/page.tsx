@@ -43,6 +43,7 @@ import {
   CheckCircle2,
   Info,
   ShieldCheck,
+  ExternalLink,
 } from "lucide-react";
 import { UserRole as Role } from "@/types/roles";
 import { cn } from "@/lib/utils";
@@ -1162,18 +1163,46 @@ export default function BookkeepingPage() {
           className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
           onClick={() => setLightboxUrl(null)}
         >
-          <button
-            onClick={() => setLightboxUrl(null)}
-            className="absolute top-4 right-4 h-9 w-9 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors"
-          >
-            <X className="h-5 w-5" />
-          </button>
-          <img
-            src={lightboxUrl}
-            alt="Receipt"
-            className="max-h-[90vh] max-w-full rounded-xl shadow-2xl object-contain"
-            onClick={(e) => e.stopPropagation()}
-          />
+          <div className="absolute top-4 right-4 flex items-center gap-2">
+            <a
+              href={lightboxUrl}
+              target="_blank"
+              rel="noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="h-9 px-3 rounded-full bg-white/10 hover:bg-white/20 flex items-center gap-1.5 text-white text-xs transition-colors"
+            >
+              <ExternalLink className="h-3.5 w-3.5" />Open in new tab
+            </a>
+            <button
+              onClick={() => setLightboxUrl(null)}
+              className="h-9 w-9 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+          {lightboxUrl.toLowerCase().includes(".pdf") || lightboxUrl.toLowerCase().includes("application/pdf") ? (
+            <iframe
+              src={lightboxUrl}
+              title="Receipt PDF"
+              className="w-full max-w-3xl rounded-xl shadow-2xl bg-white"
+              style={{ height: "85vh" }}
+              onClick={(e) => e.stopPropagation()}
+            />
+          ) : (
+            <img
+              src={lightboxUrl}
+              alt="Receipt"
+              className="max-h-[85vh] max-w-full rounded-xl shadow-2xl object-contain"
+              onClick={(e) => e.stopPropagation()}
+              onError={(e) => {
+                // If image fails to load (e.g. expired URL), show open-in-tab fallback
+                const el = e.target as HTMLImageElement;
+                el.style.display = "none";
+                window.open(lightboxUrl, "_blank");
+                setLightboxUrl(null);
+              }}
+            />
+          )}
         </div>
       )}
 
