@@ -12,11 +12,11 @@ export default function PrivacyPage() {
           <section>
             <h2 className="text-lg font-semibold text-slate-800 mb-2">1. Who we are</h2>
             <p>
-              Rotahr is a hospitality workforce management platform operated by Rotahr Ltd, Ireland.
-              For the purposes of GDPR, Rotahr Ltd is the <strong>data controller</strong> for platform-level data
+              Rotahr is a hospitality workforce management platform operated by Rotahr, Ireland.
+              For the purposes of GDPR, Rotahr is the <strong>data controller</strong> for platform-level data
               (account data, subscription data, platform usage). Individual businesses using Rotahr act as
               <strong> data controllers</strong> for data they collect about their own customers and staff;
-              Rotahr Ltd acts as a <strong>data processor</strong> on their behalf in relation to that data.
+              Rotahr acts as a <strong>data processor</strong> on their behalf in relation to that data.
             </p>
             <p className="mt-2">
               Contact: <a href="mailto:privacy@rotahr.com" className="text-blue-600 hover:underline">privacy@rotahr.com</a>
@@ -105,7 +105,7 @@ export default function PrivacyPage() {
             <p>
               If you are an employee whose data has been entered into Rotahr by your employer, your employer
               (the business) is the data controller for your personal data. Your employer is responsible for
-              informing you of what data is held and why. Rotahr Ltd processes this data on behalf of your
+              informing you of what data is held and why. Rotahr processes this data on behalf of your
               employer as a data processor.
             </p>
             <p className="mt-2">
