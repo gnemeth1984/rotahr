@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
 
     // Run blob upload + DB fetch in parallel with AI call
     const [blob, existingItems, aiResponse] = await Promise.all([
-      put(`stock-receipts/${Date.now()}-${file.name}`, file, { access: "private" }),
+      put(`stock-receipts/${Date.now()}-${file.name}`, file, { access: "public" }),
       prisma.stockItem.findMany({
         where: { businessId },
         select: { id: true, name: true, unit: true, lastPrice: true },
