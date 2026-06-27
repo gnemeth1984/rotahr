@@ -9,11 +9,10 @@ export default function PitchPage() {
     "https://storage.googleapis.com/runable-templates/cli-uploads%2FnpR7iwoxdmjjem91IBsyOE3SjrOrbdCS%2Fr74FtHzc0a9jD9PF0D8Mg%2Fslide-03.png",
     "https://storage.googleapis.com/runable-templates/cli-uploads%2FnpR7iwoxdmjjem91IBsyOE3SjrOrbdCS%2FygX7O2JsHz63-8ogPcZQr%2Fslide-04.png",
     "https://storage.googleapis.com/runable-templates/cli-uploads%2FnpR7iwoxdmjjem91IBsyOE3SjrOrbdCS%2FjRjPIh9O8_GRqQQ6hJ8am%2Fslide-05.png",
-    "https://storage.googleapis.com/runable-templates/cli-uploads%2FnpR7iwoxdmjjem91IBsyOE3SjrOrbdCS%2FF7O7ILH_24FxJLJ98fRGu%2Fslide-06.png",
     "https://storage.googleapis.com/runable-templates/cli-uploads%2FnpR7iwoxdmjjem91IBsyOE3SjrOrbdCS%2FVFA7aoE8U9CpkWx7J_9vp%2Fslide-07.png",
     "https://storage.googleapis.com/runable-templates/cli-uploads%2FnpR7iwoxdmjjem91IBsyOE3SjrOrbdCS%2FeLaHSlkaiQWt3Cfra0DtX%2Fslide-08.png",
     "https://storage.googleapis.com/runable-templates/cli-uploads%2FnpR7iwoxdmjjem91IBsyOE3SjrOrbdCS%2FeQC1bTyeQBqJtYaXhaVEp%2Fslide-09.png",
-    "https://storage.googleapis.com/runable-templates/cli-uploads%2FnpR7iwoxdmjjem91IBsyOE3SjrOrbdCS%2F_nHUOCjCvprgeGDIGtj6p%2Fpitch-pricing-slide.png",
+    "https://storage.googleapis.com/runable-templates/cli-uploads%2FnpR7iwoxdmjjem91IBsyOE3SjrOrbdCS%2FXHu_HqArsm2HRPl8M18t5%2Fpitch-pricing-slide.png",
     "https://storage.googleapis.com/runable-templates/cli-uploads%2FnpR7iwoxdmjjem91IBsyOE3SjrOrbdCS%2Fl7DSqDT0H65hum-LPN2xe%2Fslide-11-new.png",
   ];
 
@@ -98,7 +97,7 @@ export default function PitchPage() {
       </header>
 
       <section className="hero">
-        <div className="hero-label">Pitch Deck · 11 Slides</div>
+        <div className="hero-label">Pitch Deck · 10 Slides</div>
         <h1>One app to run<br /><span>your entire venue</span></h1>
         <p>Rotas · Clock-In · Reservations · Bookkeeping — built for hospitality.</p>
         <a className="btn-primary" href="/auth/register">Get Started</a>
