@@ -1016,3 +1016,30 @@ model CrmEmail {
 
   @@index([customerId])
 }
+
+model ReferralPartner {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  company      String?
+  code         String   @unique
+  commissionPct Int     @default(20)
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  referrals    Referral[]
+}
+
+model Referral {
+  id          String          @id @default(cuid())
+  partnerId   String
+  partner     ReferralPartner @relation(fields: [partnerId], references: [id])
+  businessId  String?
+  email       String
+  status      String          @default("pending") // pending, converted, cancelled
+  plan        String?
+  commission  Float?
+  createdAt   DateTime        @default(now())
+  convertedAt DateTime?
+
+  @@index([partnerId])
+}
