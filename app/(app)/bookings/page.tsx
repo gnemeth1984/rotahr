@@ -58,6 +58,8 @@ interface Booking {
   duration: number;
   status: string;
   notes: string | null;
+  occasion: string | null;
+  menuRequired: boolean;
   createdByName: string | null;
   marketingConsent: boolean;
   table: { id: string; name: string; capacity: number } | null;
@@ -85,6 +87,8 @@ const emptyForm = {
   partySize: 2,
   date: "",
   time: "",
+  occasion: "",
+  menuRequired: false,
   notes: "",
   marketingConsent: false,
 };
@@ -239,6 +243,8 @@ function BookingsInner() {
       partySize: b.partySize,
       date: b.date.split("T")[0],
       time: b.time,
+      occasion: (b as any).occasion ?? "",
+      menuRequired: (b as any).menuRequired ?? false,
       notes: b.notes ?? "",
       marketingConsent: b.marketingConsent ?? false,
     });
@@ -560,6 +566,17 @@ function BookingsInner() {
                 <p className="text-sm text-slate-500 mt-0.5">
                   {activeBooking && formatDate(activeBooking.date)} · {activeBooking?.time} · {activeBooking?.partySize} guests
                 </p>
+                {activeBooking?.customerPhone && (
+                  <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-1">
+                    <Phone className="h-3 w-3" />{activeBooking.customerPhone}
+                  </p>
+                )}
+                {activeBooking?.occasion && (
+                  <p className="text-xs text-slate-500 mt-0.5">🎉 {activeBooking.occasion}</p>
+                )}
+                {activeBooking?.menuRequired && (
+                  <p className="text-xs text-amber-600 mt-0.5 font-medium">📋 Menu pre-order required</p>
+                )}
               </div>
               <span className={cn(
                 "text-xs font-medium px-2.5 py-1 rounded-full border",
@@ -762,12 +779,39 @@ function BookingsInner() {
               />
             </div>
             <div className="space-y-1.5">
-              <Label>Notes</Label>
+              <Label>Occasion <span className="text-slate-400 font-normal text-xs">(optional)</span></Label>
+              <Input
+                value={form.occasion}
+                onChange={(e) => setForm({ ...form, occasion: e.target.value })}
+                placeholder="e.g. Birthday, Anniversary, Work dinner…"
+              />
+            </div>
+            <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+              <div>
+                <p className="text-sm font-medium text-slate-800">Menu required</p>
+                <p className="text-xs text-slate-400">Pre-order or set menu needed</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setForm({ ...form, menuRequired: !form.menuRequired })}
+                className={cn(
+                  "relative inline-flex h-6 w-11 items-center rounded-full transition-colors flex-shrink-0",
+                  form.menuRequired ? "bg-slate-900" : "bg-slate-300"
+                )}
+              >
+                <span className={cn(
+                  "inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow-sm",
+                  form.menuRequired ? "translate-x-6" : "translate-x-1"
+                )} />
+              </button>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Notes <span className="text-slate-400 font-normal text-xs">(optional)</span></Label>
               <Textarea
                 value={form.notes}
                 onChange={(e) => setForm({ ...form, notes: e.target.value })}
                 rows={2}
-                placeholder="Dietary requirements, occasion…"
+                placeholder="Dietary requirements, allergies, special requests…"
               />
             </div>
             {/* Marketing consent — new bookings only */}

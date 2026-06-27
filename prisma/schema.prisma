@@ -239,6 +239,7 @@ model Reservation {
   notes         String?
   dietary       String?
   occasion      String?
+  menuRequired  Boolean @default(false)
   kitchenNotes  String?
   upsellNotes   String?
   aiWarnings    String?
