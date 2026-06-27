@@ -2,6 +2,7 @@ import "./globals.css"
 import { ReactNode } from "react"
 import { Providers } from "@/components/shared/providers"
 import { ServiceWorkerRegister } from "@/components/shared/ServiceWorkerRegister"
+import { Toaster } from "sonner"
 
 export const metadata = {
   metadataBase: new URL("https://rotahr.vercel.app"),
@@ -50,6 +51,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <Providers>
           <ServiceWorkerRegister />
           {children}
+          <Toaster richColors position="top-right" />
         </Providers>
       </body>
     </html>

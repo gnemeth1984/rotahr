@@ -42,6 +42,10 @@ model Business {
   menuTemplates   MenuTemplate[]
   functionMenus   FunctionMenu[]
 
+  // POS Integration
+  posConnection  PosConnection?
+  posSnapshots   PosSnapshot[]
+
   // Locale / currency
   currency           String   @default("EUR") // "EUR" | "GBP"
   country            String   @default("IE")  // "IE" | "GB"
@@ -858,4 +862,41 @@ model SupplierStatement {
 
   @@index([businessId, supplierId])
   @@index([businessId, status])
+}
+
+// ─── POS Integration ─────────────────────────────────────────────────────────
+
+model PosConnection {
+  id           String    @id @default(cuid())
+  businessId   String    @unique
+  business     Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  provider     String    // "lightspeed" | "square"
+  accessToken  String    // AES-256-GCM encrypted
+  refreshToken String?   // AES-256-GCM encrypted
+  tokenExpiry  DateTime?
+  locationId   String?   // Square location ID or Lightspeed businessId
+  accountId    String?   // Lightspeed account ID
+  connectedAt  DateTime  @default(now())
+  lastSyncAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+model PosSnapshot {
+  id                String   @id @default(cuid())
+  businessId        String
+  business          Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  date              DateTime // date only (start of day UTC)
+  provider          String
+  totalRevenue      Float
+  totalCovers       Int      @default(0)
+  totalTransactions Int      @default(0)
+  hourlyData        Json?    // [{ hour: 9, revenue: 450.00, transactions: 12 }, ...]
+  topItems          Json?    // [{ name: "Guinness", count: 45, revenue: 202.50 }, ...]
+  rawMeta           Json?    // minimal provenance metadata, no customer PII
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([businessId, date])
+  @@index([businessId, date])
 }

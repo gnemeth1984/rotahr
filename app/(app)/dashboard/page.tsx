@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { UserRole as Role } from "@/types/roles";
 import { cn } from "@/lib/utils";
 import NationalDaysWidget from "@/app/components/NationalDaysWidget";
+import PosRevenueWidget from "@/app/components/PosRevenueWidget";
 
 interface DashboardData {
   todayReservations: number;
@@ -274,6 +275,11 @@ export default function DashboardPage() {
             />
           )}
         </div>
+      )}
+
+      {/* POS Revenue Widget — managers/admins only */}
+      {(role === Role.MANAGER || role === Role.ADMIN) && (
+        <PosRevenueWidget />
       )}
 
       {/* National Days */}
