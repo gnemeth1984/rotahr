@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
     const formData = await req.formData();
     const file = formData.get("file") as File;
     if (!file) return NextResponse.json({ error: "No file" }, { status: 400 });
-    const blob = await put(`stock-receipts/${Date.now()}-${file.name}`, file, { access: "public" });
+    const blob = await put(`stock-receipts/${Date.now()}-${file.name}`, file, { access: "private" });
     return NextResponse.json({ url: blob.url });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
