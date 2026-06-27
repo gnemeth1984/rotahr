@@ -321,6 +321,51 @@ function CreateMenuModal({ onClose, onCreated }: {
   );
 }
 
+// ── Choice Count Picker ───────────────────────────────────────────────────────
+
+function ChoiceCountPicker({ value, onChange }: { value: number; onChange: (n: number) => void }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button
+        onClick={() => setOpen(true)}
+        className="text-xs border border-slate-200 rounded-lg px-2.5 py-1 hover:border-orange-300 hover:bg-orange-50 text-slate-600 hover:text-orange-700 transition-colors font-medium"
+      >
+        Choose {value}
+      </button>
+      {open && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40" onClick={() => setOpen(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl p-5 w-full max-w-xs mx-4 mb-4 sm:mb-0 space-y-3" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <p className="font-semibold text-slate-800 text-sm">How many choices?</p>
+              <button onClick={() => setOpen(false)} className="text-slate-400 hover:text-slate-600">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <p className="text-xs text-slate-500">Number of dishes a guest can select from this course</p>
+            <div className="grid grid-cols-3 gap-2">
+              {[1, 2, 3, 4, 5, 6].map((n) => (
+                <button
+                  key={n}
+                  onClick={() => { onChange(n); setOpen(false); }}
+                  className={cn(
+                    "py-3 rounded-xl text-sm font-bold border-2 transition-all",
+                    value === n
+                      ? "border-orange-500 bg-orange-500 text-white"
+                      : "border-slate-200 text-slate-700 hover:border-orange-300 hover:bg-orange-50"
+                  )}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
 // ── Menu Editor ───────────────────────────────────────────────────────────────
 
 function MenuEditor({ menu, canEdit, onBack, onSaved }: {
@@ -488,15 +533,16 @@ function MenuEditor({ menu, canEdit, onBack, onSaved }: {
                   {expanded ? <ChevronUp className="h-4 w-4 text-slate-400" /> : <ChevronDown className="h-4 w-4 text-slate-400" />}
                 </button>
                 <div className="flex items-center gap-2 flex-shrink-0">
-                  <span className="text-xs text-slate-500">Choose</span>
-                  <select
-                    value={course.choiceCount}
-                    onChange={(e) => updateChoiceCount(course.id, parseInt(e.target.value))}
-                    className="text-xs border border-slate-200 rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-orange-400"
-                    disabled={!canEdit}
-                  >
-                    {[1, 2, 3, 4, 5, 6].map((n) => <option key={n} value={n}>{n}</option>)}
-                  </select>
+                  {canEdit ? (
+                    <ChoiceCountPicker
+                      value={course.choiceCount}
+                      onChange={(n) => updateChoiceCount(course.id, n)}
+                    />
+                  ) : (
+                    <span className="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
+                      Choose {course.choiceCount}
+                    </span>
+                  )}
                   {canEdit && (
                     <button onClick={() => deleteCourse(course.id)} className="p-1 rounded hover:bg-red-50 text-slate-400 hover:text-red-500">
                       <Trash2 className="h-3.5 w-3.5" />

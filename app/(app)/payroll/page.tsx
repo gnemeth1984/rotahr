@@ -88,14 +88,17 @@ export default function PayrollPage() {
     window.location.href = `/api/payroll/brightpay?week=${monday}`;
   }
 
-  const weekLabel = data
-    ? `${new Date(data.weekStart).toLocaleDateString(locale, { day: "numeric", month: "short" })} – ${new Date(data.weekEnd).toLocaleDateString(locale, { day: "numeric", month: "short", year: "numeric" })}`
-    : monday;
+  const weekLabel = (() => {
+    const start = data ? new Date(data.weekStart) : new Date(monday + "T00:00:00");
+    const end = data ? new Date(data.weekEnd) : new Date(monday + "T00:00:00");
+    if (!data) end.setDate(start.getDate() + 6);
+    return `${start.toLocaleDateString(locale, { day: "numeric", month: "short" })} – ${end.toLocaleDateString(locale, { day: "numeric", month: "short", year: "numeric" })}`;
+  })();
 
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-6">
+    <div className="p-4 sm:p-6 max-w-5xl mx-auto space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="space-y-3">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
             <DollarSign className="h-6 w-6 text-blue-500" />
@@ -103,12 +106,12 @@ export default function PayrollPage() {
           </h1>
           <p className="text-slate-500 mt-1">Weekly pay summary</p>
         </div>
-        <div className="flex gap-2">
-          <Button onClick={exportCSV} variant="outline" size="sm" disabled={!data || data.rows.length === 0}>
+        <div className="flex gap-2 flex-wrap">
+          <Button onClick={exportCSV} variant="outline" size="sm" disabled={!data || data.rows.length === 0} className="flex-1 sm:flex-none">
             <Download className="h-4 w-4 mr-2" />
             Export CSV
           </Button>
-          <Button onClick={exportBrightPay} variant="outline" size="sm" disabled={!data || data.rows.length === 0} className="border-emerald-200 text-emerald-700 hover:bg-emerald-50">
+          <Button onClick={exportBrightPay} variant="outline" size="sm" disabled={!data || data.rows.length === 0} className="flex-1 sm:flex-none border-emerald-200 text-emerald-700 hover:bg-emerald-50">
             <FileSpreadsheet className="h-4 w-4 mr-2" />
             BrightPay Export
           </Button>
