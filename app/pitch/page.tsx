@@ -4,18 +4,18 @@ import { useEffect } from "react";
 
 export default function PitchPage() {
   const slides = [
-    "https://storage.googleapis.com/runable-templates/cli-uploads%2FnpR7iwoxdmjjem91IBsyOE3SjrOrbdCS%2F0LTVIRTTUWEteDgknuit-%2Fslide-01.png",
-    "https://storage.googleapis.com/runable-templates/cli-uploads%2FnpR7iwoxdmjjem91IBsyOE3SjrOrbdCS%2FnUQdD2o6TK-uTXJoJ99pL%2Fslide-02.png",
-    "https://storage.googleapis.com/runable-templates/cli-uploads%2FnpR7iwoxdmjjem91IBsyOE3SjrOrbdCS%2Fr74FtHzc0a9jD9PF0D8Mg%2Fslide-03.png",
-    "https://storage.googleapis.com/runable-templates/cli-uploads%2FnpR7iwoxdmjjem91IBsyOE3SjrOrbdCS%2FygX7O2JsHz63-8ogPcZQr%2Fslide-04.png",
-    "https://storage.googleapis.com/runable-templates/cli-uploads%2FnpR7iwoxdmjjem91IBsyOE3SjrOrbdCS%2FjRjPIh9O8_GRqQQ6hJ8am%2Fslide-05.png",
-    "https://storage.googleapis.com/runable-templates/cli-uploads%2FnpR7iwoxdmjjem91IBsyOE3SjrOrbdCS%2F70P9lUAjUu9iRw5TqvGls%2Fpitch-whats-new-slide.png",
-    "https://storage.googleapis.com/runable-templates/cli-uploads%2FnpR7iwoxdmjjem91IBsyOE3SjrOrbdCS%2FVFA7aoE8U9CpkWx7J_9vp%2Fslide-07.png",
-    "https://storage.googleapis.com/runable-templates/cli-uploads%2FnpR7iwoxdmjjem91IBsyOE3SjrOrbdCS%2FeLaHSlkaiQWt3Cfra0DtX%2Fslide-08.png",
-    "https://storage.googleapis.com/runable-templates/cli-uploads%2FnpR7iwoxdmjjem91IBsyOE3SjrOrbdCS%2FeQC1bTyeQBqJtYaXhaVEp%2Fslide-09.png",
-    "https://storage.googleapis.com/runable-templates/cli-uploads%2FnpR7iwoxdmjjem91IBsyOE3SjrOrbdCS%2F_HGuDVtqb4KL9uHLKtEIS%2Fpitch-compare-slide.png",
-    "https://storage.googleapis.com/runable-templates/cli-uploads%2FnpR7iwoxdmjjem91IBsyOE3SjrOrbdCS%2FXHu_HqArsm2HRPl8M18t5%2Fpitch-pricing-slide.png",
-    "https://storage.googleapis.com/runable-templates/cli-uploads%2FnpR7iwoxdmjjem91IBsyOE3SjrOrbdCS%2Fl7DSqDT0H65hum-LPN2xe%2Fslide-11-new.png",
+    "/pitch-slides/slide-01.png",
+    "/pitch-slides/slide-02.png",
+    "/pitch-slides/slide-03.png",
+    "/pitch-slides/slide-04.png",
+    "/pitch-slides/slide-05.png",
+    "/pitch-whats-new-slide.png",
+    "/pitch-slides/slide-07.png",
+    "/pitch-slides/slide-08.png",
+    "/pitch-slides/slide-09.png",
+    "/pitch-compare-slide.png",
+    "/pitch-pricing-slide.png",
+    "/pitch-slides/slide-11-new.png",
   ];
 
   useEffect(() => {
