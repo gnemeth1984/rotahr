@@ -19,10 +19,9 @@ export async function GET(req: NextRequest) {
   try {
     const token = process.env.BLOB_READ_WRITE_TOKEN!;
 
-    // validUntil = 1 hour from now (unix seconds)
-    const validUntil = Math.floor(Date.now() / 1000) + 3600;
+    // validUntil must be milliseconds timestamp, 1 hour from now
+    const validUntil = Date.now() + 60 * 60 * 1000;
 
-    // Extract pathname from the blob URL
     const urlObj = new URL(blobUrl);
     const pathname = urlObj.pathname.replace(/^\//, "");
 
@@ -33,15 +32,17 @@ export async function GET(req: NextRequest) {
       pathname,
     });
 
-    const { presignedUrl } = await presignUrl(signedToken, {
+    const { presignedUrl: signedUrl } = await presignUrl(signedToken, {
       operation: "get",
       url: blobUrl,
       pathname,
+      validUntil,
     });
 
-    return NextResponse.json({ url: presignedUrl });
+    return NextResponse.json({ url: signedUrl });
   } catch (err: any) {
-    // Fallback: return original URL (works if store is actually public)
+    console.error("receipt-url presign error:", err?.message);
+    // Fallback: return original URL (will 403 for private blobs but better than crashing)
     return NextResponse.json({ url: blobUrl });
   }
 }
