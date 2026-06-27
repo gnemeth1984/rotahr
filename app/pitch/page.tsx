@@ -95,14 +95,14 @@ export default function PitchPage() {
           </svg>
           <span className="logo-text">rotahr</span>
         </a>
-        <a className="header-cta" href="/auth/register">Get Started</a>
+        <a className="header-cta" href="/auth/signin">Check Our Demo</a>
       </header>
 
       <section className="hero">
         <div className="hero-label">Pitch Deck · 12 Slides</div>
         <h1>One app to run<br /><span>your entire venue</span></h1>
         <p>Rotas · Clock-In · Reservations · Bookkeeping — built for hospitality.</p>
-        <a className="btn-primary" href="/auth/register">Get Started</a>
+        <a className="btn-primary" href="/auth/signin">Check Our Demo</a>
       </section>
 
       <div className="slides-stack">
@@ -123,8 +123,8 @@ export default function PitchPage() {
       <section className="bottom-cta">
         <h2>Ready to simplify<br /><span>your venue?</span></h2>
         <p>First month free. No credit card required. Cancel anytime.</p>
-        <a className="btn-primary" href="/auth/register" style={{ fontSize: "16px", padding: "16px 36px" }}>
-          Get Started Free — rotahr.com
+        <a className="btn-primary" href="/auth/signin" style={{ fontSize: "16px", padding: "16px 36px" }}>
+          Check Our Demo — rotahr.com
         </a>
         <div className="trust-badges">
           <span className="badge">🔒 GDPR Compliant</span>
