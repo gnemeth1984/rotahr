@@ -164,61 +164,75 @@ export default function PayrollPage() {
             <p>No shifts recorded this week</p>
           </div>
         ) : (
-          <table className="w-full">
-            <thead>
-              <tr className="bg-slate-50 border-b border-slate-200">
-                <th className="text-left px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                  Employee
-                </th>
-                <th className="text-right px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                  Shifts
-                </th>
-                <th className="text-right px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                  Hours
-                </th>
-                <th className="text-right px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                  Rate/hr
-                </th>
-                <th className="text-right px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                  Total Pay
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
+          <>
+            {/* Desktop table */}
+            <div className="hidden sm:block overflow-x-auto">
+              <table className="w-full min-w-[500px]">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-200">
+                    <th className="text-left px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Employee</th>
+                    <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Shifts</th>
+                    <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Hours</th>
+                    <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Rate/hr</th>
+                    <th className="text-right px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Pay</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {data.rows.map((row) => (
+                    <tr key={row.employeeId} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-6 py-4 font-medium text-slate-900">{row.firstName} {row.lastName}</td>
+                      <td className="px-4 py-4 text-right text-slate-600">{row.shiftCount}</td>
+                      <td className="px-4 py-4 text-right text-slate-600">{row.totalHours.toFixed(1)}h</td>
+                      <td className="px-4 py-4 text-right text-slate-600">{row.hourlyRate > 0 ? fmt(row.hourlyRate) : "—"}</td>
+                      <td className="px-6 py-4 text-right font-semibold text-slate-900">
+                        <div className="flex items-center justify-end gap-2">
+                          {row.belowNMW && (
+                            <span title={`Below minimum wage — check ${symbol === "£" ? "UK NLW" : "Irish NMW"}`}>
+                              <AlertTriangle className="h-3.5 w-3.5 text-red-500" />
+                            </span>
+                          )}
+                          {row.hourlyRate > 0 ? fmt(row.totalPay) : "—"}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="bg-blue-50 border-t-2 border-blue-200">
+                    <td colSpan={4} className="px-6 py-4 font-bold text-slate-900">Weekly Total</td>
+                    <td className="px-6 py-4 text-right font-bold text-blue-700 text-lg">{fmt(data.grandTotal)}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+
+            {/* Mobile cards */}
+            <div className="sm:hidden divide-y divide-slate-100">
               {data.rows.map((row) => (
-                <tr key={row.employeeId} className="hover:bg-slate-50 transition-colors">
-                  <td className="px-6 py-4 font-medium text-slate-900">
-                    {row.firstName} {row.lastName}
-                  </td>
-                  <td className="px-6 py-4 text-right text-slate-600">{row.shiftCount}</td>
-                  <td className="px-6 py-4 text-right text-slate-600">{row.totalHours}h</td>
-                  <td className="px-6 py-4 text-right text-slate-600">
-                    {row.hourlyRate > 0 ? fmt(row.hourlyRate) : "—"}
-                  </td>
-                  <td className="px-6 py-4 text-right font-semibold text-slate-900">
-                    <div className="flex items-center justify-end gap-2">
-                      {row.belowNMW && (
-                        <span title={`Below minimum wage — check ${symbol === "£" ? "UK NLW" : "Irish NMW"}`}>
-                          <AlertTriangle className="h-3.5 w-3.5 text-red-500" />
-                        </span>
-                      )}
-                      {row.hourlyRate > 0 ? fmt(row.totalPay) : "—"}
+                <div key={row.employeeId} className="px-4 py-4">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="font-semibold text-slate-900 flex items-center gap-1.5">
+                        {row.belowNMW && <AlertTriangle className="h-3.5 w-3.5 text-red-500 flex-shrink-0" />}
+                        {row.firstName} {row.lastName}
+                      </p>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        {row.shiftCount} shift{row.shiftCount !== 1 ? "s" : ""} · {row.totalHours.toFixed(1)}h
+                        {row.hourlyRate > 0 ? ` · ${fmt(row.hourlyRate)}/hr` : ""}
+                      </p>
                     </div>
-                  </td>
-                </tr>
+                    <p className="font-bold text-slate-900 text-base flex-shrink-0">
+                      {row.hourlyRate > 0 ? fmt(row.totalPay) : "—"}
+                    </p>
+                  </div>
+                </div>
               ))}
-            </tbody>
-            <tfoot>
-              <tr className="bg-blue-50 border-t-2 border-blue-200">
-                <td colSpan={4} className="px-6 py-4 font-bold text-slate-900">
-                  Weekly Total
-                </td>
-                <td className="px-6 py-4 text-right font-bold text-blue-700 text-lg">
-                  {fmt(data.grandTotal)}
-                </td>
-              </tr>
-            </tfoot>
-          </table>
+              <div className="px-4 py-4 bg-blue-50 border-t-2 border-blue-200 flex items-center justify-between">
+                <p className="font-bold text-slate-900">Weekly Total</p>
+                <p className="font-bold text-blue-700 text-lg">{fmt(data.grandTotal)}</p>
+              </div>
+            </div>
+          </>
         )}
       </div>
     </div>

@@ -10,6 +10,9 @@ export const addEmployeeSchema = z.object({
   role: z.string().default("staff"),
   departmentId: z.string().optional(),
   businessId: z.string().min(1),
+  hourlyRate: z.number().optional(),
+  contractType: z.string().optional(),
+  startDate: z.string().optional(),
 });
 
 export const GRANTABLE_PERMISSIONS = [
@@ -61,6 +64,9 @@ export const employeeService = {
         role: data.role,
         businessId: data.businessId,
         departmentId: data.departmentId ?? null,
+        hourlyRate: data.hourlyRate ?? null,
+        contractType: data.contractType ?? null,
+        startDate: data.startDate ? new Date(data.startDate) : null,
       },
       include: { department: true },
     });

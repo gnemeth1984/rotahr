@@ -616,6 +616,9 @@ model Venue {
 
   name        String
   address     String?
+  phone       String?
+  email       String?
+  website     String?
   geoLat      Float?
   geoLng      Float?
   geoRadius   Int      @default(200)
@@ -623,14 +626,50 @@ model Venue {
   isDefault   Boolean  @default(false)
   active      Boolean  @default(true)
 
+  // Venue details
+  capacity    Int?
+  venueType   String?  // restaurant | bar | hotel | cafe | pub | other
+  cuisine     String?  // Irish, Italian, etc.
+  foodInfo    String?  @db.Text  // food menu notes, allergies policy, dietary options
+  drinksInfo  String?  @db.Text  // bar notes, draught lines, house spirits
+  equipment   String?  @db.Text  // POS systems, kitchen equipment, A/V notes
+  notes       String?  @db.Text  // general manager notes
+
   employees       Employee[]
   shifts          Shift[]
   shiftTemplates  ShiftTemplate[]
+  checklists      VenueChecklist[]
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   @@index([businessId])
+}
+
+model VenueChecklist {
+  id          String   @id @default(cuid())
+  venueId     String
+  venue       Venue    @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  businessId  String
+  title       String
+  category    String   @default("general") // opening | closing | cleaning | health-safety | general
+  items       VenueChecklistItem[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([venueId])
+  @@index([businessId])
+}
+
+model VenueChecklistItem {
+  id          String         @id @default(cuid())
+  checklistId String
+  checklist   VenueChecklist @relation(fields: [checklistId], references: [id], onDelete: Cascade)
+  label       String
+  sortOrder   Int            @default(0)
+  createdAt   DateTime       @default(now())
+
+  @@index([checklistId])
 }
 
 // ── Page Views / Visitor Analytics ───────────────────────────────────────────

@@ -12,9 +12,20 @@ export async function GET(req: NextRequest) {
   const businessId = session.user.businessId;
   if (!businessId) return NextResponse.json({ venues: [] });
 
+  const url = new URL(req.url);
+  const withChecklists = url.searchParams.get("checklists") === "1";
+
   const venues = await prisma.venue.findMany({
     where: { businessId, active: true },
     orderBy: [{ isDefault: "desc" }, { name: "asc" }],
+    ...(withChecklists && {
+      include: {
+        checklists: {
+          include: { items: { orderBy: { order: "asc" } } },
+          orderBy: { createdAt: "asc" as const },
+        },
+      },
+    }),
   });
   return NextResponse.json({ venues });
 }

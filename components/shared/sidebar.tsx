@@ -175,7 +175,7 @@ const navItems = [
     featureKey: "training" as FeatureKey,
   },
   {
-    href: "/settings/venues",
+    href: "/venues",
     label: "Venues",
     icon: Building2,
     roles: [Role.MANAGER, Role.ADMIN],

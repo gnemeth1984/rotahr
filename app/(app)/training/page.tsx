@@ -1,7 +1,7 @@
 // @ts-nocheck
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { useSession } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 import {
@@ -72,6 +72,7 @@ const EMPTY_FORM = {
   issuedDate: "",
   expiryDate: "",
   notes: "",
+  documentUrl: "",
 };
 
 function TrainingInner() {
@@ -94,6 +95,8 @@ function TrainingInner() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const certFileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     Promise.all([
@@ -122,8 +125,25 @@ function TrainingInner() {
       issuedDate: cert.issuedDate ? cert.issuedDate.split("T")[0] : "",
       expiryDate: cert.expiryDate ? cert.expiryDate.split("T")[0] : "",
       notes: cert.notes ?? "",
+      documentUrl: cert.documentUrl ?? "",
     });
     setShowDialog(true);
+  }
+
+  async function uploadCertImage(file: File) {
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("category", "cert");
+      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      const data = await res.json();
+      if (data.url) {
+        setForm((f) => ({ ...f, documentUrl: data.url }));
+      }
+    } finally {
+      setUploading(false);
+    }
   }
 
   async function saveCert() {
@@ -132,6 +152,7 @@ function TrainingInner() {
       ...form,
       issuedDate: form.issuedDate || null,
       expiryDate: form.expiryDate || null,
+      documentUrl: form.documentUrl || null,
     };
     try {
       if (editing) {
@@ -368,7 +389,14 @@ function TrainingInner() {
                       {cert.employee.firstName} {cert.employee.lastName}
                     </td>
                     <td className="p-3 text-slate-700">
-                      <p className="font-medium">{cert.title}</p>
+                      <p className="font-medium flex items-center gap-1.5">
+                        {cert.title}
+                        {cert.documentUrl && (
+                          <a href={cert.documentUrl} target="_blank" rel="noopener noreferrer" title="View certificate" className="text-blue-400 hover:text-blue-600">
+                            <Upload className="h-3 w-3 rotate-180" />
+                          </a>
+                        )}
+                      </p>
                       {cert.issuer && <p className="text-xs text-slate-400">{cert.issuer}</p>}
                     </td>
                     <td className="p-3 text-slate-600">{categoryLabel(cert.category)}</td>
@@ -492,6 +520,43 @@ function TrainingInner() {
                 value={form.notes}
                 onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
               />
+            </div>
+            {/* Certificate image/document upload */}
+            <div>
+              <Label>Certificate Image / Document</Label>
+              <input
+                ref={certFileRef}
+                type="file"
+                accept="image/*,application/pdf"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) uploadCertImage(f);
+                }}
+              />
+              {form.documentUrl ? (
+                <div className="mt-1.5 flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
+                  {form.documentUrl.match(/\.(jpg|jpeg|png|webp|gif)/i) ? (
+                    <img src={form.documentUrl} alt="cert" className="h-10 w-10 object-cover rounded border border-slate-200 flex-shrink-0" />
+                  ) : (
+                    <Award className="h-5 w-5 text-slate-400 flex-shrink-0" />
+                  )}
+                  <a href={form.documentUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline flex-1 truncate">View uploaded file</a>
+                  <button onClick={() => setForm((f) => ({ ...f, documentUrl: "" }))} className="text-slate-400 hover:text-red-500 flex-shrink-0">
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => certFileRef.current?.click()}
+                  disabled={uploading}
+                  className="mt-1.5 w-full flex items-center justify-center gap-2 border-2 border-dashed border-slate-200 rounded-lg py-3 text-sm text-slate-500 hover:border-blue-300 hover:text-blue-500 transition-colors"
+                >
+                  {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                  {uploading ? "Uploading…" : "Upload cert image or PDF"}
+                </button>
+              )}
             </div>
           </div>
           <DialogFooter>

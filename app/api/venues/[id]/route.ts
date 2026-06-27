@@ -13,7 +13,11 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   }
   const businessId = session.user.businessId;
   const body = await req.json();
-  const { name, address, geoLat, geoLng, geoRadius, timezone, isDefault, active } = body;
+  const {
+    name, address, geoLat, geoLng, geoRadius, timezone, isDefault, active,
+    phone, email, website, capacity, venueType, cuisine,
+    foodInfo, drinksInfo, equipment, notes,
+  } = body;
 
   if (isDefault) {
     await prisma.venue.updateMany({ where: { businessId }, data: { isDefault: false } });
@@ -30,6 +34,16 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       ...(timezone !== undefined && { timezone }),
       ...(isDefault !== undefined && { isDefault }),
       ...(active !== undefined && { active }),
+      ...(phone !== undefined && { phone }),
+      ...(email !== undefined && { email }),
+      ...(website !== undefined && { website }),
+      ...(capacity !== undefined && { capacity: capacity ? Number(capacity) : null }),
+      ...(venueType !== undefined && { venueType }),
+      ...(cuisine !== undefined && { cuisine }),
+      ...(foodInfo !== undefined && { foodInfo }),
+      ...(drinksInfo !== undefined && { drinksInfo }),
+      ...(equipment !== undefined && { equipment }),
+      ...(notes !== undefined && { notes }),
     },
   });
   return NextResponse.json({ venue });

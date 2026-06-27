@@ -65,6 +65,9 @@ const EMPTY_FORM = {
   phone: "",
   role: "staff",
   departmentId: "",
+  hourlyRate: "",
+  contractType: "",
+  startDate: "",
 };
 
 export default function EmployeesPage() {
@@ -125,6 +128,9 @@ export default function EmployeesPage() {
           phone: addForm.phone || undefined,
           role: addForm.role,
           departmentId: addForm.departmentId || undefined,
+          hourlyRate: addForm.hourlyRate ? parseFloat(addForm.hourlyRate) : undefined,
+          contractType: addForm.contractType || undefined,
+          startDate: addForm.startDate || undefined,
         }),
       });
       const data = await res.json();
@@ -148,6 +154,9 @@ export default function EmployeesPage() {
       phone: emp.phone ?? "",
       role: emp.role,
       departmentId: emp.departmentId ?? "",
+      hourlyRate: (emp as any).hourlyRate?.toString() ?? "",
+      contractType: (emp as any).contractType ?? "",
+      startDate: (emp as any).startDate ? (emp as any).startDate.slice(0, 10) : "",
     });
     setEditPermissions(emp.permissions ?? []);
     setEditError("");
@@ -214,7 +223,8 @@ export default function EmployeesPage() {
     form: typeof EMPTY_FORM,
     setForm: (f: typeof EMPTY_FORM) => void
   ) => (
-    <div className="space-y-3">
+    <div className="space-y-4">
+      {/* Name */}
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
           <Label>First name *</Label>
@@ -225,15 +235,16 @@ export default function EmployeesPage() {
           <Input value={form.lastName} onChange={(e) => setForm({ ...form, lastName: e.target.value })} required />
         </div>
       </div>
-      <div className="space-y-1.5">
-        <Label>Email *</Label>
-        <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required />
-      </div>
-      <div className="space-y-1.5">
-        <Label>Phone</Label>
-        <Input type="tel" placeholder="+353..." value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
-      </div>
+      {/* Contact */}
       <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1.5 col-span-2">
+          <Label>Email *</Label>
+          <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required />
+        </div>
+        <div className="space-y-1.5">
+          <Label>Phone</Label>
+          <Input type="tel" placeholder="+353..." value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+        </div>
         <div className="space-y-1.5">
           <Label>Role</Label>
           <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v })}>
@@ -245,23 +256,51 @@ export default function EmployeesPage() {
             </SelectContent>
           </Select>
         </div>
-        {departments.length > 0 && (
+      </div>
+      {/* Department */}
+      {departments.length > 0 && (
+        <div className="space-y-1.5">
+          <Label>Department</Label>
+          <Select
+            value={form.departmentId || "none"}
+            onValueChange={(v) => setForm({ ...form, departmentId: v === "none" ? "" : v })}
+          >
+            <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">None</SelectItem>
+              {departments.map((d) => (
+                <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+      {/* Employment */}
+      <div className="border-t border-slate-100 pt-3">
+        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Employment Details</p>
+        <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
-            <Label>Department</Label>
-            <Select
-              value={form.departmentId || "none"}
-              onValueChange={(v) => setForm({ ...form, departmentId: v === "none" ? "" : v })}
-            >
-              <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+            <Label>Start Date</Label>
+            <Input type="date" value={form.startDate} onChange={(e) => setForm({ ...form, startDate: e.target.value })} className="h-9 text-sm" />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Contract Type</Label>
+            <Select value={form.contractType || "_none"} onValueChange={(v) => setForm({ ...form, contractType: v === "_none" ? "" : v })}>
+              <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Select…" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="none">None</SelectItem>
-                {departments.map((d) => (
-                  <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
-                ))}
+                <SelectItem value="_none">—</SelectItem>
+                <SelectItem value="full-time">Full-time</SelectItem>
+                <SelectItem value="part-time">Part-time</SelectItem>
+                <SelectItem value="casual">Casual</SelectItem>
+                <SelectItem value="zero-hours">Zero-hours</SelectItem>
               </SelectContent>
             </Select>
           </div>
-        )}
+          <div className="space-y-1.5">
+            <Label>Hourly Rate (€)</Label>
+            <Input type="number" step="0.01" placeholder="e.g. 13.50" value={form.hourlyRate} onChange={(e) => setForm({ ...form, hourlyRate: e.target.value })} className="h-9 text-sm" />
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -417,35 +417,41 @@ function PlannerTab({ canEdit }: { canEdit: boolean }) {
                             <Plus className="h-2.5 w-2.5 inline mr-0.5" />Add
                           </button>
                         )}
-                        {/* Dish picker dropdown */}
+                        {/* Dish picker — click buttons, no sliding menu */}
                         {isActive && (
-                          <div className="bg-white border border-orange-200 rounded-xl shadow-lg p-2 space-y-1.5 z-10 w-52">
-                            <Input
-                              autoFocus
-                              value={searchDish}
-                              onChange={(e) => setSearchDish(e.target.value)}
-                              placeholder="Search dish…"
-                              className="h-7 text-xs"
-                            />
-                            <div className="max-h-40 overflow-y-auto space-y-0.5">
-                              {filteredDishes.length === 0 && (
-                                <p className="text-xs text-slate-400 px-1 py-1">No dishes found</p>
-                              )}
-                              {filteredDishes.map((dish) => (
-                                <button
-                                  key={dish.id}
-                                  onClick={() => addDishToSlot(day, period, dish.id)}
-                                  className="w-full text-left text-xs px-2 py-1.5 rounded hover:bg-orange-50 hover:text-orange-700 text-slate-700"
-                                >
-                                  {dish.name}
-                                  <span className="text-slate-400 ml-1">· {dish.category}</span>
+                          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40" onClick={() => setActiveMeal(null)}>
+                            <div className="bg-white rounded-2xl shadow-2xl p-4 w-full max-w-sm mx-4 mb-4 sm:mb-0 space-y-3" onClick={(e) => e.stopPropagation()}>
+                              <div className="flex items-center justify-between">
+                                <p className="font-semibold text-slate-800 text-sm capitalize">
+                                  {DAY_LABELS[day]} · {period}
+                                </p>
+                                <button onClick={() => setActiveMeal(null)} className="text-slate-400 hover:text-slate-600">
+                                  <X className="h-4 w-4" />
                                 </button>
-                              ))}
+                              </div>
+                              <Input
+                                autoFocus
+                                value={searchDish}
+                                onChange={(e) => setSearchDish(e.target.value)}
+                                placeholder="Search dish…"
+                                className="h-8 text-sm"
+                              />
+                              <div className="max-h-56 overflow-y-auto space-y-1.5">
+                                {filteredDishes.length === 0 && (
+                                  <p className="text-sm text-slate-400 text-center py-4">No dishes found</p>
+                                )}
+                                {filteredDishes.map((dish) => (
+                                  <button
+                                    key={dish.id}
+                                    onClick={() => addDishToSlot(day, period, dish.id)}
+                                    className="w-full text-left flex items-center justify-between px-3 py-2.5 rounded-lg border border-slate-100 hover:border-orange-300 hover:bg-orange-50 transition-colors group"
+                                  >
+                                    <span className="text-sm font-medium text-slate-800 group-hover:text-orange-700">{dish.name}</span>
+                                    <span className="text-xs text-slate-400 capitalize ml-2 flex-shrink-0">{dish.category}</span>
+                                  </button>
+                                ))}
+                              </div>
                             </div>
-                            <button
-                              onClick={() => setActiveMeal(null)}
-                              className="w-full text-center text-xs text-slate-400 hover:text-slate-600 py-0.5"
-                            >Close</button>
                           </div>
                         )}
                       </div>
