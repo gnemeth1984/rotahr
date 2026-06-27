@@ -38,7 +38,7 @@ export const updateEmployeeSchema = z.object({
   startDate: z.string().nullable().optional(),
   contractType: z.string().nullable().optional(),
   address: z.string().nullable().optional(),
-  nationality: z.string().nullable().optional(),
+  // nationality intentionally excluded — GDPR Art. 9 special category, no right-to-work workflow
   ppsn: z.string().nullable().optional(),
   bankIban: z.string().nullable().optional(),
   bankBic: z.string().nullable().optional(),

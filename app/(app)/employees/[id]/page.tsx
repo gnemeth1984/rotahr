@@ -750,10 +750,6 @@ export default function EmployeeProfilePage() {
                         <Label className="text-xs">Phone</Label>
                         <Input placeholder="+353 …" value={hrForm.phone} onChange={(e) => setHrForm((f) => ({ ...f, phone: e.target.value }))} className="h-8 text-sm" />
                       </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs">Nationality</Label>
-                        <Input placeholder="e.g. Irish" value={hrForm.nationality} onChange={(e) => setHrForm((f) => ({ ...f, nationality: e.target.value }))} className="h-8 text-sm" />
-                      </div>
                       <div className="space-y-1 sm:col-span-2">
                         <Label className="text-xs">Address</Label>
                         <Input placeholder="Street, City, County" value={hrForm.address} onChange={(e) => setHrForm((f) => ({ ...f, address: e.target.value }))} className="h-8 text-sm" />
@@ -812,8 +808,7 @@ export default function EmployeeProfilePage() {
                   {/* Personal row */}
                   <div>
                     <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Personal</p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <InfoField label="Nationality" value={employee.nationality} />
+                    <div className="grid grid-cols-1 gap-3">
                       <InfoField label="Address" value={employee.address} />
                     </div>
                   </div>
