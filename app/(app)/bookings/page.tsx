@@ -712,133 +712,134 @@ function BookingsInner() {
           EDIT / CREATE DIALOG
       ════════════════════════════════════════════════════════════════════════ */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-md mx-4 rounded-2xl">
-          <DialogHeader>
+        <DialogContent className="max-w-md mx-4 rounded-2xl flex flex-col max-h-[90dvh] p-0 gap-0">
+          <DialogHeader className="px-5 pt-5 pb-3 border-b border-slate-100 flex-shrink-0">
             <DialogTitle>{editBooking ? "Edit Booking" : "New Booking"}</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-1.5">
-              <Label>Customer Name *</Label>
-              <Input
-                value={form.customerName}
-                onChange={(e) => setForm({ ...form, customerName: e.target.value })}
-                required
-                placeholder="Full name"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
+          <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+            {/* Scrollable body */}
+            <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
               <div className="space-y-1.5">
-                <Label>Phone <span className="text-red-500">*</span></Label>
+                <Label>Customer Name *</Label>
                 <Input
-                  value={form.customerPhone}
-                  onChange={(e) => setForm({ ...form, customerPhone: e.target.value })}
-                  placeholder="+353..."
-                  type="tel"
+                  value={form.customerName}
+                  onChange={(e) => setForm({ ...form, customerName: e.target.value })}
                   required
+                  placeholder="Full name"
                 />
               </div>
-              <div className="space-y-1.5">
-                <Label>Party Size *</Label>
-                <Input
-                  type="number"
-                  min={1}
-                  max={100}
-                  value={form.partySize}
-                  onChange={(e) => setForm({ ...form, partySize: parseInt(e.target.value) || 1 })}
-                  required
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label>Date *</Label>
-                <Input
-                  type="date"
-                  value={form.date}
-                  onChange={(e) => setForm({ ...form, date: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Time *</Label>
-                <Input
-                  type="time"
-                  value={form.time}
-                  onChange={(e) => setForm({ ...form, time: e.target.value })}
-                  required
-                />
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Email</Label>
-              <Input
-                type="email"
-                value={form.customerEmail}
-                onChange={(e) => setForm({ ...form, customerEmail: e.target.value })}
-                placeholder="optional"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Occasion <span className="text-slate-400 font-normal text-xs">(optional)</span></Label>
-              <Input
-                value={form.occasion}
-                onChange={(e) => setForm({ ...form, occasion: e.target.value })}
-                placeholder="e.g. Birthday, Anniversary, Work dinner…"
-              />
-            </div>
-            <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-              <div>
-                <p className="text-sm font-medium text-slate-800">Menu required</p>
-                <p className="text-xs text-slate-400">Pre-order or set menu needed</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setForm({ ...form, menuRequired: !form.menuRequired })}
-                className={cn(
-                  "relative inline-flex h-6 w-11 items-center rounded-full transition-colors flex-shrink-0",
-                  form.menuRequired ? "bg-slate-900" : "bg-slate-300"
-                )}
-              >
-                <span className={cn(
-                  "inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow-sm",
-                  form.menuRequired ? "translate-x-6" : "translate-x-1"
-                )} />
-              </button>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Notes <span className="text-slate-400 font-normal text-xs">(optional)</span></Label>
-              <Textarea
-                value={form.notes}
-                onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                rows={2}
-                placeholder="Dietary requirements, allergies, special requests…"
-              />
-            </div>
-            {/* Marketing consent — new bookings only */}
-            {!editBooking && (
-              <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 space-y-2">
-                <p className="text-xs font-semibold text-amber-800 uppercase tracking-wide">Staff action required</p>
-                <p className="text-sm text-amber-700">
-                  Please inform the customer that we may contact them with offers and updates. Ask if they&apos;re happy to receive these.
-                </p>
-                <label className="flex items-start gap-2.5 cursor-pointer group">
-                  <input
-                    type="checkbox"
-                    className="mt-0.5 h-4 w-4 rounded border-amber-400 accent-amber-600 flex-shrink-0"
-                    checked={form.marketingConsent}
-                    onChange={(e) => setForm({ ...form, marketingConsent: e.target.checked })}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label>Phone <span className="text-red-500">*</span></Label>
+                  <Input
+                    value={form.customerPhone}
+                    onChange={(e) => setForm({ ...form, customerPhone: e.target.value })}
+                    placeholder="+353..."
+                    type="tel"
+                    required
                   />
-                  <span className="text-sm text-amber-800 font-medium leading-snug">
-                    Customer was informed and <span className="underline">{form.marketingConsent ? "agreed" : "agreed / declined"}</span> — I confirm this was communicated
-                  </span>
-                </label>
-                {!form.marketingConsent && (
-                  <p className="text-xs text-amber-600 italic">Tick to confirm you&apos;ve had the conversation. Leave unticked if they declined.</p>
-                )}
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Party Size *</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={100}
+                    value={form.partySize}
+                    onChange={(e) => setForm({ ...form, partySize: parseInt(e.target.value) || 1 })}
+                    required
+                  />
+                </div>
               </div>
-            )}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label>Date *</Label>
+                  <Input
+                    type="date"
+                    value={form.date}
+                    onChange={(e) => setForm({ ...form, date: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Time *</Label>
+                  <Input
+                    type="time"
+                    value={form.time}
+                    onChange={(e) => setForm({ ...form, time: e.target.value })}
+                    required
+                  />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Email <span className="text-slate-400 font-normal text-xs">(optional)</span></Label>
+                <Input
+                  type="email"
+                  value={form.customerEmail}
+                  onChange={(e) => setForm({ ...form, customerEmail: e.target.value })}
+                  placeholder="customer@email.com"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Occasion <span className="text-slate-400 font-normal text-xs">(optional)</span></Label>
+                <Input
+                  value={form.occasion}
+                  onChange={(e) => setForm({ ...form, occasion: e.target.value })}
+                  placeholder="Birthday, Anniversary, Work dinner…"
+                />
+              </div>
+              <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                <div>
+                  <p className="text-sm font-medium text-slate-800">Menu required</p>
+                  <p className="text-xs text-slate-400">Pre-order or set menu needed</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setForm({ ...form, menuRequired: !form.menuRequired })}
+                  className={cn(
+                    "relative inline-flex h-6 w-11 items-center rounded-full transition-colors flex-shrink-0",
+                    form.menuRequired ? "bg-slate-900" : "bg-slate-300"
+                  )}
+                >
+                  <span className={cn(
+                    "inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow-sm",
+                    form.menuRequired ? "translate-x-6" : "translate-x-1"
+                  )} />
+                </button>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Notes <span className="text-slate-400 font-normal text-xs">(optional)</span></Label>
+                <Textarea
+                  value={form.notes}
+                  onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                  rows={2}
+                  placeholder="Dietary requirements, allergies, special requests…"
+                />
+              </div>
+              {/* Marketing consent — new bookings only */}
+              {!editBooking && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 space-y-2">
+                  <p className="text-xs font-semibold text-amber-800 uppercase tracking-wide">Staff action required</p>
+                  <p className="text-sm text-amber-700">
+                    Ask the customer if they&apos;re happy to receive offers and updates.
+                  </p>
+                  <label className="flex items-start gap-2.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="mt-0.5 h-4 w-4 rounded border-amber-400 accent-amber-600 flex-shrink-0"
+                      checked={form.marketingConsent}
+                      onChange={(e) => setForm({ ...form, marketingConsent: e.target.checked })}
+                    />
+                    <span className="text-sm text-amber-800 font-medium leading-snug">
+                      Customer agreed — I confirm this was communicated
+                    </span>
+                  </label>
+                </div>
+              )}
+            </div>
 
-            <DialogFooter className="gap-2">
+            {/* Sticky footer */}
+            <div className="flex-shrink-0 px-5 py-4 border-t border-slate-100 flex gap-2">
               <Button type="button" variant="outline" onClick={() => setDialogOpen(false)} className="flex-1">
                 Cancel
               </Button>
@@ -846,7 +847,7 @@ function BookingsInner() {
                 {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                 {editBooking ? "Save" : "Create"}
               </Button>
-            </DialogFooter>
+            </div>
           </form>
         </DialogContent>
       </Dialog>
