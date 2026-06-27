@@ -62,8 +62,8 @@ export default function PitchPage() {
         .hero p { font-size: 18px; color: rgba(255,255,255,0.55); max-width: 520px; margin: 0 auto 32px; line-height: 1.6; }
         .btn-primary { background: #f97316; color: #fff; padding: 14px 28px; border-radius: 100px; font-size: 15px; font-weight: 600; text-decoration: none; }
         .slides-stack { max-width: 1100px; margin: 0 auto; padding: 8px 24px 48px; display: flex; flex-direction: column; gap: 12px; }
-        .slide-item { width: 100%; border-radius: 16px; overflow: hidden; opacity: 0.35; transform: scale(0.97); transition: opacity 0.4s ease, transform 0.4s ease, box-shadow 0.4s ease; box-shadow: 0 8px 32px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.06); }
-        .slide-item.active { opacity: 1; transform: scale(1); box-shadow: 0 24px 64px rgba(0,0,0,0.7), 0 0 0 2px rgba(249,115,22,0.4); }
+        .slide-item { width: 100%; border-radius: 16px; overflow: hidden; opacity: 1; transform: scale(0.98); transition: transform 0.4s ease, box-shadow 0.4s ease; box-shadow: 0 8px 32px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.06); }
+        .slide-item.active { transform: scale(1); box-shadow: 0 24px 64px rgba(0,0,0,0.7), 0 0 0 2px rgba(249,115,22,0.4); }
         .slide-item img { width: 100%; display: block; aspect-ratio: 16/9; object-fit: cover; }
         .stats { display: flex; justify-content: center; gap: 40px; flex-wrap: wrap; padding: 48px 24px; border-top: 1px solid rgba(255,255,255,0.06); border-bottom: 1px solid rgba(255,255,255,0.06); }
         .stat { text-align: center; }
