@@ -20,6 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { UserRole as Role } from "@/types/roles";
 import { cn } from "@/lib/utils";
+import NationalDaysWidget from "@/app/components/NationalDaysWidget";
 
 interface DashboardData {
   todayReservations: number;
@@ -274,6 +275,9 @@ export default function DashboardPage() {
           )}
         </div>
       )}
+
+      {/* National Days */}
+      <NationalDaysWidget />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Today's Reservations */}
