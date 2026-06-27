@@ -478,8 +478,12 @@ export default function BookkeepingPage() {
     if (exp.receiptUrl) {
       try {
         const res = await fetch(`/api/expenses/receipt-url?url=${encodeURIComponent(exp.receiptUrl)}`);
-        const data = await res.json();
-        if (data.url) { setLightboxUrl(data.url); return; }
+        if (res.ok) {
+          const blob = await res.blob();
+          const objectUrl = URL.createObjectURL(blob);
+          setLightboxUrl(objectUrl);
+          return;
+        }
       } catch {/* fall through */}
     }
     if (exp.receiptDataUrl) {
