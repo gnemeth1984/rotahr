@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 /**
  * GET /api/expenses/receipt-url?url=<private-blob-url>
- * Returns a short-lived (1h) presigned URL for viewing a private receipt.
+ * Returns a short-lived presigned URL for viewing a private receipt.
  */
 export async function GET(req: NextRequest) {
   const session = await requirePermission("bookkeeping");
@@ -17,30 +17,31 @@ export async function GET(req: NextRequest) {
   if (!blobUrl) return NextResponse.json({ error: "Missing url param" }, { status: 400 });
 
   try {
-    const urlObj = new URL(blobUrl);
-    // pathname without leading slash
-    const pathname = urlObj.pathname.replace(/^\//, "");
-
     const token = process.env.BLOB_READ_WRITE_TOKEN!;
 
-    const signedTokenData = await issueSignedToken({
+    // validUntil = 1 hour from now (unix seconds)
+    const validUntil = Math.floor(Date.now() / 1000) + 3600;
+
+    // Extract pathname from the blob URL
+    const urlObj = new URL(blobUrl);
+    const pathname = urlObj.pathname.replace(/^\//, "");
+
+    const signedToken = await issueSignedToken({
       token,
-      pathname,
-      expiresIn: 3600,
       operations: ["get"],
+      validUntil,
+      pathname,
     });
 
-    const result = await presignUrl(signedTokenData, {
+    const { presignedUrl } = await presignUrl(signedToken, {
       operation: "get",
       url: blobUrl,
       pathname,
-      access: "private",
     });
 
-    return NextResponse.json({ url: result.presignedUrl });
+    return NextResponse.json({ url: presignedUrl });
   } catch (err: any) {
-    // Fallback: return original URL and let client try directly
-    console.error("presignUrl failed:", err?.message);
+    // Fallback: return original URL (works if store is actually public)
     return NextResponse.json({ url: blobUrl });
   }
 }
