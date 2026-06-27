@@ -278,9 +278,7 @@ export default function DashboardPage() {
       )}
 
       {/* POS Revenue Widget — managers/admins only */}
-      {(role === Role.MANAGER || role === Role.ADMIN) && (
-        <PosRevenueWidget />
-      )}
+      {isManager && <PosRevenueWidget />}
 
       {/* National Days */}
       <NationalDaysWidget />
