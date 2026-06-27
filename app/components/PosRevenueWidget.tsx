@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -40,33 +41,52 @@ interface Snapshot {
   provider: string;
 }
 
-interface Status {
+interface PosStatus {
   connected: boolean;
   provider?: string;
   lastSyncAt?: string;
 }
 
 export default function PosRevenueWidget() {
-  const [status, setStatus] = useState<Status | null>(null);
+  const { data: session } = useSession();
+  const [status, setStatus] = useState<PosStatus | null>(null);
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  const isManagerOrAdmin =
+    session?.user?.role === "ADMIN" || session?.user?.role === "MANAGER";
+
   useEffect(() => {
+    if (!isManagerOrAdmin) {
+      setLoading(false);
+      return;
+    }
     fetchAll();
-  }, []);
+  }, [isManagerOrAdmin]);
 
   async function fetchAll() {
     setLoading(true);
-    const [statusRes, snapRes] = await Promise.all([
-      fetch("/api/pos/status"),
-      fetch("/api/pos/snapshot"),
-    ]);
-    const statusData = await statusRes.json();
-    const snapData = await snapRes.json();
-    setStatus(statusData);
-    setSnapshot(snapData.snapshot ?? null);
-    setLoading(false);
+    try {
+      const [statusRes, snapRes] = await Promise.all([
+        fetch("/api/pos/status"),
+        fetch("/api/pos/snapshot"),
+      ]);
+      if (!statusRes.ok || !snapRes.ok) {
+        setStatus({ connected: false });
+        setSnapshot(null);
+        return;
+      }
+      const statusData = await statusRes.json();
+      const snapData = await snapRes.json();
+      setStatus(statusData);
+      setSnapshot(snapData.snapshot ?? null);
+    } catch {
+      setStatus({ connected: false });
+      setSnapshot(null);
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function handleSync() {
@@ -93,10 +113,13 @@ export default function PosRevenueWidget() {
     return `${hour}${ampm}`;
   };
 
+  // Employees don't see this widget at all
+  if (!isManagerOrAdmin) return null;
+
   if (loading) {
     return (
       <Card>
-        <CardContent className="flex items-center gap-2 py-8 text-muted-foreground">
+        <CardContent className="flex items-center gap-2 py-6 text-muted-foreground">
           <RefreshCw className="h-4 w-4 animate-spin" />
           Loading POS data…
         </CardContent>
@@ -122,11 +145,11 @@ export default function PosRevenueWidget() {
   }
 
   const labourColour =
-    snapshot?.labourPct === null
+    !snapshot || snapshot.labourPct === null
       ? "text-muted-foreground"
-      : snapshot!.labourPct! > 35
+      : snapshot.labourPct > 35
         ? "text-red-600"
-        : snapshot!.labourPct! > 28
+        : snapshot.labourPct > 28
           ? "text-amber-600"
           : "text-green-600";
 
@@ -154,7 +177,11 @@ export default function PosRevenueWidget() {
         </div>
         {status.lastSyncAt && (
           <p className="text-xs text-muted-foreground">
-            Last synced {new Date(status.lastSyncAt).toLocaleTimeString("en-IE", { hour: "2-digit", minute: "2-digit" })}
+            Last synced{" "}
+            {new Date(status.lastSyncAt).toLocaleTimeString("en-IE", {
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
           </p>
         )}
       </CardHeader>
@@ -207,7 +234,10 @@ export default function PosRevenueWidget() {
               <div>
                 <p className="text-xs text-muted-foreground mb-2">Revenue by hour</p>
                 <ResponsiveContainer width="100%" height={120}>
-                  <BarChart data={snapshot.hourlyData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
+                  <BarChart
+                    data={snapshot.hourlyData}
+                    margin={{ top: 0, right: 0, left: -20, bottom: 0 }}
+                  >
                     <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                     <XAxis
                       dataKey="hour"
