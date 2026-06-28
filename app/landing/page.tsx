@@ -152,6 +152,7 @@ export default function LandingPage() {
             <a href="#features" className="hover:text-slate-900 transition-colors">Features</a>
             <a href="#pricing" className="hover:text-slate-900 transition-colors">Pricing</a>
             <Link href="/compare" className="hover:text-slate-900 transition-colors">Compare</Link>
+            <Link href="/blog" className="hover:text-slate-900 transition-colors">Blog</Link>
           </nav>
           <div className="flex items-center gap-3">
             <Link href="/auth/signin" className="text-sm text-slate-600 hover:text-slate-900 transition-colors">

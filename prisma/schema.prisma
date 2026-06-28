@@ -1043,3 +1043,21 @@ model Referral {
 
   @@index([partnerId])
 }
+
+model BlogPost {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  title       String
+  excerpt     String
+  content     String   @db.Text
+  category    String   @default("hospitality")
+  tags        String   @default("")
+  metaTitle   String
+  metaDesc    String
+  published   Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([slug])
+  @@index([published, createdAt])
+}
