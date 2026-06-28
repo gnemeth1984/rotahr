@@ -5,7 +5,10 @@ import { ServiceWorkerRegister } from "@/components/shared/ServiceWorkerRegister
 import { Toaster } from "sonner"
 
 export const metadata = {
-  metadataBase: new URL("https://rotahr.vercel.app"),
+  metadataBase: new URL("https://rotahr.com"),
+  verification: {
+    google: "7cibzOGL029tVn1J5xlrUiLUp_dvHZbmzR7WfeHdvOY",
+  },
   title: "Rotahr — Venue Management for Irish Hospitality",
   description: "Staff rotas, table reservations, bookkeeping and HR — all in one app. Built for Irish bars, restaurants and cafes.",
   manifest: "/manifest.json",
