@@ -1576,20 +1576,31 @@ function SupplierStatementsTab({
     setUploading(true);
     setError(null);
     try {
-      // 1. Upload to blob
+      // 1. Read file as base64 on client (for AI — avoids needing public blob URL)
+      const dataUri = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      // 2. Upload to blob for storage/display
       const fd = new FormData();
       fd.append("file", file);
       const uploadRes = await fetch("/api/stock/upload-receipt-blob", { method: "POST", body: fd });
+      if (!uploadRes.ok) {
+        const errText = await uploadRes.text();
+        throw new Error(errText || "Upload failed");
+      }
       const uploadData = await uploadRes.json();
-      if (!uploadRes.ok) throw new Error(uploadData.error || "Upload failed");
 
-      // 2. Create statement (AI reads it server-side via base64)
+      // 3. Create statement with base64 for AI parsing
       const res = await fetch("/api/suppliers/statements", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           fileUrl: uploadData.url,
-          dataUri: uploadData.dataUri,
+          dataUri,
           fileName: file.name,
           supplierId: filterSupplier !== "all" ? filterSupplier : null,
         }),
