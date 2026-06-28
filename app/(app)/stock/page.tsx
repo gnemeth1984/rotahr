@@ -1583,12 +1583,13 @@ function SupplierStatementsTab({
       const uploadData = await uploadRes.json();
       if (!uploadRes.ok) throw new Error(uploadData.error || "Upload failed");
 
-      // 2. Create statement (AI reads it server-side)
+      // 2. Create statement (AI reads it server-side via base64)
       const res = await fetch("/api/suppliers/statements", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           fileUrl: uploadData.url,
+          dataUri: uploadData.dataUri,
           fileName: file.name,
           supplierId: filterSupplier !== "all" ? filterSupplier : null,
         }),

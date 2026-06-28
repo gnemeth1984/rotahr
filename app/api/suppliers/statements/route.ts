@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
   if (!isManager) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const body = await req.json();
-  const { supplierId, fileUrl, fileName } = body;
+  const { supplierId, fileUrl, fileName, dataUri } = body;
   if (!fileUrl || !fileName) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
@@ -67,7 +67,7 @@ Return only valid JSON, no markdown.`;
           role: "user",
           content: [
             { type: "text", text: prompt },
-            { type: "image_url", image_url: { url: fileUrl } },
+            { type: "image_url", image_url: { url: dataUri ?? fileUrl } },
           ],
         },
       ],

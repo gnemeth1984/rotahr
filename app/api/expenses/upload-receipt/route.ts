@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
 
     // Upload to Vercel Blob (private store)
     const blob = await put(`receipts/${Date.now()}-${file.name}`, file, {
-      access: "public",
+      access: "private",
     });
 
     let aiData: {
