@@ -70,7 +70,7 @@ const features = [
 const plans = [
   {
     name: "Starter",
-    price: "€49",
+    price: "€59",
     period: "/month incl. VAT",
     desc: "Perfect for small cafés and independent restaurants.",
     staff: "Up to 10 staff",
@@ -92,7 +92,7 @@ const plans = [
   },
   {
     name: "Pro",
-    price: "€99",
+    price: "€119",
     period: "/month incl. VAT",
     desc: "For busy restaurants and bars with larger teams.",
     staff: "Up to 30 staff",
@@ -112,7 +112,7 @@ const plans = [
   },
   {
     name: "Enterprise",
-    price: "€179+",
+    price: "€215+",
     period: "/month incl. VAT",
     desc: "For multi-venue groups, hotel F&B, and franchises.",
     staff: "Unlimited staff",
@@ -192,7 +192,7 @@ export default function LandingPage() {
           Rotas, clock-in, reservations, bookkeeping, payroll, team messaging and more — all in one place.
         </p>
         <p className="text-base text-slate-400 max-w-xl mx-auto mb-10">
-          Replace 4 separate tools with one. Starting at <strong className="text-slate-600">€49/month</strong> incl. VAT.
+          Replace 4 separate tools with one. Starting at <strong className="text-slate-600">€59/month</strong> incl. VAT.
         </p>
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -232,7 +232,7 @@ export default function LandingPage() {
                 <Image src="/logo-icon.png" alt="" width={20} height={20} className="object-contain" />
                 Rotahr — everything included
               </span>
-              <span className="text-sm font-bold" style={{ color: "#F97316" }}>from €49/mo</span>
+              <span className="text-sm font-bold" style={{ color: "#F97316" }}>from €59/mo</span>
             </div>
           </div>
         </div>

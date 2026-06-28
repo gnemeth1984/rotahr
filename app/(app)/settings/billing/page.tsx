@@ -17,7 +17,7 @@ const PLANS = [
   {
     id: "starter",
     name: "Starter",
-    price: "€49",
+    price: "€59",
     period: "/mo",
     description: "Up to 10 staff",
     features: ["Rota & scheduling", "Time off management", "Bookings", "Messaging"],
@@ -29,7 +29,7 @@ const PLANS = [
   {
     id: "pro",
     name: "Pro",
-    price: "€99",
+    price: "€119",
     period: "/mo",
     description: "Up to 30 staff",
     features: ["Everything in Starter", "Payroll & tips", "Bookkeeping", "Stock management", "AI assistant"],
@@ -42,7 +42,7 @@ const PLANS = [
   {
     id: "enterprise",
     name: "Enterprise",
-    price: "€179",
+    price: "€215",
     period: "/mo",
     description: "Unlimited staff, multi-venue",
     features: ["Everything in Pro", "Multi-venue", "Priority support", "Custom integrations"],

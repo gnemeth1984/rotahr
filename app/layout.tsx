@@ -46,6 +46,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="Rotahr" />
         <meta name="mobile-web-app-capable" content="yes" />
+        <script src="https://app.lemonsqueezy.com/js/lemon.js" defer></script>
       </head>
       <body className="min-h-screen bg-slate-50">
         <Providers>

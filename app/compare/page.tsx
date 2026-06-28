@@ -52,7 +52,7 @@ const rows: Row[] = [
 ];
 
 const pricing: Record<string, string> = {
-  rotahr: "€49 Starter",
+  rotahr: "€59 Starter",
   deputy: "€4–5/user/mo",
   bizimply: "€4/user/mo",
   sevenShifts: "$29.99 flat",

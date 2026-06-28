@@ -38,9 +38,9 @@ export default function TermsPage() {
           <section>
             <h2 className="text-lg font-semibold text-slate-800 mb-2">4. Subscriptions and billing</h2>
             <ul className="list-disc pl-5 space-y-1">
-              <li><strong>Starter:</strong> €49/month (inc. 23% Irish VAT) — up to 10 staff</li>
-              <li><strong>Pro:</strong> €99/month (inc. 23% Irish VAT) — up to 30 staff</li>
-              <li><strong>Enterprise:</strong> €179+/month (inc. 23% Irish VAT) — unlimited staff, multi-venue</li>
+              <li><strong>Starter:</strong> €59/month (inc. 23% Irish VAT) — up to 10 staff</li>
+              <li><strong>Pro:</strong> €119/month (inc. 23% Irish VAT) — up to 30 staff</li>
+              <li><strong>Enterprise:</strong> €215/month (inc. 23% Irish VAT) — unlimited staff, multi-venue</li>
             </ul>
             <p className="mt-2">
               Subscriptions are billed monthly. You may cancel at any time; cancellation takes effect at the
@@ -114,8 +114,36 @@ export default function TermsPage() {
             </p>
           </section>
 
+          <section id="affiliate">
+            <h2 className="text-lg font-semibold text-slate-800 mb-2">10. Partner &amp; Affiliate Programme</h2>
+            <p>
+              Rotahr operates a referral/affiliate programme ("Partner Programme") through <strong>Lemon Squeezy, Inc.</strong> (our merchant of record). By signing up as an affiliate at <a href="https://rotahr.lemonsqueezy.com/affiliates" className="text-blue-600 hover:underline" target="_blank" rel="noopener noreferrer">rotahr.lemonsqueezy.com/affiliates</a>, you agree to both these terms and Lemon Squeezy's own Affiliate Terms.
+            </p>
+            <p className="mt-3 font-semibold text-slate-700">Commission &amp; Payments</p>
+            <ul className="list-disc pl-5 space-y-1 mt-2 text-sm">
+              <li>Commission rate: <strong>20%</strong> of the net subscription fee (recurring, for as long as the referred customer remains a paying subscriber).</li>
+              <li>Payments are made automatically by Lemon Squeezy. Rotahr does not make direct payments to affiliates.</li>
+              <li>Commission is calculated on the subscription price <em>excluding</em> any applicable taxes collected by Lemon Squeezy.</li>
+              <li>Rotahr reserves the right to modify the commission rate with 30 days' written notice.</li>
+            </ul>
+            <p className="mt-3 font-semibold text-slate-700">Tax &amp; Revenue Compliance</p>
+            <ul className="list-disc pl-5 space-y-1 mt-2 text-sm">
+              <li>Commission income is <strong>taxable income</strong> in your jurisdiction. You are solely responsible for reporting and paying any applicable income tax, VAT, or self-employment taxes on earnings received.</li>
+              <li>Rotahr does <strong>not</strong> deduct withholding tax at source.</li>
+              <li>For Irish-resident affiliates: Rotahr will file <strong>Form 46G</strong> (Return of Third-Party Payments) with Revenue at year end for cumulative payments exceeding the relevant threshold in a tax year, in accordance with TCA 1997 s.889.</li>
+              <li>Non-Irish affiliates are responsible for compliance with their own local tax rules. We recommend consulting a tax adviser.</li>
+            </ul>
+            <p className="mt-3 font-semibold text-slate-700">Programme Rules</p>
+            <ul className="list-disc pl-5 space-y-1 mt-2 text-sm">
+              <li>Self-referrals (referring your own business) are not permitted and will result in commission reversal and programme termination.</li>
+              <li>Affiliates must not make misleading claims about Rotahr's features, pricing, or effectiveness.</li>
+              <li>Rotahr may terminate an affiliate's participation at any time for violation of these rules, with any unpaid commissions forfeited.</li>
+              <li>The programme is open to individuals and businesses in any jurisdiction subject to Lemon Squeezy's eligibility requirements.</li>
+            </ul>
+          </section>
+
           <section>
-            <h2 className="text-lg font-semibold text-slate-800 mb-2">10. Contact</h2>
+            <h2 className="text-lg font-semibold text-slate-800 mb-2">11. Contact</h2>
             <p>
               Questions about these terms: <a href="mailto:legal@rotahr.com" className="text-blue-600 hover:underline">legal@rotahr.com</a>
             </p>

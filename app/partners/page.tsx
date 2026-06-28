@@ -22,6 +22,17 @@ export default function PartnersPage() {
         .step-num { width: 36px; height: 36px; background: #f97316; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 15px; margin-bottom: 16px; }
         .step h3 { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
         .step p { font-size: 14px; color: rgba(255,255,255,0.5); line-height: 1.6; }
+        .ls-cta-section { max-width: 560px; margin: 0 auto; padding: 0 24px 80px; }
+        .ls-cta-section h2 { font-size: 26px; font-weight: 800; margin-bottom: 8px; text-align: center; }
+        .ls-cta-sub { text-align: center; color: rgba(255,255,255,0.45); font-size: 15px; margin-bottom: 32px; }
+        .ls-cta-card { background: rgba(249,115,22,0.08); border: 1px solid rgba(249,115,22,0.25); border-radius: 20px; padding: 40px 36px; text-align: center; }
+        .ls-btn { display: inline-block; background: #f97316; color: #fff; padding: 16px 36px; border-radius: 100px; font-size: 17px; font-weight: 700; text-decoration: none; transition: opacity 0.2s; margin-bottom: 16px; }
+        .ls-btn:hover { opacity: 0.9; }
+        .ls-features { display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; margin-top: 20px; font-size: 13px; color: rgba(255,255,255,0.45); }
+        .ls-legal { font-size: 12px; color: rgba(255,255,255,0.3); margin-top: 20px; line-height: 1.7; text-align: left; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 20px; }
+        .ls-legal a { color: rgba(249,115,22,0.7); text-decoration: none; }
+        .or-divider { text-align: center; color: rgba(255,255,255,0.25); font-size: 13px; margin: 28px 0 20px; letter-spacing: 1px; }
+        .custom-form-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 20px; padding: 28px; }
         .earnings { background: rgba(249,115,22,0.06); border: 1px solid rgba(249,115,22,0.2); border-radius: 20px; max-width: 860px; margin: 0 auto 80px; padding: 48px 32px; }
         .earnings h2 { text-align: center; font-size: 26px; font-weight: 800; margin-bottom: 8px; }
         .earnings-sub { text-align: center; color: rgba(255,255,255,0.45); font-size: 15px; margin-bottom: 36px; }
@@ -121,21 +132,21 @@ export default function PartnersPage() {
             <tbody>
               <tr>
                 <td>Starter (up to 10 staff)</td>
-                <td>€49/mo</td>
-                <td>€10/mo</td>
-                <td>€120/yr</td>
+                <td>€59/mo</td>
+                <td>€11.80/mo</td>
+                <td>€141.60/yr</td>
               </tr>
               <tr>
                 <td>Pro (up to 30 staff)</td>
-                <td>€99/mo</td>
-                <td>€20/mo</td>
-                <td>€240/yr</td>
+                <td>€119/mo</td>
+                <td>€23.80/mo</td>
+                <td>€285.60/yr</td>
               </tr>
               <tr>
                 <td>Enterprise (unlimited)</td>
-                <td>€179/mo</td>
-                <td>€36/mo</td>
-                <td>€432/yr</td>
+                <td>€215/mo</td>
+                <td>€43/mo</td>
+                <td>€516/yr</td>
               </tr>
             </tbody>
           </table>
@@ -145,11 +156,38 @@ export default function PartnersPage() {
         </div>
       </div>
 
-      {/* Apply form */}
-      <div className="form-section" id="apply">
-        <h2>Apply to partner</h2>
-        <p className="form-sub">Free to join. No obligations. We'll be in touch within 24 hours.</p>
-        <div className="form-card">
+      {/* Primary CTA — Lemon Squeezy affiliate signup */}
+      <div className="ls-cta-section" id="apply">
+        <h2>Join the programme</h2>
+        <p className="ls-cta-sub">Free to join. Instant access. Payments handled automatically.</p>
+        <div className="ls-cta-card">
+          <a
+            className="ls-btn"
+            href="https://rotahr.lemonsqueezy.com/affiliates"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Sign up as an Affiliate →
+          </a>
+          <div className="ls-features">
+            <span>✓ Instant approval</span>
+            <span>✓ Your own dashboard</span>
+            <span>✓ Auto payments via Lemon Squeezy</span>
+            <span>✓ Real-time click & conversion tracking</span>
+          </div>
+          <div className="ls-legal">
+            <strong style={{ color: "rgba(255,255,255,0.5)", display: "block", marginBottom: "6px" }}>Legal &amp; Tax Notice</strong>
+            Commission earned through this programme constitutes taxable income. As a partner, you are solely responsible for declaring your earnings to Revenue (Ireland) or the relevant tax authority in your jurisdiction. Rotahr does not deduct tax at source. Payments are processed and disbursed by Lemon Squeezy, Inc. (our merchant of record) — not directly by Rotahr. Rotahr will file Form 46G with Irish Revenue at year end for qualifying payments made to Irish residents, as required by TCA 1997 s.889. By signing up, you confirm you understand and accept these obligations. See our full{" "}
+            <a href="/terms#affiliate">Partner Programme Terms</a>.
+          </div>
+        </div>
+
+        <div className="or-divider">— OR —</div>
+
+        <p style={{ textAlign: "center", fontSize: "14px", color: "rgba(255,255,255,0.4)", marginBottom: "20px" }}>
+          Want to discuss the programme before signing up? Leave your details and we'll reach out.
+        </p>
+        <div className="custom-form-card">
           <PartnerForm />
         </div>
       </div>
@@ -167,7 +205,7 @@ export default function PartnersPage() {
 }
 
 function PartnerForm() {
-  const [state, setState] = require("react").useState<"idle"|"loading"|"success"|"error">("idle");
+  const [state, setState] = require("react").useState("idle" as "idle"|"loading"|"success"|"error");
   const [error, setError] = require("react").useState("");
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {

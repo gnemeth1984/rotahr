@@ -16,6 +16,7 @@ export default function PitchPage() {
     "/pitch-compare-slide.png",
     "/pitch-pricing-slide.png",
     "/pitch-slides/slide-11-new.png",
+    "partner-programme", // rendered as inline card
   ];
 
   useEffect(() => {
@@ -65,6 +66,19 @@ export default function PitchPage() {
         .slide-item { width: 100%; border-radius: 16px; overflow: hidden; opacity: 1; transform: scale(0.98); transition: transform 0.4s ease, box-shadow 0.4s ease; box-shadow: 0 8px 32px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.06); }
         .slide-item.active { transform: scale(1); box-shadow: 0 24px 64px rgba(0,0,0,0.7), 0 0 0 2px rgba(249,115,22,0.4); }
         .slide-item img { width: 100%; display: block; aspect-ratio: 16/9; object-fit: cover; }
+        .partner-slide { aspect-ratio: 16/9; background: linear-gradient(135deg, #0f172a 0%, #1a0a2e 50%, #0a1f10 100%); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 48px; position: relative; overflow: hidden; }
+        .partner-slide::before { content: ''; position: absolute; inset: 0; background: radial-gradient(ellipse at 30% 50%, rgba(249,115,22,0.12) 0%, transparent 60%), radial-gradient(ellipse at 70% 50%, rgba(34,197,94,0.08) 0%, transparent 60%); }
+        .partner-slide-inner { position: relative; z-index: 1; text-align: center; max-width: 800px; }
+        .partner-badge { display: inline-block; background: rgba(249,115,22,0.15); color: #f97316; border: 1px solid rgba(249,115,22,0.35); padding: 5px 16px; border-radius: 100px; font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 24px; }
+        .partner-title { font-size: clamp(24px,3.5vw,44px); font-weight: 800; line-height: 1.1; letter-spacing: -0.5px; margin-bottom: 12px; }
+        .partner-title span { color: #f97316; }
+        .partner-sub { font-size: clamp(13px,1.5vw,17px); color: rgba(255,255,255,0.5); margin-bottom: 36px; line-height: 1.5; }
+        .partner-cards { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; margin-bottom: 32px; }
+        .pcard { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 14px; padding: 18px 20px; min-width: 150px; }
+        .pcard-plan { font-size: 12px; color: rgba(255,255,255,0.4); margin-bottom: 4px; }
+        .pcard-commission { font-size: 22px; font-weight: 800; color: #f97316; }
+        .pcard-sub { font-size: 11px; color: rgba(255,255,255,0.35); margin-top: 2px; }
+        .partner-url { display: inline-flex; align-items: center; gap: 8px; background: #f97316; color: #fff; padding: 12px 28px; border-radius: 100px; font-size: 14px; font-weight: 700; text-decoration: none; }
         .stats { display: flex; justify-content: center; gap: 40px; flex-wrap: wrap; padding: 48px 24px; border-top: 1px solid rgba(255,255,255,0.06); border-bottom: 1px solid rgba(255,255,255,0.06); }
         .stat { text-align: center; }
         .stat-num { font-size: 36px; font-weight: 800; color: #f97316; line-height: 1; }
@@ -99,25 +113,60 @@ export default function PitchPage() {
       </header>
 
       <section className="hero">
-        <div className="hero-label">Pitch Deck · 12 Slides</div>
+        <div className="hero-label">Pitch Deck · 13 Slides</div>
         <h1>One app to run<br /><span>your entire venue</span></h1>
-        <p>Rotas · Clock-In · Reservations · Bookkeeping — built for hospitality.</p>
+        <p>Rotas · Clock-In · Reservations · Bookkeeping · CRM · Menu Specials · POS Integration — built for Irish hospitality.</p>
         <a className="btn-primary" href="/auth/signin">Check Our Demo</a>
       </section>
 
       <div className="slides-stack">
-        {slides.map((src, i) => (
-          <div key={i} className="slide-item">
-            <img src={src} alt={`Slide ${i + 1}`} loading={i === 0 ? "eager" : "lazy"} />
-          </div>
-        ))}
+        {slides.map((src, i) =>
+          src === "partner-programme" ? (
+            <div key={i} className="slide-item">
+              <div className="partner-slide">
+                <div className="partner-slide-inner">
+                  <div className="partner-badge">Slide 13 · Partner Programme</div>
+                  <div className="partner-title">Earn with Rotahr.<br /><span>20% recurring commission.</span></div>
+                  <p className="partner-sub">
+                    Accountants, consultants, hospitality advisors — refer clients and earn every month they stay.
+                    Payments automated via Lemon Squeezy. No admin, no chasing invoices.
+                  </p>
+                  <div className="partner-cards">
+                    <div className="pcard">
+                      <div className="pcard-plan">Starter</div>
+                      <div className="pcard-commission">€11.80/mo</div>
+                      <div className="pcard-sub">per client · forever</div>
+                    </div>
+                    <div className="pcard">
+                      <div className="pcard-plan">Pro</div>
+                      <div className="pcard-commission">€23.80/mo</div>
+                      <div className="pcard-sub">per client · forever</div>
+                    </div>
+                    <div className="pcard">
+                      <div className="pcard-plan">Enterprise</div>
+                      <div className="pcard-commission">€43/mo</div>
+                      <div className="pcard-sub">per client · forever</div>
+                    </div>
+                  </div>
+                  <a className="partner-url" href="https://rotahr.lemonsqueezy.com/affiliates" target="_blank" rel="noopener noreferrer">
+                    rotahr.lemonsqueezy.com/affiliates →
+                  </a>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div key={i} className="slide-item">
+              <img src={src} alt={`Slide ${i + 1}`} loading={i === 0 ? "eager" : "lazy"} />
+            </div>
+          )
+        )}
       </div>
 
       <div className="stats">
         <div className="stat"><div className="stat-num">€290</div><div className="stat-label">avg. monthly saving vs. separate tools</div></div>
         <div className="stat"><div className="stat-num">4.8 hrs</div><div className="stat-label">saved per manager per week</div></div>
         <div className="stat"><div className="stat-num">12</div><div className="stat-label">tools replaced by one platform</div></div>
-        <div className="stat"><div className="stat-num">€49</div><div className="stat-label">starting price incl. 23% VAT</div></div>
+        <div className="stat"><div className="stat-num">€59</div><div className="stat-label">starting price incl. 23% VAT</div></div>
       </div>
 
       <section className="bottom-cta">
