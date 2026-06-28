@@ -152,7 +152,7 @@ export default function PitchDeckClient() {
           {num:'€290', label:'avg. monthly saving vs. separate tools'},
           {num:'4.8 hrs', label:'saved per manager per week'},
           {num:'12', label:'tools replaced by one platform'},
-          {num:'€49', label:'starting price incl. 23% VAT'},
+          {num:'€59', label:'starting price incl. 23% VAT'},
         ].map(s => (
           <div key={s.num} style={{textAlign:'center'}}>
             <div style={{fontSize:36,fontWeight:800,color:'#f97316',lineHeight:1}}>{s.num}</div>
