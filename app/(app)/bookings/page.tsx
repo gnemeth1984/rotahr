@@ -177,8 +177,9 @@ function BookingsInner() {
   }, [TODAY]);
 
   useEffect(() => {
-    if (filterDate !== "") fetchBookings();
-  }, [filterDate]);
+    // fetch when filterDate changes — including "" which means "All"
+    if (TODAY !== "" || filterDate === "") fetchBookings();
+  }, [filterDate, TODAY]);
 
   // Deep-link: when ?id= is present, switch to that booking's date and open it
   useEffect(() => {
@@ -200,7 +201,7 @@ function BookingsInner() {
   async function fetchBookings() {
     setLoading(true);
     try {
-      const url = filterDate ? `/api/reservations?date=${filterDate}` : "/api/reservations";
+      const url = filterDate ? `/api/reservations?date=${filterDate}` : "/api/reservations?all=true";
       const res = await fetch(url);
       if (!res.ok) throw new Error("Failed");
       const data = await res.json();

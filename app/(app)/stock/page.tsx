@@ -478,11 +478,12 @@ function ItemCombobox({
 // ─── OrderBuilderDialog ───────────────────────────────────────────────────────
 
 function OrderBuilderDialog({
-  open, onClose, suppliers, stockItems, onCreated,
+  open, onClose, suppliers, stockItems, onCreated, editOrder,
 }: {
   open: boolean; onClose: () => void;
   suppliers: Supplier[]; stockItems: StockItem[];
   onCreated: (order: SupplierOrder) => void;
+  editOrder?: SupplierOrder | null;
 }) {
   type Line = {
     stockItemId?: string;
@@ -534,8 +535,22 @@ function OrderBuilderDialog({
   }
 
   useEffect(() => {
-    if (!open) { setSupplierId(""); setNotes(""); setLines([]); setError(null); setDraftRestored(false); }
-  }, [open]);
+    if (!open) { setSupplierId(""); setNotes(""); setLines([]); setError(null); setDraftRestored(false); return; }
+    // If editing an existing draft order, populate from it (skip localStorage draft)
+    if (editOrder) {
+      setSupplierId(editOrder.supplierId);
+      setNotes(editOrder.notes ?? "");
+      setLines(editOrder.items.map((item) => ({
+        stockItemId: item.stockItemId ?? undefined,
+        customName: item.customName ?? undefined,
+        unit: item.stockItem?.unit ?? "unit",
+        quantity: String(item.quantity),
+        unitPrice: item.unitPrice != null ? String(item.unitPrice) : "",
+        notes: item.notes ?? "",
+      })));
+      setDraftRestored(false);
+    }
+  }, [open, editOrder]);
 
   function addLine() {
     setLines((prev) => [...prev, { stockItemId: undefined, customName: undefined, unit: "unit", quantity: "1", unitPrice: "", notes: "" }]);
@@ -573,24 +588,23 @@ function OrderBuilderDialog({
     if (validLines.length === 0) { setError("Add at least one item with a name and quantity"); return; }
     setSaving(true); setError(null);
     try {
-      const res = await fetch("/api/orders", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          supplierId,
-          notes: notes || null,
-          items: validLines.map((l) => ({
-            ...(l.stockItemId ? { stockItemId: l.stockItemId } : { customName: l.customName!.trim() }),
-            unit: l.unit || "unit",
-            quantity: parseFloat(l.quantity),
-            unitPrice: l.unitPrice ? parseFloat(l.unitPrice) : null,
-            notes: l.notes || null,
-          })),
-        }),
-      });
+      const payload = {
+        supplierId,
+        notes: notes || null,
+        items: validLines.map((l) => ({
+          ...(l.stockItemId ? { stockItemId: l.stockItemId } : { customName: l.customName!.trim() }),
+          unit: l.unit || "unit",
+          quantity: parseFloat(l.quantity),
+          unitPrice: l.unitPrice ? parseFloat(l.unitPrice) : null,
+          notes: l.notes || null,
+        })),
+      };
+      const res = editOrder
+        ? await fetch(`/api/orders/${editOrder.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })
+        : await fetch("/api/orders", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed");
-      clearDraft();
+      if (!editOrder) clearDraft();
       onCreated(data.order);
     } catch (e: any) { setError(e.message); }
     finally { setSaving(false); }
@@ -607,7 +621,7 @@ function OrderBuilderDialog({
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex items-center gap-3">
-            <DialogTitle>New Order List</DialogTitle>
+            <DialogTitle>{editOrder ? "Edit Order" : "New Order List"}</DialogTitle>
             {draftRestored && (
               <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
                 Draft restored
@@ -1325,9 +1339,9 @@ function StockListTab({ items, suppliers, loading, onAdd, onEdit, onDelete, onSc
 
 // ─── Order Lists Tab ──────────────────────────────────────────────────────────
 
-function OrdersTab({ orders, suppliers, stockItems, loading, onNew, onRefresh, hasDraft }: {
+function OrdersTab({ orders, suppliers, stockItems, loading, onNew, onEdit, onRefresh, hasDraft }: {
   orders: SupplierOrder[]; suppliers: Supplier[]; stockItems: StockItem[];
-  loading: boolean; onNew: () => void; onRefresh: () => void; hasDraft?: boolean;
+  loading: boolean; onNew: () => void; onEdit: (o: SupplierOrder) => void; onRefresh: () => void; hasDraft?: boolean;
 }) {
   const { locale } = useCurrency();
   const [updatingId, setUpdatingId] = useState<string | null>(null);
@@ -1436,6 +1450,11 @@ function OrdersTab({ orders, suppliers, stockItems, loading, onNew, onRefresh, h
                       <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-slate-700" title="Export CSV" onClick={() => exportCSV(order)}>
                         <FileDown className="h-3.5 w-3.5" />
                       </Button>
+                      {order.status === "draft" && (
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-400 hover:text-blue-600" title="Edit order" onClick={() => onEdit(order)}>
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
                       {order.status === "draft" && (
                         <Button variant="ghost" size="icon" className="h-8 w-8 text-red-400 hover:text-red-600" onClick={() => deleteOrder(order.id)}>
                           <Trash2 className="h-3.5 w-3.5" />
@@ -1568,7 +1587,11 @@ function SupplierStatementsTab({
       const res = await fetch("/api/suppliers/statements", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageUrl: uploadData.url }),
+        body: JSON.stringify({
+          fileUrl: uploadData.url,
+          fileName: file.name,
+          supplierId: filterSupplier !== "all" ? filterSupplier : null,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to process statement");
@@ -1873,7 +1896,7 @@ function StockPageInner() {
   // Dialogs
   const [supplierDialog, setSupplierDialog] = useState<{ open: boolean; editing: Supplier | null }>({ open: false, editing: null });
   const [stockDialog, setStockDialog] = useState<{ open: boolean; editing: StockItem | null; defaultSupplier?: string }>({ open: false, editing: null });
-  const [orderDialog, setOrderDialog] = useState(false);
+  const [orderDialog, setOrderDialog] = useState<{ open: boolean; editing: SupplierOrder | null }>({ open: false, editing: null });
   const [scanDialog, setScanDialog] = useState(false);
 
   // Track whether an order draft exists in localStorage (for badge on button)
@@ -1886,7 +1909,7 @@ function StockPageInner() {
         setHasDraft(!!(d.supplierId || (d.lines && d.lines.length > 0)));
       }
     } catch {}
-  }, [orderDialog]); // re-check whenever dialog closes
+  }, [orderDialog.open]); // re-check whenever dialog closes
 
   const loadSuppliers = useCallback(async () => {
     setLoadingSuppliers(true);
@@ -2010,7 +2033,8 @@ function StockPageInner() {
         <OrdersTab
           orders={orders} suppliers={suppliers} stockItems={stockItems}
           loading={loadingOrders}
-          onNew={() => setOrderDialog(true)}
+          onNew={() => setOrderDialog({ open: true, editing: null })}
+          onEdit={(o) => setOrderDialog({ open: true, editing: o })}
           onRefresh={loadOrders}
           hasDraft={hasDraft}
         />
@@ -2042,11 +2066,12 @@ function StockPageInner() {
       />
 
       <OrderBuilderDialog
-        open={orderDialog}
-        onClose={() => setOrderDialog(false)}
+        open={orderDialog.open}
+        editOrder={orderDialog.editing}
+        onClose={() => setOrderDialog({ open: false, editing: null })}
         suppliers={suppliers}
         stockItems={stockItems}
-        onCreated={() => { setOrderDialog(false); loadOrders(); setTab("orders"); }}
+        onCreated={() => { setOrderDialog({ open: false, editing: null }); loadOrders(); setTab("orders"); }}
       />
 
       <StockReceiptScanDialog

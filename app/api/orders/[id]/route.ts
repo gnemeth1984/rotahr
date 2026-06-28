@@ -11,6 +11,16 @@ const patchSchema = z.object({
   notes: z.string().optional().nullable(),
   sentAt: z.string().optional().nullable(),
   receivedAt: z.string().optional().nullable(),
+  // Full order edit
+  supplierId: z.string().optional(),
+  items: z.array(z.object({
+    stockItemId: z.string().optional(),
+    customName: z.string().optional(),
+    unit: z.string().optional(),
+    quantity: z.number(),
+    unitPrice: z.number().nullable().optional(),
+    notes: z.string().nullable().optional(),
+  })).optional(),
 });
 
 async function requireManager(req: NextRequest) {
@@ -51,19 +61,37 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const existing = await prisma.supplierOrder.findFirst({ where: { id: params.id, businessId: auth.businessId } });
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  const data: any = { ...result.data };
+  const { items, supplierId, ...rest } = result.data;
+  const data: any = { ...rest };
   if (data.sentAt) data.sentAt = new Date(data.sentAt);
   if (data.receivedAt) data.receivedAt = new Date(data.receivedAt);
+  if (supplierId) data.supplierId = supplierId;
 
   // When marking received, update lastOrdered on all stock items in this order
   if (data.status === "received") {
-    const items = await prisma.orderItem.findMany({ where: { orderId: params.id } });
-    await Promise.all(items.map((item) =>
+    const existingItems = await prisma.orderItem.findMany({ where: { orderId: params.id } });
+    await Promise.all(existingItems.map((item) =>
       prisma.stockItem.update({
         where: { id: item.stockItemId },
         data: { lastOrdered: new Date() },
       })
     ));
+  }
+
+  // If items supplied, replace all order items
+  if (items && items.length > 0) {
+    await prisma.orderItem.deleteMany({ where: { orderId: params.id } });
+    await prisma.orderItem.createMany({
+      data: items.map((item) => ({
+        orderId: params.id,
+        stockItemId: item.stockItemId ?? null,
+        customName: item.customName ?? null,
+        unit: item.unit ?? "unit",
+        quantity: item.quantity,
+        unitPrice: item.unitPrice ?? null,
+        notes: item.notes ?? null,
+      })),
+    });
   }
 
   const order = await prisma.supplierOrder.update({

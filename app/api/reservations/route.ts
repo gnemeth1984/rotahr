@@ -18,11 +18,12 @@ export async function GET(req: NextRequest) {
 
     const { searchParams } = new URL(req.url);
     const date = searchParams.get("date");
+    const all = searchParams.get("all") === "true";
 
     const reservations = await prisma.reservation.findMany({
       where: {
         businessId,
-        ...(date
+        ...(!all && date
           ? {
               date: {
                 gte: new Date(new Date(date).setHours(0, 0, 0, 0)),

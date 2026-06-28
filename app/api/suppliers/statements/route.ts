@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json();
   const { supplierId, fileUrl, fileName } = body;
-  if (!supplierId || !fileUrl || !fileName) {
+  if (!fileUrl || !fileName) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
 
@@ -85,7 +85,7 @@ Return only valid JSON, no markdown.`;
 
   // ── Auto-match against open supplier orders ───────────────────────────────
   const openOrder = await prisma.supplierOrder.findFirst({
-    where: { businessId: user.businessId, supplierId, status: { in: ["draft", "sent"] } },
+    where: { businessId: user.businessId, ...(supplierId ? { supplierId } : {}), status: { in: ["draft", "sent"] } },
     include: { items: { include: { stockItem: true } } },
     orderBy: { createdAt: "desc" },
   });
