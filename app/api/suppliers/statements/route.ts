@@ -4,6 +4,12 @@ import { authOptions } from "@/lib/auth/options";
 import { prisma } from "@/lib/prisma";
 import OpenAI from "openai";
 
+export const maxDuration = 60;
+export const dynamic = "force-dynamic";
+
+// Increase body size limit for base64 image payloads
+export const fetchCache = "force-no-store";
+
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

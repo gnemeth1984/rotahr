@@ -1576,37 +1576,17 @@ function SupplierStatementsTab({
     setUploading(true);
     setError(null);
     try {
-      // 1. Read file as base64 on client (for AI — avoids needing public blob URL)
-      const dataUri = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-
-      // 2. Upload to blob for storage/display
+      // Single route handles upload + blob store + AI parsing
       const fd = new FormData();
       fd.append("file", file);
-      const uploadRes = await fetch("/api/stock/upload-receipt-blob", { method: "POST", body: fd });
-      if (!uploadRes.ok) {
-        const errText = await uploadRes.text();
+      if (filterSupplier !== "all") fd.append("supplierId", filterSupplier);
+
+      const res = await fetch("/api/suppliers/statements/upload", { method: "POST", body: fd });
+      if (!res.ok) {
+        const errText = await res.text();
         throw new Error(errText || "Upload failed");
       }
-      const uploadData = await uploadRes.json();
-
-      // 3. Create statement with base64 for AI parsing
-      const res = await fetch("/api/suppliers/statements", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          fileUrl: uploadData.url,
-          dataUri,
-          fileName: file.name,
-          supplierId: filterSupplier !== "all" ? filterSupplier : null,
-        }),
-      });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to process statement");
       await loadStatements();
       setExpandedId(data.statement?.id ?? null);
     } catch (e: any) { setError(e.message); }
