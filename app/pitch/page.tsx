@@ -60,13 +60,17 @@ export default function PitchPage() {
         .slide-item { width: 100%; border-radius: 16px; overflow: hidden; opacity: 1; transform: scale(0.98); transition: transform 0.4s ease, box-shadow 0.4s ease; box-shadow: 0 8px 32px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.06); }
         .slide-item.active { transform: scale(1); box-shadow: 0 24px 64px rgba(0,0,0,0.7), 0 0 0 2px rgba(249,115,22,0.4); }
         .slide-item img { width: 100%; display: block; aspect-ratio: 16/9; object-fit: cover; }
+        .slide-item.html-slide { aspect-ratio: unset; }
 
         /* ── shared inline slide base ── */
         .inline-slide {
           width: 100%;
           background: linear-gradient(135deg, #0f172a 0%, #0c1220 60%, #0f172a 100%);
-          padding: clamp(24px, 5vw, 56px) clamp(20px, 5vw, 64px);
+          padding: 32px 20px;
           position: relative; overflow: hidden;
+        }
+        @media (min-width: 600px) {
+          .inline-slide { padding: clamp(32px, 5vw, 56px) clamp(32px, 5vw, 64px); }
         }
         .inline-slide::before {
           content: ''; position: absolute; inset: 0;
@@ -77,42 +81,45 @@ export default function PitchPage() {
         .slide-inner { position: relative; z-index: 1; }
         .slide-badge {
           display: inline-block; background: rgba(249,115,22,0.15); color: #f97316;
-          border: 1px solid rgba(249,115,22,0.35); padding: 4px 14px; border-radius: 100px;
-          font-size: clamp(10px,1.2vw,13px); font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
-          margin-bottom: clamp(12px,2vw,24px);
+          border: 1px solid rgba(249,115,22,0.35); padding: 5px 14px; border-radius: 100px;
+          font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+          margin-bottom: 16px;
         }
         .slide-title {
-          font-size: clamp(22px,4vw,46px); font-weight: 800; letter-spacing: -0.5px; line-height: 1.1;
-          margin-bottom: clamp(6px,1vw,12px); text-align: center;
+          font-size: clamp(26px,4vw,46px); font-weight: 800; letter-spacing: -0.5px; line-height: 1.1;
+          margin-bottom: 10px; text-align: center;
         }
         .slide-title span { color: #f97316; }
         .slide-sub {
-          font-size: clamp(13px,1.5vw,17px); color: rgba(255,255,255,0.45);
-          text-align: center; margin-bottom: clamp(20px,3vw,44px); line-height: 1.5;
+          font-size: clamp(14px,1.5vw,17px); color: rgba(255,255,255,0.45);
+          text-align: center; margin-bottom: clamp(24px,3vw,44px); line-height: 1.5;
         }
 
         /* ── What's New slide ── */
         .wn-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(min(160px, 100%), 1fr));
-          gap: clamp(10px,1.5vw,18px);
+          grid-template-columns: repeat(2, 1fr);
+          gap: 12px;
         }
+        @media (min-width: 700px) { .wn-grid { grid-template-columns: repeat(4, 1fr); gap: 16px; } }
         .wn-card {
           background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.09);
-          border-radius: 14px; padding: clamp(14px,2vw,24px);
+          border-radius: 14px; padding: 16px;
         }
+        @media (min-width: 700px) { .wn-card { padding: clamp(16px,2vw,24px); } }
         .wn-card.hl { background: rgba(249,115,22,0.07); border-color: rgba(249,115,22,0.28); }
-        .wn-new { display: inline-block; background: rgba(34,197,94,0.15); color: #22c55e; border: 1px solid rgba(34,197,94,0.3); font-size: clamp(9px,1vw,11px); font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; padding: 2px 7px; border-radius: 100px; margin-bottom: 8px; }
-        .wn-icon { font-size: clamp(18px,2.5vw,26px); margin-bottom: 8px; }
-        .wn-name { font-size: clamp(13px,1.5vw,16px); font-weight: 700; margin-bottom: 5px; }
+        .wn-new { display: inline-block; background: rgba(34,197,94,0.15); color: #22c55e; border: 1px solid rgba(34,197,94,0.3); font-size: 10px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; padding: 2px 7px; border-radius: 100px; margin-bottom: 8px; }
+        .wn-icon { font-size: 22px; margin-bottom: 8px; }
+        .wn-name { font-size: 14px; font-weight: 700; margin-bottom: 6px; line-height: 1.3; }
         .wn-card.hl .wn-name { color: #f97316; }
-        .wn-desc { font-size: clamp(11px,1.2vw,13px); color: rgba(255,255,255,0.5); line-height: 1.55; }
+        .wn-desc { font-size: 12px; color: rgba(255,255,255,0.5); line-height: 1.55; }
 
         /* ── Compare slide ── */
-        .cmp-table { width: 100%; border-collapse: collapse; }
-        .cmp-table th, .cmp-table td { padding: clamp(8px,1.2vw,14px) clamp(10px,1.5vw,22px); font-size: clamp(11px,1.3vw,15px); }
+        .cmp-table { width: 100%; border-collapse: collapse; min-width: 420px; }
+        .cmp-table th, .cmp-table td { padding: 10px 12px; font-size: 13px; }
+        @media (min-width: 700px) { .cmp-table th, .cmp-table td { padding: 12px 20px; font-size: 15px; } }
         .cmp-table thead th { font-weight: 700; text-align: center; }
-        .cmp-table thead th.feat { text-align: left; color: rgba(255,255,255,0.4); font-weight: 400; font-size: clamp(10px,1.1vw,13px); }
+        .cmp-table thead th.feat { text-align: left; color: rgba(255,255,255,0.4); font-weight: 400; font-size: 12px; }
         .cmp-table thead th.rh { background: rgba(249,115,22,0.1); border: 1px solid rgba(249,115,22,0.3); border-bottom: none; border-radius: 10px 10px 0 0; color: #f97316; }
         .cmp-table thead th.oth { color: rgba(255,255,255,0.35); font-weight: 500; }
         .cmp-table tbody tr { border-bottom: 1px solid rgba(255,255,255,0.06); }
@@ -124,48 +131,49 @@ export default function PitchPage() {
         .cmp-table tbody td.oth { text-align: center; color: rgba(255,255,255,0.3); }
         .cmp-table .price-row td { font-weight: 700; }
         .cmp-table .price-row .rh { color: #f97316 !important; }
-        .chk { color: #22c55e; font-size: clamp(13px,1.5vw,18px); }
-        .crs { color: rgba(255,255,255,0.18); font-size: clamp(13px,1.5vw,18px); }
+        .chk { color: #22c55e; font-size: 16px; }
+        .crs { color: rgba(255,255,255,0.18); font-size: 16px; }
 
         /* ── Pricing slide ── */
         .price-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(min(220px,100%), 1fr));
-          gap: clamp(12px,2vw,22px);
+          grid-template-columns: 1fr;
+          gap: 14px;
           max-width: 900px; margin: 0 auto;
         }
+        @media (min-width: 600px) { .price-grid { grid-template-columns: repeat(3, 1fr); } }
         .price-card {
           background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1);
-          border-radius: 18px; padding: clamp(20px,3vw,36px) clamp(18px,2.5vw,30px);
+          border-radius: 18px; padding: 22px 20px;
           display: flex; flex-direction: column;
         }
         .price-card.feat { background: rgba(249,115,22,0.08); border-color: rgba(249,115,22,0.38); }
-        .pop-tag { display: inline-block; background: #f97316; color: #fff; font-size: clamp(9px,1vw,11px); font-weight: 700; letter-spacing: 1px; text-transform: uppercase; padding: 3px 10px; border-radius: 100px; margin-bottom: 10px; }
-        .plan-label { font-size: clamp(10px,1.1vw,12px); font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: rgba(255,255,255,0.35); margin-bottom: 8px; }
+        .pop-tag { display: inline-block; background: #f97316; color: #fff; font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; padding: 3px 10px; border-radius: 100px; margin-bottom: 10px; }
+        .plan-label { font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: rgba(255,255,255,0.35); margin-bottom: 8px; }
         .price-card.feat .plan-label { color: #f97316; }
-        .price-amount { font-size: clamp(34px,5vw,54px); font-weight: 900; letter-spacing: -2px; line-height: 1; }
+        .price-amount { font-size: clamp(40px,6vw,54px); font-weight: 900; letter-spacing: -2px; line-height: 1; }
         .price-amount sup { font-size: 0.4em; font-weight: 400; color: rgba(255,255,255,0.5); vertical-align: super; }
-        .price-per { font-size: clamp(11px,1.2vw,14px); color: rgba(255,255,255,0.38); margin-bottom: clamp(16px,2vw,24px); margin-top: 4px; }
-        .price-divider { height: 1px; background: rgba(255,255,255,0.08); margin-bottom: clamp(14px,1.8vw,20px); }
-        .price-features { list-style: none; display: flex; flex-direction: column; gap: clamp(7px,1vw,10px); flex: 1; }
-        .price-features li { font-size: clamp(11px,1.3vw,14px); color: rgba(255,255,255,0.7); display: flex; align-items: flex-start; gap: 7px; }
+        .price-per { font-size: 13px; color: rgba(255,255,255,0.38); margin-bottom: 18px; margin-top: 4px; }
+        .price-divider { height: 1px; background: rgba(255,255,255,0.08); margin-bottom: 16px; }
+        .price-features { list-style: none; display: flex; flex-direction: column; gap: 9px; flex: 1; }
+        .price-features li { font-size: 13px; color: rgba(255,255,255,0.7); display: flex; align-items: flex-start; gap: 7px; }
         .price-features li::before { content: '✓'; color: #f97316; font-weight: 700; flex-shrink: 0; margin-top: 1px; }
-        .price-footnote { text-align: center; font-size: clamp(11px,1.2vw,13px); color: rgba(255,255,255,0.28); margin-top: clamp(16px,2vw,28px); }
+        .price-footnote { text-align: center; font-size: 12px; color: rgba(255,255,255,0.28); margin-top: 20px; }
 
         /* ── Partner slide ── */
         .partner-slide { background: linear-gradient(135deg, #0f172a 0%, #1a0a2e 50%, #0a1f10 100%); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: clamp(28px,5vw,56px) clamp(20px,5vw,56px); position: relative; overflow: hidden; text-align: center; }
         .partner-slide::before { content: ''; position: absolute; inset: 0; background: radial-gradient(ellipse at 30% 50%, rgba(249,115,22,0.12) 0%, transparent 60%), radial-gradient(ellipse at 70% 50%, rgba(34,197,94,0.08) 0%, transparent 60%); }
         .partner-inner { position: relative; z-index: 1; max-width: 780px; width: 100%; }
-        .partner-badge { display: inline-block; background: rgba(249,115,22,0.15); color: #f97316; border: 1px solid rgba(249,115,22,0.35); padding: 5px 16px; border-radius: 100px; font-size: clamp(10px,1.2vw,13px); font-weight: 700; letter-spacing: 1px; text-transform: uppercase; margin-bottom: clamp(14px,2vw,24px); }
-        .partner-title { font-size: clamp(22px,4vw,44px); font-weight: 800; line-height: 1.1; letter-spacing: -0.5px; margin-bottom: 10px; }
+        .partner-badge { display: inline-block; background: rgba(249,115,22,0.15); color: #f97316; border: 1px solid rgba(249,115,22,0.35); padding: 5px 16px; border-radius: 100px; font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 18px; }
+        .partner-title { font-size: clamp(24px,4vw,44px); font-weight: 800; line-height: 1.1; letter-spacing: -0.5px; margin-bottom: 12px; }
         .partner-title span { color: #f97316; }
-        .partner-sub { font-size: clamp(13px,1.5vw,17px); color: rgba(255,255,255,0.5); margin-bottom: clamp(22px,3vw,36px); line-height: 1.55; }
-        .partner-cards { display: flex; gap: clamp(10px,1.5vw,16px); justify-content: center; flex-wrap: wrap; margin-bottom: clamp(20px,3vw,32px); }
-        .pcard { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 14px; padding: clamp(14px,2vw,18px) clamp(14px,2vw,20px); min-width: 120px; }
-        .pcard-plan { font-size: clamp(10px,1.1vw,12px); color: rgba(255,255,255,0.4); margin-bottom: 4px; }
-        .pcard-commission { font-size: clamp(18px,2.5vw,22px); font-weight: 800; color: #f97316; }
-        .pcard-sub { font-size: clamp(9px,1vw,11px); color: rgba(255,255,255,0.35); margin-top: 2px; }
-        .partner-url { display: inline-flex; align-items: center; gap: 8px; background: #f97316; color: #fff; padding: clamp(10px,1.5vw,12px) clamp(18px,2.5vw,28px); border-radius: 100px; font-size: clamp(12px,1.4vw,14px); font-weight: 700; text-decoration: none; }
+        .partner-sub { font-size: clamp(14px,1.5vw,17px); color: rgba(255,255,255,0.5); margin-bottom: 28px; line-height: 1.55; }
+        .partner-cards { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-bottom: 28px; }
+        .pcard { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 14px; padding: 16px 18px; min-width: 110px; }
+        .pcard-plan { font-size: 11px; color: rgba(255,255,255,0.4); margin-bottom: 4px; }
+        .pcard-commission { font-size: 22px; font-weight: 800; color: #f97316; }
+        .pcard-sub { font-size: 10px; color: rgba(255,255,255,0.35); margin-top: 2px; }
+        .partner-url { display: inline-flex; align-items: center; gap: 8px; background: #f97316; color: #fff; padding: 12px 24px; border-radius: 100px; font-size: 14px; font-weight: 700; text-decoration: none; word-break: break-all; }
 
         /* ── Stats + footer ── */
         .stats { display: flex; justify-content: center; gap: clamp(20px,4vw,40px); flex-wrap: wrap; padding: 48px 24px; border-top: 1px solid rgba(255,255,255,0.06); border-bottom: 1px solid rgba(255,255,255,0.06); }
@@ -215,7 +223,7 @@ export default function PitchPage() {
       <div className="slides-stack">
         {slides.map((src, i) => {
           if (src === "whats-new") return (
-            <div key={i} className="slide-item">
+            <div key={i} className="slide-item html-slide">
               <div className="inline-slide">
                 <div className="slide-inner" style={{ textAlign: "center" }}>
                   <div className="slide-badge">What&apos;s New in 2026</div>
@@ -237,7 +245,7 @@ export default function PitchPage() {
           );
 
           if (src === "compare") return (
-            <div key={i} className="slide-item">
+            <div key={i} className="slide-item html-slide">
               <div className="inline-slide">
                 <div className="slide-inner" style={{ textAlign: "center" }}>
                   <div className="slide-badge">vs. The Alternatives</div>
@@ -288,7 +296,7 @@ export default function PitchPage() {
           );
 
           if (src === "pricing") return (
-            <div key={i} className="slide-item">
+            <div key={i} className="slide-item html-slide">
               <div className="inline-slide">
                 <div className="slide-inner" style={{ textAlign: "center" }}>
                   <div className="slide-badge">Pricing</div>
@@ -343,7 +351,7 @@ export default function PitchPage() {
           );
 
           if (src === "partner-programme") return (
-            <div key={i} className="slide-item">
+            <div key={i} className="slide-item html-slide">
               <div className="partner-slide">
                 <div className="partner-inner">
                   <div className="partner-badge">Partner Programme</div>
