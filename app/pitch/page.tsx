@@ -15,7 +15,6 @@ export default function PitchPage() {
     "/pitch-slides/slide-09.png",
     "/pitch-compare-slide.png",
     "/pitch-pricing-slide.png",
-    "/pitch-slides/slide-11-new.png",
     "partner-programme", // rendered as inline card
   ];
 

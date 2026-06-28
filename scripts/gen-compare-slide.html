@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    width: 1920px; height: 1088px; overflow: hidden;
+    background: linear-gradient(135deg, #0f172a 0%, #0c1220 60%, #0f172a 100%);
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    color: #fff;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    position: relative;
+    padding: 40px 80px;
+  }
+  body::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse at 20% 50%, rgba(249,115,22,0.07) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 50%, rgba(249,115,22,0.05) 0%, transparent 50%);
+  }
+  .badge {
+    display: inline-block;
+    background: rgba(249,115,22,0.15); color: #f97316;
+    border: 1px solid rgba(249,115,22,0.35);
+    padding: 7px 20px; border-radius: 100px;
+    font-size: 14px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase;
+    margin-bottom: 24px; position: relative;
+  }
+  h1 {
+    font-size: 46px; font-weight: 800; letter-spacing: -1px; line-height: 1.1;
+    text-align: center; margin-bottom: 10px; position: relative;
+  }
+  .sub {
+    color: rgba(255,255,255,0.4); font-size: 17px; text-align: center;
+    margin-bottom: 44px; position: relative;
+  }
+  table {
+    width: 100%; border-collapse: collapse; position: relative;
+    max-width: 1400px;
+  }
+  thead th {
+    padding: 16px 24px; text-align: center; font-size: 16px;
+  }
+  thead th.feature-col { text-align: left; color: rgba(255,255,255,0.5); font-weight: 400; font-size: 14px; }
+  thead th.rotahr-col {
+    background: rgba(249,115,22,0.12); border: 1px solid rgba(249,115,22,0.3);
+    border-bottom: none; border-radius: 12px 12px 0 0;
+    color: #f97316; font-weight: 800; font-size: 18px;
+  }
+  thead th.other-col { color: rgba(255,255,255,0.4); font-weight: 600; font-size: 15px; }
+  tbody tr { border-bottom: 1px solid rgba(255,255,255,0.06); }
+  tbody tr:last-child { border-bottom: none; }
+  tbody td { padding: 13px 24px; font-size: 15px; color: rgba(255,255,255,0.7); }
+  tbody td.feature-col { font-weight: 500; color: rgba(255,255,255,0.85); }
+  tbody td.rotahr-col {
+    background: rgba(249,115,22,0.06); border-left: 1px solid rgba(249,115,22,0.2); border-right: 1px solid rgba(249,115,22,0.2);
+    text-align: center; color: #fff;
+  }
+  tbody tr:last-child td.rotahr-col { border-radius: 0 0 12px 12px; border-bottom: 1px solid rgba(249,115,22,0.2); }
+  tbody td.other-col { text-align: center; color: rgba(255,255,255,0.35); }
+  .check { color: #22c55e; font-size: 18px; }
+  .cross { color: rgba(255,255,255,0.2); font-size: 18px; }
+  .price-row td { font-weight: 700; font-size: 17px; }
+  .price-row .rotahr-col { color: #f97316 !important; }
+</style>
+</head>
+<body>
+  <div class="badge">Slide 10 · vs. Competition</div>
+  <h1>Rotahr vs. The Alternatives</h1>
+  <p class="sub">All-in-one vs. cobbling together 4 tools</p>
+
+  <table>
+    <thead>
+      <tr>
+        <th class="feature-col">Feature</th>
+        <th class="rotahr-col">Rotahr</th>
+        <th class="other-col">Deputy</th>
+        <th class="other-col">7shifts</th>
+        <th class="other-col">Pen & paper</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="feature-col">Rota & Scheduling</td>
+        <td class="rotahr-col"><span class="check">✓</span></td>
+        <td class="other-col"><span class="check">✓</span></td>
+        <td class="other-col"><span class="check">✓</span></td>
+        <td class="other-col"><span class="cross">✗</span></td>
+      </tr>
+      <tr>
+        <td class="feature-col">AI Booking Assistant</td>
+        <td class="rotahr-col"><span class="check">✓</span></td>
+        <td class="other-col"><span class="cross">✗</span></td>
+        <td class="other-col"><span class="cross">✗</span></td>
+        <td class="other-col"><span class="cross">✗</span></td>
+      </tr>
+      <tr>
+        <td class="feature-col">CRM & Customer Profiles</td>
+        <td class="rotahr-col"><span class="check">✓</span></td>
+        <td class="other-col"><span class="cross">✗</span></td>
+        <td class="other-col"><span class="cross">✗</span></td>
+        <td class="other-col"><span class="cross">✗</span></td>
+      </tr>
+      <tr>
+        <td class="feature-col">Expense Tracking & Receipts</td>
+        <td class="rotahr-col"><span class="check">✓</span></td>
+        <td class="other-col"><span class="cross">✗</span></td>
+        <td class="other-col"><span class="cross">✗</span></td>
+        <td class="other-col"><span class="cross">✗</span></td>
+      </tr>
+      <tr>
+        <td class="feature-col">Menu Specials & Announcements</td>
+        <td class="rotahr-col"><span class="check">✓</span></td>
+        <td class="other-col"><span class="cross">✗</span></td>
+        <td class="other-col"><span class="cross">✗</span></td>
+        <td class="other-col"><span class="cross">✗</span></td>
+      </tr>
+      <tr>
+        <td class="feature-col">POS Integration</td>
+        <td class="rotahr-col"><span class="check">✓</span></td>
+        <td class="other-col"><span class="cross">✗</span></td>
+        <td class="other-col"><span class="cross">✗</span></td>
+        <td class="other-col"><span class="cross">✗</span></td>
+      </tr>
+      <tr>
+        <td class="feature-col">iOS & Android Staff App</td>
+        <td class="rotahr-col"><span class="check">✓</span></td>
+        <td class="other-col"><span class="check">✓</span></td>
+        <td class="other-col"><span class="check">✓</span></td>
+        <td class="other-col"><span class="cross">✗</span></td>
+      </tr>
+      <tr class="price-row">
+        <td class="feature-col">Starting Price (incl. VAT)</td>
+        <td class="rotahr-col">€59/mo</td>
+        <td class="other-col">€80+/mo</td>
+        <td class="other-col">€70+/mo</td>
+        <td class="other-col">Hidden cost</td>
+      </tr>
+    </tbody>
+  </table>
+</body>
+</html>

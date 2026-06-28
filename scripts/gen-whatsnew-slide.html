@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    width: 1920px; height: 1088px; overflow: hidden;
+    background: linear-gradient(135deg, #0f172a 0%, #0c1220 60%, #0f172a 100%);
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    color: #fff;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    position: relative;
+    padding: 40px 80px;
+  }
+  body::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse at 30% 40%, rgba(249,115,22,0.08) 0%, transparent 55%),
+                radial-gradient(ellipse at 70% 60%, rgba(34,197,94,0.06) 0%, transparent 55%);
+  }
+  .badge {
+    display: inline-block;
+    background: rgba(249,115,22,0.15); color: #f97316;
+    border: 1px solid rgba(249,115,22,0.35);
+    padding: 7px 20px; border-radius: 100px;
+    font-size: 14px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase;
+    margin-bottom: 24px; position: relative;
+  }
+  h1 {
+    font-size: 48px; font-weight: 800; letter-spacing: -1px; line-height: 1.1;
+    text-align: center; margin-bottom: 10px; position: relative;
+  }
+  h1 span { color: #f97316; }
+  .sub {
+    color: rgba(255,255,255,0.4); font-size: 17px; text-align: center;
+    margin-bottom: 50px; position: relative;
+  }
+  .grid {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px;
+    max-width: 1400px; width: 100%; position: relative;
+  }
+  .card {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.09);
+    border-radius: 16px; padding: 28px 24px;
+  }
+  .card.highlight {
+    background: rgba(249,115,22,0.07);
+    border-color: rgba(249,115,22,0.3);
+  }
+  .icon { font-size: 28px; margin-bottom: 14px; }
+  .card-title { font-size: 17px; font-weight: 700; margin-bottom: 8px; }
+  .card.highlight .card-title { color: #f97316; }
+  .card-desc { font-size: 13px; color: rgba(255,255,255,0.5); line-height: 1.6; }
+  .new-tag {
+    display: inline-block;
+    background: rgba(34,197,94,0.15); color: #22c55e;
+    border: 1px solid rgba(34,197,94,0.3);
+    font-size: 10px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase;
+    padding: 2px 8px; border-radius: 100px; margin-bottom: 10px;
+  }
+</style>
+</head>
+<body>
+  <div class="badge">What's New in 2026</div>
+  <h1>Built for <span>Irish Hospitality</span></h1>
+  <p class="sub">Every feature driven by real feedback from Irish pub & restaurant owners</p>
+
+  <div class="grid">
+    <div class="card highlight">
+      <div class="new-tag">New</div>
+      <div class="icon">🤖</div>
+      <div class="card-title">AI Booking Assistant</div>
+      <div class="card-desc">Handles reservations 24/7, suggests staffing adjustments based on demand, auto-confirms and emails guests.</div>
+    </div>
+    <div class="card highlight">
+      <div class="new-tag">New</div>
+      <div class="icon">👥</div>
+      <div class="card-title">CRM & Customer Profiles</div>
+      <div class="card-desc">Auto-built from reservations. Track visits, no-shows, spend, and notes. GDPR-compliant with one-click anonymisation.</div>
+    </div>
+    <div class="card highlight">
+      <div class="new-tag">New</div>
+      <div class="icon">🍽️</div>
+      <div class="card-title">Menu Specials</div>
+      <div class="card-desc">Post daily specials, menu changes, and announcements. All staff see them instantly in the app. Pin priority items.</div>
+    </div>
+    <div class="card highlight">
+      <div class="new-tag">New</div>
+      <div class="icon">🔗</div>
+      <div class="card-title">POS Integration</div>
+      <div class="card-desc">Connect Lightspeed or Square. Booking data flows directly into your till system. No double entry.</div>
+    </div>
+    <div class="card">
+      <div class="icon">🧾</div>
+      <div class="card-title">AI Receipt Scanning</div>
+      <div class="card-desc">Photo a receipt, AI reads it and auto-fills expense details. VAT tracking, supplier categorisation included.</div>
+    </div>
+    <div class="card">
+      <div class="icon">📱</div>
+      <div class="card-title">Staff Mobile App</div>
+      <div class="card-desc">iOS & Android. Push notifications for shifts, time-off approvals, rota changes and booking updates.</div>
+    </div>
+    <div class="card">
+      <div class="icon">📊</div>
+      <div class="card-title">Dashboard & Reporting</div>
+      <div class="card-desc">Labour cost vs revenue, P&L, VAT report, CSV export. Weekly and monthly breakdowns per employee or category.</div>
+    </div>
+    <div class="card">
+      <div class="icon">🤝</div>
+      <div class="card-title">Partner Programme</div>
+      <div class="card-desc">Accountants, consultants and coaches earn 20% recurring commission — paid automatically via Lemon Squeezy.</div>
+    </div>
+  </div>
+</body>
+</html>

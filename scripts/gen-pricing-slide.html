@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    width: 1920px; height: 1088px; overflow: hidden;
+    background: linear-gradient(135deg, #0f172a 0%, #0c1220 60%, #0f172a 100%);
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    color: #fff;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    position: relative;
+  }
+  body::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse at 20% 50%, rgba(249,115,22,0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 50%, rgba(249,115,22,0.06) 0%, transparent 50%);
+  }
+  .badge {
+    display: inline-block;
+    background: rgba(249,115,22,0.15); color: #f97316;
+    border: 1px solid rgba(249,115,22,0.35);
+    padding: 7px 20px; border-radius: 100px;
+    font-size: 14px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase;
+    margin-bottom: 28px; position: relative;
+  }
+  h1 {
+    font-size: 52px; font-weight: 800; letter-spacing: -1px; line-height: 1.1;
+    text-align: center; margin-bottom: 12px; position: relative;
+  }
+  .sub {
+    color: rgba(255,255,255,0.45); font-size: 18px; text-align: center;
+    margin-bottom: 56px; position: relative;
+  }
+  .cards {
+    display: flex; gap: 24px; align-items: stretch; position: relative;
+  }
+  .card {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 20px;
+    padding: 40px 36px;
+    width: 380px;
+    display: flex; flex-direction: column;
+    transition: all 0.2s;
+  }
+  .card.featured {
+    background: rgba(249,115,22,0.08);
+    border-color: rgba(249,115,22,0.4);
+    transform: scale(1.03);
+  }
+  .plan-badge {
+    font-size: 11px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase;
+    color: rgba(255,255,255,0.4); margin-bottom: 12px;
+  }
+  .card.featured .plan-badge { color: #f97316; }
+  .plan-name { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
+  .price { font-size: 54px; font-weight: 900; line-height: 1; letter-spacing: -2px; margin-bottom: 4px; }
+  .price span { font-size: 22px; font-weight: 400; color: rgba(255,255,255,0.5); vertical-align: super; margin-right: 2px; }
+  .per { font-size: 14px; color: rgba(255,255,255,0.4); margin-bottom: 28px; }
+  .divider { height: 1px; background: rgba(255,255,255,0.08); margin-bottom: 24px; }
+  .features { list-style: none; display: flex; flex-direction: column; gap: 10px; flex: 1; }
+  .features li { font-size: 14px; color: rgba(255,255,255,0.7); display: flex; align-items: center; gap: 8px; }
+  .features li::before { content: '✓'; color: #f97316; font-weight: 700; font-size: 13px; flex-shrink: 0; }
+  .popular-tag {
+    background: #f97316; color: #fff;
+    font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+    padding: 3px 10px; border-radius: 100px; margin-bottom: 12px; display: inline-block;
+  }
+  .vat-note {
+    position: relative; margin-top: 40px;
+    color: rgba(255,255,255,0.3); font-size: 13px; text-align: center;
+  }
+</style>
+</head>
+<body>
+  <div class="badge">Slide 11 · Pricing</div>
+  <h1>Simple, Transparent Pricing</h1>
+  <p class="sub">All prices include 23% Irish VAT · No hidden fees · Cancel anytime</p>
+
+  <div class="cards">
+    <!-- Starter -->
+    <div class="card">
+      <div class="plan-badge">Starter</div>
+      <div class="plan-name">Starter</div>
+      <div class="price"><span>€</span>59</div>
+      <div class="per">per month · up to 10 staff</div>
+      <div class="divider"></div>
+      <ul class="features">
+        <li>Rota builder & scheduling</li>
+        <li>Staff app (iOS & Android)</li>
+        <li>Time off & availability</li>
+        <li>Messaging & announcements</li>
+        <li>Basic reporting</li>
+      </ul>
+    </div>
+
+    <!-- Pro -->
+    <div class="card featured">
+      <div class="popular-tag">Most Popular</div>
+      <div class="plan-badge">Pro</div>
+      <div class="plan-name">Pro</div>
+      <div class="price"><span>€</span>119</div>
+      <div class="per">per month · up to 30 staff</div>
+      <div class="divider"></div>
+      <ul class="features">
+        <li>Everything in Starter</li>
+        <li>AI booking assistant</li>
+        <li>CRM & customer profiles</li>
+        <li>Bookkeeping & expense tracking</li>
+        <li>Menu specials management</li>
+        <li>POS integration</li>
+      </ul>
+    </div>
+
+    <!-- Enterprise -->
+    <div class="card">
+      <div class="plan-badge">Enterprise</div>
+      <div class="plan-name">Enterprise</div>
+      <div class="price"><span>€</span>215</div>
+      <div class="per">per month · unlimited staff</div>
+      <div class="divider"></div>
+      <ul class="features">
+        <li>Everything in Pro</li>
+        <li>Multi-venue support</li>
+        <li>Advanced analytics & P&L</li>
+        <li>Custom onboarding</li>
+        <li>Priority support</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="vat-note">All prices include 23% Irish VAT · First month free on Starter & Pro</div>
+</body>
+</html>
