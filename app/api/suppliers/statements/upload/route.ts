@@ -103,13 +103,13 @@ Return only valid JSON, no markdown.`;
     // 5. Save statement
     const statement = await prisma.supplierStatement.create({
       data: {
-        businessId: user.businessId,
-        supplierId: supplierId || null,
+        business: { connect: { id: user.businessId } },
+        ...(supplierId ? { supplier: { connect: { id: supplierId } } } : {}),
+        ...(matchedOrderId ? { matchedOrder: { connect: { id: matchedOrderId } } } : {}),
         fileUrl: blob.url,
         fileName,
         status,
         aiExtracted: aiExtracted as object[],
-        matchedOrderId,
         totalAmount,
         invoiceRef,
       },
