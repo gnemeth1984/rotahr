@@ -228,6 +228,7 @@ model Expense {
   receiptDataUrl  String?   // base64 data URI — permanent fallback for 30-day recall
   receiptExpiresAt DateTime? // 30 days from upload
   aiRawText       String?
+  aiLineItems     Json?     // structured line items extracted by AI: [{name, quantity, unit, unitPrice}]
 
   // Irish Revenue / VAT compliance fields
   supplierVatNumber String?   // supplier's VAT registration number (required for VAT reclaim)

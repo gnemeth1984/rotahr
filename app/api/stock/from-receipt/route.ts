@@ -76,7 +76,13 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  const lineItems = expense.aiRawText ? parseLineItems(expense.aiRawText) : [];
+  // Prefer structured AI line items stored on the expense; fall back to regex parsing rawText
+  const aiStoredItems = expense.aiLineItems as Array<{ name: string; quantity: number; unit: string; unitPrice: number | null }> | null;
+  const lineItems = aiStoredItems?.length
+    ? aiStoredItems
+    : expense.aiRawText
+    ? parseLineItems(expense.aiRawText)
+    : [];
 
   const existingItems = await prisma.stockItem.findMany({
     where: { businessId },

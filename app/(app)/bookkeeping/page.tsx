@@ -65,6 +65,7 @@ interface Expense {
   receiptDataUrl: string | null;
   receiptExpiresAt: string | null;
   aiRawText: string | null;
+  aiLineItems: Array<{ name: string; quantity: number; unit: string; unitPrice: number | null }> | null;
   supplierVatNumber: string | null;
   employeeId: string | null;
   employee?: { id: string; firstName: string; lastName: string } | null;
@@ -125,6 +126,7 @@ const EMPTY_FORM = {
   receiptDataUrl: "",
   receiptExpiresAt: "",
   aiRawText: "",
+  aiLineItems: null as Array<{ name: string; quantity: number; unit: string; unitPrice: number | null }> | null,
   supplierVatNumber: "",
 };
 
@@ -550,6 +552,7 @@ export default function BookkeepingPage() {
           receiptDataUrl: data.dataUri ?? f.receiptDataUrl,
           receiptExpiresAt: expiresAt,
           aiRawText: data.ai.rawText ?? "",
+          aiLineItems: data.ai.lineItems?.length ? data.ai.lineItems : f.aiLineItems,
           vendor: data.ai.vendor ?? f.vendor,
           amount: data.ai.amount ? String(data.ai.amount) : f.amount,
           vatAmount: data.ai.vatAmount ? String(data.ai.vatAmount) : f.vatAmount,
@@ -590,6 +593,7 @@ export default function BookkeepingPage() {
       receiptDataUrl: exp.receiptDataUrl ?? "",
       receiptExpiresAt: exp.receiptExpiresAt ?? "",
       aiRawText: exp.aiRawText ?? "",
+      aiLineItems: (exp.aiLineItems as any) ?? null,
       supplierVatNumber: exp.supplierVatNumber ?? "",
     });
     if (exp.receiptUrl) {
@@ -628,6 +632,7 @@ export default function BookkeepingPage() {
         receiptDataUrl: form.receiptDataUrl || undefined,
         receiptExpiresAt: form.receiptExpiresAt || undefined,
         aiRawText: form.aiRawText || undefined,
+        aiLineItems: form.aiLineItems?.length ? form.aiLineItems : undefined,
         supplierVatNumber: form.supplierVatNumber || undefined,
       };
 

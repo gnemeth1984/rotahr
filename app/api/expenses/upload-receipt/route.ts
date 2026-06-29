@@ -32,6 +32,7 @@ export async function POST(req: NextRequest) {
       description?: string;
       paymentMethod?: string;
       rawText?: string;
+      lineItems?: Array<{ name: string; quantity: number; unit: string; unitPrice: number | null }>;
     } = {};
 
     const openaiKey = process.env.OPENAI_API_KEY;
@@ -47,7 +48,10 @@ export async function POST(req: NextRequest) {
   "category": one of: wages, supplier, food_beverage, utilities, equipment, general,
   "description": short description of what was purchased,
   "paymentMethod": one of: cash, card, bank_transfer, direct_debit (or null if unclear),
-  "rawText": all text you can read from the receipt
+  "rawText": all text you can read from the receipt,
+  "lineItems": array of individual line items from the receipt, each as:
+    { "name": "product/item name", "quantity": number (default 1), "unit": "unit/kg/litre/case/bottle/box/pack (pick most appropriate)", "unitPrice": price per unit as number or null }
+  Include ALL individual products/items listed. If no individual items visible, return empty array [].
 }
 Return ONLY the JSON object, no markdown, no explanation.`;
 

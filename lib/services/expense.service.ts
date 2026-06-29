@@ -33,6 +33,12 @@ export const createExpenseSchema = z.object({
   receiptDataUrl: z.string().optional(),   // base64 data URI — 30-day recall
   receiptExpiresAt: z.string().optional(), // ISO date string
   aiRawText: z.string().optional(),
+  aiLineItems: z.array(z.object({
+    name: z.string(),
+    quantity: z.number(),
+    unit: z.string(),
+    unitPrice: z.number().nullable().optional(),
+  })).optional(),
   supplierVatNumber: z.string().optional(), // Irish Revenue: VAT invoice must show supplier VAT no.
   employeeId: z.string().optional(),
   createdById: z.string().optional(),
@@ -60,6 +66,7 @@ export const expenseService = {
         receiptDataUrl: data.receiptDataUrl ?? null,
         receiptExpiresAt: data.receiptExpiresAt ? new Date(data.receiptExpiresAt) : null,
         aiRawText: data.aiRawText ?? null,
+        aiLineItems: data.aiLineItems ?? null,
         supplierVatNumber: data.supplierVatNumber ?? null,
         employeeId: data.employeeId ?? null,
         createdById: data.createdById ?? null,
@@ -128,6 +135,7 @@ export const expenseService = {
         ...(data.receiptDataUrl !== undefined ? { receiptDataUrl: data.receiptDataUrl } : {}),
         ...(data.receiptExpiresAt !== undefined ? { receiptExpiresAt: data.receiptExpiresAt ? new Date(data.receiptExpiresAt) : null } : {}),
         ...(data.aiRawText !== undefined ? { aiRawText: data.aiRawText } : {}),
+        ...(data.aiLineItems !== undefined ? { aiLineItems: data.aiLineItems ?? null } : {}),
         ...(data.supplierVatNumber !== undefined ? { supplierVatNumber: data.supplierVatNumber } : {}),
         ...(data.employeeId !== undefined ? { employeeId: data.employeeId } : {}),
       },
