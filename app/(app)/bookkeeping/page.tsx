@@ -198,51 +198,49 @@ function StockFromReceiptDialog({
       .finally(() => setLoading(false));
   }, [open, expenseId]);
 
+  const [orderCreated, setOrderCreated] = useState<{ supplierName: string; itemCount: number } | null>(null);
+
   async function handleApply() {
     if (!result) return;
     setApplying(true);
     setError("");
-    let count = 0;
+    setOrderCreated(null);
 
-    for (let i = 0; i < result.suggestions.length; i++) {
-      if (!selected[i]) continue;
-      const s = result.suggestions[i];
+    const selectedItems = result.suggestions
+      .filter((_, i) => selected[i])
+      .map((s) => ({
+        existingItemId: s.existingItemId ?? null,
+        name: s.name,
+        quantity: s.quantity,
+        unit: s.unit,
+        unitPrice: s.unitPrice ?? null,
+      }));
 
-      try {
-        if (s.existingItemId) {
-          // Update existing stock item: price + lastExpenseId + lastOrdered
-          await fetch(`/api/stock/${s.existingItemId}`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              ...(s.unitPrice !== null ? { lastPrice: s.unitPrice } : {}),
-              lastExpenseId: result.expense.id,
-              lastOrdered: result.expense.date,
-            }),
-          });
-        } else {
-          // Create new stock item
-          await fetch("/api/stock", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              name: s.name,
-              unit: s.unit,
-              category: "general",
-              ...(s.unitPrice !== null ? { lastPrice: s.unitPrice } : {}),
-              lastExpenseId: result.expense.id,
-              lastOrdered: result.expense.date,
-              ...(result.matchedSupplier ? { supplierId: result.matchedSupplier.id } : {}),
-            }),
-          });
-        }
-        count++;
-      } catch {/* skip single item failure, continue */}
+    try {
+      const res = await fetch("/api/stock/apply-receipt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          expenseId: result.expense.id,
+          supplierId: result.matchedSupplier?.id ?? null,
+          items: selectedItems,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Apply failed");
+      setAppliedCount(data.applied ?? selectedItems.length);
+      if (data.order) {
+        setOrderCreated({
+          supplierName: data.order.supplier?.name ?? "Unknown supplier",
+          itemCount: data.order.items?.length ?? selectedItems.length,
+        });
+      }
+    } catch (e: any) {
+      setError(e.message ?? "Failed to apply to stock");
+    } finally {
+      setApplying(false);
+      setDone(true);
     }
-
-    setAppliedCount(count);
-    setApplying(false);
-    setDone(true);
   }
 
   function handleClose() {
@@ -290,11 +288,17 @@ function StockFromReceiptDialog({
               <CheckCircle2 className="h-7 w-7 text-green-600" />
             </div>
             <p className="text-base font-semibold text-slate-800">
-              {appliedCount} item{appliedCount !== 1 ? "s" : ""} updated in Stock
+              {appliedCount} item{appliedCount !== 1 ? "s" : ""} pushed to Stock
             </p>
-            <p className="text-sm text-slate-400 text-center max-w-sm">
-              Prices and last-ordered dates have been updated. View them in the Stock page.
-            </p>
+            <div className="flex flex-col gap-1.5 text-sm text-slate-500 text-center max-w-xs">
+              <p>✅ Stock quantities updated</p>
+              <p>✅ Prices updated</p>
+              {orderCreated ? (
+                <p>✅ Purchase order created under <span className="font-medium text-slate-700">{orderCreated.supplierName}</span></p>
+              ) : (
+                <p className="text-slate-400 text-xs">No purchase order created — no matched supplier. Link supplier in Stock to enable this.</p>
+              )}
+            </div>
             <Button size="sm" onClick={handleClose} className="mt-2">Done</Button>
           </div>
         )}
