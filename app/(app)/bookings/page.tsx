@@ -85,6 +85,7 @@ const emptyForm = {
   customerEmail: "",
   customerPhone: "",
   partySize: "" as unknown as number,
+  partySizeRaw: "",
   date: "",
   time: "",
   occasion: "",
@@ -92,6 +93,25 @@ const emptyForm = {
   notes: "",
   marketingConsent: false,
 };
+
+// Parse "30-35", "approx 30", "~30", "30 to 35", "30+" → returns { display: "30-35", min: 30 }
+function parsePartySize(raw: string): { display: string; min: number } | null {
+  const s = raw.trim();
+  if (!s) return null;
+  // Range: 30-35 or 30 to 35 or 30~35
+  const rangeMatch = s.match(/(\d+)\s*(?:-|to|~)\s*(\d+)/i);
+  if (rangeMatch) return { display: `${rangeMatch[1]}-${rangeMatch[2]}`, min: parseInt(rangeMatch[1]) };
+  // Approx / ~ prefix: approx 30, ~30, circa 30, around 30
+  const approxMatch = s.match(/(?:approx\.?|~|circa|around|about|c\.?)\s*(\d+)/i);
+  if (approxMatch) return { display: `~${approxMatch[1]}`, min: parseInt(approxMatch[1]) };
+  // 30+ 
+  const plusMatch = s.match(/(\d+)\+/);
+  if (plusMatch) return { display: `${plusMatch[1]}+`, min: parseInt(plusMatch[1]) };
+  // Plain number
+  const numMatch = s.match(/^(\d+)$/);
+  if (numMatch) return { display: numMatch[1], min: parseInt(numMatch[1]) };
+  return null;
+}
 
 const STATUS_STYLES: Record<string, string> = {
   confirmed: "bg-green-100 text-green-700 border-green-200",
@@ -242,6 +262,7 @@ function BookingsInner() {
       customerEmail: b.customerEmail ?? "",
       customerPhone: b.customerPhone ?? "",
       partySize: b.partySize,
+      partySizeRaw: String(b.partySize),
       date: b.date.split("T")[0],
       time: b.time,
       occasion: (b as any).occasion ?? "",
@@ -261,9 +282,13 @@ function BookingsInner() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const partySize = parseInt(String(form.partySize));
-    if (!partySize || partySize < 1) return;
-    const payload = { ...form, partySize };
+    const parsed = parsePartySize(form.partySizeRaw);
+    if (!parsed || parsed.min < 1) return;
+    // If it's a range/approx, prepend to notes so staff can see it
+    const notesWithRange = parsed.display !== String(parsed.min)
+      ? `[Party: ${parsed.display}]${form.notes ? " " + form.notes : ""}`
+      : form.notes;
+    const payload = { ...form, partySize: parsed.min, notes: notesWithRange };
     setSaving(true);
     try {
       if (editBooking) {
@@ -514,7 +539,7 @@ function BookingsInner() {
                     </span>
                     <span className="flex items-center gap-1">
                       <Users className="h-3.5 w-3.5 text-slate-400 flex-shrink-0" />
-                      {b.partySize} guests
+                      {b.notes?.match(/^\[Party: ([^\]]+)\]/)?.[1] ?? b.partySize} guests
                     </span>
                     {b.table && (
                       <span className="text-slate-400 text-xs self-center">
@@ -568,7 +593,7 @@ function BookingsInner() {
                   {activeBooking?.customerName}
                 </SheetTitle>
                 <p className="text-sm text-slate-500 mt-0.5">
-                  {activeBooking && formatDate(activeBooking.date)} · {activeBooking?.time} · {activeBooking?.partySize} guests
+                  {activeBooking && formatDate(activeBooking.date)} · {activeBooking?.time} · {activeBooking?.notes?.match(/^\[Party: ([^\]]+)\]/)?.[1] ?? activeBooking?.partySize} guests
                 </p>
                 {activeBooking?.customerPhone && (
                   <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-1">
@@ -746,16 +771,22 @@ function BookingsInner() {
                 <div className="space-y-1.5">
                   <Label>Party Size *</Label>
                   <Input
-                    type="number"
-                    min={1}
-                    max={100}
-                    value={form.partySize === 0 ? "" : form.partySize}
+                    type="text"
+                    placeholder="e.g. 4, 30-35, ~20, 50+"
+                    value={form.partySizeRaw}
                     onChange={(e) => {
                       const raw = e.target.value;
-                      setForm({ ...form, partySize: raw === "" ? ("" as unknown as number) : parseInt(raw) });
+                      const parsed = parsePartySize(raw);
+                      setForm({
+                        ...form,
+                        partySizeRaw: raw,
+                        partySize: parsed ? (parsed.min as number) : ("" as unknown as number),
+                      });
                     }}
-                    required
                   />
+                  {form.partySizeRaw && !parsePartySize(form.partySizeRaw) && (
+                    <p className="text-xs text-red-500">Enter a number or range, e.g. 30-35</p>
+                  )}
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
