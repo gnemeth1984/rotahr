@@ -482,6 +482,30 @@ async function main(prisma: PrismaClient = new PrismaClient()) {
       },
     });
   }
+
+  // One expense with full AI line items so the "Push to Stock" flow is demoable
+  await prisma.expense.create({
+    data: {
+      businessId: BIZ,
+      amount: 876.00,
+      vatAmount: 164.83,
+      currency: "EUR",
+      vendor: "Diageo Ireland",
+      category: "beverages",
+      date: days(-2),
+      description: "Keg & spirits delivery — see line items",
+      paymentMethod: "invoice",
+      status: "confirmed",
+      createdById: USERS.tony,
+      aiRawText: "DIAGEO IRELAND LTD\nInvoice DIA-INV-2925\nDate: " + days(-2).toLocaleDateString("en-IE") + "\n\nGuinness Draught Keg 50L x2 @ €165.00 = €330.00\nHeineken Keg 50L x1 @ €145.00 = €145.00\nJameson Irish Whiskey 70cl x12 @ €22.00 = €264.00\nTanqueray Gin 70cl x6 @ €19.50 = €117.00\n\nSubtotal: €856.00\nVAT 23%: €164.83\nTotal: €876.00",
+      aiLineItems: [
+        { name: "Guinness Draught Keg 50L", quantity: 2,  unit: "keg",    unitPrice: 165.00 },
+        { name: "Heineken Keg 50L",         quantity: 1,  unit: "keg",    unitPrice: 145.00 },
+        { name: "Jameson Irish Whiskey 70cl", quantity: 12, unit: "bottle", unitPrice: 22.00 },
+        { name: "Tanqueray Gin 70cl",        quantity: 6,  unit: "bottle", unitPrice: 19.50 },
+      ],
+    },
+  });
   console.log("✅ Expenses created");
 
   // ── 10. Menu Specials ───────────────────────────────────────────────────────
@@ -848,6 +872,195 @@ async function main(prisma: PrismaClient = new PrismaClient()) {
     ],
   });
   console.log("✅ Suppliers & stock created");
+
+  // ── 20. Dishes / Recipes ────────────────────────────────────────────────────
+  await prisma.dishIngredient.deleteMany({ where: { dish: { businessId: BIZ } } });
+  await prisma.dish.deleteMany({ where: { businessId: BIZ } });
+
+  const dish1 = "demo-dish-ribeye";
+  const dish2 = "demo-dish-salmon";
+  const dish3 = "demo-dish-chicken";
+  const dish4 = "demo-dish-chips";
+  const dish5 = "demo-dish-guinness-stew";
+  const dish6 = "demo-dish-house-burger";
+
+  await prisma.dish.createMany({
+    data: [
+      { id: dish1, businessId: BIZ, name: "Ribeye Steak (10oz)", description: "Aged ribeye served with chips, seasonal veg & peppercorn sauce", category: "main", sellPrice: 28.50, active: true },
+      { id: dish2, businessId: BIZ, name: "Pan-Fried Atlantic Salmon", description: "Fresh Atlantic salmon, crushed new potatoes, dill cream sauce", category: "main", sellPrice: 24.00, active: true },
+      { id: dish3, businessId: BIZ, name: "Buttermilk Chicken & Chips", description: "Marinated buttermilk chicken breast, chunky chips, house slaw", category: "main", sellPrice: 18.50, active: true },
+      { id: dish4, businessId: BIZ, name: "Chunky Chips", description: "Hand-cut chunky chips with sea salt & house aioli", category: "sides", sellPrice: 5.00, active: true },
+      { id: dish5, businessId: BIZ, name: "Guinness & Beef Stew", description: "Slow-braised beef in Guinness, champ mash, soda bread", category: "main", sellPrice: 21.00, active: true },
+      { id: dish6, businessId: BIZ, name: "Anchor House Burger", description: "6oz beef patty, smoked cheddar, bacon jam, brioche bun, fries", category: "main", sellPrice: 17.50, active: true },
+    ],
+  });
+
+  await prisma.dishIngredient.createMany({
+    data: [
+      // Ribeye
+      { dishId: dish1, stockItemId: si3, name: "Ribeye Beef",   qty: 0.3,  unit: "kg" },
+      { dishId: dish1, stockItemId: si6, name: "Frozen Chips",  qty: 0.2,  unit: "kg" },
+      { dishId: dish1, stockItemId: null, name: "Peppercorn Sauce", qty: 1, unit: "portion" },
+      // Salmon
+      { dishId: dish2, stockItemId: si5, name: "Atlantic Salmon", qty: 0.2, unit: "kg" },
+      { dishId: dish2, stockItemId: null, name: "New Potatoes", qty: 0.15, unit: "kg" },
+      { dishId: dish2, stockItemId: null, name: "Dill Cream",   qty: 1,    unit: "portion" },
+      // Chicken
+      { dishId: dish3, stockItemId: si4, name: "Chicken Breast", qty: 0.2, unit: "kg" },
+      { dishId: dish3, stockItemId: si6, name: "Frozen Chips",  qty: 0.2,  unit: "kg" },
+      // Chips side
+      { dishId: dish4, stockItemId: si6, name: "Frozen Chips",  qty: 0.2,  unit: "kg" },
+      // Guinness Stew
+      { dishId: dish5, stockItemId: si3, name: "Ribeye Beef",   qty: 0.2,  unit: "kg" },
+      { dishId: dish5, stockItemId: si1, name: "Guinness",      qty: 0.5,  unit: "litre" },
+      // Burger
+      { dishId: dish6, stockItemId: si3, name: "Beef Mince",    qty: 0.18, unit: "kg" },
+      { dishId: dish6, stockItemId: si6, name: "Frozen Chips",  qty: 0.15, unit: "kg" },
+    ],
+  });
+  console.log("✅ Dishes / recipes created");
+
+  // ── 21. Wastage Records ─────────────────────────────────────────────────────
+  await prisma.wastageRecord.deleteMany({ where: { businessId: BIZ } });
+
+  await prisma.wastageRecord.createMany({
+    data: [
+      { businessId: BIZ, stockItemId: si5, itemName: "Atlantic Salmon (whole, 3kg)", quantity: 1,    unit: "unit",   unitCost: 35.00, totalCost: 35.00, reason: "expiry",    notes: "Missed Friday order window — past use-by",    recordedBy: USERS.marco, date: days(-2)  },
+      { businessId: BIZ, stockItemId: si3, itemName: "Ribeye Beef (5kg)",            quantity: 0.5,  unit: "kg",     unitCost: 19.60, totalCost: 9.80,  reason: "spoilage",  notes: "Freezer door left open overnight",            recordedBy: USERS.marco, date: days(-4)  },
+      { businessId: BIZ, stockItemId: si6, itemName: "Frozen Chips 10kg",            quantity: 2,    unit: "kg",     unitCost: 2.20,  totalCost: 4.40,  reason: "over-prep", notes: "Overcooked batch during Saturday rush",       recordedBy: USERS.caitlin, date: days(-6) },
+      { businessId: BIZ, stockItemId: si2, itemName: "Heineken Keg 50L",             quantity: 0.25, unit: "keg",    unitCost: 145.00,totalCost: 36.25, reason: "spill",     notes: "Keg connector failure — partial loss",        recordedBy: USERS.fiona, date: days(-7)  },
+      { businessId: BIZ, stockItemId: si4, itemName: "Chicken Breast (5kg)",         quantity: 0.3,  unit: "kg",     unitCost: 8.40,  totalCost: 2.52,  reason: "expiry",    notes: "Small batch past use-by",                     recordedBy: USERS.marco, date: days(-10) },
+      { businessId: BIZ, stockItemId: si5, itemName: "Atlantic Salmon (whole, 3kg)", quantity: 0.5,  unit: "unit",   unitCost: 35.00, totalCost: 17.50, reason: "over-prep", notes: "Special removed from menu mid-service",       recordedBy: USERS.marco, date: days(-14) },
+      { businessId: BIZ, stockItemId: null, itemName: "House Red Wine",              quantity: 1,    unit: "bottle", unitCost: 9.50,  totalCost: 9.50,  reason: "spill",     notes: "Dropped by floor staff — floor incident",     recordedBy: USERS.sarah, date: days(-15) },
+    ],
+  });
+  console.log("✅ Wastage records created");
+
+  // ── 22. CRM — Customers ─────────────────────────────────────────────────────
+  await prisma.crmEmail.deleteMany({ where: { customer: { businessId: BIZ } } });
+  await prisma.crmNote.deleteMany({ where: { customer: { businessId: BIZ } } });
+  await prisma.customer.deleteMany({ where: { businessId: BIZ } });
+
+  const cust1 = "demo-cust-niamh";
+  const cust2 = "demo-cust-patrick";
+  const cust3 = "demo-cust-siobhan";
+  const cust4 = "demo-cust-colm";
+  const cust5 = "demo-cust-helen";
+
+  await prisma.customer.createMany({
+    data: [
+      { id: cust1, businessId: BIZ, name: "Niamh Gallagher", email: "niamh.gallagher@email.ie", phone: "087 123 4567", tags: ["regular", "vip"], internalNotes: "Always books window table. Wine lover — prefers French reds.", gdprConsent: true, gdprConsentAt: days(-90) },
+      { id: cust2, businessId: BIZ, name: "Patrick Doyle",   email: "pdoyle@gmail.com",          phone: "086 234 5678", tags: ["regular"],        internalNotes: "Comes every Friday evening. Large group bookings.", gdprConsent: true, gdprConsentAt: days(-120) },
+      { id: cust3, businessId: BIZ, name: "Siobhán Ó'Brien", email: "siobhan.ob@outlook.com",    phone: "085 345 6789", tags: ["allergy"],         internalNotes: "Nut allergy — SEVERE. Always confirm with kitchen.", allergies: "Tree nuts, peanuts", gdprConsent: true, gdprConsentAt: days(-60) },
+      { id: cust4, businessId: BIZ, name: "Colm Farrell",    email: "cfarrell@live.ie",           phone: "083 456 7890", tags: ["corporate"],      internalNotes: "Books for business dinners. Needs VAT receipts.", gdprConsent: true, gdprConsentAt: days(-45) },
+      { id: cust5, businessId: BIZ, name: "Helen Murphy",    email: "hmurphy@gmail.com",          phone: "087 567 8901", tags: ["birthday-club"],  internalNotes: "Birthday in March. Champagne on arrival — past arrangement.", gdprConsent: true, gdprConsentAt: days(-180), birthday: new Date("1985-03-14") },
+    ],
+  });
+
+  await prisma.crmNote.createMany({
+    data: [
+      { customerId: cust1, authorId: USERS.sarah, note: "Called ahead for anniversary dinner on Sat. Requested candles and dessert with message. Confirmed.",               createdAt: days(-3) },
+      { customerId: cust1, authorId: USERS.tony,  note: "Left great Google review after last visit. Mentioned Marco's salmon. Follow up with loyalty card offer.",         createdAt: days(-14) },
+      { customerId: cust2, authorId: USERS.sarah, note: "Group of 14 confirmed for Friday. Needs pre-set menu. Chase deposit by Wed.",                                    createdAt: days(-1) },
+      { customerId: cust3, authorId: USERS.tony,  note: "Allergy flagged again on last visit. Staff handled correctly. Reminded kitchen to double-check cross-contamination.", createdAt: days(-7) },
+      { customerId: cust4, authorId: USERS.sarah, note: "Corp booking for 8 on Tuesday. Needs a VAT invoice sent after. Remind Fiona to print.",                         createdAt: days(-2) },
+      { customerId: cust5, authorId: USERS.tony,  note: "Birthday dinner in March was a hit. She posted on Instagram. Consider reaching out in Feb for this year.",       createdAt: days(-90) },
+    ],
+  });
+  console.log("✅ CRM customers + notes created");
+
+  // ── 23. Shift Swap Requests ─────────────────────────────────────────────────
+  await prisma.shiftSwapRequest.deleteMany({ where: { businessId: BIZ } });
+
+  // Get some current-week shift IDs to reference
+  const weekStart = monday(0);
+  const weekEnd   = new Date(weekStart); weekEnd.setDate(weekEnd.getDate() + 7);
+  const currentShifts = await prisma.shift.findMany({
+    where: { venueId: VENUE, startTime: { gte: weekStart, lt: weekEnd } },
+    select: { id: true, employeeId: true },
+    take: 10,
+  });
+
+  if (currentShifts.length >= 4) {
+    const tommyShift  = currentShifts.find(s => s.employeeId === EMPS.tommy);
+    const liamShift   = currentShifts.find(s => s.employeeId === EMPS.liam);
+    const aoifeShift  = currentShifts.find(s => s.employeeId === EMPS.aoife);
+    const roisinShift = currentShifts.find(s => s.employeeId === EMPS.roisin);
+
+    if (tommyShift && liamShift) {
+      // Open swap — Tommy looking for cover
+      await prisma.shiftSwapRequest.create({
+        data: {
+          businessId: BIZ,
+          offererId: EMPS.tommy,
+          offeredShiftId: tommyShift.id,
+          status: "open",
+        },
+      });
+    }
+
+    if (aoifeShift && roisinShift) {
+      // Pending — Aoife & Róisín agreed, waiting manager sign-off
+      await prisma.shiftSwapRequest.create({
+        data: {
+          businessId: BIZ,
+          offererId: EMPS.aoife,
+          offeredShiftId: aoifeShift.id,
+          receiverId: EMPS.roisin,
+          receiverShiftId: roisinShift.id,
+          status: "pending",
+        },
+      });
+    }
+  }
+  console.log("✅ Shift swap requests created");
+
+  // ── 24. Employee Documents & Onboarding Tasks ───────────────────────────────
+  await prisma.onboardingTask.deleteMany({ where: { businessId: BIZ } });
+
+  // Declan is newest — has onboarding tasks in progress
+  await prisma.onboardingTask.createMany({
+    data: [
+      { businessId: BIZ, employeeId: EMPS.declan, title: "Sign employment contract",            description: "Wet signature required — HR file copy.",          completed: true,  completedAt: days(-25), sortOrder: 1, dueDate: days(-28) },
+      { businessId: BIZ, employeeId: EMPS.declan, title: "Submit P45 / Tax credits cert",       description: "Revenue myAccount or HR to request direct.",       completed: true,  completedAt: days(-22), sortOrder: 2, dueDate: days(-25) },
+      { businessId: BIZ, employeeId: EMPS.declan, title: "HACCP Level 1 training",              description: "Book QQI Level 1 course — mandatory before solo kitchen shift.", completed: false, dueDate: days(7), sortOrder: 3 },
+      { businessId: BIZ, employeeId: EMPS.declan, title: "Manual handling induction",           description: "Complete in-house manual handling session with Marco.", completed: false, dueDate: days(3), sortOrder: 4 },
+      { businessId: BIZ, employeeId: EMPS.declan, title: "Staff handbook acknowledgement",      description: "Sign and return acknowledgement page to management.", completed: true, completedAt: days(-20), sortOrder: 5, dueDate: days(-21) },
+      // Liam — recent hire
+      { businessId: BIZ, employeeId: EMPS.liam, title: "Sign employment contract",              description: null,                                                completed: true,  completedAt: days(-40), sortOrder: 1, dueDate: days(-42) },
+      { businessId: BIZ, employeeId: EMPS.liam, title: "RSA Responsible Serving of Alcohol",    description: "Book next available course if not already certified.", completed: true, completedAt: days(-38), sortOrder: 2, dueDate: days(-40) },
+      { businessId: BIZ, employeeId: EMPS.liam, title: "ID verification (Right to Work)",       description: "Passport / GNIB card photocopied + HR file.",         completed: true, completedAt: days(-39), sortOrder: 3, dueDate: days(-41) },
+      { businessId: BIZ, employeeId: EMPS.liam, title: "Bar induction with Fiona",              description: "Shadow Fiona for first 2 shifts.",                  completed: false, dueDate: days(-5), sortOrder: 4 },
+    ],
+  });
+  console.log("✅ Onboarding tasks created");
+
+  // ── 25. Supplier Statements ─────────────────────────────────────────────────
+  await prisma.supplierStatement.deleteMany({ where: { businessId: BIZ } });
+
+  await prisma.supplierStatement.createMany({
+    data: [
+      {
+        businessId: BIZ,
+        supplierId: sup1,
+        fileUrl: "https://placehold.co/600x800/f8f9fa/6c757d?text=Musgrave+Statement",
+        fileName: "musgrave-statement-june-2025.pdf",
+        totalAmount: 3240.50,
+        invoiceRef: "MUS-STMT-2025-06",
+        status: "accepted",
+      },
+      {
+        businessId: BIZ,
+        supplierId: sup2,
+        fileUrl: "https://placehold.co/600x800/f8f9fa/6c757d?text=Diageo+Statement",
+        fileName: "diageo-statement-june-2025.pdf",
+        totalAmount: 2436.00,
+        invoiceRef: "DIA-STMT-2025-06",
+        status: "pending",
+      },
+    ],
+  });
+  console.log("✅ Supplier statements created");
 
   console.log("\n✅ Demo seed complete!");
   console.log("\n📋 Demo Login Accounts:");
