@@ -221,7 +221,7 @@ function BookingsInner() {
   async function fetchBookings() {
     setLoading(true);
     try {
-      const url = filterDate ? `/api/reservations?date=${filterDate}` : "/api/reservations?all=true";
+      const url = filterDate ? `/api/reservations?date=${filterDate}` : `/api/reservations?all=true&from=${getTodayStr()}`;
       const res = await fetch(url);
       if (!res.ok) throw new Error("Failed");
       const data = await res.json();
