@@ -230,14 +230,14 @@ export default function PitchPage() {
                   <div className="slide-title">Built for <span>Irish Hospitality</span></div>
                   <div className="slide-sub">Every feature driven by real feedback from Irish pub &amp; restaurant owners</div>
                   <div className="wn-grid">
-                    <div className="wn-card hl"><div className="wn-new">New</div><div className="wn-icon">🤖</div><div className="wn-name">AI Booking Assistant</div><div className="wn-desc">Handles reservations 24/7, suggests staffing adjustments based on demand, auto-confirms and emails guests.</div></div>
+                    <div className="wn-card hl"><div className="wn-new">New</div><div className="wn-icon">🗑️</div><div className="wn-name">Wastage Recording</div><div className="wn-desc">Log spoilage, over-prep, spills and expiry. See the true cost of waste per item and in total — across your whole kitchen.</div></div>
+                    <div className="wn-card hl"><div className="wn-new">New</div><div className="wn-icon">👨‍🍳</div><div className="wn-name">Recipe Costing & GP%</div><div className="wn-desc">Build recipes from your stock list. Live cost-per-portion and gross profit % — auto-updates whenever supplier prices change.</div></div>
+                    <div className="wn-card hl"><div className="wn-new">New</div><div className="wn-icon">📈</div><div className="wn-name">Price Variance Alerts</div><div className="wn-desc">AI reads supplier invoices and flags items where the price has increased more than 5% since last order. Know before you pay.</div></div>
                     <div className="wn-card hl"><div className="wn-new">New</div><div className="wn-icon">👥</div><div className="wn-name">CRM & Customer Profiles</div><div className="wn-desc">Auto-built from reservations. Track visits, no-shows, spend, and notes. GDPR-compliant with one-click anonymisation.</div></div>
-                    <div className="wn-card hl"><div className="wn-new">New</div><div className="wn-icon">🍽️</div><div className="wn-name">Menu Specials</div><div className="wn-desc">Post daily specials, menu changes, and announcements. All staff see them instantly in the app.</div></div>
-                    <div className="wn-card hl"><div className="wn-new">New</div><div className="wn-icon">🔗</div><div className="wn-name">POS Integration</div><div className="wn-desc">Connect Lightspeed or Square. Booking data flows into your till system. No double entry.</div></div>
-                    <div className="wn-card"><div className="wn-icon">🧾</div><div className="wn-name">AI Receipt Scanning</div><div className="wn-desc">Photo a receipt, AI reads it and auto-fills expense details. VAT tracking included.</div></div>
+                    <div className="wn-card"><div className="wn-icon">🤖</div><div className="wn-name">AI Booking Assistant</div><div className="wn-desc">Handles reservations 24/7, suggests staffing adjustments based on demand, auto-confirms and emails guests.</div></div>
+                    <div className="wn-card"><div className="wn-icon">🔗</div><div className="wn-name">POS Integration</div><div className="wn-desc">Connect Lightspeed or Square. Booking data flows into your till system. No double entry.</div></div>
+                    <div className="wn-card"><div className="wn-icon">🧾</div><div className="wn-name">AI Invoice Scanning</div><div className="wn-desc">Upload a supplier invoice, AI reads line items and auto-fills stock levels and prices. No manual entry.</div></div>
                     <div className="wn-card"><div className="wn-icon">📱</div><div className="wn-name">Staff Mobile App</div><div className="wn-desc">iOS & Android. Push notifications for shifts, time-off approvals, rota changes and booking updates.</div></div>
-                    <div className="wn-card"><div className="wn-icon">📊</div><div className="wn-name">Dashboard & Reporting</div><div className="wn-desc">Labour cost vs revenue, P&L, VAT report, CSV export. Weekly and monthly breakdowns.</div></div>
-                    <div className="wn-card"><div className="wn-icon">🤝</div><div className="wn-name">Partner Programme</div><div className="wn-desc">Earn 20% recurring commission. Paid automatically via Lemon Squeezy. No admin.</div></div>
                   </div>
                 </div>
               </div>
@@ -257,35 +257,39 @@ export default function PitchPage() {
                         <tr>
                           <th className="feat">Feature</th>
                           <th className="rh">Rotahr</th>
+                          <th className="oth">Nory</th>
+                          <th className="oth">Supy</th>
                           <th className="oth">Deputy</th>
-                          <th className="oth">7shifts</th>
-                          <th className="oth">Pen & paper</th>
                         </tr>
                       </thead>
                       <tbody>
                         {[
-                          ["Rota & Scheduling", true, true, true, false],
+                          ["Rota & Scheduling", true, true, false, true],
+                          ["AI Invoice Reading", true, false, true, false],
+                          ["Wastage Recording", true, false, true, false],
+                          ["Recipe Costing & GP%", true, true, true, false],
+                          ["Price Variance Alerts", true, false, true, false],
                           ["AI Booking Assistant", true, false, false, false],
-                          ["CRM & Customer Profiles", true, false, false, false],
-                          ["Expense Tracking & Receipts", true, false, false, false],
-                          ["Menu Specials & Announcements", true, false, false, false],
-                          ["POS Integration", true, false, false, false],
-                          ["iOS & Android Staff App", true, true, true, false],
-                        ].map(([label, rh, dep, sev, pen]) => (
+                          ["CRM & Customer Profiles", true, true, false, false],
+                          ["Expense Tracking", true, false, false, false],
+                          ["POS Integration", true, true, true, false],
+                          ["iOS & Android Staff App", true, true, false, true],
+                          ["Menu Specials & Comms", true, false, false, false],
+                        ].map(([label, rh, nory, supy, dep]) => (
                           <tr key={String(label)}>
                             <td className="feat">{String(label)}</td>
                             <td className="rh">{rh ? <span className="chk">✓</span> : <span className="crs">✗</span>}</td>
+                            <td className="oth">{nory ? <span className="chk">✓</span> : <span className="crs">✗</span>}</td>
+                            <td className="oth">{supy ? <span className="chk">✓</span> : <span className="crs">✗</span>}</td>
                             <td className="oth">{dep ? <span className="chk">✓</span> : <span className="crs">✗</span>}</td>
-                            <td className="oth">{sev ? <span className="chk">✓</span> : <span className="crs">✗</span>}</td>
-                            <td className="oth">{pen ? <span className="chk">✓</span> : <span className="crs">✗</span>}</td>
                           </tr>
                         ))}
                         <tr className="price-row">
                           <td className="feat">Starting price (incl. VAT)</td>
                           <td className="rh" style={{ color: "#f97316" }}>€59/mo</td>
+                          <td className="oth">€200+/mo</td>
+                          <td className="oth">€150+/mo</td>
                           <td className="oth">€80+/mo</td>
-                          <td className="oth">€70+/mo</td>
-                          <td className="oth">Hidden cost</td>
                         </tr>
                       </tbody>
                     </table>
@@ -326,8 +330,10 @@ export default function PitchPage() {
                         <li>Everything in Starter</li>
                         <li>AI booking assistant</li>
                         <li>CRM & customer profiles</li>
-                        <li>Bookkeeping & receipts</li>
-                        <li>Menu specials & POS</li>
+                        <li>Bookkeeping, receipts & AI invoice reading</li>
+                        <li>Stock, wastage & price variance</li>
+                        <li>Recipe costing & GP%</li>
+                        <li>Menu specials & POS integration</li>
                       </ul>
                     </div>
                     <div className="price-card">

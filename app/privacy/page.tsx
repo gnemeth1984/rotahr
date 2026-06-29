@@ -40,7 +40,11 @@ export default function PrivacyPage() {
               </li>
               <li>
                 <strong>Financial data:</strong> expense records, VAT amounts, supplier names and VAT numbers,
-                receipt images (temporarily), supplier invoice data.
+                receipt images (temporarily), supplier invoice data, stock item prices and purchase history,
+                wastage records (item name, quantity, date, reason, estimated cost), recipe and ingredient data
+                (names, quantities, unit costs, GP% calculations). This data is stored solely to provide cost
+                management features and is not shared with third parties. You can delete any wastage record or
+                recipe at any time from within the platform.
               </li>
               <li>
                 <strong>Payment data:</strong> subscription status, plan type. Payment card processing is handled

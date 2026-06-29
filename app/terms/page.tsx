@@ -21,8 +21,8 @@ export default function TermsPage() {
             <h2 className="text-lg font-semibold text-slate-800 mb-2">2. The service</h2>
             <p>
               Rotahr provides workforce and operations management tools for hospitality businesses, including
-              rota scheduling, bookkeeping, booking management, stock control, and related features. The service
-              is provided on a subscription basis.
+              rota scheduling, bookkeeping, booking management, stock control, wastage recording, recipe costing,
+              supplier price tracking, and related features. The service is provided on a subscription basis.
             </p>
           </section>
 
