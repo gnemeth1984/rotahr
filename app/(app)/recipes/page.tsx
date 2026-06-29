@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   ChefHat, Plus, Pencil, Trash2, X, Check, AlertTriangle,
   TrendingUp, Package, Search, Filter
@@ -170,6 +170,9 @@ function RecipeDialog({
   const [newIngQty, setNewIngQty] = useState("1");
   const [newIngUnit, setNewIngUnit] = useState("unit");
   const [newIngStockId, setNewIngStockId] = useState("");
+  const [stockSearch, setStockSearch] = useState("");
+  const [stockDropOpen, setStockDropOpen] = useState(false);
+  const stockInputRef = useRef<HTMLInputElement>(null);
 
   const liveCost = calcCost(ingredients);
   const sell = parseFloat(sellPrice) || null;
@@ -193,6 +196,7 @@ function RecipeDialog({
     setNewIngName("");
     setNewIngQty("1");
     setNewIngStockId("");
+    setStockSearch("");
   }
 
   function pickStockItem(id: string) {
@@ -201,8 +205,13 @@ function RecipeDialog({
     if (si) {
       setNewIngName(si.name);
       setNewIngUnit(si.unit);
+      setStockSearch(si.name);
     }
   }
+
+  const stockMatches = stockSearch.trim()
+    ? stockItems.filter((s) => s.name.toLowerCase().includes(stockSearch.toLowerCase()))
+    : stockItems;
 
   function removeIngredient(idx: number) {
     setIngredients((prev) => prev.filter((_, i) => i !== idx));
@@ -363,17 +372,45 @@ function RecipeDialog({
             <div className="border border-dashed border-slate-300 rounded-xl p-3 space-y-2">
               <p className="text-xs font-medium text-slate-400">Add ingredient</p>
               <div className="grid grid-cols-12 gap-2">
-                <div className="col-span-5">
-                  <select
-                    value={newIngStockId}
-                    onChange={(e) => pickStockItem(e.target.value)}
-                    className="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-violet-400"
-                  >
-                    <option value="">Pick from stock…</option>
-                    {stockItems.map((s) => (
-                      <option key={s.id} value={s.id}>{s.name}</option>
-                    ))}
-                  </select>
+                <div className="col-span-5 relative">
+                  <div className="relative">
+                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-slate-400 pointer-events-none" />
+                    <input
+                      ref={stockInputRef}
+                      type="text"
+                      value={stockSearch}
+                      placeholder="Search stock…"
+                      autoComplete="off"
+                      className="w-full border border-slate-200 rounded-lg pl-6 pr-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-violet-400"
+                      onChange={(e) => {
+                        setStockSearch(e.target.value);
+                        setStockDropOpen(true);
+                        if (!e.target.value.trim()) {
+                          setNewIngStockId("");
+                        }
+                      }}
+                      onFocus={() => setStockDropOpen(true)}
+                      onBlur={() => setTimeout(() => setStockDropOpen(false), 150)}
+                    />
+                  </div>
+                  {stockDropOpen && stockMatches.length > 0 && (
+                    <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-44 overflow-y-auto">
+                      {stockMatches.map((s) => (
+                        <button
+                          key={s.id}
+                          type="button"
+                          onMouseDown={(e) => { e.preventDefault(); pickStockItem(s.id); setStockDropOpen(false); }}
+                          className={cn(
+                            "w-full text-left px-3 py-2 text-xs hover:bg-violet-50 flex items-center justify-between gap-2",
+                            newIngStockId === s.id && "bg-violet-50 text-violet-700 font-medium"
+                          )}
+                        >
+                          <span>{s.name}</span>
+                          <span className="text-slate-400 shrink-0">{s.unit}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <div className="col-span-5">
                   <input
