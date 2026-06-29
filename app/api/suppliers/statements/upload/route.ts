@@ -54,7 +54,7 @@ Return a JSON object with:
 Return only valid JSON, no markdown.`;
 
       const response = await openai.chat.completions.create({
-        model: "gpt-4o",
+        model: "gpt-4o-mini",
         messages: [
           {
             role: "user",

@@ -58,7 +58,7 @@ Return ONLY the JSON object, no markdown, no explanation.`;
             Authorization: `Bearer ${openaiKey}`,
           },
           body: JSON.stringify({
-            model: "gpt-4o",
+            model: "gpt-4o-mini",
             messages: [
               {
                 role: "user",

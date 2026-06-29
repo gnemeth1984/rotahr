@@ -1,32 +1,38 @@
-# Rotahr Big Build - Task Plan
+# Rotahr Big Build - COMPLETED June 2026
 
-## 1. NEW FEATURES TO BUILD
-- [ ] Wastage Recording (easy) — staff log thrown items, tied to stock
-- [ ] Price Variance Alerts (easy) — flag when supplier charges more than last time
-- [ ] Recipe Costing (medium) — create dish, add ingredients, live cost calculation
+## ✅ DONE
 
-## 2. PITCH DECK UPDATE
-- [ ] Update slides with new features (wastage, price variance, recipe costing)
-- [ ] Update competitive comparison slide
-- [ ] Update feature list
+### 1. New Features
+- [x] Wastage Recording — WastageRecord model in DB, /api/stock/wastage, Wastage tab in Stock page
+- [x] Price Variance Alerts — /api/stock/price-variance, Price Variance tab in Stock page
+- [x] Recipe Costing — /recipes page (uses Dish/DishIngredient), sidebar nav entry added
 
-## 3. LEGAL UPDATES
-- [ ] Review /terms and /privacy for new features (wastage, recipe data)
-- [ ] Add recipe/food cost data clauses if needed
+### 2. Pitch Deck Update (app/pitch/page.tsx)
+- [x] Competitor table now Nory + Supy (not Deputy/7shifts)
+- [x] Added wastage, recipe costing, price variance to comparison
+- [x] What's New slide updated with 3 new features at top
+- [x] Pro plan feature list updated
 
-## 4. SOCIAL MEDIA COMPETITOR RESEARCH
-- [ ] Search Twitter/X, LinkedIn for businesses commenting on Nory, Supy
-- [ ] Find businesses that showed interest / complaints / questions
-- [ ] Build contact list (business name, handle, what they said, contact info)
+### 3. Legal Updates
+- [x] privacy/page.tsx: added wastage + recipe + stock pricing data clauses
+- [x] terms/page.tsx: updated service description
 
-## ORDER OF WORK
-1. Build features (wastage → price variance → recipe costing)
-2. Test nothing is broken
-3. Update pitch deck
-4. Legal check
-5. Competitor social research → contact list
+### 4. Competitor Social Research
+- [x] KEY FINDING: Nory only serves multi-site chains (~£300/site/mo)
+- [x] Supy focuses on UAE/multi-site, no scheduling
+- [x] competitor-research.md — full analysis
+- [x] competitor-leads.csv — 16 leads with handles/context/priority
+- [x] outreach-strategy.md — full playbook + email templates
 
-## ROTAHR STACK
-- Next.js App Router, TypeScript, Prisma, Neon PostgreSQL
-- Tailwind + Shadcn UI
-- Vercel deployment, rotahr.com
+## COMMITS
+- 97fc33d: feat: wastage recording, price variance, recipe costing
+- e029b3f: feat: pitch deck + legal updates
+- b0eeec9: research: competitor social research + outreach strategy
+
+## NEXT FOR GABOR
+1. Vercel will auto-deploy from main (watch rotahr.com)
+2. Use outreach/competitor-leads.csv as your sales hit list
+3. LinkedIn: post "Why Nory isn't for most Irish pubs" this week
+4. Join techontoast.community to reach UK hospitality tech buyers
+5. Follow @asknory + @supy.io, monitor comments for warm leads
+6. Email Template A to MOR Bakery (found on Trustpilot, rejected by Nory)
