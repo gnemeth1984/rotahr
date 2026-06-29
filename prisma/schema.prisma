@@ -903,8 +903,8 @@ model SupplierStatement {
   id          String   @id @default(cuid())
   businessId  String
   business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  supplierId  String
-  supplier    Supplier @relation(fields: [supplierId], references: [id])
+  supplierId  String?
+  supplier    Supplier? @relation(fields: [supplierId], references: [id])
 
   fileUrl     String   // Vercel Blob URL
   fileName    String
