@@ -79,24 +79,27 @@ interface SupplierOrder {
 
 interface StatementLineItem {
   description: string;
-  quantity: number | null;
+  sku?: string | null;
+  qty?: number | null;
+  quantity?: number | null; // legacy
   unitPrice: number | null;
-  total: number | null;
-  matchedItemId: string | null;
-  matchedItemName: string | null;
+  lineTotal?: number | null;
+  total?: number | null; // legacy
+  matchedItemId?: string | null;
+  matchedItemName?: string | null;
 }
 
 interface SupplierStatement {
   id: string;
-  supplierId: string;
-  supplier: { id: string; name: string };
-  imageUrl: string;
-  invoiceNumber: string | null;
-  invoiceDate: string | null;
+  supplierId: string | null;
+  supplier: { id: string; name: string } | null;
+  fileUrl: string;
+  fileName: string;
+  invoiceRef: string | null;
   totalAmount: number | null;
   status: string;
-  lineItems: StatementLineItem[];
-  notes: string | null;
+  aiExtracted: StatementLineItem[];
+  matchedOrderId: string | null;
   createdAt: string;
 }
 
@@ -1701,7 +1704,7 @@ function SupplierStatementsTab({
         <div className="space-y-3">
           {filtered.map((stmt) => {
             const isExpanded = expandedId === stmt.id;
-            const lineItems: StatementLineItem[] = Array.isArray(stmt.lineItems) ? stmt.lineItems : [];
+            const lineItems: StatementLineItem[] = Array.isArray(stmt.aiExtracted) ? stmt.aiExtracted : [];
             return (
               <Card key={stmt.id} className="border-slate-200 overflow-hidden">
                 <CardContent className="p-0">
@@ -1716,15 +1719,13 @@ function SupplierStatementsTab({
                       </div>
                       <div className="min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <p className="text-sm font-semibold text-slate-900">{stmt.supplier?.name ?? "Unknown Supplier"}</p>
-                          {stmt.invoiceNumber && (
-                            <span className="text-xs text-slate-400">#{stmt.invoiceNumber}</span>
+                          <p className="text-sm font-semibold text-slate-900">{stmt.supplier?.name ?? "All Suppliers"}</p>
+                          {stmt.invoiceRef && (
+                            <span className="text-xs text-slate-400">#{stmt.invoiceRef}</span>
                           )}
                         </div>
                         <div className="flex items-center gap-3 mt-0.5 flex-wrap">
-                          {stmt.invoiceDate && (
-                            <span className="text-xs text-slate-500">{stmt.invoiceDate}</span>
-                          )}
+                          <span className="text-xs text-slate-500">{new Date(stmt.createdAt).toLocaleDateString("en-IE")}</span>
                           <span className="text-xs text-slate-400">{lineItems.length} line item{lineItems.length !== 1 ? "s" : ""}</span>
                           <span className={cn("inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium", statusColor(stmt.status))}>
                             {stmt.status === "reconciled" ? <CheckCheck className="h-3 w-3" /> : <CircleDot className="h-3 w-3" />}
@@ -1744,12 +1745,10 @@ function SupplierStatementsTab({
                   {/* Expanded: line items + reconcile */}
                   {isExpanded && (
                     <div className="border-t border-slate-100 px-4 pb-4">
-                      {/* Invoice image thumbnail */}
-                      {stmt.imageUrl && (
-                        <div className="mt-3 mb-3 max-h-28 rounded-lg overflow-hidden border border-slate-100">
-                          <img src={stmt.imageUrl} alt="Invoice" className="w-full object-contain max-h-28" />
-                        </div>
-                      )}
+                      {/* Invoice image thumbnail — private blob, show filename only */}
+                      <div className="mt-3 mb-2 flex items-center gap-2 text-xs text-slate-500">
+                        <FileText className="h-3.5 w-3.5" />{stmt.fileName}
+                      </div>
 
                       {lineItems.length === 0 ? (
                         <p className="text-xs text-slate-400 py-3">No line items extracted.</p>
@@ -1759,38 +1758,25 @@ function SupplierStatementsTab({
                             <thead>
                               <tr className="bg-slate-50 border-b border-slate-100">
                                 <th className="text-left px-3 py-2 text-xs font-medium text-slate-500">Description</th>
+                                <th className="text-left px-3 py-2 text-xs font-medium text-slate-500">SKU</th>
                                 <th className="text-center px-3 py-2 text-xs font-medium text-slate-500">Qty</th>
-                                <th className="text-right px-3 py-2 text-xs font-medium text-slate-500">Unit Price</th>
+                                <th className="text-right px-3 py-2 text-xs font-medium text-slate-500">Unit €</th>
                                 <th className="text-right px-3 py-2 text-xs font-medium text-slate-500">Total</th>
-                                <th className="text-center px-3 py-2 text-xs font-medium text-slate-500">Match</th>
                               </tr>
                             </thead>
                             <tbody>
                               {lineItems.map((item, i) => (
                                 <tr key={i} className="border-b border-slate-50 last:border-0">
                                   <td className="px-3 py-2.5">
-                                    <p className="text-slate-800 font-medium">{item.description}</p>
-                                    {item.matchedItemName && item.matchedItemName !== item.description && (
-                                      <p className="text-xs text-slate-400 mt-0.5">→ {item.matchedItemName}</p>
-                                    )}
+                                    <p className="text-slate-800 font-medium text-xs">{item.description}</p>
                                   </td>
-                                  <td className="px-3 py-2.5 text-center text-slate-600 text-xs">{item.quantity ?? "—"}</td>
+                                  <td className="px-3 py-2.5 text-left text-slate-400 text-xs">{item.sku ?? "—"}</td>
+                                  <td className="px-3 py-2.5 text-center text-slate-600 text-xs">{item.qty ?? item.quantity ?? "—"}</td>
                                   <td className="px-3 py-2.5 text-right text-slate-600 text-xs">
                                     {item.unitPrice != null ? fmt(item.unitPrice) : "—"}
                                   </td>
                                   <td className="px-3 py-2.5 text-right font-medium text-slate-800 text-xs">
-                                    {item.total != null ? fmt(item.total) : "—"}
-                                  </td>
-                                  <td className="px-3 py-2.5 text-center">
-                                    {item.matchedItemId ? (
-                                      <span className="inline-flex items-center gap-0.5 text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-medium">
-                                        <CheckCircle2 className="h-2.5 w-2.5" /> Matched
-                                      </span>
-                                    ) : (
-                                      <span className="inline-flex items-center gap-0.5 text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-full">
-                                        No match
-                                      </span>
-                                    )}
+                                    {(item.lineTotal ?? item.total) != null ? fmt((item.lineTotal ?? item.total)!) : "—"}
                                   </td>
                                 </tr>
                               ))}
@@ -1820,16 +1806,6 @@ function SupplierStatementsTab({
                             {reconcilingId === stmt.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCheck className="h-3 w-3" />}
                             Mark Reconciled
                           </Button>
-                        )}
-                        {stmt.imageUrl && (
-                          <a
-                            href={stmt.imageUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 text-xs h-7 px-3 rounded-md border border-slate-200 text-slate-600 hover:bg-slate-50"
-                          >
-                            <FileText className="h-3 w-3" /> View Invoice
-                          </a>
                         )}
                         <span className="ml-auto text-xs text-slate-400">
                           Added {new Date(stmt.createdAt).toLocaleDateString("en-IE")}
