@@ -1823,6 +1823,343 @@ function SupplierStatementsTab({
   );
 }
 
+// ─── Wastage Tab ─────────────────────────────────────────────────────────────
+
+function WastageTab({ stockItems, fmt }: { stockItems: any[]; fmt: (n: any) => string }) {
+  const [records, setRecords] = useState<any[]>([]);
+  const [totalCost, setTotalCost] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [dialog, setDialog] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({
+    stockItemId: "",
+    itemName: "",
+    quantity: "",
+    unit: "unit",
+    unitCost: "",
+    reason: "spoilage",
+    notes: "",
+    date: new Date().toISOString().slice(0, 10),
+  });
+
+  const REASONS = ["spoilage", "over-prep", "spill", "expiry", "other"];
+  const UNITS = ["unit", "kg", "g", "litre", "ml", "portion", "case", "bottle"];
+
+  async function load() {
+    setLoading(true);
+    const res = await fetch("/api/stock/wastage");
+    const data = await res.json();
+    setRecords(data.records ?? []);
+    setTotalCost(data.totalCost ?? 0);
+    setLoading(false);
+  }
+
+  useEffect(() => { load(); }, []);
+
+  function pickStockItem(id: string) {
+    const item = stockItems.find((s) => s.id === id);
+    setForm((f) => ({
+      ...f,
+      stockItemId: id,
+      itemName: item?.name ?? f.itemName,
+      unit: item?.unit ?? f.unit,
+      unitCost: item?.lastPrice?.toString() ?? f.unitCost,
+    }));
+  }
+
+  async function submit() {
+    if (!form.itemName || !form.quantity) return;
+    setSaving(true);
+    await fetch("/api/stock/wastage", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(form),
+    });
+    setSaving(false);
+    setDialog(false);
+    setForm({ stockItemId: "", itemName: "", quantity: "", unit: "unit", unitCost: "", reason: "spoilage", notes: "", date: new Date().toISOString().slice(0, 10) });
+    load();
+  }
+
+  async function deleteRecord(id: string) {
+    if (!confirm("Delete this wastage record?")) return;
+    await fetch(`/api/stock/wastage?id=${id}`, { method: "DELETE" });
+    load();
+  }
+
+  const estCost = (parseFloat(form.unitCost) || 0) * (parseFloat(form.quantity) || 0);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="font-semibold text-slate-800">Wastage Recording</h2>
+          <p className="text-xs text-slate-400 mt-0.5">Log thrown or spoiled stock — track the true cost of waste</p>
+        </div>
+        <button
+          onClick={() => setDialog(true)}
+          className="flex items-center gap-1.5 px-3 py-2 bg-violet-600 text-white text-sm rounded-xl hover:bg-violet-700 font-medium"
+        >
+          <Plus className="h-4 w-4" /> Log Wastage
+        </button>
+      </div>
+
+      {/* Summary */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="bg-white border border-slate-200 rounded-xl p-4">
+          <p className="text-xs text-slate-400">Total records</p>
+          <p className="text-2xl font-bold text-slate-800 mt-1">{records.length}</p>
+        </div>
+        <div className="bg-red-50 border border-red-100 rounded-xl p-4">
+          <p className="text-xs text-red-400">Total waste cost</p>
+          <p className="text-2xl font-bold text-red-700 mt-1">{fmt(totalCost)}</p>
+        </div>
+      </div>
+
+      {/* Table */}
+      {loading ? (
+        <div className="text-center py-10 text-slate-400 text-sm">Loading…</div>
+      ) : records.length === 0 ? (
+        <div className="text-center py-10 text-slate-400 text-sm">No wastage recorded yet</div>
+      ) : (
+        <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-slate-50 border-b border-slate-200">
+              <tr>
+                <th className="text-left px-4 py-2.5 text-xs font-medium text-slate-500">Item</th>
+                <th className="text-left px-4 py-2.5 text-xs font-medium text-slate-500">Qty</th>
+                <th className="text-left px-4 py-2.5 text-xs font-medium text-slate-500">Reason</th>
+                <th className="text-right px-4 py-2.5 text-xs font-medium text-slate-500">Cost</th>
+                <th className="text-left px-4 py-2.5 text-xs font-medium text-slate-500">Date</th>
+                <th className="px-4 py-2.5"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {records.map((r, i) => (
+                <tr key={r.id} className={cn("border-b border-slate-100 last:border-0", i % 2 === 0 ? "bg-white" : "bg-slate-50/50")}>
+                  <td className="px-4 py-2.5 text-slate-800 font-medium">{r.itemName}</td>
+                  <td className="px-4 py-2.5 text-slate-500">{r.quantity} {r.unit}</td>
+                  <td className="px-4 py-2.5">
+                    <span className={cn("text-xs px-2 py-0.5 rounded-full font-medium",
+                      r.reason === "spoilage" ? "bg-orange-100 text-orange-700" :
+                      r.reason === "expiry" ? "bg-red-100 text-red-700" :
+                      r.reason === "over-prep" ? "bg-blue-100 text-blue-700" :
+                      r.reason === "spill" ? "bg-yellow-100 text-yellow-700" :
+                      "bg-slate-100 text-slate-600"
+                    )}>
+                      {r.reason}
+                    </span>
+                  </td>
+                  <td className="px-4 py-2.5 text-right font-mono text-slate-700">
+                    {r.totalCost ? fmt(r.totalCost) : "—"}
+                  </td>
+                  <td className="px-4 py-2.5 text-slate-400 text-xs">
+                    {new Date(r.date).toLocaleDateString("en-IE", { day: "2-digit", month: "short" })}
+                  </td>
+                  <td className="px-4 py-2.5">
+                    <button onClick={() => deleteRecord(r.id)} className="text-slate-300 hover:text-red-400 p-1">
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Dialog */}
+      {dialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+              <h3 className="font-bold text-slate-800">Log Wastage</h3>
+              <button onClick={() => setDialog(false)} className="text-slate-400 hover:text-slate-600"><X className="h-5 w-5" /></button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1">Pick from stock</label>
+                <select
+                  value={form.stockItemId}
+                  onChange={(e) => pickStockItem(e.target.value)}
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400"
+                >
+                  <option value="">— or type manually below —</option>
+                  {stockItems.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="col-span-2">
+                  <label className="block text-xs font-medium text-slate-500 mb-1">Item name *</label>
+                  <input value={form.itemName} onChange={(e) => setForm((f) => ({ ...f, itemName: e.target.value }))}
+                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400" placeholder="e.g. Chicken breast" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-500 mb-1">Quantity *</label>
+                  <input type="number" step="0.01" value={form.quantity} onChange={(e) => setForm((f) => ({ ...f, quantity: e.target.value }))}
+                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-500 mb-1">Unit</label>
+                  <select value={form.unit} onChange={(e) => setForm((f) => ({ ...f, unit: e.target.value }))}
+                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400">
+                    {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-500 mb-1">Unit cost</label>
+                  <input type="number" step="0.01" value={form.unitCost} onChange={(e) => setForm((f) => ({ ...f, unitCost: e.target.value }))}
+                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400" placeholder="0.00" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-500 mb-1">Date</label>
+                  <input type="date" value={form.date} onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
+                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400" />
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-xs font-medium text-slate-500 mb-1">Reason</label>
+                  <select value={form.reason} onChange={(e) => setForm((f) => ({ ...f, reason: e.target.value }))}
+                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400">
+                    {REASONS.map((r) => <option key={r} value={r} className="capitalize">{r}</option>)}
+                  </select>
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-xs font-medium text-slate-500 mb-1">Notes (optional)</label>
+                  <input value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
+                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400" placeholder="Any context…" />
+                </div>
+              </div>
+              {estCost > 0 && (
+                <div className="bg-red-50 border border-red-100 rounded-lg px-3 py-2 text-sm text-red-700">
+                  Estimated waste cost: <strong>{fmt(estCost)}</strong>
+                </div>
+              )}
+            </div>
+            <div className="px-6 py-4 border-t border-slate-100 flex gap-3 justify-end">
+              <button onClick={() => setDialog(false)} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-lg">Cancel</button>
+              <button onClick={submit} disabled={saving || !form.itemName || !form.quantity}
+                className="px-5 py-2 text-sm bg-violet-600 text-white rounded-lg font-medium hover:bg-violet-700 disabled:opacity-60">
+                {saving ? "Saving…" : "Log Wastage"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Price Variance Tab ───────────────────────────────────────────────────────
+
+function PriceVarianceTab({ fmt }: { fmt: (n: any) => string }) {
+  const [items, setItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/stock/price-variance")
+      .then((r) => r.json())
+      .then((d) => { setItems(d.items ?? []); setLoading(false); });
+  }, []);
+
+  const flagged = items.filter((i) => i.flagged);
+  const dropped = items.filter((i) => i.dropped);
+  const stable = items.filter((i) => !i.flagged && !i.dropped && i.pct !== null);
+  const noData = items.filter((i) => i.pct === null);
+
+  function PctBadge({ pct }: { pct: number | null }) {
+    if (pct === null) return <span className="text-slate-300 text-xs">no statement data</span>;
+    const color = pct > 5 ? "bg-red-100 text-red-700" : pct < -5 ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-500";
+    return <span className={cn("text-xs px-2 py-0.5 rounded-full font-medium", color)}>{pct > 0 ? "+" : ""}{pct.toFixed(1)}%</span>;
+  }
+
+  function ItemRow({ item }: { item: any }) {
+    return (
+      <tr className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
+        <td className="px-4 py-2.5">
+          <div className="font-medium text-slate-800 text-sm">{item.name}</div>
+          {item.supplier && <div className="text-xs text-slate-400">{item.supplier}</div>}
+        </td>
+        <td className="px-4 py-2.5 text-sm text-slate-500 font-mono">{item.prevPrice ? fmt(item.prevPrice) : <span className="text-slate-300">—</span>}</td>
+        <td className="px-4 py-2.5 text-sm text-slate-500 font-mono">{item.newPrice ? fmt(item.newPrice) : <span className="text-slate-300">—</span>}</td>
+        <td className="px-4 py-2.5"><PctBadge pct={item.pct} /></td>
+        <td className="px-4 py-2.5 text-xs text-slate-400">
+          {item.statementDate ? new Date(item.statementDate).toLocaleDateString("en-IE", { day: "2-digit", month: "short" }) : "—"}
+        </td>
+      </tr>
+    );
+  }
+
+  function Section({ title, items: rows, color }: { title: string; items: any[]; color: string }) {
+    if (rows.length === 0) return null;
+    return (
+      <div>
+        <h3 className={cn("text-xs font-semibold uppercase tracking-wide mb-2", color)}>{title} ({rows.length})</h3>
+        <div className="bg-white border border-slate-200 rounded-xl overflow-hidden mb-4">
+          <table className="w-full text-sm">
+            <thead className="bg-slate-50 border-b border-slate-200">
+              <tr>
+                <th className="text-left px-4 py-2.5 text-xs font-medium text-slate-500">Item</th>
+                <th className="text-left px-4 py-2.5 text-xs font-medium text-slate-500">Prev. price</th>
+                <th className="text-left px-4 py-2.5 text-xs font-medium text-slate-500">New price</th>
+                <th className="text-left px-4 py-2.5 text-xs font-medium text-slate-500">Change</th>
+                <th className="text-left px-4 py-2.5 text-xs font-medium text-slate-500">From statement</th>
+              </tr>
+            </thead>
+            <tbody>{rows.map((i) => <ItemRow key={i.id} item={i} />)}</tbody>
+          </table>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <h2 className="font-semibold text-slate-800">Price Variance</h2>
+        <p className="text-xs text-slate-400 mt-0.5">
+          Compares your stock item prices against the latest uploaded supplier statement data
+        </p>
+      </div>
+
+      {/* Summary */}
+      <div className="grid grid-cols-3 gap-3">
+        <div className={cn("rounded-xl p-4 border", flagged.length > 0 ? "bg-red-50 border-red-100" : "bg-white border-slate-200")}>
+          <div className="flex items-center gap-2 mb-1">
+            <AlertTriangle className={cn("h-4 w-4", flagged.length > 0 ? "text-red-500" : "text-slate-300")} />
+            <p className={cn("text-xs font-medium", flagged.length > 0 ? "text-red-600" : "text-slate-400")}>Price increases &gt;5%</p>
+          </div>
+          <p className={cn("text-2xl font-bold", flagged.length > 0 ? "text-red-700" : "text-slate-300")}>{flagged.length}</p>
+        </div>
+        <div className={cn("rounded-xl p-4 border", dropped.length > 0 ? "bg-green-50 border-green-100" : "bg-white border-slate-200")}>
+          <p className={cn("text-xs font-medium mb-1", dropped.length > 0 ? "text-green-600" : "text-slate-400")}>Price drops &gt;5%</p>
+          <p className={cn("text-2xl font-bold", dropped.length > 0 ? "text-green-700" : "text-slate-300")}>{dropped.length}</p>
+        </div>
+        <div className="bg-white border border-slate-200 rounded-xl p-4">
+          <p className="text-xs text-slate-400 mb-1">Items tracked</p>
+          <p className="text-2xl font-bold text-slate-800">{items.length}</p>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="text-center py-10 text-slate-400 text-sm">Analysing price data…</div>
+      ) : items.length === 0 ? (
+        <div className="text-center py-10 text-slate-400 text-sm">
+          No stock items yet. Add items in the Stock List tab, then upload supplier statements to see price variance.
+        </div>
+      ) : (
+        <>
+          <Section title="Price increases (action needed)" items={flagged} color="text-red-600" />
+          <Section title="Price drops (savings opportunity)" items={dropped} color="text-green-600" />
+          <Section title="Stable / minor change" items={stable} color="text-slate-500" />
+          {noData.length > 0 && (
+            <p className="text-xs text-slate-400">{noData.length} items have no statement data yet</p>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 class StockErrorBoundary extends Component<
@@ -1853,7 +2190,7 @@ function StockPageInner() {
   const fmt = (n: number | null | undefined) => (n == null ? "—" : fmtMoney(n));
   const isManager = session?.user?.role === Role.MANAGER || session?.user?.role === Role.ADMIN;
 
-  const [tab, setTab] = useState<"stock" | "suppliers" | "orders" | "statements">("stock");
+  const [tab, setTab] = useState<"stock" | "suppliers" | "orders" | "statements" | "wastage" | "variance">("stock");
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [stockItems, setStockItems] = useState<StockItem[]>([]);
   const [orders, setOrders] = useState<SupplierOrder[]>([]);
@@ -1934,6 +2271,8 @@ function StockPageInner() {
     { key: "suppliers", label: "Suppliers", icon: Truck, count: suppliers.length },
     { key: "orders", label: "Order Lists", icon: ClipboardList, count: orders.filter((o) => o.status !== "received").length || undefined },
     { key: "statements", label: "Statements", icon: FileText, count: undefined },
+    { key: "wastage", label: "Wastage", icon: Trash2, count: undefined },
+    { key: "variance", label: "Price Variance", icon: AlertTriangle, count: undefined },
   ] as const;
 
   return (
@@ -2015,6 +2354,9 @@ function StockPageInner() {
           fmt={fmt}
         />
       )}
+
+      {tab === "wastage" && <WastageTab stockItems={stockItems} fmt={fmt} />}
+      {tab === "variance" && <PriceVarianceTab fmt={fmt} />}
 
       {/* Dialogs */}
       <SupplierFormDialog

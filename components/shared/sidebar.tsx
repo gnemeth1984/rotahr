@@ -17,6 +17,7 @@ import {
   BookMarked,
   Sparkles,
   Utensils,
+  ChefHat,
   LayoutDashboard,
   MessageSquare,
   DollarSign,
@@ -116,6 +117,14 @@ const navItems = [
     icon: Package,
     roles: [Role.MANAGER, Role.ADMIN],
     permission: "stocktaking",
+    featureKey: "stock" as FeatureKey,
+  },
+  {
+    href: "/recipes",
+    label: "Recipe Costing",
+    icon: ChefHat,
+    roles: [Role.MANAGER, Role.ADMIN],
+    permission: null,
     featureKey: "stock" as FeatureKey,
   },
   {

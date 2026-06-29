@@ -49,6 +49,9 @@ model Business {
   // CRM
   customers      Customer[]
 
+  // Wastage
+  wastageRecords WastageRecord[]
+
   // Locale / currency
   currency           String   @default("EUR") // "EUR" | "GBP"
   country            String   @default("IE")  // "IE" | "GB"
@@ -491,6 +494,7 @@ model StockItem {
 
   orderItems   OrderItem[]
   dishIngredients DishIngredient[]
+  wastageRecords WastageRecord[]
 
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -1060,4 +1064,26 @@ model BlogPost {
 
   @@index([slug])
   @@index([published, createdAt])
+}
+
+model WastageRecord {
+  id          String    @id @default(cuid())
+  businessId  String
+  business    Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  stockItemId String?
+  stockItem   StockItem? @relation(fields: [stockItemId], references: [id], onDelete: SetNull)
+
+  itemName    String    // free-text fallback if no stockItemId
+  quantity    Float
+  unit        String    @default("unit")
+  unitCost    Float?    // cost per unit at time of recording
+  totalCost   Float?    // quantity × unitCost
+  reason      String    @default("spoilage") // spoilage | over-prep | spill | expiry | other
+  notes       String?
+  recordedBy  String    // userId
+  date        DateTime  @default(now())
+  createdAt   DateTime  @default(now())
+
+  @@index([businessId, date])
+  @@index([businessId, stockItemId])
 }
