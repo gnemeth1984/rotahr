@@ -84,7 +84,7 @@ const emptyForm = {
   customerName: "",
   customerEmail: "",
   customerPhone: "",
-  partySize: 2,
+  partySize: "" as unknown as number,
   date: "",
   time: "",
   occasion: "",
@@ -261,19 +261,22 @@ function BookingsInner() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    const partySize = parseInt(String(form.partySize));
+    if (!partySize || partySize < 1) return;
+    const payload = { ...form, partySize };
     setSaving(true);
     try {
       if (editBooking) {
         await fetch(`/api/reservations/${editBooking.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(form),
+          body: JSON.stringify(payload),
         });
       } else {
         await fetch("/api/reservations", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(form),
+          body: JSON.stringify(payload),
         });
       }
       setDialogOpen(false);
@@ -746,8 +749,11 @@ function BookingsInner() {
                     type="number"
                     min={1}
                     max={100}
-                    value={form.partySize}
-                    onChange={(e) => setForm({ ...form, partySize: parseInt(e.target.value) || 1 })}
+                    value={form.partySize === 0 ? "" : form.partySize}
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      setForm({ ...form, partySize: raw === "" ? ("" as unknown as number) : parseInt(raw) });
+                    }}
                     required
                   />
                 </div>
