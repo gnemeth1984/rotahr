@@ -1679,7 +1679,25 @@ async function seedOwnerDemos(prisma: PrismaClient) {
  * seedDemo() — exported for in-process use (e.g. Vercel serverless, API routes).
  * Runs all the seed logic with its own Prisma client instance.
  */
+/**
+ * seedDemo() — resets only "The Anchor & Tap" demo data.
+ * Called on every demo login (fire-and-forget). Owner demos are NOT reset here
+ * because they are seeded once and kept stable (no wipe/restore cycle needed).
+ */
 export async function seedDemo(): Promise<void> {
+  const seedPrisma = new PrismaClient();
+  try {
+    await main(seedPrisma);
+  } finally {
+    await seedPrisma.$disconnect();
+  }
+}
+
+/**
+ * seedAll() — full seed including owner tier demos.
+ * Use this for manual resets via /api/demo/reset or CLI.
+ */
+export async function seedAll(): Promise<void> {
   const seedPrisma = new PrismaClient();
   try {
     await main(seedPrisma);
@@ -1698,8 +1716,6 @@ const isMain =
 
 if (isMain) {
   const cliPrisma = new PrismaClient();
-  main(cliPrisma)
-    .then(() => seedOwnerDemos(cliPrisma))
-    .catch((e) => { console.error(e); process.exit(1); })
-    .finally(() => cliPrisma.$disconnect());
+  seedAll()
+    .catch((e) => { console.error(e); process.exit(1); });
 }

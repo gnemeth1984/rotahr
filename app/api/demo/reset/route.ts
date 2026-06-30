@@ -11,7 +11,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { seedDemo } from "@/scripts/seed-demo";
+import { seedAll } from "@/scripts/seed-demo";
 
 export const runtime = "nodejs";
 export const maxDuration = 60; // Vercel max for hobby plan
@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
 
   try {
     console.log("[api/demo/reset] Manual reset triggered");
-    await seedDemo();
+    await seedAll();
     console.log("[api/demo/reset] Reset complete");
     return NextResponse.json({ ok: true, message: "Demo data reset successfully" });
   } catch (err) {
