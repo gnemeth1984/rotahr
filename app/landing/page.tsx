@@ -73,7 +73,7 @@ const plans = [
     price: "€59",
     period: "/month incl. VAT",
     desc: "Perfect for small cafés and independent restaurants.",
-    staff: "Up to 10 staff",
+    staff: "Up to 15 staff",
     highlight: false,
     cta: "Get Started",
     features: [

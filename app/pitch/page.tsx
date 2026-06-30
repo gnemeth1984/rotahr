@@ -310,7 +310,7 @@ export default function PitchPage() {
                     <div className="price-card">
                       <div className="plan-label">Starter</div>
                       <div className="price-amount"><sup>€</sup>59</div>
-                      <div className="price-per">per month · up to 10 staff</div>
+                      <div className="price-per">per month · up to 15 staff</div>
                       <div className="price-divider" />
                       <ul className="price-features">
                         <li>Rota builder & scheduling</li>

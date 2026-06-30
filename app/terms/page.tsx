@@ -38,7 +38,7 @@ export default function TermsPage() {
           <section>
             <h2 className="text-lg font-semibold text-slate-800 mb-2">4. Subscriptions and billing</h2>
             <ul className="list-disc pl-5 space-y-1">
-              <li><strong>Starter:</strong> €59/month (inc. 23% Irish VAT) — up to 10 staff</li>
+              <li><strong>Starter:</strong> €59/month (inc. 23% Irish VAT) — up to 15 staff</li>
               <li><strong>Pro:</strong> €119/month (inc. 23% Irish VAT) — up to 30 staff</li>
               <li><strong>Enterprise:</strong> €215/month (inc. 23% Irish VAT) — unlimited staff, multi-venue</li>
             </ul>

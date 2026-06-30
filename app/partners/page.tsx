@@ -131,7 +131,7 @@ export default function PartnersPage() {
             </thead>
             <tbody>
               <tr>
-                <td>Starter (up to 10 staff)</td>
+                <td>Starter (up to 15 staff)</td>
                 <td>€59/mo</td>
                 <td>€11.80/mo</td>
                 <td>€141.60/yr</td>
