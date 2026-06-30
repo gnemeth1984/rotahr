@@ -148,7 +148,7 @@ export const HELP_ENTRIES: HelpEntry[] = [
     keywords: ["billing", "subscription", "plan", "upgrade", "starter", "pro", "enterprise"],
     roles: ["ADMIN"],
     answer:
-      "To manage your subscription:\n\n1. Go to **Settings → Billing**\n2. View your current plan (Starter / Pro / Enterprise)\n3. Click **Upgrade** or **Manage** to change or cancel\n\n**Plans (incl. 23% Irish VAT):**\n• Starter — €79/mo (up to 10 staff)\n• Pro — €149/mo (up to 30 staff)\n• Enterprise — €249+/mo (unlimited, multi-venue)\n\nPayments are processed securely via Lemon Squeezy.",
+      "To manage your subscription:\n\n1. Go to **Settings → Billing**\n2. View your current plan (Starter / Pro / Enterprise)\n3. Click **Upgrade** or **Manage** to change or cancel\n\n**Plans (incl. 23% Irish VAT):**\n• Starter — €59/mo (up to 10 staff)\n• Pro — €119/mo (up to 30 staff)\n• Enterprise — €215+/mo (unlimited, multi-venue)\n\nPayments are processed securely via Lemon Squeezy.",
   },
 
   // ── CLOCK IN/OUT ──────────────────────────────────────────────────────────

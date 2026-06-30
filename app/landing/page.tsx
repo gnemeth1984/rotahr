@@ -86,6 +86,7 @@ const plans = [
       "Team messaging",
       "Employee profiles",
       "AI booking assistant",
+      "POS integration (Lightspeed & Square)",
       "Mobile app (iOS & Android)",
       "Email & push notifications",
     ],

@@ -20,7 +20,7 @@ const PLANS = [
     price: "€59",
     period: "/mo",
     description: "Up to 10 staff",
-    features: ["Rota & scheduling", "Time off management", "Bookings", "Messaging"],
+    features: ["Rota & scheduling", "Time off & clock in/out", "Bookings & AI assistant", "Menu & specials board", "Messaging", "POS integration"],
     icon: Zap,
     color: "text-blue-500",
     bg: "bg-blue-50 dark:bg-blue-950/30",

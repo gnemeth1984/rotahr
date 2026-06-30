@@ -317,7 +317,9 @@ export default function PitchPage() {
                         <li>Staff app (iOS & Android)</li>
                         <li>Time off & availability</li>
                         <li>Messaging & announcements</li>
-                        <li>Basic reporting</li>
+                        <li>AI booking assistant</li>
+                        <li>Menu specials board</li>
+                        <li>POS integration (Lightspeed & Square)</li>
                       </ul>
                     </div>
                     <div className="price-card feat">
@@ -328,12 +330,11 @@ export default function PitchPage() {
                       <div className="price-divider" />
                       <ul className="price-features">
                         <li>Everything in Starter</li>
-                        <li>AI booking assistant</li>
                         <li>CRM & customer profiles</li>
                         <li>Bookkeeping, receipts & AI invoice reading</li>
                         <li>Stock, wastage & price variance</li>
                         <li>Recipe costing & GP%</li>
-                        <li>Menu specials & POS integration</li>
+                        <li>Payroll summaries & tips</li>
                       </ul>
                     </div>
                     <div className="price-card">
