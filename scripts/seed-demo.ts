@@ -1680,24 +1680,10 @@ async function seedOwnerDemos(prisma: PrismaClient) {
  * Runs all the seed logic with its own Prisma client instance.
  */
 /**
- * seedDemo() — resets only "The Anchor & Tap" demo data.
- * Called on every demo login (fire-and-forget). Owner demos are NOT reset here
- * because they are seeded once and kept stable (no wipe/restore cycle needed).
+ * seedDemo() — resets ALL demo data: Anchor & Tap + all owner tier demos.
+ * Called on every demo login (fire-and-forget) so every visitor starts fresh.
  */
 export async function seedDemo(): Promise<void> {
-  const seedPrisma = new PrismaClient();
-  try {
-    await main(seedPrisma);
-  } finally {
-    await seedPrisma.$disconnect();
-  }
-}
-
-/**
- * seedAll() — full seed including owner tier demos.
- * Use this for manual resets via /api/demo/reset or CLI.
- */
-export async function seedAll(): Promise<void> {
   const seedPrisma = new PrismaClient();
   try {
     await main(seedPrisma);
@@ -1705,6 +1691,13 @@ export async function seedAll(): Promise<void> {
   } finally {
     await seedPrisma.$disconnect();
   }
+}
+
+/**
+ * seedAll() — alias for seedDemo(), kept for CLI / manual resets.
+ */
+export async function seedAll(): Promise<void> {
+  await seedDemo();
 }
 
 // ─── CLI entry point (only runs when executed directly, not when imported) ─────
