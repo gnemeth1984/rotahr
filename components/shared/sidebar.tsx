@@ -46,6 +46,7 @@ import { VenueSwitcher } from "@/components/shared/VenueSwitcher";
 import { useFeatureFlags } from "@/components/shared/FeatureFlagsProvider";
 import type { FeatureKey } from "@/lib/features";
 
+// null = all plans; array = only those plans (platform ADMIN always bypasses)
 const navItems = [
   {
     href: "/dashboard",
@@ -54,22 +55,7 @@ const navItems = [
     roles: [Role.EMPLOYEE, Role.MANAGER, Role.ADMIN],
     permission: null,
     featureKey: "dashboard" as FeatureKey,
-  },
-  {
-    href: "/timeoff",
-    label: "Time Off",
-    icon: Clock,
-    roles: [Role.EMPLOYEE, Role.MANAGER, Role.ADMIN],
-    permission: null,
-    featureKey: "timeoff" as FeatureKey,
-  },
-  {
-    href: "/bookings",
-    label: "Bookings",
-    icon: BookOpen,
-    roles: [Role.EMPLOYEE, Role.MANAGER, Role.ADMIN],
-    permission: "bookings",
-    featureKey: "bookings" as FeatureKey,
+    plans: null,
   },
   {
     href: "/rota",
@@ -78,14 +64,16 @@ const navItems = [
     roles: [Role.EMPLOYEE, Role.MANAGER, Role.ADMIN],
     permission: null,
     featureKey: "rota" as FeatureKey,
+    plans: null,
   },
   {
-    href: "/messages",
-    label: "Messages",
-    icon: MessageSquare,
+    href: "/timeoff",
+    label: "Time Off",
+    icon: Clock,
     roles: [Role.EMPLOYEE, Role.MANAGER, Role.ADMIN],
     permission: null,
-    featureKey: "messages" as FeatureKey,
+    featureKey: "timeoff" as FeatureKey,
+    plans: null,
   },
   {
     href: "/clock",
@@ -94,46 +82,16 @@ const navItems = [
     roles: [Role.EMPLOYEE, Role.MANAGER, Role.ADMIN],
     permission: null,
     featureKey: "clock" as FeatureKey,
+    plans: null,
   },
   {
-    href: "/availability",
-    label: "Availability",
-    icon: CalendarCheck,
+    href: "/messages",
+    label: "Messages",
+    icon: MessageSquare,
     roles: [Role.EMPLOYEE, Role.MANAGER, Role.ADMIN],
     permission: null,
-    featureKey: "availability" as FeatureKey,
-  },
-  {
-    href: "/bookkeeping",
-    label: "Bookkeeping",
-    icon: BookMarked,
-    roles: [Role.MANAGER, Role.ADMIN],
-    permission: "bookkeeping",
-    featureKey: "bookkeeping" as FeatureKey,
-  },
-  {
-    href: "/stock",
-    label: "Stock & Orders",
-    icon: Package,
-    roles: [Role.MANAGER, Role.ADMIN],
-    permission: "stocktaking",
-    featureKey: "stock" as FeatureKey,
-  },
-  {
-    href: "/recipes",
-    label: "Recipe Costing",
-    icon: ChefHat,
-    roles: [Role.MANAGER, Role.ADMIN],
-    permission: null,
-    featureKey: "stock" as FeatureKey,
-  },
-  {
-    href: "/payroll",
-    label: "Payroll",
-    icon: DollarSign,
-    roles: [Role.MANAGER, Role.ADMIN],
-    permission: "payroll",
-    featureKey: "payroll" as FeatureKey,
+    featureKey: "messages" as FeatureKey,
+    plans: null,
   },
   {
     href: "/shift-swaps",
@@ -142,30 +100,16 @@ const navItems = [
     roles: [Role.EMPLOYEE, Role.MANAGER, Role.ADMIN],
     permission: null,
     featureKey: "shiftswaps" as FeatureKey,
+    plans: null,
   },
   {
-    href: "/tips",
-    label: "Tips & Tronc",
-    icon: Coins,
-    roles: [Role.MANAGER, Role.ADMIN],
-    permission: "tips",
-    featureKey: "tips" as FeatureKey,
-  },
-  {
-    href: "/crm",
-    label: "Customer CRM",
-    icon: ContactRound,
-    roles: [Role.MANAGER, Role.ADMIN],
-    permission: null,
-    featureKey: null,
-  },
-  {
-    href: "/employees",
-    label: "Employees",
-    icon: Users,
-    roles: [Role.MANAGER, Role.ADMIN],
-    permission: null,
-    featureKey: "employees" as FeatureKey,
+    href: "/bookings",
+    label: "Bookings",
+    icon: BookOpen,
+    roles: [Role.EMPLOYEE, Role.MANAGER, Role.ADMIN],
+    permission: "bookings",
+    featureKey: "bookings" as FeatureKey,
+    plans: null,
   },
   {
     href: "/menu-specials",
@@ -174,6 +118,80 @@ const navItems = [
     roles: [Role.EMPLOYEE, Role.MANAGER, Role.ADMIN],
     permission: null,
     featureKey: "menu-specials" as FeatureKey,
+    plans: null,
+  },
+  {
+    href: "/bookkeeping",
+    label: "Bookkeeping",
+    icon: BookMarked,
+    roles: [Role.MANAGER, Role.ADMIN],
+    permission: "bookkeeping",
+    featureKey: "bookkeeping" as FeatureKey,
+    plans: null,
+  },
+  {
+    href: "/employees",
+    label: "Employees",
+    icon: Users,
+    roles: [Role.MANAGER, Role.ADMIN],
+    permission: null,
+    featureKey: "employees" as FeatureKey,
+    plans: null,
+  },
+  // ── Pro & above ─────────────────────────────────────────────────────────
+  {
+    href: "/availability",
+    label: "Availability",
+    icon: CalendarCheck,
+    roles: [Role.EMPLOYEE, Role.MANAGER, Role.ADMIN],
+    permission: null,
+    featureKey: "availability" as FeatureKey,
+    plans: ["pro", "enterprise"],
+  },
+  {
+    href: "/payroll",
+    label: "Payroll",
+    icon: DollarSign,
+    roles: [Role.MANAGER, Role.ADMIN],
+    permission: "payroll",
+    featureKey: "payroll" as FeatureKey,
+    plans: ["pro", "enterprise"],
+  },
+  {
+    href: "/stock",
+    label: "Stock & Orders",
+    icon: Package,
+    roles: [Role.MANAGER, Role.ADMIN],
+    permission: "stocktaking",
+    featureKey: "stock" as FeatureKey,
+    plans: ["pro", "enterprise"],
+  },
+  {
+    href: "/recipes",
+    label: "Recipe Costing",
+    icon: ChefHat,
+    roles: [Role.MANAGER, Role.ADMIN],
+    permission: null,
+    featureKey: "stock" as FeatureKey,
+    plans: ["pro", "enterprise"],
+  },
+  {
+    href: "/tips",
+    label: "Tips & Tronc",
+    icon: Coins,
+    roles: [Role.MANAGER, Role.ADMIN],
+    permission: "tips",
+    featureKey: "tips" as FeatureKey,
+    plans: ["pro", "enterprise"],
+  },
+  {
+    href: "/crm",
+    label: "Customer CRM",
+    icon: ContactRound,
+    roles: [Role.MANAGER, Role.ADMIN],
+    permission: null,
+    featureKey: null,
+    plans: ["pro", "enterprise"],
   },
   {
     href: "/training",
@@ -182,15 +200,19 @@ const navItems = [
     roles: [Role.MANAGER, Role.ADMIN],
     permission: "training",
     featureKey: "training" as FeatureKey,
+    plans: ["pro", "enterprise"],
   },
+  // ── Enterprise only ──────────────────────────────────────────────────────
   {
     href: "/venues",
     label: "Venues",
     icon: Building2,
     roles: [Role.MANAGER, Role.ADMIN],
     permission: null,
-    featureKey: null, // always visible
+    featureKey: null,
+    plans: ["enterprise"],
   },
+  // ── Always visible (plan-agnostic) ───────────────────────────────────────
   {
     href: "/ai",
     label: "AI Tools",
@@ -198,6 +220,7 @@ const navItems = [
     roles: [Role.MANAGER, Role.ADMIN],
     permission: null,
     featureKey: "ai" as FeatureKey,
+    plans: null,
   },
   {
     href: "/settings/general",
@@ -205,7 +228,8 @@ const navItems = [
     icon: Settings,
     roles: [Role.EMPLOYEE, Role.MANAGER, Role.ADMIN],
     permission: null,
-    featureKey: null, // always visible
+    featureKey: null,
+    plans: null,
   },
   {
     href: "/settings/billing",
@@ -213,8 +237,10 @@ const navItems = [
     icon: CreditCard,
     roles: [Role.MANAGER, Role.ADMIN],
     permission: null,
-    featureKey: null, // always visible
+    featureKey: null,
+    plans: null,
   },
+  // ── Platform ADMIN only (Gabor) ──────────────────────────────────────────
   {
     href: "/outreach",
     label: "Email Outreach",
@@ -222,6 +248,7 @@ const navItems = [
     roles: [Role.ADMIN],
     permission: null,
     featureKey: null,
+    plans: null,
   },
   {
     href: "/admin",
@@ -230,6 +257,7 @@ const navItems = [
     roles: [Role.ADMIN],
     permission: null,
     featureKey: null,
+    plans: null,
   },
 ];
 
@@ -241,15 +269,23 @@ export function Sidebar() {
 
   const userRole = (session?.user?.role ?? Role.EMPLOYEE) as Role;
   const userPermissions: string[] = (session?.user as any)?.permissions ?? [];
+  const lsPlan: string | null = (session?.user as any)?.lsPlan ?? null;
   const isManager = userRole === Role.MANAGER || userRole === Role.ADMIN;
+  // Platform-level ADMIN (Gabor) bypasses all plan gates
+  const isPlatformAdmin = userRole === Role.ADMIN && !session?.user?.businessId;
 
   const visibleItems = navItems.filter((item) => {
-    // Role check — user must be in allowed roles list
+    // Role check
     const roleAllowed = item.roles.includes(userRole) ||
       (!isManager && item.permission && userPermissions.includes(item.permission));
     if (!roleAllowed) return false;
 
-    // Feature flag check — if feature is disabled or role not in allowed list, hide it
+    // Plan gate — platform admin always bypasses
+    if (item.plans && !isPlatformAdmin) {
+      if (!lsPlan || !item.plans.includes(lsPlan)) return false;
+    }
+
+    // Feature flag check
     if (item.featureKey && flags) {
       const flag = flags[item.featureKey];
       if (flag) {

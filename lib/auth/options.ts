@@ -67,6 +67,17 @@ export const authOptions: NextAuthOptions = {
           token.id = dbUser.id;
           token.businessId = dbUser.businessId ?? null;
 
+          // Fetch lsPlan from business so sidebar can gate plan-tier features
+          if (dbUser.businessId) {
+            const biz = await prisma.business.findUnique({
+              where: { id: dbUser.businessId },
+              select: { lsPlan: true },
+            });
+            token.lsPlan = biz?.lsPlan ?? null;
+          } else {
+            token.lsPlan = null;
+          }
+
           // Fetch employee permissions (additive grants for non-managers)
           if (dbUser.businessId) {
             const emp = await prisma.employee.findFirst({
@@ -88,6 +99,7 @@ export const authOptions: NextAuthOptions = {
         session.user.role = token.role as UserRole;
         session.user.businessId = token.businessId as string | null;
         session.user.permissions = (token.permissions as string[]) ?? [];
+        session.user.lsPlan = (token.lsPlan as string | null) ?? null;
       }
       return session;
     },
