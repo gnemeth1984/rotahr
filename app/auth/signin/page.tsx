@@ -9,16 +9,47 @@ import { Label } from "@/components/ui/label";
 import { Briefcase, Lock, Loader2, Eye, EyeOff, ChevronDown, ChevronUp, FlaskConical } from "lucide-react";
 import Link from "next/link";
 
-const DEMO_ACCOUNTS = [
+const DEMO_STAFF_ACCOUNTS = [
   { role: "General Manager", email: "sarah.connolly@rotahr.demo", password: "Demo1234!", color: "bg-purple-500/20 text-purple-300 border-purple-500/30" },
-  { role: "Operations Mgr", email: "tony.brennan@rotahr.demo", password: "Demo1234!", color: "bg-blue-500/20 text-blue-300 border-blue-500/30" },
-  { role: "Head Chef", email: "marco.deluca@rotahr.demo", password: "Demo1234!", color: "bg-green-500/20 text-green-300 border-green-500/30" },
-  { role: "Bar Manager", email: "fiona.mccarthy@rotahr.demo", password: "Demo1234!", color: "bg-amber-500/20 text-amber-300 border-amber-500/30" },
-  { role: "Bartender", email: "tommy.ryan@rotahr.demo", password: "Demo1234!", color: "bg-slate-500/20 text-slate-300 border-slate-500/30" },
+  { role: "Operations Mgr",  email: "tony.brennan@rotahr.demo",   password: "Demo1234!", color: "bg-blue-500/20 text-blue-300 border-blue-500/30" },
+  { role: "Head Chef",       email: "marco.deluca@rotahr.demo",   password: "Demo1234!", color: "bg-green-500/20 text-green-300 border-green-500/30" },
+  { role: "Bar Manager",     email: "fiona.mccarthy@rotahr.demo", password: "Demo1234!", color: "bg-amber-500/20 text-amber-300 border-amber-500/30" },
+  { role: "Bartender",       email: "tommy.ryan@rotahr.demo",     password: "Demo1234!", color: "bg-slate-500/20 text-slate-300 border-slate-500/30" },
+];
+
+const DEMO_OWNER_ACCOUNTS = [
+  {
+    plan: "Starter",
+    business: "The Corner Café",
+    detail: "4 staff · 1 venue · €59/mo",
+    email: "owner.starter@rotahr.demo",
+    password: "Demo1234!",
+    badge: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
+    dot: "bg-emerald-400",
+  },
+  {
+    plan: "Pro",
+    business: "Bloom Bistro",
+    detail: "18 staff · 1 venue · €119/mo",
+    email: "owner.pro@rotahr.demo",
+    password: "Demo1234!",
+    badge: "bg-blue-500/20 text-blue-300 border-blue-500/30",
+    dot: "bg-blue-400",
+  },
+  {
+    plan: "Enterprise",
+    business: "Harrington Group",
+    detail: "20+ staff · 3 venues · €215/mo",
+    email: "owner.enterprise@rotahr.demo",
+    password: "Demo1234!",
+    badge: "bg-violet-500/20 text-violet-300 border-violet-500/30",
+    dot: "bg-violet-400",
+  },
 ];
 
 function DemoPanel({ onSelect }: { onSelect: (email: string, password: string) => void }) {
   const [open, setOpen] = useState(true);
+  const [tab, setTab] = useState<"owner" | "staff">("owner");
 
   return (
     <div className="mb-4 rounded-2xl border border-orange-500/30 bg-orange-500/5 overflow-hidden">
@@ -30,7 +61,6 @@ function DemoPanel({ onSelect }: { onSelect: (email: string, password: string) =
         <div className="flex items-center gap-2">
           <FlaskConical className="h-4 w-4 text-orange-400" />
           <span className="text-sm font-semibold text-orange-300">Try the Demo</span>
-          <span className="text-xs text-orange-400/70 font-normal">— The Anchor &amp; Tap</span>
         </div>
         {open ? (
           <ChevronUp className="h-4 w-4 text-orange-400/60" />
@@ -40,31 +70,91 @@ function DemoPanel({ onSelect }: { onSelect: (email: string, password: string) =
       </button>
 
       {open && (
-        <div className="px-5 pb-4 space-y-2">
-          <p className="text-xs text-slate-400 mb-3 leading-relaxed">
-            One-click login as any role. Pre-loaded with shifts, bookings, expenses, and more.
-          </p>
-          {DEMO_ACCOUNTS.map((account) => (
+        <div className="px-5 pb-4">
+          {/* Tab switcher */}
+          <div className="flex rounded-lg bg-slate-800/60 p-0.5 mb-4 gap-0.5">
             <button
-              key={account.email}
               type="button"
-              onClick={() => onSelect(account.email, account.password)}
-              className="w-full flex items-center justify-between rounded-lg px-3 py-2.5 border transition-all hover:scale-[1.01] active:scale-[0.99] hover:border-orange-500/50 hover:bg-orange-500/10 bg-slate-800/40 border-slate-700/50 group"
+              onClick={() => setTab("owner")}
+              className={`flex-1 text-xs font-medium py-1.5 rounded-md transition-all ${
+                tab === "owner"
+                  ? "bg-orange-500/20 text-orange-300 shadow-sm"
+                  : "text-slate-400 hover:text-slate-300"
+              }`}
             >
-              <div className="flex items-center gap-2.5">
-                <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${account.color}`}>
-                  {account.role}
-                </span>
-                <span className="text-xs text-slate-400 group-hover:text-slate-300 transition-colors truncate max-w-[160px]">
-                  {account.email}
-                </span>
-              </div>
-              <span className="text-[11px] text-orange-400 font-medium opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap ml-2">
-                Login →
-              </span>
+              Owner view
             </button>
-          ))}
-          <p className="text-[11px] text-slate-500 pt-1">Password for all accounts: <code className="text-slate-400">Demo1234!</code></p>
+            <button
+              type="button"
+              onClick={() => setTab("staff")}
+              className={`flex-1 text-xs font-medium py-1.5 rounded-md transition-all ${
+                tab === "staff"
+                  ? "bg-orange-500/20 text-orange-300 shadow-sm"
+                  : "text-slate-400 hover:text-slate-300"
+              }`}
+            >
+              Staff view
+            </button>
+          </div>
+
+          {tab === "owner" && (
+            <div className="space-y-2">
+              <p className="text-xs text-slate-400 mb-3 leading-relaxed">
+                Log in as a business owner on each plan tier. See exactly what your customers see.
+              </p>
+              {DEMO_OWNER_ACCOUNTS.map((account) => (
+                <button
+                  key={account.email}
+                  type="button"
+                  onClick={() => onSelect(account.email, account.password)}
+                  className="w-full rounded-lg px-3 py-3 border transition-all hover:scale-[1.01] active:scale-[0.99] hover:border-orange-500/50 hover:bg-orange-500/10 bg-slate-800/40 border-slate-700/50 group text-left"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full border ${account.badge}`}>
+                        {account.plan}
+                      </span>
+                      <span className="text-xs font-medium text-slate-200">{account.business}</span>
+                    </div>
+                    <span className="text-[11px] text-orange-400 font-medium opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                      Login →
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-1 ml-0.5">{account.detail}</p>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {tab === "staff" && (
+            <div className="space-y-2">
+              <p className="text-xs text-slate-400 mb-3 leading-relaxed">
+                The Anchor &amp; Tap — one-click login as any staff role.
+              </p>
+              {DEMO_STAFF_ACCOUNTS.map((account) => (
+                <button
+                  key={account.email}
+                  type="button"
+                  onClick={() => onSelect(account.email, account.password)}
+                  className="w-full flex items-center justify-between rounded-lg px-3 py-2.5 border transition-all hover:scale-[1.01] active:scale-[0.99] hover:border-orange-500/50 hover:bg-orange-500/10 bg-slate-800/40 border-slate-700/50 group"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${account.color}`}>
+                      {account.role}
+                    </span>
+                    <span className="text-xs text-slate-400 group-hover:text-slate-300 transition-colors truncate max-w-[160px]">
+                      {account.email}
+                    </span>
+                  </div>
+                  <span className="text-[11px] text-orange-400 font-medium opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap ml-2">
+                    Login →
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+
+          <p className="text-[11px] text-slate-500 pt-3">All passwords: <code className="text-slate-400">Demo1234!</code></p>
         </div>
       )}
     </div>

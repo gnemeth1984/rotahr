@@ -1079,6 +1079,602 @@ async function main(prisma: PrismaClient = new PrismaClient()) {
   console.log("Password for all: Demo1234!");
 }
 
+// ─── Owner Demo Accounts — Starter / Pro / Enterprise ─────────────────────────
+/**
+ * Seeds 3 separate owner-perspective businesses so prospects can feel the difference
+ * between plan tiers from a business owner's point of view.
+ *
+ * Accounts:
+ *  STARTER   — owner.starter@rotahr.demo   / Demo1234!  (The Corner Café, 4 staff)
+ *  PRO       — owner.pro@rotahr.demo       / Demo1234!  (Bloom Bistro, 18 staff)
+ *  ENTERPRISE — owner.enterprise@rotahr.demo / Demo1234! (Harrington Group, 3 venues)
+ */
+async function seedOwnerDemos(prisma: PrismaClient) {
+  console.log("🌱 Seeding owner demo businesses...");
+  const pw = await hash(PW);
+
+  // ── STARTER ─────────────────────────────────────────────────────────────────
+  const S_BIZ   = "demo-owner-starter-biz";
+  const S_VENUE = "demo-owner-starter-venue";
+  const S_USER  = "demo-owner-starter-user";
+
+  await prisma.business.upsert({
+    where: { id: S_BIZ },
+    create: {
+      id: S_BIZ,
+      name: "The Corner Café",
+      onboardingComplete: true,
+      geoLat: 53.3401,
+      geoLng: -6.2611,
+      geoRadius: 100,
+      weeklyRevenueTarget: 6000,
+      lsPlan: "starter",
+      lsStatus: "active",
+    },
+    update: { lsPlan: "starter", lsStatus: "active" },
+  });
+
+  await prisma.venue.upsert({
+    where: { id: S_VENUE },
+    create: {
+      id: S_VENUE,
+      businessId: S_BIZ,
+      name: "The Corner Café — Main",
+      address: "2 Camden Row, Dublin 2, D02 HW91",
+      geoLat: 53.3401, geoLng: -6.2611, geoRadius: 100,
+      timezone: "Europe/Dublin",
+      isDefault: true, active: true,
+    },
+    update: {},
+  });
+
+  await prisma.user.upsert({
+    where: { id: S_USER },
+    create: { id: S_USER, email: "owner.starter@rotahr.demo", name: "Ciara Doyle", role: "ADMIN", businessId: S_BIZ, password: pw },
+    update: { name: "Ciara Doyle", role: "ADMIN", businessId: S_BIZ, password: pw },
+  });
+
+  // 3 staff employees for Starter demo
+  const starterStaff = [
+    { id: "demo-s-emp-1", email: "kate.ryan@cornercafe.demo",   first: "Kate",  last: "Ryan",    role: "barista",  rate: 14.5 },
+    { id: "demo-s-emp-2", email: "dan.kearns@cornercafe.demo",  first: "Dan",   last: "Kearns",  role: "barista",  rate: 14.0 },
+    { id: "demo-s-emp-3", email: "emma.ward@cornercafe.demo",   first: "Emma",  last: "Ward",    role: "floor staff", rate: 13.5 },
+  ];
+  for (const e of starterStaff) {
+    // ensure user exists
+    await prisma.user.upsert({
+      where: { id: `${e.id}-user` },
+      create: { id: `${e.id}-user`, email: e.email, name: `${e.first} ${e.last}`, role: "EMPLOYEE", businessId: S_BIZ, password: pw },
+      update: { businessId: S_BIZ, password: pw },
+    });
+    await prisma.employee.upsert({
+      where: { id: e.id },
+      create: {
+        id: e.id, businessId: S_BIZ, venueId: S_VENUE, userId: `${e.id}-user`,
+        firstName: e.first, lastName: e.last, email: e.email,
+        role: e.role, hourlyRate: e.rate, active: true, permissions: [],
+        phone: `+353 87${Math.floor(1000000 + Math.random() * 8999999)}`,
+      },
+      update: { role: e.role, hourlyRate: e.rate },
+    });
+  }
+
+  // A few shifts for current week
+  await prisma.shift.deleteMany({ where: { venueId: S_VENUE } });
+  const sShifts: Array<[string, number, number, number, string, boolean]> = [
+    ["demo-s-emp-1", 1, 7, 15, "Barista", true],
+    ["demo-s-emp-1", 3, 7, 15, "Barista", true],
+    ["demo-s-emp-1", 5, 7, 15, "Barista", true],
+    ["demo-s-emp-2", 2, 7, 15, "Barista", true],
+    ["demo-s-emp-2", 4, 7, 15, "Barista", true],
+    ["demo-s-emp-2", 6, 8, 14, "Barista", true],
+    ["demo-s-emp-3", 1, 9, 17, "Floor", true],
+    ["demo-s-emp-3", 2, 9, 17, "Floor", true],
+    ["demo-s-emp-3", 4, 9, 17, "Floor", true],
+    ["demo-s-emp-3", 6, 9, 15, "Floor", true],
+  ];
+  for (const [empId, dow, sh, eh, role, pub] of sShifts) {
+    const start = shiftDate(0, dow, sh);
+    const end   = shiftDate(0, dow, eh);
+    await prisma.shift.create({ data: { employeeId: empId, venueId: S_VENUE, date: new Date(start.getFullYear(), start.getMonth(), start.getDate()), startTime: start, endTime: end, role, published: pub } });
+  }
+
+  // A handful of expenses
+  await prisma.expense.deleteMany({ where: { businessId: S_BIZ } });
+  const sExpenses = [
+    { amt: 340.00, vat: 63.93, vendor: "Henderson Foodservice", cat: "food_supplies", desc: "Weekly coffee & bakery supplies", method: "invoice" },
+    { amt: 180.00, vat: 33.83, vendor: "Bewley's Wholesale",    cat: "beverages",     desc: "Coffee beans & syrups",          method: "card"    },
+    { amt: 95.00,  vat: 0,     vendor: "Electric Ireland",      cat: "utilities",     desc: "Monthly electricity",            method: "direct_debit" },
+    { amt: 650.00, vat: 0,     vendor: "Landlord",              cat: "rent",          desc: "Monthly rent",                   method: "bank_transfer" },
+  ];
+  for (let i = 0; i < sExpenses.length; i++) {
+    const ex = sExpenses[i];
+    await prisma.expense.create({ data: { businessId: S_BIZ, amount: ex.amt, vatAmount: ex.vat, currency: "EUR", vendor: ex.vendor, category: ex.cat, date: days(-i - 1), description: ex.desc, paymentMethod: ex.method, status: "confirmed", createdById: S_USER } });
+  }
+
+  // A few upcoming reservations
+  await prisma.reservation.deleteMany({ where: { businessId: S_BIZ } });
+  const sRes = [
+    { name: "Brennan x2", size: 2, dayOff: 1, time: "10:00", status: "confirmed" },
+    { name: "Walsh Party x4", size: 4, dayOff: 2, time: "12:00", status: "confirmed" },
+    { name: "O'Brien x3", size: 3, dayOff: 3, time: "11:00", status: "confirmed" },
+  ];
+  for (const r of sRes) {
+    await prisma.reservation.create({ data: { businessId: S_BIZ, customerName: r.name, partySize: r.size, date: days(r.dayOff, 12), time: r.time, status: r.status, duration: 60, createdById: S_USER } });
+  }
+
+  // AI Settings
+  await prisma.aISettings.upsert({
+    where: { businessId: S_BIZ },
+    create: { businessId: S_BIZ, bookingThresholdForStaffIncrease: 10, kitchenRatio: 0, floorRatio: 10, minBarStaff: 1, rotaWarningDaysAhead: 2, autoFlagShortStaffedShifts: true, minStaffPerShift: 1, priceChangeNotifyScope: "managers_only", priceChangeMessage: "Menu update — check the board." },
+    update: {},
+  });
+
+  console.log("✅ Starter owner demo created");
+
+  // ── PRO ──────────────────────────────────────────────────────────────────────
+  const P_BIZ   = "demo-owner-pro-biz";
+  const P_VENUE = "demo-owner-pro-venue";
+  const P_USER  = "demo-owner-pro-user";
+
+  await prisma.business.upsert({
+    where: { id: P_BIZ },
+    create: {
+      id: P_BIZ,
+      name: "Bloom Bistro",
+      onboardingComplete: true,
+      geoLat: 53.3352,
+      geoLng: -6.2641,
+      geoRadius: 150,
+      weeklyRevenueTarget: 22000,
+      lsPlan: "pro",
+      lsStatus: "active",
+    },
+    update: { lsPlan: "pro", lsStatus: "active" },
+  });
+
+  await prisma.venue.upsert({
+    where: { id: P_VENUE },
+    create: {
+      id: P_VENUE,
+      businessId: P_BIZ,
+      name: "Bloom Bistro — Ranelagh",
+      address: "47 Ranelagh Road, Dublin 6, D06 TK93",
+      geoLat: 53.3352, geoLng: -6.2641, geoRadius: 150,
+      timezone: "Europe/Dublin",
+      isDefault: true, active: true,
+    },
+    update: {},
+  });
+
+  await prisma.user.upsert({
+    where: { id: P_USER },
+    create: { id: P_USER, email: "owner.pro@rotahr.demo", name: "James Harrington", role: "ADMIN", businessId: P_BIZ, password: pw },
+    update: { name: "James Harrington", role: "ADMIN", businessId: P_BIZ, password: pw },
+  });
+
+  // Departments
+  for (const dept of [
+    { id: "demo-p-dept-kit", name: "Kitchen" },
+    { id: "demo-p-dept-bar", name: "Bar" },
+    { id: "demo-p-dept-flr", name: "Floor" },
+    { id: "demo-p-dept-mgmt", name: "Management" },
+  ]) {
+    await prisma.department.upsert({ where: { id: dept.id }, create: { id: dept.id, businessId: P_BIZ, name: dept.name }, update: { name: dept.name } });
+  }
+
+  // 12 staff for Pro demo
+  const proStaff = [
+    { id: "demo-p-emp-1",  first: "Niamh",   last: "Kelly",     role: "head chef",       dept: "demo-p-dept-kit",  rate: 23.0, userRole: "MANAGER" as const },
+    { id: "demo-p-emp-2",  first: "Cian",     last: "O'Connor",  role: "sous chef",       dept: "demo-p-dept-kit",  rate: 18.5, userRole: "EMPLOYEE" as const },
+    { id: "demo-p-emp-3",  first: "Sophie",   last: "Burke",     role: "pastry chef",     dept: "demo-p-dept-kit",  rate: 17.0, userRole: "EMPLOYEE" as const },
+    { id: "demo-p-emp-4",  first: "Luke",     last: "Flanagan",  role: "kitchen porter",  dept: "demo-p-dept-kit",  rate: 13.5, userRole: "EMPLOYEE" as const },
+    { id: "demo-p-emp-5",  first: "Rachel",   last: "Moore",     role: "bar manager",     dept: "demo-p-dept-bar",  rate: 20.0, userRole: "MANAGER" as const },
+    { id: "demo-p-emp-6",  first: "Darragh",  last: "Quinn",     role: "bartender",       dept: "demo-p-dept-bar",  rate: 15.5, userRole: "EMPLOYEE" as const },
+    { id: "demo-p-emp-7",  first: "Orla",     last: "Nolan",     role: "bartender",       dept: "demo-p-dept-bar",  rate: 15.0, userRole: "EMPLOYEE" as const },
+    { id: "demo-p-emp-8",  first: "Conor",    last: "Daly",      role: "floor manager",   dept: "demo-p-dept-flr",  rate: 19.0, userRole: "MANAGER" as const },
+    { id: "demo-p-emp-9",  first: "Maeve",    last: "Lynch",     role: "waitress",        dept: "demo-p-dept-flr",  rate: 14.0, userRole: "EMPLOYEE" as const },
+    { id: "demo-p-emp-10", first: "Patrick",  last: "Sheridan",  role: "waiter",          dept: "demo-p-dept-flr",  rate: 14.0, userRole: "EMPLOYEE" as const },
+    { id: "demo-p-emp-11", first: "Aisling",  last: "Curran",    role: "waitress",        dept: "demo-p-dept-flr",  rate: 13.5, userRole: "EMPLOYEE" as const },
+    { id: "demo-p-emp-12", first: "Brian",    last: "McGrath",   role: "operations manager", dept: "demo-p-dept-mgmt", rate: 26.0, userRole: "MANAGER" as const },
+  ];
+  for (const e of proStaff) {
+    const email = `${e.first.toLowerCase()}.${e.last.toLowerCase().replace("'","").replace(" ",".")}@bloombistro.demo`;
+    await prisma.user.upsert({
+      where: { id: `${e.id}-user` },
+      create: { id: `${e.id}-user`, email, name: `${e.first} ${e.last}`, role: e.userRole, businessId: P_BIZ, password: pw },
+      update: { businessId: P_BIZ, password: pw },
+    });
+    await prisma.employee.upsert({
+      where: { id: e.id },
+      create: { id: e.id, businessId: P_BIZ, venueId: P_VENUE, userId: `${e.id}-user`, firstName: e.first, lastName: e.last, email, role: e.role, departmentId: e.dept, hourlyRate: e.rate, active: true, permissions: [], phone: `+353 86${Math.floor(1000000 + Math.random() * 8999999)}` },
+      update: { role: e.role, hourlyRate: e.rate, departmentId: e.dept },
+    });
+  }
+
+  // Shifts for Pro
+  await prisma.shift.deleteMany({ where: { venueId: P_VENUE } });
+  const pShifts: Array<[string, number, number, number, string, boolean]> = [
+    ["demo-p-emp-1",  1, 8, 18, "Head Chef",       true], ["demo-p-emp-1",  3, 8, 18, "Head Chef",       true],
+    ["demo-p-emp-1",  5, 8, 20, "Head Chef",       true], ["demo-p-emp-1",  6, 8, 20, "Head Chef",       true],
+    ["demo-p-emp-2",  1, 9, 17, "Sous Chef",       true], ["demo-p-emp-2",  2, 9, 17, "Sous Chef",       true],
+    ["demo-p-emp-2",  4, 9, 17, "Sous Chef",       true], ["demo-p-emp-2",  6, 9, 19, "Sous Chef",       true],
+    ["demo-p-emp-3",  2, 9, 16, "Pastry Chef",     true], ["demo-p-emp-3",  3, 9, 16, "Pastry Chef",     true],
+    ["demo-p-emp-3",  5, 9, 17, "Pastry Chef",     true], ["demo-p-emp-3",  6, 9, 17, "Pastry Chef",     true],
+    ["demo-p-emp-4",  1,10, 18, "Kitchen Porter",  true], ["demo-p-emp-4",  3,10, 18, "Kitchen Porter",  true],
+    ["demo-p-emp-4",  5,10, 18, "Kitchen Porter",  true], ["demo-p-emp-4",  6,10, 18, "Kitchen Porter",  true],
+    ["demo-p-emp-5",  1,14, 23, "Bar Manager",     true], ["demo-p-emp-5",  3,12, 22, "Bar Manager",     true],
+    ["demo-p-emp-5",  5,15, 23, "Bar Manager",     true], ["demo-p-emp-5",  6,12, 23, "Bar Manager",     true],
+    ["demo-p-emp-6",  2,15, 23, "Bartender",       true], ["demo-p-emp-6",  4,15, 23, "Bartender",       true],
+    ["demo-p-emp-6",  5,12, 22, "Bartender",       true], ["demo-p-emp-6",  6,12, 22, "Bartender",       true],
+    ["demo-p-emp-7",  1,17, 23, "Bartender",       true], ["demo-p-emp-7",  3,17, 23, "Bartender",       true],
+    ["demo-p-emp-7",  6,15, 23, "Bartender",       true], ["demo-p-emp-7",  7,15, 23, "Bartender",       true],
+    ["demo-p-emp-8",  1,12, 20, "Floor Manager",   true], ["demo-p-emp-8",  3,12, 20, "Floor Manager",   true],
+    ["demo-p-emp-8",  5,17, 23, "Floor Manager",   true], ["demo-p-emp-8",  6,12, 22, "Floor Manager",   true],
+    ["demo-p-emp-9",  1,12, 20, "Waitress",        true], ["demo-p-emp-9",  2,12, 20, "Waitress",        true],
+    ["demo-p-emp-9",  5,17, 23, "Waitress",        true], ["demo-p-emp-9",  6,12, 22, "Waitress",        true],
+    ["demo-p-emp-10", 2,17, 23, "Waiter",          true], ["demo-p-emp-10", 4,12, 20, "Waiter",          true],
+    ["demo-p-emp-10", 6,12, 22, "Waiter",          true], ["demo-p-emp-10", 7,12, 20, "Waiter",          true],
+    ["demo-p-emp-11", 3,12, 20, "Waitress",        true], ["demo-p-emp-11", 5,12, 20, "Waitress",        true],
+    ["demo-p-emp-11", 6,17, 23, "Waitress",        true], ["demo-p-emp-11", 7,12, 20, "Waitress",        true],
+    ["demo-p-emp-12", 1, 9, 17, "Ops Manager",     true], ["demo-p-emp-12", 2, 9, 17, "Ops Manager",     true],
+    ["demo-p-emp-12", 3, 9, 17, "Ops Manager",     true], ["demo-p-emp-12", 5,11, 20, "Ops Manager",     true],
+  ];
+  for (const [empId, dow, sh, eh, role, pub] of pShifts) {
+    const start = shiftDate(0, dow, sh);
+    const end   = shiftDate(0, dow, eh);
+    await prisma.shift.create({ data: { employeeId: empId, venueId: P_VENUE, date: new Date(start.getFullYear(), start.getMonth(), start.getDate()), startTime: start, endTime: end, role, published: pub } });
+  }
+
+  // More expenses for Pro
+  await prisma.expense.deleteMany({ where: { businessId: P_BIZ } });
+  const pExpenses = [
+    { amt: 2340.00, vat: 440.00, vendor: "Musgrave MarketPlace",  cat: "food_supplies", desc: "Weekly food delivery",      method: "invoice",        daysAgo: 1 },
+    { amt: 1560.00, vat: 293.30, vendor: "Diageo Ireland",        cat: "beverages",     desc: "Keg & spirits delivery",    method: "invoice",        daysAgo: 2 },
+    { amt: 420.00,  vat: 78.93,  vendor: "BWG Wines",             cat: "beverages",     desc: "Wine delivery",             method: "invoice",        daysAgo: 3 },
+    { amt: 290.00,  vat: 54.53,  vendor: "Bunzl Ireland",         cat: "cleaning",      desc: "Cleaning supplies",         method: "card",           daysAgo: 4 },
+    { amt: 3200.00, vat: 0,      vendor: "ESB Energy",            cat: "utilities",     desc: "Monthly electricity",       method: "direct_debit",   daysAgo: 5 },
+    { amt: 820.00,  vat: 0,      vendor: "Bord Gáis Networks",    cat: "utilities",     desc: "Monthly gas",               method: "direct_debit",   daysAgo: 6 },
+    { amt: 5200.00, vat: 0,      vendor: "Ranelagh Properties",   cat: "rent",          desc: "Monthly rent",              method: "bank_transfer",  daysAgo: 10 },
+    { amt: 340.00,  vat: 63.93,  vendor: "Coca-Cola HBC Ireland", cat: "beverages",     desc: "Soft drinks & mixers",      method: "invoice",        daysAgo: 7 },
+    { amt: 225.00,  vat: 42.31,  vendor: "CHUBB Security",        cat: "security",      desc: "Monthly alarm monitoring",  method: "direct_debit",   daysAgo: 8 },
+    { amt: 380.00,  vat: 71.43,  vendor: "Pallas Foods",          cat: "food_supplies", desc: "Fish & seafood order",      method: "invoice",        daysAgo: 9 },
+    { amt: 145.00,  vat: 27.27,  vendor: "JP Maintenance",        cat: "maintenance",   desc: "Quarterly equipment check", method: "card",           daysAgo: 12 },
+    { amt: 195.00,  vat: 36.67,  vendor: "Ashtree Linen",         cat: "laundry",       desc: "Linen rental",              method: "invoice",        daysAgo: 13 },
+  ];
+  for (const ex of pExpenses) {
+    await prisma.expense.create({ data: { businessId: P_BIZ, amount: ex.amt, vatAmount: ex.vat, currency: "EUR", vendor: ex.vendor, category: ex.cat, date: days(-ex.daysAgo), description: ex.desc, paymentMethod: ex.method, status: "confirmed", createdById: P_USER } });
+  }
+
+  // Pro reservations
+  await prisma.reservation.deleteMany({ where: { businessId: P_BIZ } });
+  const pTables = ["demo-p-t1","demo-p-t2","demo-p-t3","demo-p-t4","demo-p-t5"];
+  for (const tid of pTables) {
+    await prisma.table.upsert({ where: { id: tid }, create: { id: tid, businessId: P_BIZ, name: `Table ${pTables.indexOf(tid)+1}`, capacity: [2,4,4,6,8][pTables.indexOf(tid)], location: "Main Floor" }, update: {} });
+  }
+  const pRes = [
+    { name: "O'Sullivan x4", size: 4, dayOff: 0, time: "19:30", status: "confirmed", notes: "Anniversary", tableId: "demo-p-t2" },
+    { name: "Corporate — Google",  size: 8, dayOff: 1, time: "13:00", status: "confirmed", notes: "Team lunch",   tableId: "demo-p-t5" },
+    { name: "Flynn Party x6",      size: 6, dayOff: 1, time: "19:00", status: "confirmed", notes: null,           tableId: "demo-p-t4" },
+    { name: "Keane x2",            size: 2, dayOff: 2, time: "12:30", status: "confirmed", notes: null,           tableId: "demo-p-t1" },
+    { name: "Murray x4",           size: 4, dayOff: 2, time: "20:00", status: "confirmed", notes: "Birthday",     tableId: "demo-p-t3" },
+    { name: "Lynch Wedding Prep",  size: 8, dayOff: 7, time: "18:00", status: "confirmed", notes: "Pre-wedding",  tableId: "demo-p-t5" },
+    { name: "Brennan x3",          size: 3, dayOff: 3, time: "13:00", status: "confirmed", notes: null,           tableId: "demo-p-t2" },
+    { name: "Doyle",               size: 2, dayOff: -1,time: "19:00", status: "no_show",   notes: null,           tableId: "demo-p-t1" },
+    { name: "Startup Dinner x5",   size: 5, dayOff: 5, time: "19:30", status: "confirmed", notes: "Investor dinner", tableId: "demo-p-t4" },
+  ];
+  for (const r of pRes) {
+    await prisma.reservation.create({ data: { businessId: P_BIZ, customerName: r.name, partySize: r.size, date: days(r.dayOff, 12), time: r.time, duration: 90, status: r.status, notes: r.notes, tableId: r.tableId, createdById: P_USER } });
+  }
+
+  // Pro menu specials
+  await prisma.menuSpecial.deleteMany({ where: { businessId: P_BIZ } });
+  await prisma.menuSpecial.createMany({ data: [
+    { businessId: P_BIZ, createdById: P_USER, title: "🐟 Sea Bass Special", description: "Pan-roasted sea bass, lemon beurre blanc, asparagus. €24.50.", category: "special", date: days(0, 8), pinned: true, archived: false },
+    { businessId: P_BIZ, createdById: P_USER, title: "🍷 New Wine List", description: "Updated summer wine list — 6 new labels. Ask staff for recommendations.", category: "change", date: days(-2, 8), pinned: false, archived: false },
+    { businessId: P_BIZ, createdById: P_USER, title: "⚠️ 86'd — Duck Confit", description: "Duck confit off today — supplier delay. Lamb shank available as sub.", category: "86'd", date: days(0, 8), pinned: false, archived: false },
+    { businessId: P_BIZ, createdById: P_USER, title: "📋 Staff Briefing", description: "New allergen sheet live from Monday. All staff read before service.", category: "announcement", date: days(1, 8), pinned: true, archived: false },
+  ]});
+
+  // Time-off for Pro
+  await prisma.timeOffRequest.deleteMany({ where: { employee: { businessId: P_BIZ } } });
+  await prisma.timeOffRequest.createMany({ data: [
+    { employeeId: "demo-p-emp-6",  startDate: days(7),  endDate: days(10), status: "pending",  reason: "Holiday — Portugal" },
+    { employeeId: "demo-p-emp-9",  startDate: days(5),  endDate: days(5),  status: "approved", reason: "Doctor appointment", managedById: P_USER },
+    { employeeId: "demo-p-emp-4",  startDate: days(14), endDate: days(18), status: "pending",  reason: "Summer holiday" },
+    { employeeId: "demo-p-emp-11", startDate: days(3),  endDate: days(3),  status: "rejected", reason: "Short notice request", managedById: P_USER },
+  ]});
+
+  // Training certs for Pro
+  await prisma.trainingCertification.deleteMany({ where: { businessId: P_BIZ } });
+  await prisma.trainingCertification.createMany({ data: [
+    { businessId: P_BIZ, employeeId: "demo-p-emp-1", title: "HACCP Level 3 — Management",    issuer: "QQI",             category: "HACCP",   issuedDate: days(-400), expiryDate: days(600) },
+    { businessId: P_BIZ, employeeId: "demo-p-emp-2", title: "HACCP Level 2",                 issuer: "QQI",             category: "HACCP",   issuedDate: days(-180), expiryDate: days(185) },
+    { businessId: P_BIZ, employeeId: "demo-p-emp-5", title: "RSA Responsible Serving",       issuer: "Fáilte Ireland",  category: "ALCOHOL", issuedDate: days(-100), expiryDate: days(800) },
+    { businessId: P_BIZ, employeeId: "demo-p-emp-6", title: "RSA Responsible Serving",       issuer: "Fáilte Ireland",  category: "ALCOHOL", issuedDate: days(-500), expiryDate: days(-10), notes: "⚠️ EXPIRED" },
+    { businessId: P_BIZ, employeeId: "demo-p-emp-7", title: "RSA Responsible Serving",       issuer: "Fáilte Ireland",  category: "ALCOHOL", issuedDate: days(-200), expiryDate: days(600) },
+    { businessId: P_BIZ, employeeId: "demo-p-emp-9", title: "Food Safety Awareness",         issuer: "QQI",             category: "FOOD_SAFETY", issuedDate: days(-250), expiryDate: null },
+    { businessId: P_BIZ, employeeId: "demo-p-emp-3", title: "First Aid Responder",           issuer: "Irish Red Cross", category: "FIRST_AID", issuedDate: days(-90), expiryDate: days(30), notes: "Due soon" },
+  ]});
+
+  // AI Settings for Pro
+  await prisma.aISettings.upsert({
+    where: { businessId: P_BIZ },
+    create: { businessId: P_BIZ, bookingThresholdForStaffIncrease: 18, kitchenRatio: 20, floorRatio: 15, minBarStaff: 2, rotaWarningDaysAhead: 3, autoFlagShortStaffedShifts: true, minStaffPerShift: 2, priceChangeNotifyScope: "all_staff", priceChangeMessage: "Menu update in effect — check specials board." },
+    update: {},
+  });
+
+  // Tip pool for Pro
+  await prisma.tipDistribution.deleteMany({ where: { pool: { businessId: P_BIZ } } });
+  await prisma.tipPool.deleteMany({ where: { businessId: P_BIZ } });
+  const pPool = "demo-p-tip-pool-1";
+  await prisma.tipPool.upsert({
+    where: { id: pPool },
+    create: { id: pPool, businessId: P_BIZ, periodStart: days(-7, 0, 0), periodEnd: days(-1, 23, 59), totalAmount: 1840.00, method: "hours", status: "distributed", distributedAt: days(-1), notes: "Last week tips." },
+    update: {},
+  });
+  await prisma.tipDistribution.createMany({ data: [
+    { poolId: pPool, employeeId: "demo-p-emp-5",  hoursWorked: 36, shareAmount: 330.00 },
+    { poolId: pPool, employeeId: "demo-p-emp-6",  hoursWorked: 40, shareAmount: 366.67 },
+    { poolId: pPool, employeeId: "demo-p-emp-7",  hoursWorked: 32, shareAmount: 293.33 },
+    { poolId: pPool, employeeId: "demo-p-emp-8",  hoursWorked: 34, shareAmount: 311.67 },
+    { poolId: pPool, employeeId: "demo-p-emp-9",  hoursWorked: 28, shareAmount: 256.67 },
+    { poolId: pPool, employeeId: "demo-p-emp-10", hoursWorked: 20, shareAmount: 183.33 },
+    { poolId: pPool, employeeId: "demo-p-emp-11", hoursWorked: 16, shareAmount: 146.67 },
+    { poolId: pPool, employeeId: "demo-p-emp-4",  hoursWorked: 16, shareAmount: 146.67 },
+  ]});
+
+  console.log("✅ Pro owner demo created");
+
+  // ── ENTERPRISE ────────────────────────────────────────────────────────────────
+  const E_BIZ    = "demo-owner-ent-biz";
+  const E_VENUE1 = "demo-owner-ent-venue1";
+  const E_VENUE2 = "demo-owner-ent-venue2";
+  const E_VENUE3 = "demo-owner-ent-venue3";
+  const E_USER   = "demo-owner-ent-user";
+
+  await prisma.business.upsert({
+    where: { id: E_BIZ },
+    create: {
+      id: E_BIZ,
+      name: "Harrington Group",
+      onboardingComplete: true,
+      geoLat: 53.3498,
+      geoLng: -6.2603,
+      geoRadius: 300,
+      weeklyRevenueTarget: 90000,
+      lsPlan: "enterprise",
+      lsStatus: "active",
+    },
+    update: { lsPlan: "enterprise", lsStatus: "active" },
+  });
+
+  await prisma.user.upsert({
+    where: { id: E_USER },
+    create: { id: E_USER, email: "owner.enterprise@rotahr.demo", name: "Michael Harrington", role: "ADMIN", businessId: E_BIZ, password: pw },
+    update: { name: "Michael Harrington", role: "ADMIN", businessId: E_BIZ, password: pw },
+  });
+
+  // 3 venues for Enterprise
+  const entVenues = [
+    { id: E_VENUE1, name: "Harrington's — Temple Bar", address: "12 Temple Bar Square, Dublin 2" },
+    { id: E_VENUE2, name: "Harrington's — Dún Laoghaire", address: "5 Marine Road, Dún Laoghaire, Co. Dublin" },
+    { id: E_VENUE3, name: "Harrington's — Malahide", address: "3 The Diamond, Malahide, Co. Dublin" },
+  ];
+  for (let i = 0; i < entVenues.length; i++) {
+    const v = entVenues[i];
+    await prisma.venue.upsert({
+      where: { id: v.id },
+      create: { id: v.id, businessId: E_BIZ, name: v.name, address: v.address, geoLat: 53.3498, geoLng: -6.2603, geoRadius: 200, timezone: "Europe/Dublin", isDefault: i === 0, active: true },
+      update: { name: v.name },
+    });
+  }
+
+  // Departments for Enterprise
+  for (const dept of [
+    { id: "demo-e-dept-kit", name: "Kitchen" },
+    { id: "demo-e-dept-bar", name: "Bar" },
+    { id: "demo-e-dept-flr", name: "Floor" },
+    { id: "demo-e-dept-mgmt", name: "Management" },
+  ]) {
+    await prisma.department.upsert({ where: { id: dept.id }, create: { id: dept.id, businessId: E_BIZ, name: dept.name }, update: { name: dept.name } });
+  }
+
+  // 20 staff across 3 venues
+  const entStaff = [
+    // Temple Bar (venue1) — 8 staff
+    { id: "demo-e-emp-1",  first: "Claire",  last: "Tully",     role: "venue manager",   dept: "demo-e-dept-mgmt", venue: E_VENUE1, rate: 28.0, userRole: "MANAGER" as const },
+    { id: "demo-e-emp-2",  first: "Fergus",  last: "Moran",     role: "head chef",       dept: "demo-e-dept-kit",  venue: E_VENUE1, rate: 23.5, userRole: "MANAGER" as const },
+    { id: "demo-e-emp-3",  first: "Sinéad",  last: "Brady",     role: "sous chef",       dept: "demo-e-dept-kit",  venue: E_VENUE1, rate: 19.0, userRole: "EMPLOYEE" as const },
+    { id: "demo-e-emp-4",  first: "Mark",    last: "Doyle",     role: "bar manager",     dept: "demo-e-dept-bar",  venue: E_VENUE1, rate: 21.0, userRole: "MANAGER" as const },
+    { id: "demo-e-emp-5",  first: "Aoibhinn",last: "Power",     role: "bartender",       dept: "demo-e-dept-bar",  venue: E_VENUE1, rate: 15.5, userRole: "EMPLOYEE" as const },
+    { id: "demo-e-emp-6",  first: "Niall",   last: "Fagan",     role: "bartender",       dept: "demo-e-dept-bar",  venue: E_VENUE1, rate: 15.0, userRole: "EMPLOYEE" as const },
+    { id: "demo-e-emp-7",  first: "Deirdre", last: "Cronin",    role: "waitress",        dept: "demo-e-dept-flr",  venue: E_VENUE1, rate: 14.0, userRole: "EMPLOYEE" as const },
+    { id: "demo-e-emp-8",  first: "Kieran",  last: "Walsh",     role: "kitchen porter",  dept: "demo-e-dept-kit",  venue: E_VENUE1, rate: 13.5, userRole: "EMPLOYEE" as const },
+    // Dún Laoghaire (venue2) — 6 staff
+    { id: "demo-e-emp-9",  first: "Lorraine",last: "Kavanagh",  role: "venue manager",   dept: "demo-e-dept-mgmt", venue: E_VENUE2, rate: 27.0, userRole: "MANAGER" as const },
+    { id: "demo-e-emp-10", first: "Tomás",   last: "Ó Briain",  role: "head chef",       dept: "demo-e-dept-kit",  venue: E_VENUE2, rate: 22.0, userRole: "MANAGER" as const },
+    { id: "demo-e-emp-11", first: "Paula",   last: "Sheridan",  role: "bar manager",     dept: "demo-e-dept-bar",  venue: E_VENUE2, rate: 20.5, userRole: "MANAGER" as const },
+    { id: "demo-e-emp-12", first: "Seán",    last: "Casey",     role: "bartender",       dept: "demo-e-dept-bar",  venue: E_VENUE2, rate: 15.0, userRole: "EMPLOYEE" as const },
+    { id: "demo-e-emp-13", first: "Rachel",  last: "Dempsey",   role: "waitress",        dept: "demo-e-dept-flr",  venue: E_VENUE2, rate: 14.0, userRole: "EMPLOYEE" as const },
+    { id: "demo-e-emp-14", first: "Dylan",   last: "Farrell",   role: "sous chef",       dept: "demo-e-dept-kit",  venue: E_VENUE2, rate: 18.5, userRole: "EMPLOYEE" as const },
+    // Malahide (venue3) — 6 staff
+    { id: "demo-e-emp-15", first: "Nuala",   last: "Murray",    role: "venue manager",   dept: "demo-e-dept-mgmt", venue: E_VENUE3, rate: 26.5, userRole: "MANAGER" as const },
+    { id: "demo-e-emp-16", first: "Andrew",  last: "Burke",     role: "head chef",       dept: "demo-e-dept-kit",  venue: E_VENUE3, rate: 23.0, userRole: "MANAGER" as const },
+    { id: "demo-e-emp-17", first: "Sarah",   last: "Dillon",    role: "floor manager",   dept: "demo-e-dept-flr",  venue: E_VENUE3, rate: 20.0, userRole: "MANAGER" as const },
+    { id: "demo-e-emp-18", first: "Cormac",  last: "Healy",     role: "bartender",       dept: "demo-e-dept-bar",  venue: E_VENUE3, rate: 15.5, userRole: "EMPLOYEE" as const },
+    { id: "demo-e-emp-19", first: "Eva",     last: "McCarthy",  role: "waitress",        dept: "demo-e-dept-flr",  venue: E_VENUE3, rate: 14.0, userRole: "EMPLOYEE" as const },
+    { id: "demo-e-emp-20", first: "Ronan",   last: "Gallagher", role: "kitchen porter",  dept: "demo-e-dept-kit",  venue: E_VENUE3, rate: 13.5, userRole: "EMPLOYEE" as const },
+  ];
+  for (const e of entStaff) {
+    const email = `${e.first.toLowerCase().replace("ó","o").replace("í","i").replace("á","a").replace("é","e")}.${e.last.toLowerCase().replace("'","").replace(" ",".")}@harringtongroup.demo`;
+    await prisma.user.upsert({
+      where: { id: `${e.id}-user` },
+      create: { id: `${e.id}-user`, email, name: `${e.first} ${e.last}`, role: e.userRole, businessId: E_BIZ, password: pw },
+      update: { businessId: E_BIZ, password: pw },
+    });
+    await prisma.employee.upsert({
+      where: { id: e.id },
+      create: { id: e.id, businessId: E_BIZ, venueId: e.venue, userId: `${e.id}-user`, firstName: e.first, lastName: e.last, email, role: e.role, departmentId: e.dept, hourlyRate: e.rate, active: true, permissions: [], phone: `+353 85${Math.floor(1000000 + Math.random() * 8999999)}` },
+      update: { role: e.role, hourlyRate: e.rate, departmentId: e.dept, venueId: e.venue },
+    });
+  }
+
+  // Shifts for Enterprise (Temple Bar only — shows multi-venue concept)
+  await prisma.shift.deleteMany({ where: { venueId: { in: [E_VENUE1, E_VENUE2, E_VENUE3] } } });
+  const eShifts: Array<[string, string, number, number, number, string, boolean]> = [
+    // Temple Bar
+    ["demo-e-emp-2",  E_VENUE1, 1, 8, 19, "Head Chef",      true], ["demo-e-emp-2",  E_VENUE1, 3, 8, 19, "Head Chef",    true],
+    ["demo-e-emp-2",  E_VENUE1, 5, 8, 21, "Head Chef",      true], ["demo-e-emp-2",  E_VENUE1, 6, 8, 21, "Head Chef",    true],
+    ["demo-e-emp-3",  E_VENUE1, 1, 9, 17, "Sous Chef",      true], ["demo-e-emp-3",  E_VENUE1, 2, 9, 17, "Sous Chef",    true],
+    ["demo-e-emp-3",  E_VENUE1, 5, 9, 19, "Sous Chef",      true], ["demo-e-emp-3",  E_VENUE1, 6, 9, 19, "Sous Chef",    true],
+    ["demo-e-emp-4",  E_VENUE1, 1,14, 23, "Bar Manager",    true], ["demo-e-emp-4",  E_VENUE1, 3,12, 22, "Bar Manager",  true],
+    ["demo-e-emp-4",  E_VENUE1, 5,15, 23, "Bar Manager",    true], ["demo-e-emp-4",  E_VENUE1, 6,12, 23, "Bar Manager",  true],
+    ["demo-e-emp-5",  E_VENUE1, 2,15, 23, "Bartender",      true], ["demo-e-emp-5",  E_VENUE1, 4,15, 23, "Bartender",    true],
+    ["demo-e-emp-5",  E_VENUE1, 5,12, 22, "Bartender",      true], ["demo-e-emp-5",  E_VENUE1, 6,12, 22, "Bartender",    true],
+    ["demo-e-emp-6",  E_VENUE1, 1,17, 23, "Bartender",      true], ["demo-e-emp-6",  E_VENUE1, 3,17, 23, "Bartender",    true],
+    ["demo-e-emp-6",  E_VENUE1, 6,15, 23, "Bartender",      true], ["demo-e-emp-6",  E_VENUE1, 7,15, 23, "Bartender",    true],
+    ["demo-e-emp-7",  E_VENUE1, 1,12, 20, "Waitress",       true], ["demo-e-emp-7",  E_VENUE1, 3,12, 20, "Waitress",     true],
+    ["demo-e-emp-7",  E_VENUE1, 5,17, 23, "Waitress",       true], ["demo-e-emp-7",  E_VENUE1, 6,12, 22, "Waitress",     true],
+    ["demo-e-emp-8",  E_VENUE1, 1,10, 18, "Kitchen Porter", true], ["demo-e-emp-8",  E_VENUE1, 3,10, 18, "Kitchen Porter",true],
+    ["demo-e-emp-8",  E_VENUE1, 5,10, 18, "Kitchen Porter", true], ["demo-e-emp-8",  E_VENUE1, 6,10, 18, "Kitchen Porter",true],
+    // Dún Laoghaire
+    ["demo-e-emp-10", E_VENUE2, 1, 8, 19, "Head Chef",      true], ["demo-e-emp-10", E_VENUE2, 3, 8, 19, "Head Chef",    true],
+    ["demo-e-emp-10", E_VENUE2, 5, 8, 20, "Head Chef",      true], ["demo-e-emp-10", E_VENUE2, 6, 8, 20, "Head Chef",    true],
+    ["demo-e-emp-11", E_VENUE2, 1,14, 23, "Bar Manager",    true], ["demo-e-emp-11", E_VENUE2, 3,12, 22, "Bar Manager",  true],
+    ["demo-e-emp-11", E_VENUE2, 5,15, 23, "Bar Manager",    true], ["demo-e-emp-11", E_VENUE2, 6,12, 23, "Bar Manager",  true],
+    ["demo-e-emp-12", E_VENUE2, 2,15, 23, "Bartender",      true], ["demo-e-emp-12", E_VENUE2, 4,15, 23, "Bartender",    true],
+    ["demo-e-emp-12", E_VENUE2, 5,12, 22, "Bartender",      true], ["demo-e-emp-12", E_VENUE2, 6,12, 22, "Bartender",    true],
+    ["demo-e-emp-13", E_VENUE2, 1,12, 20, "Waitress",       true], ["demo-e-emp-13", E_VENUE2, 3,12, 20, "Waitress",     true],
+    ["demo-e-emp-13", E_VENUE2, 5,17, 23, "Waitress",       true], ["demo-e-emp-13", E_VENUE2, 6,12, 22, "Waitress",     true],
+    ["demo-e-emp-14", E_VENUE2, 1, 9, 17, "Sous Chef",      true], ["demo-e-emp-14", E_VENUE2, 2, 9, 17, "Sous Chef",    true],
+    ["demo-e-emp-14", E_VENUE2, 5, 9, 19, "Sous Chef",      true], ["demo-e-emp-14", E_VENUE2, 6, 9, 19, "Sous Chef",    true],
+    // Malahide
+    ["demo-e-emp-16", E_VENUE3, 1, 8, 19, "Head Chef",      true], ["demo-e-emp-16", E_VENUE3, 4, 8, 19, "Head Chef",    true],
+    ["demo-e-emp-16", E_VENUE3, 5, 8, 20, "Head Chef",      true], ["demo-e-emp-16", E_VENUE3, 6, 8, 20, "Head Chef",    true],
+    ["demo-e-emp-17", E_VENUE3, 1,12, 20, "Floor Manager",  true], ["demo-e-emp-17", E_VENUE3, 3,12, 20, "Floor Manager",true],
+    ["demo-e-emp-17", E_VENUE3, 5,15, 23, "Floor Manager",  true], ["demo-e-emp-17", E_VENUE3, 6,12, 23, "Floor Manager",true],
+    ["demo-e-emp-18", E_VENUE3, 2,15, 23, "Bartender",      true], ["demo-e-emp-18", E_VENUE3, 4,15, 23, "Bartender",    true],
+    ["demo-e-emp-18", E_VENUE3, 5,12, 22, "Bartender",      true], ["demo-e-emp-18", E_VENUE3, 6,12, 22, "Bartender",    true],
+    ["demo-e-emp-19", E_VENUE3, 1,12, 20, "Waitress",       true], ["demo-e-emp-19", E_VENUE3, 2,12, 20, "Waitress",     true],
+    ["demo-e-emp-19", E_VENUE3, 5,17, 23, "Waitress",       true], ["demo-e-emp-19", E_VENUE3, 6,12, 22, "Waitress",     true],
+    ["demo-e-emp-20", E_VENUE3, 1,10, 18, "Kitchen Porter", true], ["demo-e-emp-20", E_VENUE3, 3,10, 18, "Kitchen Porter",true],
+    ["demo-e-emp-20", E_VENUE3, 5,10, 18, "Kitchen Porter", true], ["demo-e-emp-20", E_VENUE3, 6,10, 18, "Kitchen Porter",true],
+  ];
+  for (const [empId, venueId, dow, sh, eh, role, pub] of eShifts) {
+    const start = shiftDate(0, dow, sh);
+    const end   = shiftDate(0, dow, eh);
+    await prisma.shift.create({ data: { employeeId: empId, venueId, date: new Date(start.getFullYear(), start.getMonth(), start.getDate()), startTime: start, endTime: end, role, published: pub } });
+  }
+
+  // Enterprise expenses — high volume across all venues
+  await prisma.expense.deleteMany({ where: { businessId: E_BIZ } });
+  const eExpenses = [
+    { amt: 5840.00, vat: 1097.60, vendor: "Musgrave MarketPlace",  cat: "food_supplies",  desc: "Group weekly food order — all venues",  method: "invoice",       daysAgo: 1  },
+    { amt: 4200.00, vat: 789.47,  vendor: "Diageo Ireland",        cat: "beverages",      desc: "Group keg & spirits order",             method: "invoice",       daysAgo: 2  },
+    { amt: 980.00,  vat: 184.24,  vendor: "BWG Wines",             cat: "beverages",      desc: "Wine delivery — all 3 venues",          method: "invoice",       daysAgo: 3  },
+    { amt: 6800.00, vat: 0,       vendor: "ESB Energy",            cat: "utilities",      desc: "Monthly electricity — 3 venues",        method: "direct_debit",  daysAgo: 5  },
+    { amt: 1840.00, vat: 0,       vendor: "Bord Gáis Networks",    cat: "utilities",      desc: "Monthly gas — 3 venues",                method: "direct_debit",  daysAgo: 6  },
+    { amt: 18500.00,vat: 0,       vendor: "Harrington Properties", cat: "rent",           desc: "Monthly rent — 3 venue leases",         method: "bank_transfer", daysAgo: 10 },
+    { amt: 1240.00, vat: 233.20,  vendor: "Bunzl Ireland",         cat: "cleaning",       desc: "Group cleaning supplies order",         method: "invoice",       daysAgo: 4  },
+    { amt: 560.00,  vat: 105.28,  vendor: "CHUBB Security",        cat: "security",       desc: "3-venue alarm monitoring — monthly",    method: "direct_debit",  daysAgo: 8  },
+    { amt: 890.00,  vat: 167.32,  vendor: "Pallas Foods",          cat: "food_supplies",  desc: "Seafood & fish order — all venues",     method: "invoice",       daysAgo: 7  },
+    { amt: 380.00,  vat: 71.43,   vendor: "Ashtree Linen",         cat: "laundry",        desc: "Group linen rental",                    method: "invoice",       daysAgo: 9  },
+    { amt: 640.00,  vat: 120.32,  vendor: "JP Maintenance",        cat: "maintenance",    desc: "Quarterly equipment maintenance — all", method: "card",          daysAgo: 12 },
+    { amt: 2200.00, vat: 413.40,  vendor: "Diageo Ireland",        cat: "beverages",      desc: "Mid-week spirits top-up",               method: "invoice",       daysAgo: 11 },
+    { amt: 0,       vat: 0,       vendor: "Revenue Commissioners", cat: "tax",            desc: "VAT return Q2 — group",                 method: "bank_transfer", daysAgo: 15 },
+  ].filter(e => e.amt > 0);
+  for (const ex of eExpenses) {
+    await prisma.expense.create({ data: { businessId: E_BIZ, amount: ex.amt, vatAmount: ex.vat, currency: "EUR", vendor: ex.vendor, category: ex.cat, date: days(-ex.daysAgo), description: ex.desc, paymentMethod: ex.method, status: "confirmed", createdById: E_USER } });
+  }
+
+  // Enterprise reservations across venues
+  await prisma.reservation.deleteMany({ where: { businessId: E_BIZ } });
+  const entTables = [
+    { id: "demo-e-t1", cap: 2, loc: "Main Floor" }, { id: "demo-e-t2", cap: 4, loc: "Main Floor" },
+    { id: "demo-e-t3", cap: 4, loc: "Booth" },       { id: "demo-e-t4", cap: 6, loc: "Private" },
+    { id: "demo-e-t5", cap: 8, loc: "Private" },     { id: "demo-e-t6", cap: 4, loc: "Main Floor" },
+  ];
+  for (const t of entTables) {
+    await prisma.table.upsert({ where: { id: t.id }, create: { id: t.id, businessId: E_BIZ, name: `Table ${entTables.indexOf(t)+1}`, capacity: t.cap, location: t.loc }, update: {} });
+  }
+  const eRes = [
+    { name: "Corporate — Meta",         size: 8, dayOff: 1, time: "13:00", status: "confirmed", notes: "Board lunch",          tableId: "demo-e-t5", venue: E_VENUE1 },
+    { name: "O'Dwyer Party x6",         size: 6, dayOff: 1, time: "19:00", status: "confirmed", notes: "Birthday",             tableId: "demo-e-t4", venue: E_VENUE1 },
+    { name: "Byrne x4",                 size: 4, dayOff: 2, time: "20:00", status: "confirmed", notes: null,                   tableId: "demo-e-t2", venue: E_VENUE2 },
+    { name: "Murphy Wedding Party x8",  size: 8, dayOff: 7, time: "18:00", status: "confirmed", notes: "Private room request", tableId: "demo-e-t5", venue: E_VENUE2 },
+    { name: "Kehoe x4",                 size: 4, dayOff: 3, time: "13:00", status: "confirmed", notes: null,                   tableId: "demo-e-t3", venue: E_VENUE3 },
+    { name: "Enterprise Tech Dinner",   size: 6, dayOff: 4, time: "19:30", status: "confirmed", notes: "Investor dinner",      tableId: "demo-e-t4", venue: E_VENUE3 },
+    { name: "Lyons x2",                 size: 2, dayOff: 0, time: "12:30", status: "confirmed", notes: null,                   tableId: "demo-e-t1", venue: E_VENUE1 },
+    { name: "King x3",                  size: 3, dayOff: -1,time: "19:00", status: "no_show",   notes: null,                   tableId: "demo-e-t6", venue: E_VENUE2 },
+    { name: "Dunne Christening x8",     size: 8, dayOff: 10,time: "14:00", status: "confirmed", notes: "Christening reception",tableId: "demo-e-t5", venue: E_VENUE3 },
+  ];
+  for (const r of eRes) {
+    await prisma.reservation.create({ data: { businessId: E_BIZ, customerName: r.name, partySize: r.size, date: days(r.dayOff, 12), time: r.time, duration: 90, status: r.status, notes: r.notes, tableId: r.tableId, createdById: E_USER } });
+  }
+
+  // Enterprise AI Settings
+  await prisma.aISettings.upsert({
+    where: { businessId: E_BIZ },
+    create: { businessId: E_BIZ, bookingThresholdForStaffIncrease: 25, kitchenRatio: 20, floorRatio: 15, minBarStaff: 3, rotaWarningDaysAhead: 5, autoFlagShortStaffedShifts: true, minStaffPerShift: 3, priceChangeNotifyScope: "all_staff", priceChangeMessage: "Group menu update in effect across all venues. See your venue manager." },
+    update: {},
+  });
+
+  // Enterprise tip pools (one per venue)
+  await prisma.tipDistribution.deleteMany({ where: { pool: { businessId: E_BIZ } } });
+  await prisma.tipPool.deleteMany({ where: { businessId: E_BIZ } });
+  const ePools = [
+    { id: "demo-e-pool-1", total: 2840.00, notes: "Temple Bar — last week", emps: [
+      { e: "demo-e-emp-4", h: 40, s: 540.95 }, { e: "demo-e-emp-5", h: 38, s: 513.90 },
+      { e: "demo-e-emp-6", h: 32, s: 432.76 }, { e: "demo-e-emp-7", h: 28, s: 378.67 },
+      { e: "demo-e-emp-3", h: 24, s: 324.57 }, { e: "demo-e-emp-8", h: 20, s: 270.48 },
+    ]},
+    { id: "demo-e-pool-2", total: 2180.00, notes: "Dún Laoghaire — last week", emps: [
+      { e: "demo-e-emp-11", h: 36, s: 465.43 }, { e: "demo-e-emp-12", h: 40, s: 517.14 },
+      { e: "demo-e-emp-13", h: 28, s: 362.00 }, { e: "demo-e-emp-14", h: 32, s: 413.71 },
+      { e: "demo-e-emp-10", h: 20, s: 258.57 }, { e: "demo-e-emp-9", h: 12, s: 155.14 },
+    ]},
+    { id: "demo-e-pool-3", total: 1960.00, notes: "Malahide — last week", emps: [
+      { e: "demo-e-emp-17", h: 36, s: 436.36 }, { e: "demo-e-emp-18", h: 38, s: 461.82 },
+      { e: "demo-e-emp-19", h: 32, s: 387.27 }, { e: "demo-e-emp-20", h: 24, s: 290.91 },
+      { e: "demo-e-emp-16", h: 20, s: 242.42 }, { e: "demo-e-emp-15", h: 12, s: 145.45 },
+    ]},
+  ];
+  for (const pool of ePools) {
+    await prisma.tipPool.upsert({
+      where: { id: pool.id },
+      create: { id: pool.id, businessId: E_BIZ, periodStart: days(-7, 0, 0), periodEnd: days(-1, 23, 59), totalAmount: pool.total, method: "hours", status: "distributed", distributedAt: days(-1), notes: pool.notes },
+      update: {},
+    });
+    await prisma.tipDistribution.createMany({ data: pool.emps.map(e => ({ poolId: pool.id, employeeId: e.e, hoursWorked: e.h, shareAmount: e.s })) });
+  }
+
+  // Enterprise menu specials (group-wide)
+  await prisma.menuSpecial.deleteMany({ where: { businessId: E_BIZ } });
+  await prisma.menuSpecial.createMany({ data: [
+    { businessId: E_BIZ, createdById: E_USER, title: "🏢 Group Policy Update", description: "All venues: new tipping policy in effect from Monday. See managers for briefing packs.", category: "announcement", date: days(1, 8), pinned: true, archived: false },
+    { businessId: E_BIZ, createdById: E_USER, title: "🐟 Summer Seafood Menu", description: "New seasonal seafood menu launching this weekend across all Harrington venues. Training session Friday 3pm.", category: "change", date: days(0, 8), pinned: true, archived: false },
+    { businessId: E_BIZ, createdById: E_USER, title: "🥩 Bank Holiday Special", description: "Full carvery on bank holiday Sunday across all venues. Extra staff rostered. Doors 12pm.", category: "special", date: days(2, 8), pinned: false, archived: false },
+    { businessId: E_BIZ, createdById: E_USER, title: "⚠️ Allergen Sheet v4.2", description: "Updated allergen info for new summer menu. Mandatory for all front-of-house staff before Friday service.", category: "announcement", date: days(-1, 8), pinned: false, archived: false },
+  ]});
+
+  // Training certs for Enterprise
+  await prisma.trainingCertification.deleteMany({ where: { businessId: E_BIZ } });
+  await prisma.trainingCertification.createMany({ data: [
+    { businessId: E_BIZ, employeeId: "demo-e-emp-2",  title: "HACCP Level 3",          issuer: "QQI",             category: "HACCP",   issuedDate: days(-400), expiryDate: days(600) },
+    { businessId: E_BIZ, employeeId: "demo-e-emp-10", title: "HACCP Level 3",          issuer: "QQI",             category: "HACCP",   issuedDate: days(-300), expiryDate: days(700) },
+    { businessId: E_BIZ, employeeId: "demo-e-emp-16", title: "HACCP Level 3",          issuer: "QQI",             category: "HACCP",   issuedDate: days(-200), expiryDate: days(800) },
+    { businessId: E_BIZ, employeeId: "demo-e-emp-4",  title: "RSA Responsible Serving",issuer: "Fáilte Ireland",  category: "ALCOHOL", issuedDate: days(-100), expiryDate: days(800) },
+    { businessId: E_BIZ, employeeId: "demo-e-emp-5",  title: "RSA Responsible Serving",issuer: "Fáilte Ireland",  category: "ALCOHOL", issuedDate: days(-500), expiryDate: days(-5),  notes: "⚠️ EXPIRED" },
+    { businessId: E_BIZ, employeeId: "demo-e-emp-11", title: "RSA Responsible Serving",issuer: "Fáilte Ireland",  category: "ALCOHOL", issuedDate: days(-90),  expiryDate: days(900) },
+    { businessId: E_BIZ, employeeId: "demo-e-emp-1",  title: "First Aid Responder",    issuer: "Irish Red Cross", category: "FIRST_AID", issuedDate: days(-50), expiryDate: days(1050) },
+    { businessId: E_BIZ, employeeId: "demo-e-emp-9",  title: "First Aid Responder",    issuer: "Irish Red Cross", category: "FIRST_AID", issuedDate: days(-120), expiryDate: days(30), notes: "Renew soon" },
+    { businessId: E_BIZ, employeeId: "demo-e-emp-15", title: "First Aid Responder",    issuer: "Irish Red Cross", category: "FIRST_AID", issuedDate: days(-60),  expiryDate: days(1040) },
+  ]});
+
+  console.log("✅ Enterprise owner demo created");
+}
+
 /**
  * seedDemo() — exported for in-process use (e.g. Vercel serverless, API routes).
  * Runs all the seed logic with its own Prisma client instance.
@@ -1087,6 +1683,7 @@ export async function seedDemo(): Promise<void> {
   const seedPrisma = new PrismaClient();
   try {
     await main(seedPrisma);
+    await seedOwnerDemos(seedPrisma);
   } finally {
     await seedPrisma.$disconnect();
   }
@@ -1102,6 +1699,7 @@ const isMain =
 if (isMain) {
   const cliPrisma = new PrismaClient();
   main(cliPrisma)
+    .then(() => seedOwnerDemos(cliPrisma))
     .catch((e) => { console.error(e); process.exit(1); })
     .finally(() => cliPrisma.$disconnect());
 }
