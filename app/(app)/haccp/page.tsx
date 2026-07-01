@@ -42,6 +42,7 @@ import {
 import { cn } from "@/lib/utils";
 import { UserRole as Role } from "@/types/roles";
 import { toast } from "sonner";
+import { DeliveryNoteModal } from "@/components/shared/DeliveryNoteModal";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -1209,6 +1210,7 @@ export default function HACCPPage() {
   const [todayRecords, setTodayRecords] = useState<HACCPRecord[]>([]);
   const [equipment, setEquipment] = useState<HACCPEquipment[]>([]);
   const [activeModal, setActiveModal] = useState<string | null>(null);
+  const [deliveryNoteOpen, setDeliveryNoteOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [view, setView] = useState<"dashboard" | "history">("dashboard");
   const [historyFilter, setHistoryFilter] = useState("all");
@@ -1478,6 +1480,11 @@ export default function HACCPPage() {
           <Button variant="outline" size="sm" onClick={handleDownloadPDF}>
             <Download className="h-4 w-4 mr-1" /> PDF
           </Button>
+          {isManager && (
+            <Button size="sm" variant="outline" className="gap-2 border-violet-200 text-violet-700 hover:bg-violet-50" onClick={() => setDeliveryNoteOpen(true)}>
+              <Truck className="h-4 w-4" /> Scan Delivery Note
+            </Button>
+          )}
         </div>
       </div>
 
@@ -1848,6 +1855,12 @@ export default function HACCPPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <DeliveryNoteModal
+        open={deliveryNoteOpen}
+        onClose={() => setDeliveryNoteOpen(false)}
+        onApplied={() => { fetchRecords(); }}
+      />
     </div>
   );
 }

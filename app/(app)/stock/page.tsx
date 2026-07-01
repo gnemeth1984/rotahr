@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { UserRole as Role } from "@/types/roles";
 import { cn } from "@/lib/utils";
+import { DeliveryNoteModal } from "@/components/shared/DeliveryNoteModal";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -2203,6 +2204,7 @@ function StockPageInner() {
   const [stockDialog, setStockDialog] = useState<{ open: boolean; editing: StockItem | null; defaultSupplier?: string }>({ open: false, editing: null });
   const [orderDialog, setOrderDialog] = useState<{ open: boolean; editing: SupplierOrder | null }>({ open: false, editing: null });
   const [scanDialog, setScanDialog] = useState(false);
+  const [deliveryNoteOpen, setDeliveryNoteOpen] = useState(false);
 
   // Track whether an order draft exists in localStorage (for badge on button)
   const [hasDraft, setHasDraft] = useState(false);
@@ -2278,14 +2280,21 @@ function StockPageInner() {
   return (
     <div className="px-4 py-6 max-w-4xl mx-auto w-full space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-          <Package className="h-6 w-6 text-violet-600" />
-          Stock & Ordering
-        </h1>
-        <p className="text-sm text-slate-500 mt-1">
-          Manage suppliers, track stock items and prices, create ordering lists
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+            <Package className="h-6 w-6 text-violet-600" />
+            Stock & Ordering
+          </h1>
+          <p className="text-sm text-slate-500 mt-1">
+            Manage suppliers, track stock items and prices, create ordering lists
+          </p>
+        </div>
+        {isManager && (
+          <Button size="sm" variant="outline" className="gap-2 border-violet-200 text-violet-700 hover:bg-violet-50 shrink-0" onClick={() => setDeliveryNoteOpen(true)}>
+            <Truck className="h-4 w-4" /> Scan Delivery Note
+          </Button>
+        )}
       </div>
 
       {/* Tabs */}
@@ -2387,6 +2396,12 @@ function StockPageInner() {
       <StockReceiptScanDialog
         open={scanDialog}
         onClose={() => setScanDialog(false)}
+        onApplied={() => { loadStock(); }}
+      />
+
+      <DeliveryNoteModal
+        open={deliveryNoteOpen}
+        onClose={() => setDeliveryNoteOpen(false)}
         onApplied={() => { loadStock(); }}
       />
     </div>

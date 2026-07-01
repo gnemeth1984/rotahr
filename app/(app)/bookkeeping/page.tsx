@@ -39,6 +39,7 @@ import {
   Clock,
   X,
   Package,
+  Truck,
   AlertTriangle,
   CheckCircle2,
   Info,
@@ -47,6 +48,7 @@ import {
 } from "lucide-react";
 import { UserRole as Role } from "@/types/roles";
 import { cn } from "@/lib/utils";
+import { DeliveryNoteModal } from "@/components/shared/DeliveryNoteModal";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -466,6 +468,7 @@ export default function BookkeepingPage() {
   const [stockDialogExpenseId, setStockDialogExpenseId] = useState<string | null>(null);
 
   // Dialog
+  const [deliveryNoteOpen, setDeliveryNoteOpen] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
@@ -751,6 +754,12 @@ export default function BookkeepingPage() {
             <Download className="h-3.5 w-3.5" />
             Export CSV
           </Button>
+          {isManager && (
+            <Button size="sm" variant="outline" className="gap-1.5 border-violet-200 text-violet-700 hover:bg-violet-50" onClick={() => setDeliveryNoteOpen(true)}>
+              <Truck className="h-3.5 w-3.5" />
+              Scan Delivery Note
+            </Button>
+          )}
           {isManager && (
             <Button size="sm" className="gap-1.5" onClick={openAdd}>
               <Plus className="h-3.5 w-3.5" />
@@ -1428,6 +1437,12 @@ export default function BookkeepingPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <DeliveryNoteModal
+        open={deliveryNoteOpen}
+        onClose={() => setDeliveryNoteOpen(false)}
+        onApplied={() => { fetchAll(); }}
+      />
     </div>
   );
 }
