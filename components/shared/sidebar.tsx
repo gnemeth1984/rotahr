@@ -289,13 +289,12 @@ export function Sidebar() {
   const isPlatformAdmin = userRole === Role.ADMIN && !session?.user?.businessId;
 
   const visibleItems = navItems.filter((item) => {
-    // Platform super-admin (no businessId): only show platformAdminOnly items
-    if (isPlatformAdmin) return !!(item as any).platformAdminOnly;
+    // platformAdminOnly items only shown when no businessId
+    if ((item as any).platformAdminOnly && !isPlatformAdmin) return false;
 
-    // Regular users: hide platformAdminOnly items
-    if ((item as any).platformAdminOnly) return false;
+    // Role check — platform admin bypasses everything
+    if (isPlatformAdmin) return true;
 
-    // Role check
     const roleAllowed = item.roles.includes(userRole) ||
       (!isManager && item.permission && userPermissions.includes(item.permission));
     if (!roleAllowed) return false;

@@ -25,14 +25,7 @@ export async function middleware(request: NextRequest) {
     secret: process.env.NEXTAUTH_SECRET,
   });
 
-  if (token && token.role === "ADMIN" && !token.businessId) {
-    // Platform admin (no business) — allow /admin and /outreach only
-    const isAllowed =
-      pathname.startsWith("/admin") || pathname.startsWith("/outreach");
-    if (!isAllowed) {
-      return NextResponse.redirect(new URL("/admin", request.url));
-    }
-  }
+  // Platform admin (no business) can visit any app route freely
 
   return NextResponse.next();
 }
