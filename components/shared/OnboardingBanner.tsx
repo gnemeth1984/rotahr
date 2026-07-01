@@ -25,11 +25,15 @@ export function OnboardingBanner() {
   const isManager =
     session?.user?.role === Role.MANAGER || session?.user?.role === Role.ADMIN;
 
+  // Platform admin (no businessId) never needs onboarding
+  const isPlatformAdmin =
+    session?.user?.role === Role.ADMIN && !(session?.user as any)?.businessId;
+
   // Don't show on the onboarding page itself
   const isOnOnboarding = pathname === "/onboarding";
 
   useEffect(() => {
-    if (!isManager || isOnOnboarding) return;
+    if (!isManager || isOnOnboarding || isPlatformAdmin) return;
     fetch("/api/onboarding")
       .then((r) => r.json())
       .then((d) => {
@@ -38,7 +42,7 @@ export function OnboardingBanner() {
       .catch(() => {});
   }, [isManager, isOnOnboarding]);
 
-  if (!steps || steps.complete || dismissed || isOnOnboarding) return null;
+  if (!steps || steps.complete || dismissed || isOnOnboarding || isPlatformAdmin) return null;
 
   const keys = ["businessName", "departments", "employees", "hourlyRates"] as const;
   const completedCount = keys.filter((k) => steps[k]).length;
