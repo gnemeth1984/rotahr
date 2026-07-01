@@ -155,6 +155,17 @@ export const FEATURE_DEFINITIONS = [
     canRestrictToRoles: ["EMPLOYEE", "MANAGER", "ADMIN"],
   },
 
+  // ── Compliance ───────────────────────────────────────────────────────────
+  {
+    key: "haccp",
+    label: "HACCP Food Safety",
+    description: "Digital HACCP records — temperature logs, delivery checks, cleaning records, and incident reports. Fully paperless compliance for Irish food businesses.",
+    category: "Compliance",
+    defaultRoles: ["EMPLOYEE", "MANAGER", "ADMIN"],
+    canDisable: true,
+    canRestrictToRoles: ["EMPLOYEE", "MANAGER", "ADMIN"],
+  },
+
   // ── AI & Tools ───────────────────────────────────────────────────────────
   {
     key: "ai",

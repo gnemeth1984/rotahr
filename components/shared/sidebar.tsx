@@ -34,6 +34,7 @@ import {
   ShieldCheck,
   ContactRound,
   FileText,
+  ClipboardCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -136,6 +137,15 @@ const navItems = [
     roles: [Role.MANAGER, Role.ADMIN],
     permission: null,
     featureKey: "employees" as FeatureKey,
+    plans: null,
+  },
+  {
+    href: "/haccp",
+    label: "HACCP",
+    icon: ClipboardCheck,
+    roles: [Role.EMPLOYEE, Role.MANAGER, Role.ADMIN],
+    permission: null,
+    featureKey: "haccp" as FeatureKey,
     plans: null,
   },
   // ── Pro & above ─────────────────────────────────────────────────────────

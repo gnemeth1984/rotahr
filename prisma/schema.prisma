@@ -52,6 +52,9 @@ model Business {
   // Wastage
   wastageRecords WastageRecord[]
 
+  // HACCP
+  haccpRecords   HACCPRecord[]
+
   // Locale / currency
   currency           String   @default("EUR") // "EUR" | "GBP"
   country            String   @default("IE")  // "IE" | "GB"
@@ -90,6 +93,7 @@ model User {
   menuSpecials        MenuSpecial[]     @relation("MenuSpecialAuthor")
   crmNotes            CrmNote[]
   crmEmails           CrmEmail[]
+  haccpRecords        HACCPRecord[]
 }
 
 model PasswordResetToken {
@@ -1087,4 +1091,21 @@ model WastageRecord {
 
   @@index([businessId, date])
   @@index([businessId, stockItemId])
+}
+
+model HACCPRecord {
+  id          String   @id @default(cuid())
+  businessId  String
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  checkType   String
+  checkedAt   DateTime @default(now())
+  checkedById String
+  checkedBy   User     @relation(fields: [checkedById], references: [id])
+  data        Json
+  status      String   @default("pass")
+  notes       String?
+  createdAt   DateTime @default(now())
+
+  @@index([businessId, checkType])
+  @@index([businessId, checkedAt])
 }
