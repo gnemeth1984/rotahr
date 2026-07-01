@@ -38,6 +38,8 @@ import {
   Settings2,
   Pencil,
   X,
+  GripVertical,
+  RotateCcw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { UserRole as Role } from "@/types/roles";
@@ -1218,6 +1220,118 @@ export default function HACCPPage() {
 
   const role = (session?.user as { role?: string })?.role;
   const isManager = role === Role.MANAGER || role === Role.ADMIN;
+  const canEditChecklists =
+    role === Role.ADMIN ||
+    role === Role.MANAGER;
+
+  // ─── Editable checklist templates ─────────────────────────────────────────
+  const [customTemplates, setCustomTemplates] = useState<Record<string, string[]>>({});
+  const [editingCheckType, setEditingCheckType] = useState<string | null>(null);
+  const [editingItems, setEditingItems] = useState<string[]>([]);
+  const [savingTemplate, setSavingTemplate] = useState(false);
+
+  const EDITABLE_TYPES = [
+    "cleaning_daily",
+    "cleaning_weekly",
+    "cleaning_deep",
+    "opening_checks",
+    "closing_checks",
+  ];
+
+  const DEFAULT_ITEMS: Record<string, string[]> = {
+    cleaning_daily: DAILY_CLEANING_ITEMS,
+    cleaning_weekly: WEEKLY_CLEANING_ITEMS,
+    cleaning_deep: DEEP_CLEAN_ITEMS,
+    opening_checks: OPENING_ITEMS,
+    closing_checks: CLOSING_ITEMS,
+  };
+
+  const getChecklistItems = (checkType: string | null): string[] => {
+    if (!checkType) return [];
+    return customTemplates[checkType] ?? DEFAULT_ITEMS[checkType] ?? [];
+  };
+
+  const fetchTemplates = useCallback(async () => {
+    try {
+      const res = await fetch("/api/haccp/checklist-templates");
+      if (!res.ok) return;
+      const data = await res.json();
+      setCustomTemplates(data.templates || {});
+    } catch {
+      // silently ignore
+    }
+  }, []);
+
+  const handleSaveTemplate = async () => {
+    if (!editingCheckType) return;
+    setSavingTemplate(true);
+    try {
+      const res = await fetch("/api/haccp/checklist-templates", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ checkType: editingCheckType, items: editingItems }),
+      });
+      if (!res.ok) {
+        toast.error("Failed to save checklist");
+        return;
+      }
+      const data = await res.json();
+      setCustomTemplates((prev) => ({
+        ...prev,
+        [editingCheckType]: data.items as string[],
+      }));
+      toast.success("Checklist saved");
+      setEditingCheckType(null);
+    } catch {
+      toast.error("Network error");
+    } finally {
+      setSavingTemplate(false);
+    }
+  };
+
+  const handleResetTemplate = async (checkType: string) => {
+    try {
+      await fetch(`/api/haccp/checklist-templates?checkType=${checkType}`, {
+        method: "DELETE",
+      });
+      setCustomTemplates((prev) => {
+        const next = { ...prev };
+        delete next[checkType];
+        return next;
+      });
+      toast.success("Reset to defaults");
+      setEditingCheckType(null);
+    } catch {
+      toast.error("Network error");
+    }
+  };
+
+  const openEditor = (checkType: string) => {
+    setEditingItems([...(customTemplates[checkType] ?? DEFAULT_ITEMS[checkType] ?? [])]);
+    setEditingCheckType(checkType);
+  };
+
+  const updateEditItem = (index: number, value: string) => {
+    setEditingItems((prev) => prev.map((item, i) => (i === index ? value : item)));
+  };
+
+  const removeEditItem = (index: number) => {
+    setEditingItems((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const addEditItem = () => {
+    setEditingItems((prev) => [...prev, ""]);
+  };
+
+  const moveEditItem = (index: number, dir: -1 | 1) => {
+    setEditingItems((prev) => {
+      const next = [...prev];
+      const target = index + dir;
+      if (target < 0 || target >= next.length) return prev;
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
+  };
 
   const today = new Date().toISOString().split("T")[0];
 
@@ -1241,7 +1355,8 @@ export default function HACCPPage() {
   useEffect(() => {
     fetchRecords();
     fetchEquipment();
-  }, [fetchRecords, fetchEquipment]);
+    fetchTemplates();
+  }, [fetchRecords, fetchEquipment, fetchTemplates]);
 
   // Save a single HACCP record
   const saveRecord = async (
@@ -1574,8 +1689,17 @@ export default function HACCPPage() {
                       : null;
 
                     return (
+                      <div key={check.type} className="relative">
+                        {canEditChecklists && EDITABLE_TYPES.includes(check.type) && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); openEditor(check.type); }}
+                            className="absolute top-2 right-2 z-10 p-1.5 rounded-lg bg-white border border-slate-200 shadow-sm text-slate-400 hover:text-violet-600 hover:border-violet-300 transition-colors"
+                            title="Edit checklist tasks"
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </button>
+                        )}
                       <button
-                        key={check.type}
                         onClick={() => setActiveModal(check.type)}
                         className={cn(
                           "w-full text-left rounded-xl border p-4 hover:shadow-md transition-all group",
@@ -1638,6 +1762,7 @@ export default function HACCPPage() {
                           </div>
                         </div>
                       </button>
+                      </div>
                     );
                   })}
                 </div>
@@ -1802,41 +1927,30 @@ export default function HACCPPage() {
               />
             )}
 
-            {/* Cleaning checklists */}
-            {activeModal === "cleaning_daily" && (
-              <ChecklistForm
-                items={DAILY_CLEANING_ITEMS}
-                onSubmit={(data, status, notes) => handleSave(activeModal, data, status, notes)}
-                loading={saving}
-              />
-            )}
-            {activeModal === "cleaning_weekly" && (
-              <ChecklistForm
-                items={WEEKLY_CLEANING_ITEMS}
-                onSubmit={(data, status, notes) => handleSave(activeModal, data, status, notes)}
-                loading={saving}
-              />
-            )}
-            {activeModal === "cleaning_deep" && (
-              <ChecklistForm
-                items={DEEP_CLEAN_ITEMS}
-                onSubmit={(data, status, notes) => handleSave(activeModal, data, status, notes)}
-                loading={saving}
-              />
-            )}
-            {activeModal === "opening_checks" && (
-              <ChecklistForm
-                items={OPENING_ITEMS}
-                onSubmit={(data, status, notes) => handleSave(activeModal, data, status, notes)}
-                loading={saving}
-              />
-            )}
-            {activeModal === "closing_checks" && (
-              <ChecklistForm
-                items={CLOSING_ITEMS}
-                onSubmit={(data, status, notes) => handleSave(activeModal, data, status, notes)}
-                loading={saving}
-              />
+            {/* Cleaning checklists — dynamically loaded */}
+            {activeModal && EDITABLE_TYPES.includes(activeModal) && (
+              <div className="space-y-3">
+                {canEditChecklists && (
+                  <div className="flex justify-end">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-1 text-xs border-slate-200"
+                      onClick={() => {
+                        setActiveModal(null);
+                        openEditor(activeModal!);
+                      }}
+                    >
+                      <Pencil className="h-3 w-3" /> Edit Tasks
+                    </Button>
+                  </div>
+                )}
+                <ChecklistForm
+                  items={getChecklistItems(activeModal)}
+                  onSubmit={(data, status, notes) => handleSave(activeModal, data, status, notes)}
+                  loading={saving}
+                />
+              </div>
             )}
 
             {/* Incidents */}
@@ -1861,6 +1975,118 @@ export default function HACCPPage() {
         onClose={() => setDeliveryNoteOpen(false)}
         onApplied={() => { fetchRecords(); }}
       />
+
+      {/* ─── Checklist Template Editor ──────────────────────────────────────── */}
+      <Dialog open={!!editingCheckType} onOpenChange={(o) => { if (!o) setEditingCheckType(null); }}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ClipboardCheck className="h-5 w-5 text-violet-600" />
+              Edit Checklist Tasks
+              {editingCheckType && (
+                <span className="text-sm font-normal text-slate-500 ml-1">
+                  — {getCheckConfig(editingCheckType)?.label}
+                </span>
+              )}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-3 mt-2">
+            <p className="text-sm text-slate-500">
+              Add, remove, or reorder tasks. Changes apply to your whole business.
+              {editingCheckType && customTemplates[editingCheckType] && (
+                <span className="text-violet-600 ml-1">(Custom list active)</span>
+              )}
+              {editingCheckType && !customTemplates[editingCheckType] && (
+                <span className="text-slate-400 ml-1">(Using defaults)</span>
+              )}
+            </p>
+
+            <div className="space-y-2">
+              {editingItems.map((item, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <div className="flex flex-col gap-0.5">
+                    <button
+                      onClick={() => moveEditItem(i, -1)}
+                      disabled={i === 0}
+                      className="p-0.5 text-slate-300 hover:text-slate-600 disabled:opacity-20 disabled:cursor-not-allowed"
+                    >
+                      <GripVertical className="h-3 w-3" />
+                    </button>
+                  </div>
+                  <Input
+                    value={item}
+                    onChange={(e) => updateEditItem(i, e.target.value)}
+                    placeholder={`Task ${i + 1}`}
+                    className="flex-1 text-sm"
+                  />
+                  <div className="flex gap-1">
+                    <button
+                      onClick={() => moveEditItem(i, -1)}
+                      disabled={i === 0}
+                      className="p-1.5 text-slate-300 hover:text-slate-600 disabled:opacity-20 disabled:cursor-not-allowed rounded"
+                      title="Move up"
+                    >
+                      ↑
+                    </button>
+                    <button
+                      onClick={() => moveEditItem(i, 1)}
+                      disabled={i === editingItems.length - 1}
+                      className="p-1.5 text-slate-300 hover:text-slate-600 disabled:opacity-20 disabled:cursor-not-allowed rounded"
+                      title="Move down"
+                    >
+                      ↓
+                    </button>
+                    <button
+                      onClick={() => removeEditItem(i)}
+                      className="p-1.5 text-red-300 hover:text-red-600 rounded"
+                      title="Remove"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={addEditItem}
+              className="w-full border-dashed text-slate-500 hover:text-slate-900"
+            >
+              <Plus className="h-4 w-4 mr-1" /> Add task
+            </Button>
+
+            <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+              {editingCheckType && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-slate-400 hover:text-red-600 gap-1"
+                  onClick={() => handleResetTemplate(editingCheckType)}
+                >
+                  <RotateCcw className="h-3.5 w-3.5" /> Reset to defaults
+                </Button>
+              )}
+              <div className="flex gap-2 ml-auto">
+                <Button variant="outline" size="sm" onClick={() => setEditingCheckType(null)}>
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  className="bg-violet-600 hover:bg-violet-700"
+                  onClick={handleSaveTemplate}
+                  disabled={savingTemplate || editingItems.filter((i) => i.trim()).length === 0}
+                >
+                  {savingTemplate ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+                  Save Checklist
+                </Button>
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

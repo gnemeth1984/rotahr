@@ -54,7 +54,8 @@ model Business {
 
   // HACCP
   haccpRecords     HACCPRecord[]
-  haccpEquipment   HACCPEquipment[]
+  haccpEquipment        HACCPEquipment[]
+  haccpChecklistTemplates HACCPChecklistTemplate[]
 
   // Locale / currency
   currency           String   @default("EUR") // "EUR" | "GBP"
@@ -94,7 +95,8 @@ model User {
   menuSpecials        MenuSpecial[]     @relation("MenuSpecialAuthor")
   crmNotes            CrmNote[]
   crmEmails           CrmEmail[]
-  haccpRecords        HACCPRecord[]
+  haccpRecords             HACCPRecord[]
+  haccpTemplatesUpdated    HACCPChecklistTemplate[] @relation("HaccpTemplateUpdater")
 }
 
 model PasswordResetToken {
@@ -1109,6 +1111,21 @@ model HACCPRecord {
 
   @@index([businessId, checkType])
   @@index([businessId, checkedAt])
+}
+
+// Custom checklist task templates per business per check type
+model HACCPChecklistTemplate {
+  id          String   @id @default(cuid())
+  businessId  String
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  checkType   String
+  items       Json
+  updatedAt   DateTime @updatedAt
+  updatedById String?
+  updatedBy   User?    @relation("HaccpTemplateUpdater", fields: [updatedById], references: [id])
+
+  @@unique([businessId, checkType])
+  @@index([businessId])
 }
 
 // Named equipment units per business — fridges, freezers, hot-holding stations
