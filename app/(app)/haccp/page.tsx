@@ -12,7 +12,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from "@/components/ui/dialog";
 import {
   Select,
@@ -33,15 +32,17 @@ import {
   Plus,
   History,
   Loader2,
-  ChevronRight,
   Trash2,
   ShieldCheck,
   Download,
+  Settings2,
+  Pencil,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { UserRole as Role } from "@/types/roles";
 
-// ─── Types ─────────────────────────────────────────────────────────────────
+// ─── Types ──────────────────────────────────────────────────────────────────
 
 interface HACCPRecord {
   id: string;
@@ -53,7 +54,13 @@ interface HACCPRecord {
   checkedBy: { name: string | null; email: string };
 }
 
-// ─── Check type config ──────────────────────────────────────────────────────
+interface HACCPEquipment {
+  id: string;
+  name: string;
+  equipType: string;
+}
+
+// ─── Check type config ───────────────────────────────────────────────────────
 
 const CHECK_GROUPS = [
   {
@@ -71,6 +78,7 @@ const CHECK_GROUPS = [
         maxTemp: 4,
         unit: "°C",
         frequency: "2× daily",
+        equipType: "fridge",
       },
       {
         type: "freezer_temp",
@@ -80,6 +88,7 @@ const CHECK_GROUPS = [
         maxTemp: -18,
         unit: "°C",
         frequency: "Daily",
+        equipType: "freezer",
       },
       {
         type: "hot_holding",
@@ -89,6 +98,7 @@ const CHECK_GROUPS = [
         maxTemp: 100,
         unit: "°C",
         frequency: "Every 2hrs",
+        equipType: "hot_holding",
       },
       {
         type: "cooking_temp",
@@ -98,6 +108,7 @@ const CHECK_GROUPS = [
         maxTemp: 100,
         unit: "°C",
         frequency: "Per cook",
+        equipType: "cooking",
       },
       {
         type: "cooling",
@@ -107,6 +118,7 @@ const CHECK_GROUPS = [
         maxTemp: 4,
         unit: "°C",
         frequency: "Per batch",
+        equipType: "cooling",
       },
     ],
   },
@@ -122,6 +134,7 @@ const CHECK_GROUPS = [
         label: "Delivery Check",
         description: "Log incoming deliveries: temperature, condition, accept/reject",
         frequency: "Per delivery",
+        equipType: null,
       },
     ],
   },
@@ -137,30 +150,35 @@ const CHECK_GROUPS = [
         label: "Daily Cleaning",
         description: "Kitchen surfaces, equipment, floors, sinks",
         frequency: "Daily",
+        equipType: null,
       },
       {
         type: "cleaning_weekly",
         label: "Weekly Cleaning",
         description: "Behind equipment, storage areas, vents, drains",
         frequency: "Weekly",
+        equipType: null,
       },
       {
         type: "cleaning_deep",
         label: "Deep Clean",
         description: "Full kitchen deep clean record",
         frequency: "Monthly",
+        equipType: null,
       },
       {
         type: "opening_checks",
         label: "Opening Checks",
         description: "Daily opening safety and hygiene checklist",
         frequency: "Daily AM",
+        equipType: null,
       },
       {
         type: "closing_checks",
         label: "Closing Checks",
         description: "Daily closing safety and hygiene checklist",
         frequency: "Daily PM",
+        equipType: null,
       },
     ],
   },
@@ -176,29 +194,30 @@ const CHECK_GROUPS = [
         label: "Pest Control Log",
         description: "Log any pest sightings or control actions",
         frequency: "As needed",
+        equipType: null,
       },
       {
         type: "corrective_action",
         label: "Corrective Action",
         description: "Log when a check fails and what action was taken",
         frequency: "As needed",
+        equipType: null,
       },
     ],
   },
 ];
 
-const ALL_CHECKS = CHECK_GROUPS.flatMap((g) => g.checks.map((c) => ({ ...c, group: g.label })));
-
-// ─── Helpers ───────────────────────────────────────────────────────────────
+const ALL_CHECKS = CHECK_GROUPS.flatMap((g) =>
+  g.checks.map((c) => ({ ...c, group: g.label }))
+);
+const TEMP_TYPES = ["fridge_temp", "freezer_temp", "hot_holding", "cooking_temp", "cooling"];
 
 function getCheckConfig(type: string) {
   return ALL_CHECKS.find((c) => c.type === type);
 }
-
 function getGroupConfig(type: string) {
   return CHECK_GROUPS.find((g) => g.checks.some((c) => c.type === type));
 }
-
 function formatDate(d: string) {
   return new Date(d).toLocaleString("en-IE", {
     day: "2-digit",
@@ -229,107 +248,279 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-// ─── Check Forms ───────────────────────────────────────────────────────────
+// ─── Equipment Temp Modal ─────────────────────────────────────────────────────
+// Shows named equipment list — user types only the temperature, everything else auto-filled
 
-function TempForm({
+function EquipmentTempModal({
   config,
-  onSubmit,
-  loading,
+  equipment,
+  isManager,
+  onSaveAll,
+  onAddEquipment,
+  onDeleteEquipment,
+  saving,
 }: {
   config: (typeof ALL_CHECKS)[0];
-  onSubmit: (data: Record<string, unknown>, status: string, notes: string) => void;
-  loading: boolean;
+  equipment: HACCPEquipment[];
+  isManager: boolean;
+  onSaveAll: (
+    entries: { equipmentId: string; name: string; temp: number; status: string; notes: string }[]
+  ) => Promise<void>;
+  onAddEquipment: (name: string) => Promise<void>;
+  onDeleteEquipment: (id: string) => Promise<void>;
+  saving: boolean;
 }) {
-  const [location, setLocation] = useState("");
-  const [temp, setTemp] = useState("");
-  const [notes, setNotes] = useState("");
+  // temps[equipmentId] = { value: string; notes: string }
+  const [temps, setTemps] = useState<Record<string, { value: string; notes: string }>>({});
+  const [addingName, setAddingName] = useState("");
+  const [addingEquip, setAddingEquip] = useState(false);
+  const [addingLoading, setAddingLoading] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [manageMode, setManageMode] = useState(false);
 
-  const tempNum = parseFloat(temp);
-  const inRange =
-    temp !== "" &&
-    !isNaN(tempNum) &&
-    "minTemp" in config &&
-    "maxTemp" in config &&
-    tempNum >= (config.minTemp as number) &&
-    tempNum <= (config.maxTemp as number);
-  const outOfRange = temp !== "" && !isNaN(tempNum) && !inRange;
+  const minTemp = ("minTemp" in config ? config.minTemp : 0) as number;
+  const maxTemp = ("maxTemp" in config ? config.maxTemp : 100) as number;
 
-  const handleSubmit = () => {
-    const status = outOfRange ? "fail" : "pass";
-    onSubmit({ location, temperature: tempNum }, status, notes);
+  function inRange(val: string) {
+    const n = parseFloat(val);
+    return val !== "" && !isNaN(n) && n >= minTemp && n <= maxTemp;
+  }
+  function outOfRange(val: string) {
+    const n = parseFloat(val);
+    return val !== "" && !isNaN(n) && !inRange(val);
+  }
+
+  const readyEntries = equipment.filter((eq) => {
+    const t = temps[eq.id];
+    if (!t || t.value === "") return false;
+    if (outOfRange(t.value) && !t.notes) return false;
+    return true;
+  });
+
+  const handleSaveAll = async () => {
+    const entries = readyEntries.map((eq) => {
+      const t = temps[eq.id]!;
+      const n = parseFloat(t.value);
+      return {
+        equipmentId: eq.id,
+        name: eq.name,
+        temp: n,
+        status: inRange(t.value) ? "pass" : "fail",
+        notes: t.notes,
+      };
+    });
+    await onSaveAll(entries);
+    setTemps({});
   };
+
+  const handleAdd = async () => {
+    if (!addingName.trim()) return;
+    setAddingLoading(true);
+    await onAddEquipment(addingName.trim());
+    setAddingLoading(false);
+    setAddingName("");
+    setAddingEquip(false);
+  };
+
+  const handleDelete = async (id: string) => {
+    setDeletingId(id);
+    await onDeleteEquipment(id);
+    setDeletingId(null);
+  };
+
+  const now = new Date().toLocaleString("en-IE", {
+    hour: "2-digit",
+    minute: "2-digit",
+    day: "2-digit",
+    month: "short",
+  });
+
+  if (equipment.length === 0 && !isManager) {
+    return (
+      <div className="py-8 text-center text-slate-400">
+        <Thermometer className="h-10 w-10 mx-auto mb-3 opacity-30" />
+        <p className="text-sm">No equipment set up yet.</p>
+        <p className="text-xs mt-1">Ask your manager to add equipment units.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
-      {"minTemp" in config && (
-        <div className="rounded-lg bg-slate-50 border p-3 text-sm text-slate-600">
+      {/* Safe range banner */}
+      <div className="flex items-center justify-between">
+        <div className="rounded-lg bg-slate-50 border px-3 py-2 text-sm text-slate-600">
           Safe range:{" "}
           <strong>
-            {config.minTemp as number}°C – {config.maxTemp as number}°C
+            {minTemp}°C – {maxTemp}°C
           </strong>
+          <span className="ml-3 text-slate-400 text-xs">{now}</span>
+        </div>
+        {isManager && (
+          <button
+            onClick={() => setManageMode((v) => !v)}
+            className={cn(
+              "flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-colors",
+              manageMode
+                ? "bg-slate-900 text-white border-slate-900"
+                : "text-slate-500 border-slate-200 hover:bg-slate-50"
+            )}
+          >
+            <Settings2 className="h-3 w-3" />
+            {manageMode ? "Done" : "Manage"}
+          </button>
+        )}
+      </div>
+
+      {/* Equipment list */}
+      {equipment.length === 0 && isManager && (
+        <p className="text-sm text-slate-400 text-center py-4">
+          No equipment added yet — add your first unit below.
+        </p>
+      )}
+
+      <div className="space-y-2">
+        {equipment.map((eq) => {
+          const t = temps[eq.id] || { value: "", notes: "" };
+          const isIn = inRange(t.value);
+          const isOut = outOfRange(t.value);
+          return (
+            <div
+              key={eq.id}
+              className={cn(
+                "rounded-xl border p-3 transition-all",
+                isOut
+                  ? "border-red-200 bg-red-50"
+                  : isIn
+                  ? "border-green-200 bg-green-50"
+                  : "border-slate-200 bg-white"
+              )}
+            >
+              <div className="flex items-center gap-3">
+                {manageMode && isManager ? (
+                  <button
+                    onClick={() => handleDelete(eq.id)}
+                    disabled={deletingId === eq.id}
+                    className="text-slate-300 hover:text-red-400 flex-shrink-0"
+                  >
+                    {deletingId === eq.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <X className="h-4 w-4" />
+                    )}
+                  </button>
+                ) : null}
+
+                {/* Equipment name */}
+                <span className="flex-1 text-sm font-medium text-slate-800">{eq.name}</span>
+
+                {/* Status indicator */}
+                {isIn && <CheckCircle2 className="h-4 w-4 text-green-500 flex-shrink-0" />}
+                {isOut && <AlertTriangle className="h-4 w-4 text-red-500 flex-shrink-0" />}
+
+                {/* Temp input */}
+                <div className="flex items-center gap-1">
+                  <Input
+                    type="number"
+                    step="0.1"
+                    placeholder="—"
+                    value={t.value}
+                    onChange={(e) =>
+                      setTemps((prev) => ({
+                        ...prev,
+                        [eq.id]: { ...prev[eq.id], value: e.target.value, notes: prev[eq.id]?.notes || "" },
+                      }))
+                    }
+                    className={cn(
+                      "w-24 text-right font-mono tabular-nums",
+                      isOut && "border-red-400 bg-red-50 focus:border-red-400",
+                      isIn && "border-green-400 bg-green-50 focus:border-green-400"
+                    )}
+                    disabled={manageMode}
+                  />
+                  <span className="text-sm text-slate-400 w-6">°C</span>
+                </div>
+              </div>
+
+              {/* Out of range: notes required */}
+              {isOut && (
+                <div className="mt-2 space-y-1">
+                  <p className="text-xs text-red-600 flex items-center gap-1">
+                    <AlertTriangle className="h-3 w-3" />
+                    Out of safe range — add corrective action note
+                  </p>
+                  <Input
+                    placeholder="What action was taken?"
+                    value={t.notes}
+                    onChange={(e) =>
+                      setTemps((prev) => ({
+                        ...prev,
+                        [eq.id]: { ...prev[eq.id], notes: e.target.value },
+                      }))
+                    }
+                    className="text-sm border-red-300"
+                  />
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Add equipment (managers only) */}
+      {isManager && (
+        <div>
+          {addingEquip ? (
+            <div className="flex items-center gap-2 mt-1">
+              <Input
+                autoFocus
+                placeholder={`e.g. Main ${config.type === "fridge_temp" ? "Fridge" : config.type === "freezer_temp" ? "Freezer" : "Unit"}`}
+                value={addingName}
+                onChange={(e) => setAddingName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleAdd();
+                  if (e.key === "Escape") setAddingEquip(false);
+                }}
+                className="flex-1"
+              />
+              <Button size="sm" onClick={handleAdd} disabled={addingLoading || !addingName.trim()}>
+                {addingLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Add"}
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setAddingEquip(false)}>
+                Cancel
+              </Button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setAddingEquip(true)}
+              className="flex items-center gap-2 text-sm text-slate-400 hover:text-slate-700 transition-colors mt-1"
+            >
+              <Plus className="h-4 w-4" /> Add equipment unit
+            </button>
+          )}
         </div>
       )}
-      <div className="space-y-2">
-        <Label>Location / Equipment</Label>
-        <Input
-          placeholder={
-            config.type === "fridge_temp"
-              ? "e.g. Main fridge, Walk-in, Bar fridge"
-              : config.type === "freezer_temp"
-              ? "e.g. Chest freezer, Walk-in freezer"
-              : config.type === "cooking_temp"
-              ? "e.g. Chicken breast, Beef burger"
-              : "e.g. Soup, Stew, Sauce"
-          }
-          value={location}
-          onChange={(e) => setLocation(e.target.value)}
-        />
-      </div>
-      <div className="space-y-2">
-        <Label>Temperature (°C)</Label>
-        <Input
-          type="number"
-          step="0.1"
-          placeholder="e.g. 3.5"
-          value={temp}
-          onChange={(e) => setTemp(e.target.value)}
-          className={cn(
-            outOfRange && "border-red-400 bg-red-50",
-            inRange && "border-green-400 bg-green-50"
-          )}
-        />
-        {outOfRange && (
-          <p className="text-red-600 text-sm flex items-center gap-1">
-            <AlertTriangle className="h-3 w-3" />
-            Out of safe range — corrective action required
-          </p>
-        )}
-        {inRange && (
-          <p className="text-green-600 text-sm flex items-center gap-1">
-            <CheckCircle2 className="h-3 w-3" /> Within safe range
-          </p>
-        )}
-      </div>
-      <div className="space-y-2">
-        <Label>Notes {outOfRange && <span className="text-red-500">(required — corrective action)</span>}</Label>
-        <Textarea
-          placeholder={outOfRange ? "What action was taken?" : "Optional notes..."}
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          rows={2}
-        />
-      </div>
-      <Button
-        className="w-full bg-slate-900 hover:bg-slate-800"
-        onClick={handleSubmit}
-        disabled={loading || !location || temp === "" || (outOfRange && !notes)}
-      >
-        {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-        Save Record
-      </Button>
+
+      {/* Save All */}
+      {!manageMode && (
+        <Button
+          className="w-full bg-slate-900 hover:bg-slate-800"
+          onClick={handleSaveAll}
+          disabled={saving || readyEntries.length === 0}
+        >
+          {saving ? (
+            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+          ) : null}
+          {readyEntries.length === 0
+            ? "Enter at least one temperature"
+            : `Save ${readyEntries.length} record${readyEntries.length > 1 ? "s" : ""}`}
+        </Button>
+      )}
     </div>
   );
 }
+
+// ─── Delivery Form ────────────────────────────────────────────────────────────
 
 function DeliveryForm({
   onSubmit,
@@ -422,6 +613,8 @@ function DeliveryForm({
   );
 }
 
+// ─── Checklist Form ───────────────────────────────────────────────────────────
+
 const DAILY_CLEANING_ITEMS = [
   "Kitchen prep surfaces wiped and sanitised",
   "Cooking equipment cleaned (fryers, grills, ovens)",
@@ -432,7 +625,6 @@ const DAILY_CLEANING_ITEMS = [
   "Hand washing stations stocked (soap, paper towels)",
   "Dishwasher/glasswasher cleaned and checked",
 ];
-
 const WEEKLY_CLEANING_ITEMS = [
   "Behind/under cooking equipment cleaned",
   "Extraction hood and filters degreased",
@@ -442,38 +634,32 @@ const WEEKLY_CLEANING_ITEMS = [
   "Drains cleaned and deodorised",
   "Bar fridges deep cleaned",
 ];
-
 const DEEP_CLEAN_ITEMS = [
   "Full extraction system cleaned",
   "All equipment moved and cleaned behind/under",
   "Grease traps cleaned",
   "All walls and ceilings wiped down",
-  "All drains jetted and cleaned",
-  "Cold rooms fully defrosted and scrubbed",
-  "Chemical store checked and organised",
-  "Pest bait stations checked",
+  "All drains jet washed",
+  "Pest control check completed",
+  "Signed off by manager",
 ];
-
 const OPENING_ITEMS = [
-  "All fridges and freezers at correct temperature",
-  "Hot holding equipment working",
-  "Hand washing sinks stocked and working",
-  "Cleaning chemicals stored correctly",
-  "Probe thermometers calibrated and available",
-  "Food stored correctly (covered, labelled, dated)",
-  "Pest bait stations checked — no activity",
-  "All surfaces clean and sanitised",
+  "All fridge/freezer temps within safe range",
+  "Hand washing facilities clean and stocked",
+  "All food covered and correctly labelled",
+  "Prep surfaces sanitised before use",
+  "Date labels checked — remove expired stock",
+  "Pest check — no signs of activity",
+  "Equipment working correctly (no faults)",
 ];
-
 const CLOSING_ITEMS = [
-  "All food covered, labelled, and dated in fridge",
+  "All food stored, covered and labelled",
   "Cooking equipment switched off and cleaned",
-  "Surfaces cleaned and sanitised",
-  "Floors swept and mopped",
+  "Surfaces wiped and sanitised",
+  "Floor swept and mopped",
   "Bins emptied",
-  "Dishwasher/glasswasher cleaned",
-  "Extraction switched off",
-  "Back door secured",
+  "Fridges/freezers closed and temps normal",
+  "Gas/electrics checked",
 ];
 
 function ChecklistForm({
@@ -485,68 +671,78 @@ function ChecklistForm({
   onSubmit: (data: Record<string, unknown>, status: string, notes: string) => void;
   loading: boolean;
 }) {
-  const [checked, setChecked] = useState<Record<string, boolean>>({});
+  const [checked, setChecked] = useState<Record<number, boolean>>({});
   const [notes, setNotes] = useState("");
-  const [cleaner, setCleaner] = useState("");
 
-  const allChecked = items.every((i) => checked[i]);
-  const someUnchecked = items.some((i) => !checked[i]);
-
-  const toggle = (item: string) => setChecked((prev) => ({ ...prev, [item]: !prev[item] }));
+  const toggle = (i: number) => setChecked((p) => ({ ...p, [i]: !p[i] }));
+  const checkedCount = Object.values(checked).filter(Boolean).length;
+  const missed = items.length - checkedCount;
+  const status = missed > 2 ? "fail" : missed > 0 ? "corrective" : "pass";
 
   const handleSubmit = () => {
-    const missed = items.filter((i) => !checked[i]);
-    const status = missed.length === 0 ? "pass" : missed.length <= 2 ? "corrective" : "fail";
-    onSubmit({ items: checked, completedBy: cleaner }, status, notes);
+    const completedItems = items.filter((_, i) => checked[i]);
+    const missedItems = items.filter((_, i) => !checked[i]);
+    onSubmit({ completedItems, missedItems, completedBy: "Staff" }, status, notes);
   };
 
   return (
     <div className="space-y-4">
       <div className="space-y-2">
-        <Label>Completed by</Label>
-        <Input placeholder="Staff name" value={cleaner} onChange={(e) => setCleaner(e.target.value)} />
-      </div>
-      <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-        {items.map((item) => (
+        {items.map((item, i) => (
           <label
-            key={item}
+            key={i}
             className={cn(
               "flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors",
-              checked[item] ? "bg-green-50 border-green-200" : "bg-white border-slate-200 hover:bg-slate-50"
+              checked[i]
+                ? "bg-green-50 border-green-200"
+                : "bg-white border-slate-200 hover:bg-slate-50"
             )}
           >
             <input
               type="checkbox"
-              checked={!!checked[item]}
-              onChange={() => toggle(item)}
-              className="mt-0.5 accent-green-600 h-4 w-4 flex-shrink-0"
+              checked={!!checked[i]}
+              onChange={() => toggle(i)}
+              className="mt-0.5 h-4 w-4 accent-green-600"
             />
-            <span className={cn("text-sm", checked[item] ? "text-green-800 line-through" : "text-slate-700")}>
-              {item}
-            </span>
+            <span className="text-sm text-slate-700">{item}</span>
           </label>
         ))}
       </div>
-      {someUnchecked && (
-        <div className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-3">
-          {items.filter((i) => !checked[i]).length} item(s) not completed — please note reason below
+      <div className="flex items-center justify-between text-sm">
+        <span className="text-slate-500">
+          {checkedCount} / {items.length} completed
+        </span>
+        {missed > 0 && (
+          <span className={cn("font-medium", missed > 2 ? "text-red-600" : "text-amber-600")}>
+            {missed} item{missed > 1 ? "s" : ""} missed
+            {missed > 2 ? " — FAIL" : " — corrective action"}
+          </span>
+        )}
+      </div>
+      {missed > 0 && (
+        <div className="space-y-2">
+          <Label>Notes / corrective action</Label>
+          <Textarea
+            placeholder="What was missed and why?"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            rows={2}
+          />
         </div>
       )}
-      <div className="space-y-2">
-        <Label>Notes</Label>
-        <Textarea placeholder="Any issues or comments..." value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} />
-      </div>
       <Button
         className="w-full bg-slate-900 hover:bg-slate-800"
         onClick={handleSubmit}
-        disabled={loading || !cleaner}
+        disabled={loading || checkedCount === 0}
       >
         {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-        Save Record {allChecked ? "✓" : `(${items.filter((i) => checked[i]).length}/${items.length})`}
+        Save Record ({checkedCount}/{items.length})
       </Button>
     </div>
   );
 }
+
+// ─── Pest Form ────────────────────────────────────────────────────────────────
 
 function PestForm({
   onSubmit,
@@ -562,47 +758,33 @@ function PestForm({
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-2">
-          <Label>Type of pest</Label>
-          <Select value={type} onValueChange={setType}>
-            <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="rodent">Rodent</SelectItem>
-              <SelectItem value="insect">Insect / Flies</SelectItem>
-              <SelectItem value="bird">Bird</SelectItem>
-              <SelectItem value="other">Other</SelectItem>
-              <SelectItem value="no_activity">No activity (routine check)</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-2">
-          <Label>Location</Label>
-          <Input placeholder="e.g. Dry store, back door" value={location} onChange={(e) => setLocation(e.target.value)} />
-        </div>
-      </div>
       <div className="space-y-2">
-        <Label>Action taken</Label>
-        <Select value={action} onValueChange={setAction}>
-          <SelectTrigger><SelectValue placeholder="Select action..." /></SelectTrigger>
+        <Label>Observation type</Label>
+        <Select value={type} onValueChange={setType}>
+          <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="none">None required</SelectItem>
-            <SelectItem value="trap_set">Trap set</SelectItem>
-            <SelectItem value="pest_control_notified">Pest control company notified</SelectItem>
-            <SelectItem value="area_sealed">Entry point sealed</SelectItem>
-            <SelectItem value="hsda_notified">HACCP manager notified</SelectItem>
+            <SelectItem value="no_activity">No activity observed</SelectItem>
+            <SelectItem value="rodent">Rodent signs</SelectItem>
+            <SelectItem value="insects">Insects / flies</SelectItem>
+            <SelectItem value="other">Other pest</SelectItem>
           </SelectContent>
         </Select>
       </div>
       <div className="space-y-2">
+        <Label>Location</Label>
+        <Input placeholder="e.g. Dry store, back door" value={location} onChange={(e) => setLocation(e.target.value)} />
+      </div>
+      <div className="space-y-2">
+        <Label>Action taken</Label>
+        <Textarea placeholder="e.g. Bait station checked, contractor called, no action required" value={action} onChange={(e) => setAction(e.target.value)} rows={2} />
+      </div>
+      <div className="space-y-2">
         <Label>Notes</Label>
-        <Textarea placeholder="Additional details..." value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} />
+        <Textarea placeholder="Additional notes..." value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} />
       </div>
       <Button
         className="w-full bg-slate-900 hover:bg-slate-800"
-        onClick={() =>
-          onSubmit({ pestType: type, location, action }, type === "no_activity" ? "pass" : "corrective", notes)
-        }
+        onClick={() => onSubmit({ pestType: type, location, action }, type === "no_activity" ? "pass" : "corrective", notes)}
         disabled={loading || !type || !location || !action}
       >
         {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
@@ -611,6 +793,8 @@ function PestForm({
     </div>
   );
 }
+
+// ─── Corrective Action Form ───────────────────────────────────────────────────
 
 function CorrectiveForm({
   onSubmit,
@@ -639,21 +823,11 @@ function CorrectiveForm({
       </div>
       <div className="space-y-2">
         <Label>Issue identified</Label>
-        <Textarea
-          placeholder="Describe the problem — e.g. fridge temp was 8°C, food left out too long"
-          value={issue}
-          onChange={(e) => setIssue(e.target.value)}
-          rows={2}
-        />
+        <Textarea placeholder="e.g. fridge temp was 8°C, food left out too long" value={issue} onChange={(e) => setIssue(e.target.value)} rows={2} />
       </div>
       <div className="space-y-2">
         <Label>Corrective action taken</Label>
-        <Textarea
-          placeholder="What was done to fix it — e.g. food discarded, fridge engineer called"
-          value={actionTaken}
-          onChange={(e) => setActionTaken(e.target.value)}
-          rows={2}
-        />
+        <Textarea placeholder="e.g. food discarded, fridge engineer called" value={actionTaken} onChange={(e) => setActionTaken(e.target.value)} rows={2} />
       </div>
       <div className="space-y-2">
         <Label>Resolved by</Label>
@@ -671,12 +845,13 @@ function CorrectiveForm({
   );
 }
 
-// ─── Main Page ─────────────────────────────────────────────────────────────
+// ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function HACCPPage() {
   const { data: session } = useSession();
   const [records, setRecords] = useState<HACCPRecord[]>([]);
   const [todayRecords, setTodayRecords] = useState<HACCPRecord[]>([]);
+  const [equipment, setEquipment] = useState<HACCPEquipment[]>([]);
   const [activeModal, setActiveModal] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [view, setView] = useState<"dashboard" | "history">("dashboard");
@@ -690,8 +865,8 @@ export default function HACCPPage() {
 
   const fetchRecords = useCallback(async () => {
     const [todayRes, allRes] = await Promise.all([
-      fetch(`/api/haccp?date=${today}&limit=200`),
-      fetch(`/api/haccp?limit=200`),
+      fetch(`/api/haccp?date=${today}&limit=500`),
+      fetch(`/api/haccp?limit=500`),
     ]);
     const todayData = await todayRes.json();
     const allData = await allRes.json();
@@ -699,10 +874,33 @@ export default function HACCPPage() {
     setRecords(allData.records || []);
   }, [today]);
 
+  const fetchEquipment = useCallback(async () => {
+    const res = await fetch("/api/haccp/equipment");
+    const data = await res.json();
+    setEquipment(data.equipment || []);
+  }, []);
+
   useEffect(() => {
     fetchRecords();
-  }, [fetchRecords]);
+    fetchEquipment();
+  }, [fetchRecords, fetchEquipment]);
 
+  // Save a single HACCP record
+  const saveRecord = async (
+    checkType: string,
+    data: Record<string, unknown>,
+    status: string,
+    notes: string
+  ) => {
+    const res = await fetch("/api/haccp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ checkType, data, status, notes }),
+    });
+    return res.ok;
+  };
+
+  // For non-temp checks: save one record and close
   const handleSave = async (
     checkType: string,
     data: Record<string, unknown>,
@@ -711,15 +909,35 @@ export default function HACCPPage() {
   ) => {
     setSaving(true);
     try {
-      const res = await fetch("/api/haccp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ checkType, data, status, notes }),
-      });
-      if (res.ok) {
+      const ok = await saveRecord(checkType, data, status, notes);
+      if (ok) {
         setActiveModal(null);
         await fetchRecords();
       }
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // For temp checks with equipment list: save all entries in parallel
+  const handleSaveEquipmentTemps = async (
+    checkType: string,
+    entries: { equipmentId: string; name: string; temp: number; status: string; notes: string }[]
+  ) => {
+    setSaving(true);
+    try {
+      await Promise.all(
+        entries.map((entry) =>
+          saveRecord(
+            checkType,
+            { location: entry.name, temperature: entry.temp, equipmentId: entry.equipmentId },
+            entry.status,
+            entry.notes
+          )
+        )
+      );
+      setActiveModal(null);
+      await fetchRecords();
     } finally {
       setSaving(false);
     }
@@ -735,7 +953,21 @@ export default function HACCPPage() {
     }
   };
 
-  // Compliance score — how many required daily checks have been done today
+  const handleAddEquipment = async (name: string, equipType: string) => {
+    await fetch("/api/haccp/equipment", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, equipType }),
+    });
+    await fetchEquipment();
+  };
+
+  const handleDeleteEquipment = async (id: string) => {
+    await fetch(`/api/haccp/equipment?id=${id}`, { method: "DELETE" });
+    await fetchEquipment();
+  };
+
+  // Compliance score
   const requiredDaily = ["fridge_temp", "freezer_temp", "opening_checks", "closing_checks", "cleaning_daily"];
   const doneToday = requiredDaily.filter((t) => todayRecords.some((r) => r.checkType === t));
   const complianceScore = Math.round((doneToday.length / requiredDaily.length) * 100);
@@ -745,7 +977,28 @@ export default function HACCPPage() {
 
   const activeConfig = activeModal ? getCheckConfig(activeModal) : null;
 
+  // Equipment for current modal's type
+  const activeEquipType = activeConfig?.equipType || null;
+  const activeEquipment = activeEquipType
+    ? equipment.filter((e) => e.equipType === activeEquipType)
+    : [];
 
+  function renderDataSummary(record: HACCPRecord) {
+    const d = record.data as Record<string, unknown>;
+    const parts: string[] = [];
+    if (d.location) parts.push(String(d.location));
+    if (d.temperature !== undefined) parts.push(`${d.temperature}°C`);
+    if (d.supplier) parts.push(String(d.supplier));
+    if (d.product) parts.push(String(d.product));
+    if (d.deliveryTemp !== undefined && d.deliveryTemp !== null) parts.push(`${d.deliveryTemp}°C`);
+    if (d.packagingCondition) parts.push(String(d.packagingCondition));
+    if (d.accepted !== undefined) parts.push(d.accepted ? "Accepted ✓" : "Rejected ✗");
+    if (d.pestType) parts.push(String(d.pestType));
+    if (d.issue) parts.push(String(d.issue).slice(0, 60) + (String(d.issue).length > 60 ? "…" : ""));
+    return parts.join(" · ") || "—";
+  }
+
+  // PDF export
   const handleDownloadPDF = () => {
     const printWindow = window.open("", "_blank");
     if (!printWindow) return;
@@ -767,7 +1020,7 @@ export default function HACCPPage() {
       if (d.accepted !== undefined) parts.push(d.accepted ? "Accepted" : "Rejected");
       if (d.pestType) parts.push(String(d.pestType));
       if (d.issue) parts.push(String(d.issue).slice(0, 80));
-      const summary = parts.join(" · ") || "\u2014";
+      const summary = parts.join(" \u00b7 ") || "\u2014";
       const statusLabel = r.status === "pass" ? "Pass" : r.status === "fail" ? "Fail" : "Action";
       const statusColor = r.status === "pass" ? "#16a34a" : r.status === "fail" ? "#dc2626" : "#d97706";
       const dateFormatted = new Date(r.checkedAt).toLocaleString("en-IE", {
@@ -818,105 +1071,7 @@ export default function HACCPPage() {
     printWindow.document.close();
   };
 
-  const renderForm = () => {
-    if (!activeModal) return null;
-    const tempTypes = ["fridge_temp", "freezer_temp", "hot_holding", "cooking_temp", "cooling"];
-    if (tempTypes.includes(activeModal) && activeConfig) {
-      return (
-        <TempForm
-          config={activeConfig}
-          onSubmit={(data, status, notes) => handleSave(activeModal, data, status, notes)}
-          loading={saving}
-        />
-      );
-    }
-    if (activeModal === "delivery") {
-      return (
-        <DeliveryForm
-          onSubmit={(data, status, notes) => handleSave(activeModal, data, status, notes)}
-          loading={saving}
-        />
-      );
-    }
-    if (activeModal === "cleaning_daily") {
-      return (
-        <ChecklistForm
-          items={DAILY_CLEANING_ITEMS}
-          onSubmit={(data, status, notes) => handleSave(activeModal, data, status, notes)}
-          loading={saving}
-        />
-      );
-    }
-    if (activeModal === "cleaning_weekly") {
-      return (
-        <ChecklistForm
-          items={WEEKLY_CLEANING_ITEMS}
-          onSubmit={(data, status, notes) => handleSave(activeModal, data, status, notes)}
-          loading={saving}
-        />
-      );
-    }
-    if (activeModal === "cleaning_deep") {
-      return (
-        <ChecklistForm
-          items={DEEP_CLEAN_ITEMS}
-          onSubmit={(data, status, notes) => handleSave(activeModal, data, status, notes)}
-          loading={saving}
-        />
-      );
-    }
-    if (activeModal === "opening_checks") {
-      return (
-        <ChecklistForm
-          items={OPENING_ITEMS}
-          onSubmit={(data, status, notes) => handleSave(activeModal, data, status, notes)}
-          loading={saving}
-        />
-      );
-    }
-    if (activeModal === "closing_checks") {
-      return (
-        <ChecklistForm
-          items={CLOSING_ITEMS}
-          onSubmit={(data, status, notes) => handleSave(activeModal, data, status, notes)}
-          loading={saving}
-        />
-      );
-    }
-    if (activeModal === "pest_control") {
-      return (
-        <PestForm
-          onSubmit={(data, status, notes) => handleSave(activeModal, data, status, notes)}
-          loading={saving}
-        />
-      );
-    }
-    if (activeModal === "corrective_action") {
-      return (
-        <CorrectiveForm
-          onSubmit={(data, status, notes) => handleSave(activeModal, data, status, notes)}
-          loading={saving}
-        />
-      );
-    }
-    return null;
-  };
-
-  function renderDataSummary(record: HACCPRecord) {
-    const d = record.data as Record<string, unknown>;
-    const parts: string[] = [];
-    if (d.location) parts.push(String(d.location));
-    if (d.temperature !== undefined) parts.push(`${d.temperature}°C`);
-    if (d.supplier) parts.push(String(d.supplier));
-    if (d.product) parts.push(String(d.product));
-    if (d.deliveryTemp !== undefined && d.deliveryTemp !== null) parts.push(`${d.deliveryTemp}°C`);
-    if (d.packagingCondition) parts.push(String(d.packagingCondition));
-    if (d.accepted !== undefined) parts.push(d.accepted ? "Accepted ✓" : "Rejected ✗");
-    if (d.completedBy) parts.push(`by ${d.completedBy}`);
-    if (d.pestType) parts.push(String(d.pestType));
-    if (d.issue) parts.push(String(d.issue).slice(0, 60) + (String(d.issue).length > 60 ? "…" : ""));
-    return parts.join(" · ") || "—";
-  }
+  // ─── Render ──────────────────────────────────────────────────────────────
 
   return (
     <div className="space-y-6">
@@ -946,12 +1101,8 @@ export default function HACCPPage() {
           >
             <History className="h-4 w-4 mr-1" /> History
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleDownloadPDF}
-          >
-            <Download className="h-4 w-4 mr-1" /> Download PDF
+          <Button variant="outline" size="sm" onClick={handleDownloadPDF}>
+            <Download className="h-4 w-4 mr-1" /> PDF
           </Button>
         </div>
       </div>
@@ -981,7 +1132,7 @@ export default function HACCPPage() {
             {complianceScore}%
           </div>
           <div>
-            <p className="font-semibold text-slate-900">Today's compliance score</p>
+            <p className="font-semibold text-slate-900">Today&apos;s compliance score</p>
             <p className="text-sm text-slate-500">
               {doneToday.length} of {requiredDaily.length} required daily checks completed
             </p>
@@ -1007,8 +1158,14 @@ export default function HACCPPage() {
           </div>
         </div>
         <div className="text-right hidden sm:block">
-          <p className="text-sm text-slate-500">{new Date().toLocaleDateString("en-IE", { weekday: "long", day: "numeric", month: "long" })}</p>
-          <p className="text-xs text-slate-400 mt-1">All records are timestamped and signed</p>
+          <p className="text-sm text-slate-500">
+            {new Date().toLocaleDateString("en-IE", {
+              weekday: "long",
+              day: "numeric",
+              month: "long",
+            })}
+          </p>
+          <p className="text-xs text-slate-400 mt-1">All records timestamped & signed</p>
         </div>
       </div>
 
@@ -1030,6 +1187,10 @@ export default function HACCPPage() {
                     const hasFail = todayRecords.some(
                       (r) => r.checkType === check.type && r.status === "fail"
                     );
+                    // For temp checks: show equipment count
+                    const eqCount = check.equipType
+                      ? equipment.filter((e) => e.equipType === check.equipType).length
+                      : null;
 
                     return (
                       <button
@@ -1037,20 +1198,41 @@ export default function HACCPPage() {
                         onClick={() => setActiveModal(check.type)}
                         className={cn(
                           "w-full text-left rounded-xl border p-4 hover:shadow-md transition-all group",
-                          hasFail ? "border-red-300 bg-red-50" : "bg-white border-slate-200 hover:border-slate-300"
+                          hasFail
+                            ? "border-red-300 bg-red-50"
+                            : "bg-white border-slate-200 hover:border-slate-300"
                         )}
                       >
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-1">
-                              <span className="font-semibold text-slate-900 text-sm">{check.label}</span>
-                              {hasFail && <Badge className="bg-red-100 text-red-700 border-red-200 text-xs">Fail</Badge>}
+                              <span className="font-semibold text-slate-900 text-sm">
+                                {check.label}
+                              </span>
+                              {hasFail && (
+                                <Badge className="bg-red-100 text-red-700 border-red-200 text-xs">
+                                  Fail
+                                </Badge>
+                              )}
                             </div>
                             <p className="text-xs text-slate-400 mb-2">{check.description}</p>
-                            <div className="flex items-center gap-3">
-                              <span className={cn("text-xs px-2 py-0.5 rounded-full border font-medium", group.bgColor, group.borderColor, group.color)}>
+                            <div className="flex items-center gap-3 flex-wrap">
+                              <span
+                                className={cn(
+                                  "text-xs px-2 py-0.5 rounded-full border font-medium",
+                                  group.bgColor,
+                                  group.borderColor,
+                                  group.color
+                                )}
+                              >
                                 {check.frequency}
                               </span>
+                              {eqCount !== null && (
+                                <span className="text-xs text-slate-400">
+                                  {eqCount} unit{eqCount !== 1 ? "s" : ""}
+                                  {isManager && eqCount === 0 ? " — tap to add" : ""}
+                                </span>
+                              )}
                               {todayCount > 0 && (
                                 <span className="text-xs text-green-600 font-medium">
                                   ✓ {todayCount} logged today
@@ -1064,7 +1246,13 @@ export default function HACCPPage() {
                               </p>
                             )}
                           </div>
-                          <div className={cn("p-2 rounded-lg ml-3 transition-colors", group.bgColor, "group-hover:opacity-80")}>
+                          <div
+                            className={cn(
+                              "p-2 rounded-lg ml-3 transition-colors",
+                              group.bgColor,
+                              "group-hover:opacity-80"
+                            )}
+                          >
                             <Plus className={cn("h-4 w-4", group.color)} />
                           </div>
                         </div>
@@ -1107,20 +1295,24 @@ export default function HACCPPage() {
                 <thead>
                   <tr className="bg-slate-50 border-b border-slate-200">
                     <th className="text-left py-3 px-4 font-semibold text-slate-600">Check</th>
-                    <th className="text-left py-3 px-4 font-semibold text-slate-600 hidden md:table-cell">Details</th>
+                    <th className="text-left py-3 px-4 font-semibold text-slate-600 hidden md:table-cell">
+                      Details
+                    </th>
                     <th className="text-left py-3 px-4 font-semibold text-slate-600">Status</th>
-                    <th className="text-left py-3 px-4 font-semibold text-slate-600 hidden lg:table-cell">By</th>
+                    <th className="text-left py-3 px-4 font-semibold text-slate-600 hidden lg:table-cell">
+                      By
+                    </th>
                     <th className="text-left py-3 px-4 font-semibold text-slate-600">Date</th>
                     {isManager && <th className="py-3 px-4"></th>}
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredHistory.map((record, i) => {
+                  {filteredHistory.map((record) => {
                     const cfg = getCheckConfig(record.checkType);
                     const grp = getGroupConfig(record.checkType);
                     const Icon = grp?.icon || ClipboardCheck;
                     return (
-                      <tr key={record.id} className={cn("border-b border-slate-100 hover:bg-slate-50", i % 2 === 0 ? "" : "")}>
+                      <tr key={record.id} className="border-b border-slate-100 hover:bg-slate-50">
                         <td className="py-3 px-4">
                           <div className="flex items-center gap-2">
                             <Icon className={cn("h-4 w-4 flex-shrink-0", grp?.color || "text-slate-400")} />
@@ -1129,7 +1321,9 @@ export default function HACCPPage() {
                         </td>
                         <td className="py-3 px-4 text-slate-500 hidden md:table-cell max-w-xs truncate">
                           {renderDataSummary(record)}
-                          {record.notes && <span className="text-slate-400 ml-1">· {record.notes}</span>}
+                          {record.notes && (
+                            <span className="text-slate-400 ml-1">· {record.notes}</span>
+                          )}
                         </td>
                         <td className="py-3 px-4">
                           <StatusBadge status={record.status} />
@@ -1170,18 +1364,94 @@ export default function HACCPPage() {
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              {activeConfig && (() => {
-                const grp = getGroupConfig(activeModal!);
-                const Icon = grp?.icon || ClipboardCheck;
-                return <Icon className={cn("h-5 w-5", grp?.color)} />;
-              })()}
+              {activeConfig &&
+                (() => {
+                  const grp = getGroupConfig(activeModal!);
+                  const Icon = grp?.icon || ClipboardCheck;
+                  return <Icon className={cn("h-5 w-5", grp?.color)} />;
+                })()}
               {activeConfig?.label}
             </DialogTitle>
             {activeConfig?.description && (
               <p className="text-sm text-slate-500 mt-1">{activeConfig.description}</p>
             )}
           </DialogHeader>
-          <div className="mt-2">{renderForm()}</div>
+
+          <div className="mt-2">
+            {/* Temperature checks — equipment list */}
+            {activeModal && TEMP_TYPES.includes(activeModal) && activeConfig && (
+              <EquipmentTempModal
+                config={activeConfig}
+                equipment={activeEquipment}
+                isManager={isManager}
+                onSaveAll={(entries) => handleSaveEquipmentTemps(activeModal!, entries)}
+                onAddEquipment={(name) =>
+                  handleAddEquipment(name, activeConfig.equipType as string)
+                }
+                onDeleteEquipment={handleDeleteEquipment}
+                saving={saving}
+              />
+            )}
+
+            {/* Delivery */}
+            {activeModal === "delivery" && (
+              <DeliveryForm
+                onSubmit={(data, status, notes) => handleSave(activeModal, data, status, notes)}
+                loading={saving}
+              />
+            )}
+
+            {/* Cleaning checklists */}
+            {activeModal === "cleaning_daily" && (
+              <ChecklistForm
+                items={DAILY_CLEANING_ITEMS}
+                onSubmit={(data, status, notes) => handleSave(activeModal, data, status, notes)}
+                loading={saving}
+              />
+            )}
+            {activeModal === "cleaning_weekly" && (
+              <ChecklistForm
+                items={WEEKLY_CLEANING_ITEMS}
+                onSubmit={(data, status, notes) => handleSave(activeModal, data, status, notes)}
+                loading={saving}
+              />
+            )}
+            {activeModal === "cleaning_deep" && (
+              <ChecklistForm
+                items={DEEP_CLEAN_ITEMS}
+                onSubmit={(data, status, notes) => handleSave(activeModal, data, status, notes)}
+                loading={saving}
+              />
+            )}
+            {activeModal === "opening_checks" && (
+              <ChecklistForm
+                items={OPENING_ITEMS}
+                onSubmit={(data, status, notes) => handleSave(activeModal, data, status, notes)}
+                loading={saving}
+              />
+            )}
+            {activeModal === "closing_checks" && (
+              <ChecklistForm
+                items={CLOSING_ITEMS}
+                onSubmit={(data, status, notes) => handleSave(activeModal, data, status, notes)}
+                loading={saving}
+              />
+            )}
+
+            {/* Incidents */}
+            {activeModal === "pest_control" && (
+              <PestForm
+                onSubmit={(data, status, notes) => handleSave(activeModal, data, status, notes)}
+                loading={saving}
+              />
+            )}
+            {activeModal === "corrective_action" && (
+              <CorrectiveForm
+                onSubmit={(data, status, notes) => handleSave(activeModal, data, status, notes)}
+                loading={saving}
+              />
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>

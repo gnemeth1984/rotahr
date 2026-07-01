@@ -53,7 +53,8 @@ model Business {
   wastageRecords WastageRecord[]
 
   // HACCP
-  haccpRecords   HACCPRecord[]
+  haccpRecords     HACCPRecord[]
+  haccpEquipment   HACCPEquipment[]
 
   // Locale / currency
   currency           String   @default("EUR") // "EUR" | "GBP"
@@ -1108,4 +1109,17 @@ model HACCPRecord {
 
   @@index([businessId, checkType])
   @@index([businessId, checkedAt])
+}
+
+// Named equipment units per business — fridges, freezers, hot-holding stations
+model HACCPEquipment {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  name       String   // "Main Fridge", "Bar Fridge 1", "Walk-in"
+  equipType  String   // fridge | freezer | hot_holding | cooking | cooling
+  sortOrder  Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  @@index([businessId, equipType])
 }
