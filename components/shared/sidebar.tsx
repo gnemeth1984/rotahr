@@ -48,6 +48,8 @@ import { useFeatureFlags } from "@/components/shared/FeatureFlagsProvider";
 import type { FeatureKey } from "@/lib/features";
 
 // null = all plans; array = only those plans (platform ADMIN always bypasses)
+// platformAdminOnly: true  = only shown when businessId is null (platform super-admin)
+// omitted/false = hidden for platform admin (business-specific pages)
 const navItems = [
   {
     href: "/dashboard",
@@ -250,7 +252,7 @@ const navItems = [
     featureKey: null,
     plans: null,
   },
-  // ── Platform ADMIN only (Gabor) ──────────────────────────────────────────
+  // ── Platform ADMIN only (Gabor — no businessId) ──────────────────────────
   {
     href: "/outreach",
     label: "Email Outreach",
@@ -259,6 +261,7 @@ const navItems = [
     permission: null,
     featureKey: null,
     plans: null,
+    platformAdminOnly: true,
   },
   {
     href: "/admin",
@@ -268,6 +271,7 @@ const navItems = [
     permission: null,
     featureKey: null,
     plans: null,
+    platformAdminOnly: true,
   },
 ];
 
@@ -285,13 +289,19 @@ export function Sidebar() {
   const isPlatformAdmin = userRole === Role.ADMIN && !session?.user?.businessId;
 
   const visibleItems = navItems.filter((item) => {
+    // Platform super-admin (no businessId): only show platformAdminOnly items
+    if (isPlatformAdmin) return !!(item as any).platformAdminOnly;
+
+    // Regular users: hide platformAdminOnly items
+    if ((item as any).platformAdminOnly) return false;
+
     // Role check
     const roleAllowed = item.roles.includes(userRole) ||
       (!isManager && item.permission && userPermissions.includes(item.permission));
     if (!roleAllowed) return false;
 
-    // Plan gate — platform admin always bypasses
-    if (item.plans && !isPlatformAdmin) {
+    // Plan gate
+    if (item.plans) {
       if (!lsPlan || !item.plans.includes(lsPlan)) return false;
     }
 

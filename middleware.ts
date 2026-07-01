@@ -26,8 +26,10 @@ export async function middleware(request: NextRequest) {
   });
 
   if (token && token.role === "ADMIN" && !token.businessId) {
-    // Platform admin with no business — only /admin is a valid app destination
-    if (!pathname.startsWith("/admin")) {
+    // Platform admin (no business) — allow /admin and /outreach only
+    const isAllowed =
+      pathname.startsWith("/admin") || pathname.startsWith("/outreach");
+    if (!isAllowed) {
       return NextResponse.redirect(new URL("/admin", request.url));
     }
   }
