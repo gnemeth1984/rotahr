@@ -60,6 +60,15 @@ interface HACCPEquipment {
   equipType: string;
 }
 
+interface ExpenseItem {
+  id: string;
+  vendor: string | null;
+  description: string | null;
+  category: string;
+  date: string;
+  aiLineItems: unknown;
+}
+
 // ─── Check type config ───────────────────────────────────────────────────────
 
 const CHECK_GROUPS = [
@@ -108,7 +117,7 @@ const CHECK_GROUPS = [
         maxTemp: 100,
         unit: "°C",
         frequency: "Per cook",
-        equipType: "cooking",
+        equipType: null,
       },
       {
         type: "cooling",
@@ -118,7 +127,7 @@ const CHECK_GROUPS = [
         maxTemp: 4,
         unit: "°C",
         frequency: "Per batch",
-        equipType: "cooling",
+        equipType: null,
       },
     ],
   },
@@ -210,6 +219,9 @@ const CHECK_GROUPS = [
 const ALL_CHECKS = CHECK_GROUPS.flatMap((g) =>
   g.checks.map((c) => ({ ...c, group: g.label }))
 );
+// Equipment-list modal only for these types
+const EQUIP_TEMP_TYPES = ["fridge_temp", "freezer_temp", "hot_holding"];
+// All temp check types (used for routing)
 const TEMP_TYPES = ["fridge_temp", "freezer_temp", "hot_holding", "cooking_temp", "cooling"];
 
 function getCheckConfig(type: string) {
@@ -535,6 +547,37 @@ function DeliveryForm({
   const [packaging, setPackaging] = useState("good");
   const [accepted, setAccepted] = useState("yes");
   const [notes, setNotes] = useState("");
+  const [expenses, setExpenses] = useState<ExpenseItem[]>([]);
+  const [importOpen, setImportOpen] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/expenses/list")
+      .then((r) => (r.ok ? r.json() : { expenses: [] }))
+      .then((data) => {
+        const foodCats = ["stock", "food", "beverages"];
+        const filtered = ((data.expenses || []) as ExpenseItem[])
+          .filter((e) => foodCats.includes(e.category) && e.vendor)
+          .slice(0, 20);
+        setExpenses(filtered);
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleImport = (exp: ExpenseItem) => {
+    setSupplier(exp.vendor || "");
+    let prod = "";
+    if (exp.aiLineItems && Array.isArray(exp.aiLineItems)) {
+      const items = exp.aiLineItems as Array<{ description?: string; name?: string }>;
+      prod = items
+        .map((i) => i.description || i.name || "")
+        .filter(Boolean)
+        .join(", ")
+        .slice(0, 80);
+    }
+    if (!prod && exp.description) prod = exp.description;
+    setProduct(prod);
+    setImportOpen(false);
+  };
 
   const handleSubmit = () => {
     const status = accepted === "no" || packaging === "rejected" ? "fail" : "pass";
@@ -553,6 +596,40 @@ function DeliveryForm({
 
   return (
     <div className="space-y-4">
+      {/* Import from bookkeeping */}
+      {expenses.length > 0 && (
+        <div>
+          <button
+            onClick={() => setImportOpen((v) => !v)}
+            className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 font-medium transition-colors"
+          >
+            <Truck className="h-4 w-4" />
+            Import from recent expense {importOpen ? "▲" : "▼"}
+          </button>
+          {importOpen && (
+            <div className="mt-2 rounded-lg border border-slate-200 divide-y overflow-hidden max-h-48 overflow-y-auto">
+              {expenses.map((exp) => (
+                <button
+                  key={exp.id}
+                  onClick={() => handleImport(exp)}
+                  className="w-full text-left px-3 py-2 hover:bg-slate-50 text-sm"
+                >
+                  <span className="font-medium text-slate-800">{exp.vendor}</span>
+                  {exp.description && (
+                    <span className="text-slate-400 ml-2">
+                      {exp.description.slice(0, 50)}
+                    </span>
+                  )}
+                  <span className="text-xs text-slate-300 ml-2">
+                    {new Date(exp.date).toLocaleDateString("en-IE")}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-2">
           <Label>Supplier</Label>
@@ -840,6 +917,284 @@ function CorrectiveForm({
       >
         {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
         Save Corrective Action
+      </Button>
+    </div>
+  );
+}
+
+// ─── Cooking Temp Form ────────────────────────────────────────────────────────
+
+function CookingTempForm({
+  onSubmit,
+  loading,
+}: {
+  onSubmit: (data: Record<string, unknown>, status: string, notes: string) => void;
+  loading: boolean;
+}) {
+  const nowTime = () => new Date().toTimeString().slice(0, 5);
+  const [itemName, setItemName] = useState("");
+  const [startTime, setStartTime] = useState(nowTime());
+  const [endTime, setEndTime] = useState("");
+  const [coreTemp, setCoreTemp] = useState("");
+  const [notes, setNotes] = useState("");
+
+  const temp = parseFloat(coreTemp);
+  const isPassed = !isNaN(temp) && temp >= 75;
+  const isFailed = coreTemp !== "" && !isNaN(temp) && temp < 75;
+
+  const handleSubmit = () => {
+    onSubmit(
+      { itemName, startTime, endTime, coreTemp: temp },
+      isPassed ? "pass" : "fail",
+      notes
+    );
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-lg bg-orange-50 border border-orange-200 px-3 py-2 text-sm text-orange-700">
+        Core temperature must reach <strong>≥75°C</strong> to pass
+      </div>
+      <div className="space-y-2">
+        <Label>Item / Food Name</Label>
+        <Input
+          placeholder="e.g. Chicken breast, Lasagne, Soup"
+          value={itemName}
+          onChange={(e) => setItemName(e.target.value)}
+        />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-2">
+          <Label>Start Time</Label>
+          <Input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
+        </div>
+        <div className="space-y-2">
+          <Label>End Time</Label>
+          <Input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} />
+        </div>
+      </div>
+      <div className="space-y-2">
+        <Label>Core Temperature (°C)</Label>
+        <div className="flex items-center gap-2">
+          <Input
+            type="number"
+            step="0.1"
+            placeholder="e.g. 78.5"
+            value={coreTemp}
+            onChange={(e) => setCoreTemp(e.target.value)}
+            className={cn(
+              isPassed && "border-green-400 bg-green-50",
+              isFailed && "border-red-400 bg-red-50"
+            )}
+          />
+          <span className="text-sm text-slate-400 w-6">°C</span>
+          {isPassed && <CheckCircle2 className="h-5 w-5 text-green-500 flex-shrink-0" />}
+          {isFailed && <XCircle className="h-5 w-5 text-red-500 flex-shrink-0" />}
+        </div>
+        {coreTemp && (
+          <p className={cn("text-xs font-medium", isPassed ? "text-green-600" : "text-red-600")}>
+            {isPassed
+              ? "✓ Safe cooking temperature reached"
+              : `✗ Below 75°C — continue cooking or discard. Currently: ${coreTemp}°C`}
+          </p>
+        )}
+      </div>
+      <div className="space-y-2">
+        <Label>{isFailed ? "Corrective Action (required)" : "Notes (optional)"}</Label>
+        <Textarea
+          placeholder={
+            isFailed
+              ? "e.g. Continued cooking for 5 mins, batch discarded"
+              : "Any additional notes..."
+          }
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          rows={2}
+        />
+      </div>
+      <Button
+        className="w-full bg-slate-900 hover:bg-slate-800"
+        onClick={handleSubmit}
+        disabled={loading || !itemName || !coreTemp || !endTime || (isFailed && !notes)}
+      >
+        {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+        Save Cooking Record
+      </Button>
+    </div>
+  );
+}
+
+// ─── Cooling Form ─────────────────────────────────────────────────────────────
+
+function CoolingForm({
+  onSubmit,
+  loading,
+}: {
+  onSubmit: (data: Record<string, unknown>, status: string, notes: string) => void;
+  loading: boolean;
+}) {
+  const nowTime = () => new Date().toTimeString().slice(0, 5);
+  const [itemName, setItemName] = useState("");
+  const [startTime, setStartTime] = useState(nowTime());
+  const [startTemp, setStartTemp] = useState("");
+  const [endTime, setEndTime] = useState("");
+  const [endTemp, setEndTemp] = useState("");
+  const [notes, setNotes] = useState("");
+
+  const elapsedHours = (() => {
+    if (!startTime || !endTime) return null;
+    const [sh, sm] = startTime.split(":").map(Number);
+    const [eh, em] = endTime.split(":").map(Number);
+    const startMins = sh * 60 + sm;
+    const endMins = eh * 60 + em;
+    const diff =
+      endMins >= startMins ? endMins - startMins : 24 * 60 - startMins + endMins;
+    return diff / 60;
+  })();
+
+  const finalTemp = parseFloat(endTemp);
+  const tempOk = !isNaN(finalTemp) && finalTemp <= 4;
+  const timeOk = elapsedHours !== null && elapsedHours <= 4;
+  const isPassed = endTemp !== "" && tempOk && timeOk;
+  const isFailed = endTemp !== "" && !isNaN(finalTemp) && !isPassed;
+
+  // Use-by = today + 3 days
+  const useByDate = (() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 3);
+    return d.toLocaleDateString("en-IE", {
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+  })();
+
+  const handleSubmit = () => {
+    onSubmit(
+      {
+        itemName,
+        startTime,
+        startTemp: startTemp ? parseFloat(startTemp) : null,
+        endTime,
+        endTemp: finalTemp,
+        elapsedHours: elapsedHours !== null ? Math.round(elapsedHours * 10) / 10 : null,
+        useByDate: isPassed ? useByDate : null,
+      },
+      isPassed ? "pass" : "fail",
+      notes
+    );
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-lg bg-blue-50 border border-blue-200 px-3 py-2 text-sm text-blue-700">
+        Food must cool to <strong>≤4°C within 4 hours</strong>
+      </div>
+      <div className="space-y-2">
+        <Label>Item / Food Name</Label>
+        <Input
+          placeholder="e.g. Chicken stock, Lasagne, Curry sauce"
+          value={itemName}
+          onChange={(e) => setItemName(e.target.value)}
+        />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-2">
+          <Label>Start Time</Label>
+          <Input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
+        </div>
+        <div className="space-y-2">
+          <Label>Start Temp (°C)</Label>
+          <Input
+            type="number"
+            step="0.1"
+            placeholder="e.g. 60"
+            value={startTemp}
+            onChange={(e) => setStartTemp(e.target.value)}
+          />
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-2">
+          <Label>End Time</Label>
+          <Input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} />
+        </div>
+        <div className="space-y-2">
+          <Label>Final Temp (°C)</Label>
+          <div className="flex items-center gap-2">
+            <Input
+              type="number"
+              step="0.1"
+              placeholder="e.g. 3.5"
+              value={endTemp}
+              onChange={(e) => setEndTemp(e.target.value)}
+              className={cn(
+                isPassed && "border-green-400 bg-green-50",
+                isFailed && "border-red-400 bg-red-50"
+              )}
+            />
+            {isPassed && <CheckCircle2 className="h-4 w-4 text-green-500 flex-shrink-0" />}
+            {isFailed && <XCircle className="h-4 w-4 text-red-500 flex-shrink-0" />}
+          </div>
+        </div>
+      </div>
+
+      {endTemp && elapsedHours !== null && (
+        <div
+          className={cn(
+            "rounded-lg border px-3 py-2 text-sm",
+            isPassed
+              ? "bg-green-50 border-green-200 text-green-700"
+              : "bg-red-50 border-red-200 text-red-700"
+          )}
+        >
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <span>
+              {isPassed ? "✓ Pass" : "✗ Fail"} — {elapsedHours.toFixed(1)}h elapsed,{" "}
+              final temp {endTemp}°C
+            </span>
+            {isPassed && (
+              <span className="font-semibold">Use by: {useByDate}</span>
+            )}
+          </div>
+          {!isPassed && (
+            <p className="text-xs mt-1">
+              {!tempOk ? `Final temp above 4°C (${endTemp}°C). ` : ""}
+              {!timeOk ? `Cooling took ${elapsedHours.toFixed(1)}h — over 4hr limit. ` : ""}
+              Food must be discarded.
+            </p>
+          )}
+        </div>
+      )}
+
+      {isPassed && (
+        <div className="rounded-lg bg-slate-50 border px-3 py-2 text-sm text-slate-600 flex items-center gap-2">
+          <Clock className="h-4 w-4 flex-shrink-0" />
+          Auto use-by: <strong>{useByDate}</strong> — label before storing
+        </div>
+      )}
+
+      <div className="space-y-2">
+        <Label>{isFailed ? "Corrective Action (required)" : "Notes (optional)"}</Label>
+        <Textarea
+          placeholder={
+            isFailed
+              ? "e.g. Food discarded, switched to blast chiller"
+              : "Any additional notes..."
+          }
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          rows={2}
+        />
+      </div>
+      <Button
+        className="w-full bg-slate-900 hover:bg-slate-800"
+        onClick={handleSubmit}
+        disabled={loading || !itemName || !endTemp || !endTime || (isFailed && !notes)}
+      >
+        {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+        Save Cooling Record
       </Button>
     </div>
   );
@@ -1378,8 +1733,8 @@ export default function HACCPPage() {
           </DialogHeader>
 
           <div className="mt-2">
-            {/* Temperature checks — equipment list */}
-            {activeModal && TEMP_TYPES.includes(activeModal) && activeConfig && (
+            {/* Equipment temperature checks (fridge / freezer / hot holding) */}
+            {activeModal && EQUIP_TEMP_TYPES.includes(activeModal) && activeConfig && (
               <EquipmentTempModal
                 config={activeConfig}
                 equipment={activeEquipment}
@@ -1390,6 +1745,26 @@ export default function HACCPPage() {
                 }
                 onDeleteEquipment={handleDeleteEquipment}
                 saving={saving}
+              />
+            )}
+
+            {/* Cooking Temperature */}
+            {activeModal === "cooking_temp" && (
+              <CookingTempForm
+                onSubmit={(data, status, notes) =>
+                  handleSave(activeModal, data, status, notes)
+                }
+                loading={saving}
+              />
+            )}
+
+            {/* Cooling Record */}
+            {activeModal === "cooling" && (
+              <CoolingForm
+                onSubmit={(data, status, notes) =>
+                  handleSave(activeModal, data, status, notes)
+                }
+                loading={saving}
               />
             )}
 
