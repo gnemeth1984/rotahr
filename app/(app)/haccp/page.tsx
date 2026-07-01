@@ -364,19 +364,19 @@ function EquipmentTempModal({
   return (
     <div className="space-y-4">
       {/* Safe range banner */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
         <div className="rounded-lg bg-slate-50 border px-3 py-2 text-sm text-slate-600">
           Safe range:{" "}
           <strong>
             {minTemp}°C – {maxTemp}°C
           </strong>
-          <span className="ml-3 text-slate-400 text-xs">{now}</span>
+          <span className="ml-2 text-slate-400 text-xs">{now}</span>
         </div>
         {isManager && (
           <button
             onClick={() => setManageMode((v) => !v)}
             className={cn(
-              "flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-colors",
+              "flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-colors flex-shrink-0",
               manageMode
                 ? "bg-slate-900 text-white border-slate-900"
                 : "text-slate-500 border-slate-200 hover:bg-slate-50"
@@ -634,7 +634,7 @@ function DeliveryForm({
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div className="space-y-2">
           <Label>Supplier</Label>
           <Input placeholder="e.g. Dawn Meats" value={supplier} onChange={(e) => setSupplier(e.target.value)} />
@@ -655,7 +655,7 @@ function DeliveryForm({
         />
         <p className="text-xs text-slate-500">Chilled goods must arrive below 5°C</p>
       </div>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div className="space-y-2">
           <Label>Packaging Condition</Label>
           <Select value={packaging} onValueChange={setPackaging}>
@@ -967,7 +967,7 @@ function CookingTempForm({
           onChange={(e) => setItemName(e.target.value)}
         />
       </div>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div className="space-y-2">
           <Label>Start Time</Label>
           <Input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
@@ -1103,7 +1103,7 @@ function CoolingForm({
           onChange={(e) => setItemName(e.target.value)}
         />
       </div>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div className="space-y-2">
           <Label>Start Time</Label>
           <Input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
@@ -1119,7 +1119,7 @@ function CoolingForm({
           />
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div className="space-y-2">
           <Label>End Time</Label>
           <Input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} />
@@ -1578,27 +1578,31 @@ export default function HACCPPage() {
             <p className="text-slate-500 text-sm">Paperless food safety compliance</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2">
           <Button
             variant={view === "dashboard" ? "default" : "outline"}
             size="sm"
             onClick={() => setView("dashboard")}
           >
-            <ClipboardCheck className="h-4 w-4 mr-1" /> Dashboard
+            <ClipboardCheck className="h-4 w-4" />
+            <span className="hidden sm:inline sm:ml-1">Dashboard</span>
           </Button>
           <Button
             variant={view === "history" ? "default" : "outline"}
             size="sm"
             onClick={() => setView("history")}
           >
-            <History className="h-4 w-4 mr-1" /> History
+            <History className="h-4 w-4" />
+            <span className="hidden sm:inline sm:ml-1">History</span>
           </Button>
           <Button variant="outline" size="sm" onClick={handleDownloadPDF}>
-            <Download className="h-4 w-4 mr-1" /> PDF
+            <Download className="h-4 w-4" />
+            <span className="hidden sm:inline sm:ml-1">PDF</span>
           </Button>
           {isManager && (
-            <Button size="sm" variant="outline" className="gap-2 border-violet-200 text-violet-700 hover:bg-violet-50" onClick={() => setDeliveryNoteOpen(true)}>
-              <Truck className="h-4 w-4" /> Scan Delivery Note
+            <Button size="sm" variant="outline" className="gap-1.5 border-violet-200 text-violet-700 hover:bg-violet-50" onClick={() => setDeliveryNoteOpen(true)}>
+              <Truck className="h-4 w-4" />
+              <span className="hidden sm:inline">Scan Delivery Note</span>
             </Button>
           )}
         </div>
@@ -1797,8 +1801,8 @@ export default function HACCPPage() {
               <p>No records yet. Start logging checks from the dashboard.</p>
             </div>
           ) : (
-            <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-              <table className="w-full text-sm">
+            <div className="bg-white rounded-xl border border-slate-200 overflow-x-auto">
+              <table className="w-full text-sm min-w-[600px]">
                 <thead>
                   <tr className="bg-slate-50 border-b border-slate-200">
                     <th className="text-left py-3 px-4 font-semibold text-slate-600">Check</th>
@@ -1868,7 +1872,7 @@ export default function HACCPPage() {
 
       {/* Check Modal */}
       <Dialog open={!!activeModal} onOpenChange={() => setActiveModal(null)}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-lg max-h-[90dvh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               {activeConfig &&
@@ -1980,7 +1984,7 @@ export default function HACCPPage() {
 
       {/* ─── Checklist Template Editor ──────────────────────────────────────── */}
       <Dialog open={!!editingCheckType} onOpenChange={(o) => { if (!o) setEditingCheckType(null); }}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-lg max-h-[90dvh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <ClipboardCheck className="h-5 w-5 text-violet-600" />
