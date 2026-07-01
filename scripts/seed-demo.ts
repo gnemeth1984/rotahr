@@ -1062,6 +1062,21 @@ async function main(prisma: PrismaClient = new PrismaClient()) {
   });
   console.log("✅ Supplier statements created");
 
+  // ─── HACCP Equipment ───────────────────────────────────────────────────────
+  await prisma.hACCPEquipment.deleteMany({ where: { businessId: BIZ } });
+  await prisma.hACCPEquipment.createMany({
+    data: [
+      { businessId: BIZ, name: "Main Walk-In Fridge",  equipType: "fridge",      sortOrder: 0 },
+      { businessId: BIZ, name: "Back Bar Fridge",      equipType: "fridge",      sortOrder: 1 },
+      { businessId: BIZ, name: "Prep Fridge",          equipType: "fridge",      sortOrder: 2 },
+      { businessId: BIZ, name: "Main Freezer",         equipType: "freezer",     sortOrder: 0 },
+      { businessId: BIZ, name: "Ice Cream Freezer",    equipType: "freezer",     sortOrder: 1 },
+      { businessId: BIZ, name: "Bain Marie #1",        equipType: "hot_holding", sortOrder: 0 },
+      { businessId: BIZ, name: "Soup Station",         equipType: "hot_holding", sortOrder: 1 },
+    ],
+  });
+  console.log("✅ HACCP equipment seeded");
+
   console.log("\n✅ Demo seed complete!");
   console.log("\n📋 Demo Login Accounts:");
   console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");

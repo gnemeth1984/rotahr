@@ -41,6 +41,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { UserRole as Role } from "@/types/roles";
+import { toast } from "sonner";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -1309,17 +1310,35 @@ export default function HACCPPage() {
   };
 
   const handleAddEquipment = async (name: string, equipType: string) => {
-    await fetch("/api/haccp/equipment", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, equipType }),
-    });
-    await fetchEquipment();
+    try {
+      const res = await fetch("/api/haccp/equipment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, equipType }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        toast.error(err.error || "Failed to add equipment unit");
+        return;
+      }
+      await fetchEquipment();
+      toast.success(`"${name}" added`);
+    } catch {
+      toast.error("Network error — could not add equipment");
+    }
   };
 
   const handleDeleteEquipment = async (id: string) => {
-    await fetch(`/api/haccp/equipment?id=${id}`, { method: "DELETE" });
-    await fetchEquipment();
+    try {
+      const res = await fetch(`/api/haccp/equipment?id=${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        toast.error("Failed to delete equipment unit");
+        return;
+      }
+      await fetchEquipment();
+    } catch {
+      toast.error("Network error — could not delete equipment");
+    }
   };
 
   // Compliance score
