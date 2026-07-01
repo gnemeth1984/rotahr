@@ -21,7 +21,14 @@ export async function POST(req: NextRequest) {
   const businessId = session.user.businessId!;
   const userId = session.user.id;
 
-  const body = await req.json();
+  let body: any;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  }
+
+  try {
   const {
     // shared
     vendor,
@@ -173,4 +180,11 @@ export async function POST(req: NextRequest) {
   }
 
   return NextResponse.json({ success: true, results });
+  } catch (err: any) {
+    console.error("[delivery-note/apply] error:", err);
+    return NextResponse.json(
+      { error: err?.message ?? "Failed to apply delivery note" },
+      { status: 500 }
+    );
+  }
 }

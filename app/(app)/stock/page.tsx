@@ -2205,6 +2205,7 @@ function StockPageInner() {
   const [orderDialog, setOrderDialog] = useState<{ open: boolean; editing: SupplierOrder | null }>({ open: false, editing: null });
   const [scanDialog, setScanDialog] = useState(false);
   const [deliveryNoteOpen, setDeliveryNoteOpen] = useState(false);
+  const [deliveryNoteKey, setDeliveryNoteKey] = useState(0);
 
   // Track whether an order draft exists in localStorage (for badge on button)
   const [hasDraft, setHasDraft] = useState(false);
@@ -2400,6 +2401,7 @@ function StockPageInner() {
       />
 
       <DeliveryNoteModal
+        key={deliveryNoteKey}
         open={deliveryNoteOpen}
         onClose={() => setDeliveryNoteOpen(false)}
         onApplied={() => { loadStock(); }}

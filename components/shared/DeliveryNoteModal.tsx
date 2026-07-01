@@ -122,6 +122,8 @@ export function DeliveryNoteModal({ open, onClose, onApplied }: Props) {
     setHaccpStatus("pass");
     setHaccpNotes("");
     setResults(null);
+    // Clear file input so same file can be re-selected on next scan
+    if (fileRef.current) fileRef.current.value = "";
   }, []);
 
   const handleClose = () => {

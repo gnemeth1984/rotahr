@@ -1213,6 +1213,7 @@ export default function HACCPPage() {
   const [equipment, setEquipment] = useState<HACCPEquipment[]>([]);
   const [activeModal, setActiveModal] = useState<string | null>(null);
   const [deliveryNoteOpen, setDeliveryNoteOpen] = useState(false);
+  const [deliveryNoteKey, setDeliveryNoteKey] = useState(0);
   const [saving, setSaving] = useState(false);
   const [view, setView] = useState<"dashboard" | "history">("dashboard");
   const [historyFilter, setHistoryFilter] = useState("all");
@@ -1971,6 +1972,7 @@ export default function HACCPPage() {
       </Dialog>
 
       <DeliveryNoteModal
+        key={deliveryNoteKey}
         open={deliveryNoteOpen}
         onClose={() => setDeliveryNoteOpen(false)}
         onApplied={() => { fetchRecords(); }}

@@ -469,6 +469,7 @@ export default function BookkeepingPage() {
 
   // Dialog
   const [deliveryNoteOpen, setDeliveryNoteOpen] = useState(false);
+  const [deliveryNoteKey, setDeliveryNoteKey] = useState(0);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
@@ -1439,6 +1440,7 @@ export default function BookkeepingPage() {
       </Dialog>
 
       <DeliveryNoteModal
+        key={deliveryNoteKey}
         open={deliveryNoteOpen}
         onClose={() => setDeliveryNoteOpen(false)}
         onApplied={() => { fetchAll(); }}
