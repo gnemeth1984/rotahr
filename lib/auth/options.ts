@@ -55,15 +55,25 @@ export const authOptions: NextAuthOptions = {
   },
   callbacks: {
     async jwt({ token, user }) {
+      // Super-admin emails — always force ADMIN role regardless of DB state
+      const SUPER_ADMINS = ["gnemeth1984@gmail.com"];
+
       // Always re-fetch from DB so role/businessId/permissions are always current
       const emailToLookup = user?.email ?? (token.email as string | undefined);
+      const isSuperAdmin = emailToLookup ? SUPER_ADMINS.includes(emailToLookup) : false;
+
+      // Fallback: force ADMIN even before DB record is confirmed
+      if (isSuperAdmin) token.role = UserRole.ADMIN;
+
       if (emailToLookup) {
         const dbUser = await prisma.user.findUnique({
           where: { email: emailToLookup },
           select: { role: true, id: true, businessId: true },
         });
         if (dbUser) {
-          token.role = dbUser.role ?? UserRole.MANAGER;
+          token.role = isSuperAdmin
+            ? UserRole.ADMIN
+            : (dbUser.role ?? UserRole.MANAGER);
           token.id = dbUser.id;
           token.businessId = dbUser.businessId ?? null;
 
