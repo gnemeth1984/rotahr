@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
   ChefHat, Plus, Pencil, Trash2, X, Check, AlertTriangle,
-  TrendingUp, Package, Search, Filter
+  TrendingUp, Package, Search, Filter, ImagePlus, Loader2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCurrency } from "@/components/shared/CurrencyProvider";
@@ -33,6 +33,7 @@ interface Dish {
   category: string;
   sellPrice?: number | null;
   costPrice?: number | null;
+  imageUrl?: string | null;
   active: boolean;
   ingredients: Ingredient[];
 }
@@ -75,6 +76,15 @@ function RecipeCard({
 
   return (
     <div className="bg-white border border-slate-200 rounded-xl p-5 hover:shadow-md transition-shadow">
+      {dish.imageUrl && (
+        <div className="mb-3 -mx-1 -mt-1">
+          <img
+            src={dish.imageUrl}
+            alt={dish.name}
+            className="w-full h-36 object-cover rounded-lg border border-slate-100"
+          />
+        </div>
+      )}
       <div className="flex items-start justify-between gap-2 mb-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
@@ -162,8 +172,35 @@ function RecipeDialog({
   const [category, setCategory] = useState(dish?.category ?? "main");
   const [sellPrice, setSellPrice] = useState(dish?.sellPrice?.toString() ?? "");
   const [ingredients, setIngredients] = useState<Ingredient[]>(dish?.ingredients ?? []);
+  const [imageUrl, setImageUrl] = useState(dish?.imageUrl ?? "");
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [imageErr, setImageErr] = useState("");
+  const imageInputRef = useRef<HTMLInputElement>(null);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
+
+  async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImageErr("");
+    setUploadingImage(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/menu/dishes/upload-image", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Upload failed");
+      setImageUrl(data.url);
+    } catch (e: any) {
+      setImageErr(e.message);
+    } finally {
+      setUploadingImage(false);
+      if (imageInputRef.current) imageInputRef.current.value = "";
+    }
+  }
 
   // new ingredient row
   const [newIngName, setNewIngName] = useState("");
@@ -228,7 +265,7 @@ function RecipeDialog({
         const res = await fetch("/api/menu/dishes", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name, description, category, sellPrice: sellPrice || null }),
+          body: JSON.stringify({ name, description, category, sellPrice: sellPrice || null, imageUrl: imageUrl || null }),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error ?? "Failed");
@@ -237,7 +274,7 @@ function RecipeDialog({
         const res = await fetch(`/api/menu/dishes/${dish!.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name, description, category, sellPrice: sellPrice || null }),
+          body: JSON.stringify({ name, description, category, sellPrice: sellPrice || null, imageUrl: imageUrl || null }),
         });
         if (!res.ok) {
           const data = await res.json();
@@ -328,6 +365,60 @@ function RecipeDialog({
                 placeholder="Brief description"
               />
             </div>
+          </div>
+
+          {/* Dish photo */}
+          <div>
+            <label className="block text-xs font-medium text-slate-500 mb-1">
+              Photo of finished dish <span className="text-slate-300 font-normal">(so chefs know how it should look)</span>
+            </label>
+            {imageErr && <p className="text-xs text-red-500 mb-1">{imageErr}</p>}
+            {imageUrl ? (
+              <div className="relative w-full h-44 rounded-lg overflow-hidden border border-slate-200">
+                <img src={imageUrl} alt={name || "Dish"} className="w-full h-full object-cover" />
+                <button
+                  onClick={() => setImageUrl("")}
+                  className="absolute top-2 right-2 bg-black/60 hover:bg-black/75 text-white rounded-full p-1.5"
+                  title="Remove photo"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  onClick={() => imageInputRef.current?.click()}
+                  disabled={uploadingImage}
+                  className="absolute bottom-2 right-2 bg-white/90 hover:bg-white text-slate-700 text-xs font-medium rounded-lg px-2.5 py-1.5 flex items-center gap-1"
+                >
+                  {uploadingImage ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ImagePlus className="h-3.5 w-3.5" />}
+                  Replace
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => imageInputRef.current?.click()}
+                disabled={uploadingImage}
+                className="w-full h-32 border-2 border-dashed border-slate-200 rounded-lg flex flex-col items-center justify-center gap-1.5 text-slate-400 hover:border-violet-300 hover:text-violet-500 transition-colors"
+              >
+                {uploadingImage ? (
+                  <>
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    <span className="text-xs">Uploading…</span>
+                  </>
+                ) : (
+                  <>
+                    <ImagePlus className="h-5 w-5" />
+                    <span className="text-xs">Tap to upload a photo</span>
+                  </>
+                )}
+              </button>
+            )}
+            <input
+              ref={imageInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              onChange={handleImageUpload}
+              className="hidden"
+            />
           </div>
 
           {/* Live cost preview */}
