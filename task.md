@@ -1,13 +1,21 @@
-# Session tasks
+# HACCP Schedule + Notifications
 
-1. [DONE] Blog empty — cron env/config fine, manually triggered generate-blog 6x. 6 posts now live. Cron will keep adding daily.
-2. [TODO] HACCP cleaning records: + and edit buttons overlapping, hard to press (mobile). Find component, fix spacing/layout.
-3. [TODO] Add "On Break" button to clock page + break entitlement reminder notification:
-   - After clock-in, if shift length entitles to a break (Irish law: 4.5-6hrs = 15min, 6+ hrs = 30min), remind employee to take it.
-   - Track break start/end (on break button toggles).
-   - Need to check current Shift/clock schema — no Break model exists yet, need to add one.
+## Plan
+1. Add `HACCPSchedule` model (businessId, checkType, times: string[] "HH:mm" in venue local time, daysOfWeek: int[] 0-6 empty=all days, active, reminderRepeatMins)
+2. `prisma db push` (NOT migrate dev - shadow db fails)
+3. API: /api/haccp/schedules (GET/POST/PATCH/DELETE) - managers/admins only
+4. UI: Schedule settings modal on HACCP page - per check type, add/remove times, toggle active
+5. Cron: /api/cron/haccp-reminder runs every 15 min
+   - Find schedules where a scheduled time has passed in last window and not yet done today (no HACCPRecord for checkType today after that scheduled time)
+   - Recipients = whoever is clocked in right now (ClockEvent type=in, no matching out) OR published shift covering now (fallback if nobody clocked in)
+   - Notify via createNotification + push
+   - Keep reminding every 15 min (cron interval) until logged - dedupe only within same run, not across runs (per requirement: "just keep reminding")
+6. Register cron in vercel.json
+7. Verify build + deploy
 
-## Findings
-- Clock pages: app/(app)/clock, app/api/clock
-- No cleaning-specific page found yet by name "cleaning" — check haccp/page.tsx (CleaningForm inside it likely)
-- No Break model in prisma schema yet.
+## Status
+- [ ] Schema
+- [ ] API routes
+- [ ] UI
+- [ ] Cron
+- [ ] Build + deploy

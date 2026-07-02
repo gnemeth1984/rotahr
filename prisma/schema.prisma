@@ -56,6 +56,7 @@ model Business {
   haccpRecords     HACCPRecord[]
   haccpEquipment        HACCPEquipment[]
   haccpChecklistTemplates HACCPChecklistTemplate[]
+  haccpSchedules HACCPSchedule[]
 
   // Locale / currency
   currency           String   @default("EUR") // "EUR" | "GBP"
@@ -1139,4 +1140,20 @@ model HACCPEquipment {
   createdAt  DateTime @default(now())
 
   @@index([businessId, equipType])
+}
+
+// Custom reminder schedule per business per check type — fully configurable
+model HACCPSchedule {
+  id                String   @id @default(cuid())
+  businessId        String
+  business          Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  checkType         String
+  times             Json     // string[] "HH:mm" in 24h format, e.g. ["08:00","14:00","20:00"]
+  daysOfWeek        Json     // int[] 0=Sun..6=Sat, empty array = every day
+  active            Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([businessId, checkType])
+  @@index([businessId])
 }

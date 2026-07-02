@@ -40,6 +40,8 @@ import {
   X,
   GripVertical,
   RotateCcw,
+  Bell,
+  BellOff,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { UserRole as Role } from "@/types/roles";
@@ -1263,6 +1265,93 @@ export default function HACCPPage() {
     }
   }, []);
 
+  // ─── Reminder schedules ────────────────────────────────────────────────────
+  const [schedules, setSchedules] = useState<Record<string, { times: string[]; daysOfWeek: number[]; active: boolean }>>({});
+  const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
+  const [editingScheduleType, setEditingScheduleType] = useState<string | null>(null);
+  const [scheduleTimes, setScheduleTimes] = useState<string[]>([]);
+  const [scheduleDays, setScheduleDays] = useState<number[]>([]);
+  const [scheduleActive, setScheduleActive] = useState(true);
+  const [newScheduleTime, setNewScheduleTime] = useState("08:00");
+  const [savingSchedule, setSavingSchedule] = useState(false);
+
+  const fetchSchedules = useCallback(async () => {
+    try {
+      const res = await fetch("/api/haccp/schedules");
+      if (!res.ok) return;
+      const data = await res.json();
+      const map: Record<string, { times: string[]; daysOfWeek: number[]; active: boolean }> = {};
+      for (const s of data.schedules ?? []) {
+        map[s.checkType] = { times: s.times ?? [], daysOfWeek: s.daysOfWeek ?? [], active: s.active };
+      }
+      setSchedules(map);
+    } catch {
+      // silently ignore
+    }
+  }, []);
+
+  const openScheduleEditor = (checkType: string) => {
+    const existing = schedules[checkType];
+    setScheduleTimes(existing?.times ?? []);
+    setScheduleDays(existing?.daysOfWeek ?? []);
+    setScheduleActive(existing?.active ?? true);
+    setNewScheduleTime("08:00");
+    setEditingScheduleType(checkType);
+  };
+
+  const addScheduleTime = () => {
+    if (!newScheduleTime) return;
+    if (scheduleTimes.includes(newScheduleTime)) return;
+    setScheduleTimes((prev) => [...prev, newScheduleTime].sort());
+  };
+
+  const removeScheduleTime = (t: string) => {
+    setScheduleTimes((prev) => prev.filter((x) => x !== t));
+  };
+
+  const toggleScheduleDay = (d: number) => {
+    setScheduleDays((prev) => (prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d].sort()));
+  };
+
+  const handleSaveSchedule = async () => {
+    if (!editingScheduleType) return;
+    setSavingSchedule(true);
+    try {
+      const res = await fetch("/api/haccp/schedules", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          checkType: editingScheduleType,
+          times: scheduleTimes,
+          daysOfWeek: scheduleDays,
+          active: scheduleActive,
+        }),
+      });
+      if (!res.ok) {
+        toast.error("Failed to save schedule");
+        return;
+      }
+      await fetchSchedules();
+      toast.success("Reminder schedule saved");
+      setEditingScheduleType(null);
+    } catch {
+      toast.error("Network error");
+    } finally {
+      setSavingSchedule(false);
+    }
+  };
+
+  const handleDeleteSchedule = async (checkType: string) => {
+    try {
+      await fetch(`/api/haccp/schedules?checkType=${checkType}`, { method: "DELETE" });
+      await fetchSchedules();
+      toast.success("Reminders turned off");
+      setEditingScheduleType(null);
+    } catch {
+      toast.error("Network error");
+    }
+  };
+
   const handleSaveTemplate = async () => {
     if (!editingCheckType) return;
     setSavingTemplate(true);
@@ -1357,7 +1446,8 @@ export default function HACCPPage() {
     fetchRecords();
     fetchEquipment();
     fetchTemplates();
-  }, [fetchRecords, fetchEquipment, fetchTemplates]);
+    fetchSchedules();
+  }, [fetchRecords, fetchEquipment, fetchTemplates, fetchSchedules]);
 
   // Save a single HACCP record
   const saveRecord = async (
@@ -1605,6 +1695,12 @@ export default function HACCPPage() {
               <span className="hidden sm:inline">Scan Delivery Note</span>
             </Button>
           )}
+          {isManager && (
+            <Button size="sm" variant="outline" className="gap-1.5 border-blue-200 text-blue-700 hover:bg-blue-50" onClick={() => setScheduleModalOpen(true)}>
+              <Bell className="h-4 w-4" />
+              <span className="hidden sm:inline">Reminders</span>
+            </Button>
+          )}
         </div>
       </div>
 
@@ -1739,6 +1835,12 @@ export default function HACCPPage() {
                               {todayCount > 0 && (
                                 <span className="text-xs text-green-600 font-medium">
                                   ✓ {todayCount} logged today
+                                </span>
+                              )}
+                              {schedules[check.type]?.active && schedules[check.type]?.times?.length > 0 && (
+                                <span className="text-xs text-blue-600 font-medium flex items-center gap-1">
+                                  <Bell className="h-3 w-3" />
+                                  {schedules[check.type].times.join(", ")}
                                 </span>
                               )}
                             </div>
@@ -2089,6 +2191,159 @@ export default function HACCPPage() {
                 >
                   {savingTemplate ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
                   Save Checklist
+                </Button>
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── Reminder Schedules — list ─────────────────────────────────────── */}
+      <Dialog open={scheduleModalOpen} onOpenChange={setScheduleModalOpen}>
+        <DialogContent className="sm:max-w-lg max-h-[90dvh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Bell className="h-5 w-5 text-blue-600" />
+              Check Reminders
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-slate-500 -mt-1 mb-2">
+            Set times for each check. Reminders go to whoever is clocked in (or on rota if nobody's clocked in) at that time, and keep repeating until it's logged.
+          </p>
+          <div className="space-y-2">
+            {ALL_CHECKS.map((check) => {
+              const sched = schedules[check.type];
+              const hasReminder = sched?.active && sched.times?.length > 0;
+              return (
+                <button
+                  key={check.type}
+                  onClick={() => { setScheduleModalOpen(false); openScheduleEditor(check.type); }}
+                  className="w-full flex items-center justify-between gap-3 rounded-lg border border-slate-200 px-3 py-2.5 hover:border-blue-300 hover:bg-blue-50/40 transition-colors text-left"
+                >
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-slate-800">{check.label}</p>
+                    {hasReminder ? (
+                      <p className="text-xs text-blue-600 mt-0.5">{sched.times.join(", ")}</p>
+                    ) : (
+                      <p className="text-xs text-slate-400 mt-0.5">No reminders set</p>
+                    )}
+                  </div>
+                  {hasReminder ? <Bell className="h-4 w-4 text-blue-500 shrink-0" /> : <BellOff className="h-4 w-4 text-slate-300 shrink-0" />}
+                </button>
+              );
+            })}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── Reminder Schedule — editor for a single check type ────────────── */}
+      <Dialog open={!!editingScheduleType} onOpenChange={(o) => { if (!o) setEditingScheduleType(null); }}>
+        <DialogContent className="sm:max-w-lg max-h-[90dvh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Bell className="h-5 w-5 text-blue-600" />
+              Reminder Schedule
+              {editingScheduleType && (
+                <span className="text-sm font-normal text-slate-500 ml-1">
+                  — {getCheckConfig(editingScheduleType)?.label}
+                </span>
+              )}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 mt-2">
+            <div className="flex items-center justify-between rounded-lg border border-slate-200 px-3 py-2.5">
+              <span className="text-sm font-medium text-slate-700">Reminders active</span>
+              <button
+                onClick={() => setScheduleActive((v) => !v)}
+                className={cn(
+                  "relative h-6 w-11 rounded-full transition-colors",
+                  scheduleActive ? "bg-blue-600" : "bg-slate-200"
+                )}
+              >
+                <span
+                  className={cn(
+                    "absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform",
+                    scheduleActive ? "translate-x-5" : "translate-x-0.5"
+                  )}
+                />
+              </button>
+            </div>
+
+            <div>
+              <Label className="text-xs text-slate-500 mb-1.5 block">Reminder times</Label>
+              <div className="flex flex-wrap gap-2 mb-2">
+                {scheduleTimes.length === 0 && (
+                  <span className="text-xs text-slate-300 italic">No times added yet</span>
+                )}
+                {scheduleTimes.map((t) => (
+                  <span
+                    key={t}
+                    className="inline-flex items-center gap-1.5 bg-blue-50 border border-blue-200 text-blue-700 text-xs font-medium px-2.5 py-1 rounded-full"
+                  >
+                    {t}
+                    <button onClick={() => removeScheduleTime(t)} className="hover:text-blue-900">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  type="time"
+                  value={newScheduleTime}
+                  onChange={(e) => setNewScheduleTime(e.target.value)}
+                  className="flex-1"
+                />
+                <Button variant="outline" size="sm" onClick={addScheduleTime}>
+                  <Plus className="h-4 w-4 mr-1" /> Add time
+                </Button>
+              </div>
+            </div>
+
+            <div>
+              <Label className="text-xs text-slate-500 mb-1.5 block">Days (leave empty for every day)</Label>
+              <div className="flex flex-wrap gap-1.5">
+                {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d, i) => (
+                  <button
+                    key={d}
+                    onClick={() => toggleScheduleDay(i)}
+                    className={cn(
+                      "px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors",
+                      scheduleDays.includes(i)
+                        ? "bg-blue-600 text-white border-blue-600"
+                        : "bg-white text-slate-500 border-slate-200 hover:border-blue-300"
+                    )}
+                  >
+                    {d}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+              {editingScheduleType && schedules[editingScheduleType] && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-slate-400 hover:text-red-600 gap-1"
+                  onClick={() => handleDeleteSchedule(editingScheduleType)}
+                >
+                  <BellOff className="h-3.5 w-3.5" /> Turn off reminders
+                </Button>
+              )}
+              <div className="flex gap-2 ml-auto">
+                <Button variant="outline" size="sm" onClick={() => setEditingScheduleType(null)}>
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  className="bg-blue-600 hover:bg-blue-700"
+                  onClick={handleSaveSchedule}
+                  disabled={savingSchedule}
+                >
+                  {savingSchedule ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+                  Save Schedule
                 </Button>
               </div>
             </div>
