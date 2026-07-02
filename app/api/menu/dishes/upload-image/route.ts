@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
     const blob = await put(
       `dish-photos/${session.user.businessId}/${Date.now()}-${file.name}`,
       file,
-      { access: "public" }
+      { access: "private" }
     );
 
     return NextResponse.json({ url: blob.url });

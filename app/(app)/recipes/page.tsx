@@ -54,6 +54,15 @@ function gpPct(cost: number, sell: number | null | undefined): number | null {
   return ((sell - cost) / sell) * 100;
 }
 
+// Proxy private Vercel Blob dish photos through the server (store is private-access only)
+function dishImageSrc(url: string): string {
+  if (!url) return url;
+  if (url.includes("blob.vercel-storage.com")) {
+    return `/api/menu/dishes/image-url?url=${encodeURIComponent(url)}`;
+  }
+  return url;
+}
+
 // ─── Recipe Card ──────────────────────────────────────────────────────────────
 function RecipeCard({
   dish,
@@ -79,7 +88,7 @@ function RecipeCard({
       {dish.imageUrl && (
         <div className="mb-3 -mx-1 -mt-1">
           <img
-            src={dish.imageUrl}
+            src={dishImageSrc(dish.imageUrl)}
             alt={dish.name}
             className="w-full h-36 object-cover rounded-lg border border-slate-100"
           />
@@ -375,7 +384,7 @@ function RecipeDialog({
             {imageErr && <p className="text-xs text-red-500 mb-1">{imageErr}</p>}
             {imageUrl ? (
               <div className="relative w-full h-44 rounded-lg overflow-hidden border border-slate-200">
-                <img src={imageUrl} alt={name || "Dish"} className="w-full h-full object-cover" />
+                <img src={dishImageSrc(imageUrl)} alt={name || "Dish"} className="w-full h-full object-cover" />
                 <button
                   onClick={() => setImageUrl("")}
                   className="absolute top-2 right-2 bg-black/60 hover:bg-black/75 text-white rounded-full p-1.5"
