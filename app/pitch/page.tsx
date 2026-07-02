@@ -230,10 +230,14 @@ export default function PitchPage() {
                   <div className="slide-title">Built for <span>Irish Hospitality</span></div>
                   <div className="slide-sub">Every feature driven by real feedback from Irish pub &amp; restaurant owners</div>
                   <div className="wn-grid">
-                    <div className="wn-card hl"><div className="wn-new">New</div><div className="wn-icon">🗑️</div><div className="wn-name">Wastage Recording</div><div className="wn-desc">Log spoilage, over-prep, spills and expiry. See the true cost of waste per item and in total — across your whole kitchen.</div></div>
-                    <div className="wn-card hl"><div className="wn-new">New</div><div className="wn-icon">👨‍🍳</div><div className="wn-name">Recipe Costing & GP%</div><div className="wn-desc">Build recipes from your stock list. Live cost-per-portion and gross profit % — auto-updates whenever supplier prices change.</div></div>
-                    <div className="wn-card hl"><div className="wn-new">New</div><div className="wn-icon">📈</div><div className="wn-name">Price Variance Alerts</div><div className="wn-desc">AI reads supplier invoices and flags items where the price has increased more than 5% since last order. Know before you pay.</div></div>
-                    <div className="wn-card hl"><div className="wn-new">New</div><div className="wn-icon">👥</div><div className="wn-name">CRM & Customer Profiles</div><div className="wn-desc">Auto-built from reservations. Track visits, no-shows, spend, and notes. GDPR-compliant with one-click anonymisation.</div></div>
+                    <div className="wn-card hl"><div className="wn-new">New</div><div className="wn-icon">☕</div><div className="wn-name">Break Entitlement Reminders</div><div className="wn-desc">Tracks worked hours live and reminds staff the moment they're due a 15 or 30-minute break under Irish law. On-break clock button included.</div></div>
+                    <div className="wn-card hl"><div className="wn-new">New</div><div className="wn-icon">✅</div><div className="wn-name">Editable HACCP Checklists</div><div className="wn-desc">Managers customise daily/weekly/deep-clean checklist tasks per venue. Full digital food safety log — no more paper folders.</div></div>
+                    <div className="wn-card hl"><div className="wn-new">New</div><div className="wn-icon">📣</div><div className="wn-name">AI Outreach Engine</div><div className="wn-desc">Researches leads, writes personalised emails and runs daily campaigns automatically — the same engine that grew Rotahr itself.</div></div>
+                    <div className="wn-card hl"><div className="wn-new">New</div><div className="wn-icon">📰</div><div className="wn-name">SEO Content Blog</div><div className="wn-desc">AI publishes a fresh hospitality article daily — employment law, scheduling tips, cost control — built to bring in organic traffic.</div></div>
+                    <div className="wn-card"><div className="wn-icon">🗑️</div><div className="wn-name">Wastage Recording</div><div className="wn-desc">Log spoilage, over-prep, spills and expiry. See the true cost of waste per item and in total — across your whole kitchen.</div></div>
+                    <div className="wn-card"><div className="wn-icon">👨‍🍳</div><div className="wn-name">Recipe Costing & GP%</div><div className="wn-desc">Build recipes from your stock list. Live cost-per-portion and gross profit % — auto-updates whenever supplier prices change.</div></div>
+                    <div className="wn-card"><div className="wn-icon">📈</div><div className="wn-name">Price Variance Alerts</div><div className="wn-desc">AI reads supplier invoices and flags items where the price has increased more than 5% since last order. Know before you pay.</div></div>
+                    <div className="wn-card"><div className="wn-icon">👥</div><div className="wn-name">CRM & Customer Profiles</div><div className="wn-desc">Auto-built from reservations. Track visits, no-shows, spend, and notes. GDPR-compliant with one-click anonymisation.</div></div>
                     <div className="wn-card"><div className="wn-icon">🤖</div><div className="wn-name">AI Booking Assistant</div><div className="wn-desc">Handles reservations 24/7, suggests staffing adjustments based on demand, auto-confirms and emails guests.</div></div>
                     <div className="wn-card"><div className="wn-icon">🔗</div><div className="wn-name">POS Integration</div><div className="wn-desc">Connect Lightspeed or Square. Booking data flows into your till system. No double entry.</div></div>
                     <div className="wn-card"><div className="wn-icon">🧾</div><div className="wn-name">AI Invoice Scanning</div><div className="wn-desc">Upload a supplier invoice, AI reads line items and auto-fills stock levels and prices. No manual entry.</div></div>
@@ -265,6 +269,8 @@ export default function PitchPage() {
                       <tbody>
                         {[
                           ["Rota & Scheduling", true, true, false, true],
+                          ["Break Entitlement Reminders (Irish law)", true, false, false, false],
+                          ["Editable HACCP Checklists", true, false, false, false],
                           ["AI Invoice Reading", true, false, true, false],
                           ["Wastage Recording", true, false, true, false],
                           ["Recipe Costing & GP%", true, true, true, false],
@@ -315,6 +321,8 @@ export default function PitchPage() {
                       <ul className="price-features">
                         <li>Rota builder & scheduling</li>
                         <li>Staff app (iOS & Android)</li>
+                        <li>Clock in/out with GPS & break reminders</li>
+                        <li>Editable HACCP checklists</li>
                         <li>Time off & availability</li>
                         <li>Messaging & announcements</li>
                         <li>AI booking assistant</li>
