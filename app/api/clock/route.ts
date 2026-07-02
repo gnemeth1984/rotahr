@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth/options";
 import { prisma } from "@/lib/db";
+import { computeShiftState, getBreakEntitlement } from "@/lib/services/clock.service";
 
 // GET — current clock status + today's events
 export async function GET(req: NextRequest) {
@@ -63,23 +64,20 @@ export async function GET(req: NextRequest) {
   });
 
   const lastEvent = events[events.length - 1];
-  const isClockedIn = lastEvent?.type === "in";
 
-  // Calculate hours worked today
-  let hoursToday = 0;
-  let clockInTime: Date | null = null;
-  for (const e of events) {
-    if (e.type === "in") clockInTime = e.timestamp;
-    if (e.type === "out" && clockInTime) {
-      hoursToday += (e.timestamp.getTime() - clockInTime.getTime()) / 3600000;
-      clockInTime = null;
-    }
-  }
-  if (isClockedIn && clockInTime) {
-    hoursToday += (Date.now() - clockInTime.getTime()) / 3600000;
-  }
+  const state = computeShiftState(events);
+  const entitlement = getBreakEntitlement(state);
+  const hoursToday = Math.round((state.workedMs / 3600000) * 100) / 100;
 
-  return NextResponse.json({ isClockedIn, hoursToday: Math.round(hoursToday * 100) / 100, events, lastEvent });
+  return NextResponse.json({
+    isClockedIn: state.isClockedIn,
+    isOnBreak: state.isOnBreak,
+    hoursToday,
+    breakMinutesTaken: Math.round(state.breakMs / 60000),
+    breakEntitlement: entitlement,
+    events,
+    lastEvent,
+  });
 }
 
 // POST — clock in or out
@@ -90,12 +88,31 @@ export async function POST(req: NextRequest) {
   const businessId = session.user.businessId ?? "christys-bar-seed-id";
   const { type, note, latitude, longitude } = await req.json();
 
-  if (!["in", "out"].includes(type)) {
-    return NextResponse.json({ error: "type must be 'in' or 'out'" }, { status: 400 });
+  if (!["in", "out", "break_start", "break_end"].includes(type)) {
+    return NextResponse.json({ error: "type must be 'in', 'out', 'break_start' or 'break_end'" }, { status: 400 });
   }
 
   const me = await prisma.employee.findFirst({ where: { userId: session.user.id } });
   if (!me) return NextResponse.json({ error: "Employee not found" }, { status: 404 });
+
+  if (type === "break_start" || type === "break_end") {
+    const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date(); todayEnd.setHours(23, 59, 59, 999);
+    const todaysEvents = await prisma.clockEvent.findMany({
+      where: { employeeId: me.id, businessId, timestamp: { gte: todayStart, lte: todayEnd } },
+      orderBy: { timestamp: "asc" },
+    });
+    const state = computeShiftState(todaysEvents);
+    if (type === "break_start" && !state.isClockedIn) {
+      return NextResponse.json({ error: "Must be clocked in to start a break" }, { status: 400 });
+    }
+    if (type === "break_start" && state.isOnBreak) {
+      return NextResponse.json({ error: "Already on break" }, { status: 400 });
+    }
+    if (type === "break_end" && !state.isOnBreak) {
+      return NextResponse.json({ error: "Not currently on break" }, { status: 400 });
+    }
+  }
 
   const event = await prisma.clockEvent.create({
     data: {

@@ -1693,17 +1693,10 @@ export default function HACCPPage() {
                       ? equipment.filter((e) => e.equipType === check.equipType).length
                       : null;
 
+                    const isEditableCheck = canEditChecklists && EDITABLE_TYPES.includes(check.type);
+
                     return (
                       <div key={check.type} className="relative">
-                        {canEditChecklists && EDITABLE_TYPES.includes(check.type) && (
-                          <button
-                            onClick={(e) => { e.stopPropagation(); openEditor(check.type); }}
-                            className="absolute top-2 right-2 z-10 p-1.5 rounded-lg bg-white border border-slate-200 shadow-sm text-slate-400 hover:text-violet-600 hover:border-violet-300 transition-colors"
-                            title="Edit checklist tasks"
-                          >
-                            <Pencil className="h-3 w-3" />
-                          </button>
-                        )}
                       <button
                         onClick={() => setActiveModal(check.type)}
                         className={cn(
@@ -1714,8 +1707,8 @@ export default function HACCPPage() {
                         )}
                       >
                         <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
+                          <div className={cn("flex-1", isEditableCheck && "pr-7")}>
+                            <div className="flex items-center gap-2 mb-1 flex-wrap">
                               <span className="font-semibold text-slate-900 text-sm">
                                 {check.label}
                               </span>
@@ -1767,6 +1760,15 @@ export default function HACCPPage() {
                           </div>
                         </div>
                       </button>
+                        {isEditableCheck && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); openEditor(check.type); }}
+                            className="absolute top-2 right-2 z-10 p-1.5 rounded-lg bg-white border border-slate-200 shadow-sm text-slate-400 hover:text-violet-600 hover:border-violet-300 transition-colors"
+                            title="Edit checklist tasks"
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </button>
+                        )}
                       </div>
                     );
                   })}

@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useSession } from "next-auth/react";
 import {
   Clock, LogIn, LogOut, Users, MapPin, AlertTriangle,
-  CheckCircle2, Loader2, Settings, RefreshCw, Navigation,
+  CheckCircle2, Loader2, Settings, RefreshCw, Navigation, Coffee, Play,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -17,12 +17,13 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
+import { getBreakEntitlement, computeShiftState } from "@/lib/services/clock.service";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 type ClockEvent = {
   id: string;
-  type: "in" | "out";
+  type: "in" | "out" | "break_start" | "break_end";
   timestamp: string;
   latitude?: number | null;
   longitude?: number | null;
@@ -75,6 +76,8 @@ export default function ClockPage() {
   const [clocking, setClocking] = useState(false);
   const [staffStatuses, setStaffStatuses] = useState<StaffStatus[]>([]);
   const [now, setNow] = useState(new Date());
+  const [breakActionLoading, setBreakActionLoading] = useState(false);
+  const notifiedLevelRef = useRef<"none" | "15" | "30">("none");
 
   const [geoSettings, setGeoSettings] = useState<GeoSettings | null>(null);
   const [geoState, setGeoState] = useState<GeoState>({ status: "idle" });
@@ -186,23 +189,13 @@ export default function ClockPage() {
   });
 
   const lastEvent = todayEvents[todayEvents.length - 1];
-  const isClockedIn = lastEvent?.type === "in";
+  const shiftState = computeShiftState(todayEvents, now);
+  const isClockedIn = shiftState.isClockedIn;
+  const isOnBreak = shiftState.isOnBreak;
+  const breakEntitlement = getBreakEntitlement(shiftState);
+  const breakMinutesTaken = Math.floor(shiftState.breakMs / 60000);
 
-  let totalMinutes = 0;
-  for (let i = 0; i < todayEvents.length - 1; i++) {
-    if (todayEvents[i].type === "in") {
-      const inTime = new Date(todayEvents[i].timestamp);
-      const outEvent = todayEvents.find((e, j) => j > i && e.type === "out");
-      if (outEvent) {
-        totalMinutes += (new Date(outEvent.timestamp).getTime() - inTime.getTime()) / 60000;
-      } else if (isClockedIn) {
-        totalMinutes += (now.getTime() - inTime.getTime()) / 60000;
-      }
-    }
-  }
-  if (todayEvents.length === 1 && isClockedIn) {
-    totalMinutes = (now.getTime() - new Date(todayEvents[0].timestamp).getTime()) / 60000;
-  }
+  const totalMinutes = shiftState.workedMs / 60000;
   const hoursWorked = Math.floor(totalMinutes / 60);
   const minsWorked = Math.floor(totalMinutes % 60);
 
@@ -212,6 +205,8 @@ export default function ClockPage() {
     geoState.status === "no-premises"; // if no premises set, allow (manager hasn't configured yet)
 
   // ── Clock in/out ───────────────────────────────────────────────────────────
+
+  const hasOpenShift = isClockedIn || isOnBreak;
 
   async function clockInOut() {
     if (!canClock) return;
@@ -224,17 +219,57 @@ export default function ClockPage() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        type: isClockedIn ? "out" : "in",
+        type: hasOpenShift ? "out" : "in",
         latitude: lat,
         longitude: lng,
       }),
     });
+    notifiedLevelRef.current = "none";
     await fetchEvents();
     if (isManager) await fetchStaff();
     // Re-check location after clocking
     checkLocation();
     setClocking(false);
   }
+
+  // ── On break toggle ───────────────────────────────────────────────────────
+
+  async function breakInOut() {
+    setBreakActionLoading(true);
+    await fetch("/api/clock", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type: isOnBreak ? "break_end" : "break_start" }),
+    });
+    await fetchEvents();
+    setBreakActionLoading(false);
+  }
+
+  // ── Break entitlement reminder (browser notification) ─────────────────────
+
+  useEffect(() => {
+    if (!hasOpenShift || isOnBreak) return;
+    if (breakEntitlement.dueLevel === "none" || breakEntitlement.satisfied) return;
+    if (notifiedLevelRef.current === breakEntitlement.dueLevel) return;
+
+    notifiedLevelRef.current = breakEntitlement.dueLevel;
+    const minutes = breakEntitlement.dueLevel === "30" ? 30 : 15;
+    const msg =
+      breakEntitlement.dueLevel === "30"
+        ? `You're entitled to a 30-minute break (worked 6+ hours). Take it now.`
+        : `You're entitled to a 15-minute break (worked 4.5+ hours). Take it now.`;
+
+    if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+      new Notification("Break reminder — Rotahr", { body: msg });
+    }
+  }, [hasOpenShift, isOnBreak, breakEntitlement]);
+
+  // Ask for browser notification permission once, on mount
+  useEffect(() => {
+    if (typeof Notification !== "undefined" && Notification.permission === "default") {
+      Notification.requestPermission().catch(() => {});
+    }
+  }, []);
 
   // ── Save geo settings ──────────────────────────────────────────────────────
 
@@ -390,13 +425,44 @@ export default function ClockPage() {
         </div>
       )}
 
+      {/* Break entitlement reminder banner */}
+      {hasOpenShift && !isOnBreak && breakEntitlement.dueLevel !== "none" && !breakEntitlement.satisfied && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-4 text-sm text-amber-800 flex items-start gap-3">
+          <Coffee className="h-5 w-5 flex-shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="font-semibold">
+              {breakEntitlement.dueLevel === "30" ? "30-minute break due" : "15-minute break due"}
+            </p>
+            <p className="text-amber-700 mt-0.5">
+              You've worked {breakEntitlement.dueLevel === "30" ? "6+" : "4.5+"} hours today.
+              {" "}{breakEntitlement.minutesShort} min still owed under Irish law.
+            </p>
+          </div>
+          <Button size="sm" onClick={breakInOut} disabled={breakActionLoading} className="bg-amber-600 hover:bg-amber-700 flex-shrink-0">
+            Take break
+          </Button>
+        </div>
+      )}
+
+      {/* On-break banner */}
+      {isOnBreak && (
+        <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-sm text-blue-700 flex items-center gap-2">
+          <Coffee className="h-4 w-4" />
+          On break — tap "End break" when you're back
+        </div>
+      )}
+
       {/* Status badge + clock button */}
       <div className="flex flex-col items-center gap-5">
         <Badge
-          variant={isClockedIn ? "default" : "secondary"}
-          className={cn("text-sm px-4 py-1.5", isClockedIn && "bg-green-500 hover:bg-green-500")}
+          variant={hasOpenShift ? "default" : "secondary"}
+          className={cn(
+            "text-sm px-4 py-1.5",
+            isOnBreak && "bg-blue-500 hover:bg-blue-500",
+            isClockedIn && !isOnBreak && "bg-green-500 hover:bg-green-500"
+          )}
         >
-          {isClockedIn ? "● Clocked In" : "○ Clocked Out"}
+          {isOnBreak ? "☕ On Break" : isClockedIn ? "● Clocked In" : "○ Clocked Out"}
         </Badge>
 
         <button
@@ -406,7 +472,7 @@ export default function ClockPage() {
             "relative h-24 w-24 rounded-full text-white font-bold text-lg shadow-lg transition-all",
             "flex items-center justify-center",
             "disabled:opacity-50 disabled:cursor-not-allowed",
-            isClockedIn
+            hasOpenShift
               ? "bg-red-500 hover:bg-red-600 shadow-red-200 active:scale-95"
               : "bg-green-500 hover:bg-green-600 shadow-green-200 active:scale-95",
             !canClock && "grayscale"
@@ -414,10 +480,31 @@ export default function ClockPage() {
         >
           {clocking
             ? <Loader2 className="h-8 w-8 animate-spin" />
-            : isClockedIn
+            : hasOpenShift
             ? <LogOut className="h-8 w-8" />
             : <LogIn className="h-8 w-8" />}
         </button>
+
+        {isClockedIn && (
+          <Button
+            variant="outline"
+            onClick={breakInOut}
+            disabled={breakActionLoading}
+            className={cn(
+              "gap-2",
+              isOnBreak ? "border-blue-300 text-blue-700 hover:bg-blue-50" : "border-amber-300 text-amber-700 hover:bg-amber-50"
+            )}
+          >
+            {breakActionLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : isOnBreak ? (
+              <Play className="h-4 w-4" />
+            ) : (
+              <Coffee className="h-4 w-4" />
+            )}
+            {isOnBreak ? "End break" : "On break"}
+          </Button>
+        )}
 
         <p className="text-sm text-slate-500">
           {!canClock && geoState.status === "outside"
@@ -426,6 +513,8 @@ export default function ClockPage() {
             ? "Allow location access to clock in/out"
             : !canClock && geoState.status === "checking"
             ? "Checking your location…"
+            : isOnBreak
+            ? "Tap clock out to end shift while on break"
             : isClockedIn
             ? "Tap to clock out"
             : "Tap to clock in"}
@@ -438,6 +527,9 @@ export default function ClockPage() {
         <p className="text-4xl font-bold text-slate-900">
           {hoursWorked}h {minsWorked}m
         </p>
+        {breakMinutesTaken > 0 && (
+          <p className="text-xs text-slate-400 mt-1">+ {breakMinutesTaken} min break taken</p>
+        )}
       </div>
 
       {/* Today's events */}
@@ -453,15 +545,22 @@ export default function ClockPage() {
               <div key={ev.id} className="flex items-center gap-3 px-5 py-3">
                 <div className={cn(
                   "h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0",
-                  ev.type === "in" ? "bg-green-100" : "bg-red-100"
+                  ev.type === "in" ? "bg-green-100"
+                  : ev.type === "out" ? "bg-red-100"
+                  : ev.type === "break_start" ? "bg-amber-100"
+                  : "bg-blue-100"
                 )}>
-                  {ev.type === "in"
-                    ? <LogIn className="h-4 w-4 text-green-600" />
-                    : <LogOut className="h-4 w-4 text-red-600" />}
+                  {ev.type === "in" ? <LogIn className="h-4 w-4 text-green-600" />
+                  : ev.type === "out" ? <LogOut className="h-4 w-4 text-red-600" />
+                  : ev.type === "break_start" ? <Coffee className="h-4 w-4 text-amber-600" />
+                  : <Play className="h-4 w-4 text-blue-600" />}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-slate-900 capitalize">
-                    Clocked {ev.type}
+                  <p className="text-sm font-medium text-slate-900">
+                    {ev.type === "in" ? "Clocked in"
+                    : ev.type === "out" ? "Clocked out"
+                    : ev.type === "break_start" ? "Break started"
+                    : "Break ended"}
                   </p>
                   <p className="text-xs text-slate-400">
                     {new Date(ev.timestamp).toLocaleTimeString("en-IE", {
