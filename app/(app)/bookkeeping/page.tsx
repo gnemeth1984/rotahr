@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { useCurrency } from "@/components/shared/CurrencyProvider";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -662,7 +663,25 @@ export default function BookkeepingPage() {
       const data = await res.json();
       if (!res.ok) { setError(data.error ?? "Failed to save"); return; }
       setDialogOpen(false);
-      fetchAll();
+
+      // The expense list only shows the currently-viewed month. If the AI-read
+      // (or manually entered) date falls in a different month, jump there —
+      // otherwise the new expense silently doesn't appear and looks like
+      // nothing was added.
+      const savedDate = new Date(body.date);
+      const isDifferentMonth =
+        savedDate.getFullYear() !== currentMonth.getFullYear() ||
+        savedDate.getMonth() !== currentMonth.getMonth();
+
+      if (isDifferentMonth) {
+        setCurrentMonth(new Date(savedDate.getFullYear(), savedDate.getMonth(), 1));
+        toast.success(
+          `Expense ${editingExpense ? "updated" : "added"} — jumped to ${monthLabel(savedDate, locale)} to show it`
+        );
+      } else {
+        toast.success(`Expense ${editingExpense ? "updated" : "added"}`);
+        fetchAll();
+      }
     } finally {
       setSaving(false);
     }
