@@ -415,7 +415,6 @@ function RecipeDialog({
               ref={imageInputRef}
               type="file"
               accept="image/*"
-              capture="environment"
               onChange={handleImageUpload}
               className="hidden"
             />
