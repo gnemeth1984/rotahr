@@ -9,6 +9,7 @@ import bcrypt from "bcryptjs";
 import { isDemoEmail, triggerDemoReset } from "@/lib/demo/reset";
 import { triggerWelcomeEmail } from "@/lib/email/marketing";
 import { isRateLimited } from "@/lib/auth/rate-limit";
+import { logActivity } from "@/lib/services/activity.service";
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma) as any,
@@ -101,6 +102,30 @@ export const authOptions: NextAuthOptions = {
         }
       }
       if (user && !token.id) token.id = user.id;
+
+      // `user` is only present on the initial sign-in call — use it to record
+      // a login event exactly once per session start (not on every JWT refresh).
+      if (user && emailToLookup) {
+        const loggedInUser = await prisma.user.findUnique({
+          where: { email: emailToLookup },
+          select: { id: true, name: true, businessId: true },
+        });
+        if (loggedInUser) {
+          prisma.user
+            .update({
+              where: { id: loggedInUser.id },
+              data: { lastLoginAt: new Date(), loginCount: { increment: 1 } },
+            })
+            .catch(() => {});
+          logActivity({
+            businessId: loggedInUser.businessId,
+            userId: loggedInUser.id,
+            userName: loggedInUser.name ?? emailToLookup,
+            action: "login",
+          }).catch(() => {});
+        }
+      }
+
       return token;
     },
     async session({ session, token }) {

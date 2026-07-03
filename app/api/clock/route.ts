@@ -5,6 +5,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth/options";
 import { prisma } from "@/lib/db";
 import { computeShiftState, getBreakEntitlement } from "@/lib/services/clock.service";
+import { logActivity } from "@/lib/services/activity.service";
 
 // GET — current clock status + today's events
 export async function GET(req: NextRequest) {
@@ -124,6 +125,16 @@ export async function POST(req: NextRequest) {
       longitude: longitude != null ? parseFloat(longitude) : null,
     },
   });
+
+  if (type === "in" || type === "out") {
+    logActivity({
+      businessId,
+      userId: session.user.id,
+      userName: session.user.name ?? session.user.email,
+      action: type === "in" ? "clock_in" : "clock_out",
+      details: { employeeId: me.id },
+    }).catch(() => {});
+  }
 
   return NextResponse.json({ event });
 }

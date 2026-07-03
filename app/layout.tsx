@@ -3,6 +3,7 @@ import { ReactNode } from "react"
 import { Providers } from "@/components/shared/providers"
 import { ServiceWorkerRegister } from "@/components/shared/ServiceWorkerRegister"
 import { Toaster } from "sonner"
+import PageTracker from "@/components/shared/page-tracker"
 
 export const metadata = {
   metadataBase: new URL("https://rotahr.com"),
@@ -54,6 +55,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body className="min-h-screen bg-slate-50">
         <Providers>
           <ServiceWorkerRegister />
+          <PageTracker />
           {children}
           <Toaster richColors position="top-right" />
         </Providers>

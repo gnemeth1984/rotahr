@@ -23,8 +23,10 @@ import {
   Link2,
   FileText,
   Mail,
+  Radio,
 } from "lucide-react";
 import { EmailCampaignsTab } from "@/components/admin/email-campaigns-tab";
+import { ActivityTab } from "@/components/admin/activity-tab";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
@@ -356,7 +358,7 @@ export default function AdminPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
 
-  const [activeTab, setActiveTab] = useState<"users" | "analytics" | "email">("users");
+  const [activeTab, setActiveTab] = useState<"users" | "analytics" | "activity" | "email">("users");
   const [data, setData] = useState<UserApiResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -420,6 +422,8 @@ export default function AdminPage() {
             ? "All registered users across Rotahr"
             : activeTab === "analytics"
             ? "Landing page visitor analytics"
+            : activeTab === "activity"
+            ? "Live visitor and user activity across the platform"
             : "Email marketing campaigns & audiences"}
         </p>
       </div>
@@ -451,6 +455,18 @@ export default function AdminPage() {
           </span>
         </button>
         <button
+          onClick={() => setActiveTab("activity")}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === "activity"
+              ? "border-emerald-600 text-emerald-700"
+              : "border-transparent text-slate-500 hover:text-slate-700"
+          }`}
+        >
+          <span className="flex items-center gap-1.5">
+            <Radio className="h-3.5 w-3.5" /> Activity
+          </span>
+        </button>
+        <button
           onClick={() => setActiveTab("email")}
           className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
             activeTab === "email"
@@ -466,6 +482,9 @@ export default function AdminPage() {
 
       {/* Analytics tab */}
       {activeTab === "analytics" && <AnalyticsTab />}
+
+      {/* Activity tab */}
+      {activeTab === "activity" && <ActivityTab />}
 
       {/* Email Campaigns tab */}
       {activeTab === "email" && <EmailCampaignsTab />}

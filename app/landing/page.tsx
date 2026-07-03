@@ -2,7 +2,6 @@
 import Link from "next/link"
 import Image from "next/image"
 import { Check, Zap, ArrowRight } from "lucide-react"
-import PageTracker from "@/components/shared/page-tracker"
 
 const features = [
   {
@@ -143,8 +142,6 @@ const competitors = [
 export default function LandingPage() {
   return (
     <div className="min-h-screen bg-white text-slate-900">
-      <PageTracker />
-
       {/* Nav */}
       <header className="border-b border-slate-100 sticky top-0 bg-white/95 backdrop-blur z-50">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">

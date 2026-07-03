@@ -88,6 +88,9 @@ model User {
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
 
+  lastLoginAt DateTime?
+  loginCount  Int       @default(0)
+
   pushSubscription    String?   // Web Push subscription JSON
 
   employees           Employee[]
@@ -687,18 +690,38 @@ model VenueChecklistItem {
 
 // ── Page Views / Visitor Analytics ───────────────────────────────────────────
 model PageView {
-  id        String   @id @default(cuid())
-  path      String   // e.g. "/", "/pricing", "/auth/signin"
-  referrer  String?  // where they came from
-  userAgent String?  @db.Text
-  country   String?  // from Vercel geo headers
-  city      String?
-  sessionId String?  // anonymous session cookie
-  createdAt DateTime @default(now())
+  id         String   @id @default(cuid())
+  path       String   // e.g. "/", "/pricing", "/auth/signin"
+  referrer   String?  // where they came from
+  userAgent  String?  @db.Text
+  country    String?  // from Vercel geo headers
+  city       String?
+  sessionId  String?  // anonymous session cookie
+  userId     String?  // set when the visitor is logged in
+  businessId String?  // set when the visitor is logged in
+  createdAt  DateTime @default(now())
 
   @@index([path])
   @@index([createdAt])
   @@index([sessionId])
+  @@index([userId])
+  @@index([businessId])
+}
+
+// ── Activity Log — key actions across the platform, for admin visibility ────
+model ActivityLog {
+  id         String   @id @default(cuid())
+  businessId String?
+  userId     String?
+  userName   String?  // denormalised so the feed still reads fine after deletes
+  action     String   // "login" | "booking_created" | "expense_added" | "shift_published" | "clock_in" | ...
+  details    Json?
+  createdAt  DateTime @default(now())
+
+  @@index([businessId])
+  @@index([userId])
+  @@index([createdAt])
+  @@index([action])
 }
 
 // ── Training & Certifications ─────────────────────────────────────────────────

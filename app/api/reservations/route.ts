@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth/options";
 import { prisma } from "@/lib/db";
+import { logActivity } from "@/lib/services/activity.service";
 
 export async function GET(req: NextRequest) {
   try {
@@ -129,6 +130,14 @@ export async function POST(req: NextRequest) {
         table: { select: { id: true, name: true, capacity: true } },
       },
     });
+
+    logActivity({
+      businessId,
+      userId,
+      userName,
+      action: "booking_created",
+      details: { customerName, partySize: reservation.partySize, date, time },
+    }).catch(() => {});
 
     return NextResponse.json({ reservation }, { status: 201 });
   } catch (e) {

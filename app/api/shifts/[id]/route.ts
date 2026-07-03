@@ -4,6 +4,7 @@ import { requireRole, isResponse } from "@/lib/auth/middleware";
 import { shiftService, updateShiftSchema } from "@/lib/services/shift.service";
 import { prisma } from "@/lib/db";
 import { createNotification } from "@/lib/services/appNotification.service";
+import { logActivity } from "@/lib/services/activity.service";
 
 async function handleUpdate(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await requireRole("ADMIN", "MANAGER");
@@ -21,6 +22,16 @@ async function handleUpdate(req: NextRequest, { params }: { params: { id: string
 
   try {
     const shift = await shiftService.update(params.id, session.user.businessId, parsed.data);
+
+    if (parsed.data.published === true) {
+      logActivity({
+        businessId: session.user.businessId,
+        userId: session.user.id,
+        userName: session.user.name ?? session.user.email,
+        action: "shift_published",
+        details: { shiftId: shift.id, date: shift.date },
+      }).catch(() => {});
+    }
 
     // Notify the employee their shift was updated
     const employee = await prisma.employee.findUnique({

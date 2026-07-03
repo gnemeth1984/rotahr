@@ -1,7 +1,10 @@
 // @ts-nocheck
-// Public endpoint — no auth. Tracks landing page views.
-// Called client-side from public pages only (landing, pricing, etc.)
+// Tracks page views across the whole site — public marketing pages AND
+// logged-in app usage. No auth required to call it, but if a session
+// exists we attach userId/businessId server-side (never trust client input).
 import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/auth/options";
 import { prisma } from "@/lib/db";
 
 export async function POST(req: NextRequest) {
@@ -22,8 +25,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
+    // Attach the logged-in user/business, if any — server-verified via session, never from the request body
+    let userId: string | null = null;
+    let businessId: string | null = null;
+    try {
+      const session = await getServerSession(authOptions);
+      if (session?.user) {
+        userId = (session.user as any).id ?? null;
+        businessId = (session.user as any).businessId ?? null;
+      }
+    } catch {
+      // ignore — treat as anonymous
+    }
+
     await prisma.pageView.create({
-      data: { path, referrer, sessionId, country, city, userAgent },
+      data: { path, referrer, sessionId, country, city, userAgent, userId, businessId },
     });
 
     return NextResponse.json({ ok: true });
@@ -32,3 +48,4 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true });
   }
 }
+
