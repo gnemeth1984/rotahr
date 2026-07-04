@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
 import ReactMarkdown from 'react-markdown';
+import ShareButtons from '@/components/blog/ShareButtons';
 
 export const revalidate = 3600;
 
@@ -69,11 +70,17 @@ export default async function BlogPostPage({ params }: Props) {
           <p className="text-lg text-gray-500 leading-relaxed">{post.excerpt}</p>
         </div>
 
+        <ShareButtons title={post.title} slug={post.slug} />
+
         <hr className="border-gray-100 my-8" />
 
         {/* Content */}
         <div className="prose prose-gray prose-headings:text-gray-900 prose-h2:text-xl prose-h2:font-bold prose-h2:mt-8 prose-h2:mb-3 prose-p:text-gray-700 prose-p:leading-relaxed prose-li:text-gray-700 prose-strong:text-gray-900 max-w-none">
           <ReactMarkdown>{post.content}</ReactMarkdown>
+        </div>
+
+        <div className="mt-10 pt-6 border-t border-gray-100">
+          <ShareButtons title={post.title} slug={post.slug} />
         </div>
 
         {/* CTA inline */}
