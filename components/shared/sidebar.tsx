@@ -272,17 +272,15 @@ const navItems = [
     permission: null,
     featureKey: null,
     plans: null,
-    platformAdminOnly: true,
   },
   {
     href: "/blog",
     label: "Blog",
     icon: Newspaper,
-    roles: [Role.ADMIN],
+    roles: [Role.EMPLOYEE, Role.MANAGER, Role.ADMIN],
     permission: null,
     featureKey: null,
     plans: null,
-    platformAdminOnly: true,
   },
 ];
 
