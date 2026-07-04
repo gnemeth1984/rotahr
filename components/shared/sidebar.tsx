@@ -35,6 +35,7 @@ import {
   ContactRound,
   FileText,
   ClipboardCheck,
+  Newspaper,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -267,6 +268,16 @@ const navItems = [
     href: "/admin",
     label: "Platform Admin",
     icon: ShieldCheck,
+    roles: [Role.ADMIN],
+    permission: null,
+    featureKey: null,
+    plans: null,
+    platformAdminOnly: true,
+  },
+  {
+    href: "/blog",
+    label: "Blog",
+    icon: Newspaper,
     roles: [Role.ADMIN],
     permission: null,
     featureKey: null,
