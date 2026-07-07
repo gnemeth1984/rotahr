@@ -6,7 +6,9 @@ export const createTableSchema = z.object({
   name: z.string().min(1).max(50),
   capacity: z.number().int().min(1).max(50),
   location: z.string().max(100).optional(),
-  shape: z.enum(["square", "circle", "rect"]).optional(),
+  shape: z.enum(["square", "circle", "rect", "counter"]).optional(),
+  width: z.number().min(30).max(500).optional(),
+  height: z.number().min(30).max(500).optional(),
 });
 
 export const updateTableSchema = z.object({
@@ -15,9 +17,9 @@ export const updateTableSchema = z.object({
   location: z.string().max(100).optional().nullable(),
   posX: z.number().optional(),
   posY: z.number().optional(),
-  width: z.number().min(40).max(400).optional(),
-  height: z.number().min(40).max(400).optional(),
-  shape: z.enum(["square", "circle", "rect"]).optional(),
+  width: z.number().min(30).max(500).optional(),
+  height: z.number().min(30).max(500).optional(),
+  shape: z.enum(["square", "circle", "rect", "counter"]).optional(),
 });
 
 export const tableService = {
@@ -26,12 +28,15 @@ export const tableService = {
     const count = await prisma.table.count({ where: { businessId } });
     const col = count % 6;
     const row = Math.floor(count / 6);
+    const { width, height, ...rest } = data;
     return prisma.table.create({
       data: {
-        ...data,
+        ...rest,
         businessId,
-        posX: 40 + col * 110,
-        posY: 40 + row * 110,
+        posX: 40 + col * 130,
+        posY: 40 + row * 130,
+        ...(width !== undefined ? { width } : {}),
+        ...(height !== undefined ? { height } : {}),
       },
     });
   },

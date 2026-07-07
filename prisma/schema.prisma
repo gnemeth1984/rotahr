@@ -222,7 +222,7 @@ model Table {
   posY   Float  @default(40)
   width  Float  @default(90)
   height Float  @default(90)
-  shape  String @default("square") // square | circle | rect
+  shape  String @default("square") // square | circle | rect | counter
 
   reservations Reservation[]
 }
