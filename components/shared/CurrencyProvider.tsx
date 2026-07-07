@@ -1,11 +1,12 @@
 "use client";
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { Currency, formatMoney, getCurrencySymbol, getVatRate, getLocale, getNMWLabel } from "@/lib/currency";
+import { Currency, formatMoney, getCurrencySymbol, getVatRate, getLocale, getNMWLabel, getTaxLabel } from "@/lib/currency";
 
 interface CurrencyContextType {
   currency: Currency;
   symbol: string;
   vatRate: number;
+  taxLabel: string;
   locale: string;
   fmt: (n: number) => string;
   nmwLabel: string;
@@ -16,6 +17,7 @@ const CurrencyContext = createContext<CurrencyContextType>({
   currency: "EUR",
   symbol: "€",
   vatRate: 23,
+  taxLabel: "VAT",
   locale: "en-IE",
   fmt: (n) => `€${n.toFixed(2)}`,
   nmwLabel: "Irish NMW is €13.50/hr from 1 January 2025 (National Minimum Wage Act 2000 as amended).",
@@ -40,6 +42,7 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
     currency,
     symbol: getCurrencySymbol(currency),
     vatRate: getVatRate(currency),
+    taxLabel: getTaxLabel(currency),
     locale: getLocale(currency),
     fmt: (n) => formatMoney(n, currency),
     nmwLabel: getNMWLabel(currency),

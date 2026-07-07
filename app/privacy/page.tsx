@@ -153,6 +153,46 @@ export default function PrivacyPage() {
           </section>
 
           <section>
+            <h2 className="text-lg font-semibold text-slate-800 mb-2">6a. Rights for US, Canadian and Australian users</h2>
+            <p>
+              Rotahr applies the same high privacy standard (based on GDPR) to all users worldwide, regardless of
+              where you or your business are located. In addition, depending on where you're based, you have rights
+              under your local privacy law:
+            </p>
+            <ul className="list-disc pl-5 space-y-2 mt-2">
+              <li>
+                <strong>United States:</strong> If you are a California resident, you have rights under the{" "}
+                <strong>California Consumer Privacy Act (CCPA)</strong> and{" "}
+                <strong>California Privacy Rights Act (CPRA)</strong>, including the right to know what personal
+                information is collected, the right to delete it (subject to the same legal retention exceptions
+                described above), and the right to opt out of the sale or sharing of personal information — Rotahr
+                does not sell personal data, so this right is already satisfied by default. Residents of other US
+                states with similar privacy laws (e.g. Virginia, Colorado, Connecticut, Utah) have equivalent rights.
+              </li>
+              <li>
+                <strong>Canada:</strong> Rotahr processes personal data in line with the{" "}
+                <strong>Personal Information Protection and Electronic Documents Act (PIPEDA)</strong>. You have the
+                right to access, correct, and (subject to legal retention obligations) request deletion of your
+                personal information. Complaints can be directed to the{" "}
+                <strong>Office of the Privacy Commissioner of Canada</strong> at{" "}
+                <a href="https://www.priv.gc.ca" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">priv.gc.ca</a>.
+              </li>
+              <li>
+                <strong>Australia:</strong> Rotahr processes personal data in line with the{" "}
+                <strong>Privacy Act 1988 (Cth)</strong> and the Australian Privacy Principles (APPs). You have the
+                right to access and correct your personal information and to lodge a complaint with the{" "}
+                <strong>Office of the Australian Information Commissioner (OAIC)</strong> at{" "}
+                <a href="https://www.oaic.gov.au" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">oaic.gov.au</a>.
+              </li>
+            </ul>
+            <p className="mt-2">
+              To exercise any of these rights, email <a href="mailto:privacy@rotahr.com" className="text-blue-600 hover:underline">privacy@rotahr.com</a>.
+              As with all users, rights to deletion do not override legal retention obligations that apply to
+              financial, payroll, or tax-related records in your jurisdiction.
+            </p>
+          </section>
+
+          <section>
             <h2 className="text-lg font-semibold text-slate-800 mb-2">7. Data sharing and sub-processors</h2>
             <p>We do not sell personal data. Data is shared only with the following sub-processors to operate the platform:</p>
             <ul className="list-disc pl-5 space-y-2 mt-2">

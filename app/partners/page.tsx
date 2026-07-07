@@ -80,11 +80,12 @@ export default function PartnersPage() {
 
       {/* Hero */}
       <section className="hero">
-        <div className="hero-label">Partner Programme</div>
+        <div className="hero-label">Partner Programme — Open Worldwide</div>
         <h1>Refer clients.<br /><span>Earn every month.</span></h1>
         <p>
           You already advise hospitality businesses on their finances.
           Recommend Rotahr and earn 20% recurring commission for every client you refer — for life.
+          Open to affiliates in Ireland, the UK, the United States, Canada, Australia, and beyond.
         </p>
       </section>
 

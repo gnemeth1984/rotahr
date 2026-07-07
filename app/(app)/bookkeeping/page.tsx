@@ -451,7 +451,7 @@ function StockFromReceiptDialog({
 
 export default function BookkeepingPage() {
   const { data: session } = useSession();
-  const { fmt, symbol, vatRate, locale } = useCurrency();
+  const { fmt, symbol, vatRate, locale, currency, taxLabel } = useCurrency();
   const isManager =
     session?.user?.role === Role.MANAGER || session?.user?.role === Role.ADMIN;
 
@@ -704,7 +704,7 @@ export default function BookkeepingPage() {
   // ── Export CSV ────────────────────────────────────────────────────────────
 
   function exportCSV() {
-    const rows = [["Date", "Vendor", "Supplier VAT No.", "Category", "Description", `Amount (${symbol})`, `VAT (${symbol})`, `Net (${symbol})`, "Payment Method", "Status"]];
+    const rows = [["Date", "Vendor", `Supplier ${taxLabel} No.`, "Category", "Description", `Amount (${symbol})`, `${taxLabel} (${symbol})`, `Net (${symbol})`, "Payment Method", "Status"]];
     expenses.forEach((e) => {
       rows.push([
         e.date.split("T")[0],
@@ -789,11 +789,19 @@ export default function BookkeepingPage() {
         </div>
       </div>
 
-      {/* ── Irish Revenue / GDPR compliance banner ── */}
+      {/* ── Local tax/records compliance banner — country-specific ── */}
       <div className="flex items-start gap-3 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3">
         <ShieldCheck className="h-4 w-4 text-emerald-600 mt-0.5 shrink-0" />
         <div className="text-xs text-emerald-800 leading-relaxed">
-          <span className="font-semibold">Irish Revenue compliance</span> — All expense records are retained permanently under <strong>TCA 1997 s.886</strong> (6-year minimum). Receipt <em>images</em> expire after 30 days in the preview cache; the financial record and all figures are never deleted. VAT records are processed under <strong>GDPR Art.6(1)(c)</strong> — legal obligation. Staff expense data linked to an employee is processed under Art.6(1)(b) — contract performance.
+          {(currency === "EUR" || currency === "GBP") ? (
+            <>
+              <span className="font-semibold">{currency === "EUR" ? "Irish Revenue" : "HMRC"} compliance</span> — All expense records are retained permanently{currency === "EUR" ? <> under <strong>TCA 1997 s.886</strong> (6-year minimum)</> : " (6-year minimum record-keeping)"}. Receipt <em>images</em> expire after 30 days in the preview cache; the financial record and all figures are never deleted.{currency === "EUR" && <> {taxLabel} records are processed under <strong>GDPR Art.6(1)(c)</strong> — legal obligation. Staff expense data linked to an employee is processed under Art.6(1)(b) — contract performance.</>}
+            </>
+          ) : (
+            <>
+              <span className="font-semibold">Record-keeping</span> — All expense records are retained permanently for your accounting and tax records. Receipt <em>images</em> expire after 30 days in the preview cache; the financial record and all figures are never deleted. {taxLabel} rates and filing requirements vary by state/province — check with your accountant or local tax authority for exact obligations.
+            </>
+          )}
         </div>
       </div>
 
@@ -813,24 +821,24 @@ export default function BookkeepingPage() {
 
           <div className="bg-white border border-slate-200 rounded-xl p-5">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-medium text-slate-500">VAT Total</span>
+              <span className="text-xs font-medium text-slate-500">{taxLabel} Total</span>
               <div className="h-8 w-8 bg-amber-50 rounded-lg flex items-center justify-center">
                 <FileText className="h-4 w-4 text-amber-500" />
               </div>
             </div>
             <p className="text-2xl font-bold text-slate-900">{fmt(summary.totalVat)}</p>
-            <p className="text-xs text-slate-400 mt-1">Reclaimable VAT</p>
+            <p className="text-xs text-slate-400 mt-1">Reclaimable {taxLabel}</p>
           </div>
 
           <div className="bg-white border border-slate-200 rounded-xl p-5">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-medium text-slate-500">Net (ex. VAT)</span>
+              <span className="text-xs font-medium text-slate-500">Net (ex. {taxLabel})</span>
               <div className="h-8 w-8 bg-blue-50 rounded-lg flex items-center justify-center">
                 <Euro className="h-4 w-4 text-blue-500" />
               </div>
             </div>
             <p className="text-2xl font-bold text-slate-900">{fmt(summary.total - summary.totalVat)}</p>
-            <p className="text-xs text-slate-400 mt-1">Excluding VAT</p>
+            <p className="text-xs text-slate-400 mt-1">Excluding {taxLabel}</p>
           </div>
 
           {/* Top category */}
@@ -939,7 +947,7 @@ export default function BookkeepingPage() {
                     <th className="text-left px-4 py-3 text-xs font-medium text-slate-500">Vendor</th>
                     <th className="text-left px-4 py-3 text-xs font-medium text-slate-500">Category</th>
                     <th className="text-left px-4 py-3 text-xs font-medium text-slate-500 hidden md:table-cell">Description</th>
-                    <th className="text-right px-4 py-3 text-xs font-medium text-slate-500">VAT</th>
+                    <th className="text-right px-4 py-3 text-xs font-medium text-slate-500">{taxLabel}</th>
                     <th className="text-right px-5 py-3 text-xs font-medium text-slate-500">Amount</th>
                     <th className="px-3 py-3 text-xs font-medium text-slate-500 hidden sm:table-cell text-center">Actions</th>
                   </tr>
@@ -1143,7 +1151,7 @@ export default function BookkeepingPage() {
                     <tr className="border-b border-slate-100">
                       <th className="text-left px-5 py-3 text-xs font-medium text-slate-500">Category</th>
                       <th className="text-right px-4 py-3 text-xs font-medium text-slate-500">Gross</th>
-                      <th className="text-right px-4 py-3 text-xs font-medium text-slate-500">VAT</th>
+                      <th className="text-right px-4 py-3 text-xs font-medium text-slate-500">{taxLabel}</th>
                       <th className="text-right px-5 py-3 text-xs font-medium text-slate-500">Net</th>
                     </tr>
                   </thead>
@@ -1175,12 +1183,16 @@ export default function BookkeepingPage() {
                 </table>
               </div>
 
-              {/* VAT note */}
+              {/* Tax note */}
               <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
-                <p className="text-sm font-semibold text-amber-800 mb-1">VAT Summary</p>
+                <p className="text-sm font-semibold text-amber-800 mb-1">{taxLabel} Summary</p>
                 <p className="text-sm text-amber-700">
-                  Reclaimable VAT this month: <span className="font-bold">{fmt(summary.totalVat)}</span>
-                  {" "}— ensure all VAT invoices include the supplier's VAT registration number before filing your return with Revenue.
+                  Reclaimable {taxLabel} this month: <span className="font-bold">{fmt(summary.totalVat)}</span>
+                  {(currency === "EUR" || currency === "GBP") ? (
+                    <> — ensure all {taxLabel} invoices include the supplier's {taxLabel} registration number before filing your return with {currency === "EUR" ? "Revenue" : "HMRC"}.</>
+                  ) : (
+                    <> — check with your accountant on {taxLabel} filing requirements in your state/province.</>
+                  )}
                 </p>
               </div>
 
@@ -1342,7 +1354,7 @@ export default function BookkeepingPage() {
                 />
               </div>
               <div className="space-y-1.5">
-                <Label>VAT ({symbol})</Label>
+                <Label>{taxLabel} ({symbol})</Label>
                 <Input
                   type="number"
                   min={0}
@@ -1364,19 +1376,21 @@ export default function BookkeepingPage() {
               />
             </div>
 
-            {/* Supplier VAT number — Irish Revenue requirement */}
+            {/* Supplier tax registration number */}
             <div className="space-y-1.5">
               <Label className="flex items-center gap-1.5">
-                Supplier VAT Registration No.
-                <span className="text-xs text-slate-400 font-normal">(required for VAT reclaim)</span>
+                Supplier {taxLabel} Registration No.
+                <span className="text-xs text-slate-400 font-normal">(required for {taxLabel} reclaim, if applicable)</span>
               </Label>
               <Input
-                placeholder="e.g. IE1234567T"
+                placeholder={currency === "EUR" ? "e.g. IE1234567T" : currency === "GBP" ? "e.g. GB123456789" : "e.g. tax/VAT ID if applicable"}
                 value={form.supplierVatNumber}
                 onChange={(e) => setForm((f) => ({ ...f, supplierVatNumber: e.target.value }))}
               />
               <p className="text-xs text-slate-400">
-                Irish Revenue requires the supplier's VAT number on all VAT invoices (Value-Added Tax Consolidation Act 2010, s.66).
+                {currency === "EUR" && "Irish Revenue requires the supplier's VAT number on all VAT invoices (Value-Added Tax Consolidation Act 2010, s.66)."}
+                {currency === "GBP" && "HMRC requires the supplier's VAT number on all VAT invoices."}
+                {(currency === "USD" || currency === "CAD" || currency === "AUD") && `Check with your accountant whether a supplier ${taxLabel} number is required for your records in your state/province/territory.`}
               </p>
             </div>
 

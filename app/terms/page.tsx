@@ -46,6 +46,13 @@ export default function TermsPage() {
               Subscriptions are billed monthly. You may cancel at any time; cancellation takes effect at the
               end of the current billing period. No refunds for partial months.
             </p>
+            <p className="mt-2">
+              <strong>International billing:</strong> Rotahr is also available to customers in the United Kingdom,
+              United States, Canada, and Australia. Prices may be shown in your local currency (GBP, USD, CAD, AUD)
+              at checkout. All payments are processed by <strong>Lemon Squeezy, Inc.</strong>, our Merchant of
+              Record, which is responsible for determining, collecting, and remitting any applicable sales tax,
+              VAT, or GST based on your location, in accordance with local tax law.
+            </p>
           </section>
 
           <section>
@@ -139,6 +146,14 @@ export default function TermsPage() {
               <li>Affiliates must not make misleading claims about Rotahr's features, pricing, or effectiveness.</li>
               <li>Rotahr may terminate an affiliate's participation at any time for violation of these rules, with any unpaid commissions forfeited.</li>
               <li>The programme is open to individuals and businesses in any jurisdiction subject to Lemon Squeezy's eligibility requirements.</li>
+            </ul>
+            <p className="mt-3 font-semibold text-slate-700">Independent Contractor Status</p>
+            <ul className="list-disc pl-5 space-y-1 mt-2 text-sm">
+              <li>Affiliates participate in the Partner Programme as <strong>independent, self-employed contractors</strong>, not as employees, workers, partners, agents, or joint venturers of Rotahr, in any jurisdiction.</li>
+              <li>Rotahr does not direct, control, or supervise how an affiliate finds prospects or conducts outreach. Affiliates set their own hours, methods, and are free to work with other companies, including competitors.</li>
+              <li>Affiliates are solely responsible for correctly classifying and reporting their own status under local law (for example, in the United States this may include applicable state-level independent contractor tests such as the ABC test in California; in the UK, IR35 considerations where relevant; in Canada and Australia, the applicable common-law contractor tests).</li>
+              <li>No affiliate has authority to bind Rotahr to any contract, make representations on Rotahr's behalf, or use the Rotahr name/brand beyond what is provided in official marketing materials.</li>
+              <li>Nothing in this programme creates an employment relationship, and affiliates are not entitled to employee benefits, minimum wage, overtime, paid leave, or similar entitlements from Rotahr in any jurisdiction.</li>
             </ul>
           </section>
 

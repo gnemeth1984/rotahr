@@ -15,6 +15,13 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { useCurrency } from "@/components/shared/CurrencyProvider";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function GeneralSettingsPage() {
   const { data: session, update } = useSession();
@@ -23,7 +30,7 @@ export default function GeneralSettingsPage() {
   const isAdmin = session?.user?.role === "ADMIN" || session?.user?.role === "MANAGER";
 
   // Business localisation
-  const [currency, setCurrency] = useState<"EUR" | "GBP">("EUR");
+  const [currency, setCurrency] = useState<"EUR" | "GBP" | "USD" | "CAD" | "AUD">("EUR");
   const [savingLocale, setSavingLocale] = useState(false);
   const [localeMsg, setLocaleMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
@@ -57,14 +64,18 @@ export default function GeneralSettingsPage() {
   }, [session]);
 
   useEffect(() => {
-    if (currencyReady) setCurrency(currentCurrency as "EUR" | "GBP");
+    if (currencyReady) setCurrency(currentCurrency as "EUR" | "GBP" | "USD" | "CAD" | "AUD");
   }, [currencyReady, currentCurrency]);
 
   async function saveLocale() {
     setSavingLocale(true);
     setLocaleMsg(null);
     try {
-      const country = currency === "GBP" ? "GB" : "IE";
+      const country =
+        currency === "GBP" ? "GB" :
+        currency === "USD" ? "US" :
+        currency === "CAD" ? "CA" :
+        currency === "AUD" ? "AU" : "IE";
       const res = await fetch("/api/business/settings", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -321,26 +332,35 @@ export default function GeneralSettingsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between flex-wrap gap-3">
               <div>
-                <p className="text-sm font-medium text-slate-900">Currency</p>
+                <p className="text-sm font-medium text-slate-900">Currency & Region</p>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  {currency === "GBP"
-                    ? "British Pound (£) — 20% UK VAT"
-                    : "Euro (€) — 23% Irish VAT"}
+                  {currency === "GBP" && "British Pound (£) — UK, 20% VAT"}
+                  {currency === "EUR" && "Euro (€) — Ireland, 23% VAT"}
+                  {currency === "USD" && "US Dollar ($) — United States, sales tax varies by state"}
+                  {currency === "CAD" && "Canadian Dollar (C$) — Canada, GST/HST varies by province"}
+                  {currency === "AUD" && "Australian Dollar (A$) — Australia, 10% GST"}
                 </p>
               </div>
-              <div className="flex items-center gap-3">
-                <span className={`text-sm font-semibold ${currency === "EUR" ? "text-slate-900" : "text-slate-400"}`}>€ EUR</span>
-                <Switch
-                  checked={currency === "GBP"}
-                  onCheckedChange={(v) => {
-                    setCurrency(v ? "GBP" : "EUR");
-                    setLocaleMsg(null);
-                  }}
-                />
-                <span className={`text-sm font-semibold ${currency === "GBP" ? "text-slate-900" : "text-slate-400"}`}>£ GBP</span>
-              </div>
+              <Select
+                value={currency}
+                onValueChange={(v) => {
+                  setCurrency(v as typeof currency);
+                  setLocaleMsg(null);
+                }}
+              >
+                <SelectTrigger className="w-56">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="EUR">€ EUR — Ireland</SelectItem>
+                  <SelectItem value="GBP">£ GBP — United Kingdom</SelectItem>
+                  <SelectItem value="USD">$ USD — United States</SelectItem>
+                  <SelectItem value="CAD">C$ CAD — Canada</SelectItem>
+                  <SelectItem value="AUD">A$ AUD — Australia</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             {localeMsg && (
