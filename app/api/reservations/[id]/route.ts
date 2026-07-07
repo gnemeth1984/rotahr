@@ -42,7 +42,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     const isManager = userRole === Role.MANAGER || userRole === Role.ADMIN;
 
     const body = await req.json();
-    const { customerName, customerEmail, customerPhone, partySize, date, time, notes, status, occasion, menuRequired } = body;
+    const { customerName, customerEmail, customerPhone, partySize, date, time, notes, status, occasion, menuRequired, tableId } = body;
 
     // Non-managers can only cancel — not edit details
     if (!isManager) {
@@ -65,6 +65,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
         ...(occasion !== undefined ? { occasion: occasion || null } : {}),
         ...(menuRequired !== undefined ? { menuRequired: menuRequired === true } : {}),
         ...(status !== undefined ? { status } : {}),
+        ...(tableId !== undefined ? { tableId: tableId || null } : {}),
       },
       include: {
         table: { select: { id: true, name: true, capacity: true } },

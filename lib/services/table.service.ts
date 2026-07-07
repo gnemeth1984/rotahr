@@ -6,13 +6,46 @@ export const createTableSchema = z.object({
   name: z.string().min(1).max(50),
   capacity: z.number().int().min(1).max(50),
   location: z.string().max(100).optional(),
+  shape: z.enum(["square", "circle", "rect"]).optional(),
+});
+
+export const updateTableSchema = z.object({
+  name: z.string().min(1).max(50).optional(),
+  capacity: z.number().int().min(1).max(50).optional(),
+  location: z.string().max(100).optional().nullable(),
+  posX: z.number().optional(),
+  posY: z.number().optional(),
+  width: z.number().min(40).max(400).optional(),
+  height: z.number().min(40).max(400).optional(),
+  shape: z.enum(["square", "circle", "rect"]).optional(),
 });
 
 export const tableService = {
   async create(data: z.infer<typeof createTableSchema>, businessId: string) {
+    // Stagger new tables so they don't all stack at the same spot
+    const count = await prisma.table.count({ where: { businessId } });
+    const col = count % 6;
+    const row = Math.floor(count / 6);
     return prisma.table.create({
-      data: { ...data, businessId },
+      data: {
+        ...data,
+        businessId,
+        posX: 40 + col * 110,
+        posY: 40 + row * 110,
+      },
     });
+  },
+
+  async update(id: string, businessId: string, data: z.infer<typeof updateTableSchema>) {
+    const existing = await prisma.table.findFirst({ where: { id, businessId } });
+    if (!existing) return null;
+    return prisma.table.update({ where: { id }, data });
+  },
+
+  async remove(id: string, businessId: string) {
+    const existing = await prisma.table.findFirst({ where: { id, businessId } });
+    if (!existing) return null;
+    return prisma.table.delete({ where: { id } });
   },
 
   async list(businessId: string) {

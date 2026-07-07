@@ -24,6 +24,14 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { FloorPlanView } from "@/components/bookings/FloorPlanView";
+import {
   BookOpen,
   Plus,
   Trash2,
@@ -43,6 +51,8 @@ import {
   X,
   StickyNote,
   UserCircle,
+  List,
+  LayoutGrid,
 } from "lucide-react";
 import { UserRole as Role } from "@/types/roles";
 import { cn } from "@/lib/utils";
@@ -92,6 +102,7 @@ const emptyForm = {
   menuRequired: false,
   notes: "",
   marketingConsent: false,
+  tableId: "",
 };
 
 // Parse "30-35", "approx 30", "~30", "30 to 35", "30+" → returns { display: "30-35", min: 30 }
@@ -149,6 +160,8 @@ function BookingsInner() {
   }, []);
 
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [view, setView] = useState<"list" | "floorplan">("list");
+  const [tablesForSelect, setTablesForSelect] = useState<{ id: string; name: string; capacity: number }[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterDate, setFilterDate] = useState("");
   const bookingRefs = useRef<Record<string, HTMLButtonElement | null>>({});
@@ -200,6 +213,14 @@ function BookingsInner() {
     // fetch when filterDate changes — including "" which means "All"
     if (TODAY !== "" || filterDate === "") fetchBookings();
   }, [filterDate, TODAY]);
+
+  // Load tables once for the booking dialog's table-select dropdown
+  useEffect(() => {
+    fetch("/api/tables/list")
+      .then((r) => r.json())
+      .then((d) => setTablesForSelect(d.tables ?? []))
+      .catch(() => {});
+  }, []);
 
   // Deep-link: when ?id= is present, switch to that booking's date and open it
   useEffect(() => {
@@ -269,14 +290,15 @@ function BookingsInner() {
       menuRequired: (b as any).menuRequired ?? false,
       notes: b.notes ?? "",
       marketingConsent: b.marketingConsent ?? false,
+      tableId: b.table?.id ?? "",
     });
     setActionSheetOpen(false);
     setDialogOpen(true);
   }
 
-  function openNew() {
+  function openNew(prefillTableId?: string) {
     setEditBooking(null);
-    setForm({ ...emptyForm, date: getTodayStr() });
+    setForm({ ...emptyForm, date: getTodayStr(), tableId: prefillTableId ?? "" });
     setDialogOpen(true);
   }
 
@@ -452,12 +474,38 @@ function BookingsInner() {
         </div>
       </div>
 
+      {/* ── View toggle ────────────────────────────────────────────────────── */}
+      <div className="flex items-center gap-1 px-4 pb-3">
+        <button
+          onClick={() => setView("list")}
+          className={cn(
+            "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium border transition-colors",
+            view === "list"
+              ? "bg-slate-900 text-white border-slate-900"
+              : "bg-white text-slate-600 border-slate-200 hover:border-slate-400"
+          )}
+        >
+          <List className="h-3.5 w-3.5" /> List
+        </button>
+        <button
+          onClick={() => setView("floorplan")}
+          className={cn(
+            "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium border transition-colors",
+            view === "floorplan"
+              ? "bg-slate-900 text-white border-slate-900"
+              : "bg-white text-slate-600 border-slate-200 hover:border-slate-400"
+          )}
+        >
+          <LayoutGrid className="h-3.5 w-3.5" /> Floor Plan
+        </button>
+      </div>
+
       {/* ── Date pill filter ───────────────────────────────────────────────── */}
       <div className="flex items-center gap-2 px-4 pb-3 overflow-x-auto scrollbar-hide">
         {[
           { label: "Today", value: TODAY },
           { label: "Tomorrow", value: TOMORROW },
-          { label: "All", value: "" },
+          ...(view === "list" ? [{ label: "All", value: "" }] : []),
         ].map(({ label, value }) => (
           <button
             key={label}
@@ -476,7 +524,7 @@ function BookingsInner() {
         <div className="flex-shrink-0 relative">
           <input
             type="date"
-            value={filterDate}
+            value={filterDate || TODAY}
             onChange={(e) => setFilterDate(e.target.value)}
             className={cn(
               "pl-8 pr-3 py-1.5 rounded-full text-sm font-medium border transition-colors appearance-none cursor-pointer",
@@ -490,7 +538,28 @@ function BookingsInner() {
         </div>
       </div>
 
+      {/* ── Floor Plan view ────────────────────────────────────────────────── */}
+      {view === "floorplan" && (
+        <FloorPlanView
+          date={filterDate || TODAY}
+          isManager={isManager}
+          onOpenBooking={(reservationId) => {
+            const target = bookings.find((b) => b.id === reservationId);
+            if (target) {
+              openActions(target);
+            } else {
+              // Reservation isn't in the currently-loaded list (e.g. different date) — fetch it directly
+              fetch(`/api/reservations/${reservationId}`)
+                .then((r) => r.json())
+                .then((d) => { if (d.reservation) openActions(d.reservation); });
+            }
+          }}
+          onNewBookingForTable={(tableId) => openNew(tableId)}
+        />
+      )}
+
       {/* ── Booking list ───────────────────────────────────────────────────── */}
+      {view === "list" && (
       <div className="flex-1 overflow-y-auto px-4 pb-6 space-y-2">
         {loading ? (
           <div className="flex justify-center py-24">
@@ -580,6 +649,7 @@ function BookingsInner() {
           ))
         )}
       </div>
+      )}
 
       {/* ═══════════════════════════════════════════════════════════════════════
           ACTION SHEET — slides up from bottom on mobile
@@ -844,6 +914,25 @@ function BookingsInner() {
                     form.menuRequired ? "translate-x-6" : "translate-x-1"
                   )} />
                 </button>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Table <span className="text-slate-400 font-normal text-xs">(optional)</span></Label>
+                <Select
+                  value={form.tableId || "none"}
+                  onValueChange={(v) => setForm({ ...form, tableId: v === "none" ? "" : v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="No table assigned" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No table assigned</SelectItem>
+                    {tablesForSelect.map((t) => (
+                      <SelectItem key={t.id} value={t.id}>
+                        {t.name} (seats {t.capacity})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-1.5">
                 <Label>Notes <span className="text-slate-400 font-normal text-xs">(optional)</span></Label>

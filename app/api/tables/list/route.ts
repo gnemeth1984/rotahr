@@ -43,6 +43,43 @@ export async function GET(req: NextRequest) {
     }
 
     const tables = await tableService.list(businessId);
+
+    // Optionally attach a single day's reservations per table (for floor plan status)
+    if (dateParam && !timeParam) {
+      const { prisma } = await import("@/lib/db");
+      const dayStart = new Date(dateParam);
+      dayStart.setHours(0, 0, 0, 0);
+      const dayEnd = new Date(dateParam);
+      dayEnd.setHours(23, 59, 59, 999);
+
+      const reservations = await prisma.reservation.findMany({
+        where: {
+          businessId,
+          tableId: { not: null },
+          date: { gte: dayStart, lte: dayEnd },
+          status: { in: ["confirmed", "pending", "seated"] },
+        },
+        select: {
+          id: true, tableId: true, customerName: true, partySize: true,
+          time: true, status: true, duration: true,
+        },
+        orderBy: { time: "asc" },
+      });
+
+      const byTable = new Map<string, typeof reservations>();
+      for (const r of reservations) {
+        if (!r.tableId) continue;
+        if (!byTable.has(r.tableId)) byTable.set(r.tableId, []);
+        byTable.get(r.tableId)!.push(r);
+      }
+
+      const withReservations = tables.map((t) => ({
+        ...t,
+        dayReservations: byTable.get(t.id) ?? [],
+      }));
+      return NextResponse.json({ tables: withReservations });
+    }
+
     return NextResponse.json({ tables });
   } catch (err) {
     console.error("[tables/list]", err);
