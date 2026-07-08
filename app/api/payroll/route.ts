@@ -31,9 +31,9 @@ export async function GET(req: NextRequest) {
 
   const shifts = await prisma.shift.findMany({
     where: {
-      businessId,
       startTime: { gte: monday },
       endTime: { lte: sunday },
+      employee: { businessId },
     },
     include: {
       employee: { select: { id: true, firstName: true, lastName: true, hourlyRate: true } },
