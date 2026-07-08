@@ -218,21 +218,22 @@ async function main(prisma: PrismaClient = new PrismaClient()) {
 
   // ── 6. Tables ────────────────────────────────────────────────────────────────
   const tableDefs = [
-    { id: TABLES.t1, name: "Table 1", capacity: 2, location: "Window" },
-    { id: TABLES.t2, name: "Table 2", capacity: 4, location: "Main Floor" },
-    { id: TABLES.t3, name: "Table 3", capacity: 4, location: "Main Floor" },
-    { id: TABLES.t4, name: "Table 4", capacity: 6, location: "Booth" },
-    { id: TABLES.t5, name: "Table 5", capacity: 6, location: "Booth" },
-    { id: TABLES.t6, name: "Table 6", capacity: 8, location: "Private Area" },
-    { id: TABLES.t7, name: "Bar Seating A", capacity: 3, location: "Bar" },
-    { id: TABLES.t8, name: "Bar Seating B", capacity: 3, location: "Bar" },
+    { id: TABLES.t1, name: "Table 1", capacity: 2, location: "Window",       posX: 40,  posY: 40,  shape: "circle" },
+    { id: TABLES.t2, name: "Table 2", capacity: 4, location: "Main Floor",   posX: 160, posY: 40,  shape: "square" },
+    { id: TABLES.t3, name: "Table 3", capacity: 4, location: "Main Floor",   posX: 280, posY: 40,  shape: "square" },
+    { id: TABLES.t4, name: "Table 4", capacity: 6, location: "Booth",        posX: 40,  posY: 160, shape: "rect" },
+    { id: TABLES.t5, name: "Table 5", capacity: 6, location: "Booth",        posX: 200, posY: 160, shape: "rect" },
+    { id: TABLES.t6, name: "Table 6", capacity: 8, location: "Private Area", posX: 40,  posY: 280, shape: "rect" },
+    { id: TABLES.t7, name: "Bar Seating A", capacity: 3, location: "Bar",    posX: 280, posY: 280, width: 180, height: 55, shape: "counter" },
+    { id: TABLES.t8, name: "Bar Seating B", capacity: 3, location: "Bar",    posX: 280, posY: 350, width: 180, height: 55, shape: "counter" },
   ];
 
   for (const t of tableDefs) {
+    const { id, ...rest } = t;
     await prisma.table.upsert({
-      where: { id: t.id },
-      create: { ...t, businessId: BIZ },
-      update: { name: t.name, capacity: t.capacity, location: t.location },
+      where: { id },
+      create: { id, ...rest, businessId: BIZ },
+      update: rest,
     });
   }
 
@@ -886,12 +887,12 @@ async function main(prisma: PrismaClient = new PrismaClient()) {
 
   await prisma.dish.createMany({
     data: [
-      { id: dish1, businessId: BIZ, name: "Ribeye Steak (10oz)", description: "Aged ribeye served with chips, seasonal veg & peppercorn sauce", category: "main", sellPrice: 28.50, active: true },
-      { id: dish2, businessId: BIZ, name: "Pan-Fried Atlantic Salmon", description: "Fresh Atlantic salmon, crushed new potatoes, dill cream sauce", category: "main", sellPrice: 24.00, active: true },
+      { id: dish1, businessId: BIZ, name: "Ribeye Steak (10oz)", description: "Aged ribeye served with chips, seasonal veg & peppercorn sauce", category: "main", sellPrice: 28.50, active: true, imageUrl: "https://efxjg5pqfqlyxu80.private.blob.vercel-storage.com/dish-photos/demo/ribeye.jpg" },
+      { id: dish2, businessId: BIZ, name: "Pan-Fried Atlantic Salmon", description: "Fresh Atlantic salmon, crushed new potatoes, dill cream sauce", category: "main", sellPrice: 24.00, active: true, imageUrl: "https://efxjg5pqfqlyxu80.private.blob.vercel-storage.com/dish-photos/demo/salmon.jpg" },
       { id: dish3, businessId: BIZ, name: "Buttermilk Chicken & Chips", description: "Marinated buttermilk chicken breast, chunky chips, house slaw", category: "main", sellPrice: 18.50, active: true },
       { id: dish4, businessId: BIZ, name: "Chunky Chips", description: "Hand-cut chunky chips with sea salt & house aioli", category: "sides", sellPrice: 5.00, active: true },
       { id: dish5, businessId: BIZ, name: "Guinness & Beef Stew", description: "Slow-braised beef in Guinness, champ mash, soda bread", category: "main", sellPrice: 21.00, active: true },
-      { id: dish6, businessId: BIZ, name: "Anchor House Burger", description: "6oz beef patty, smoked cheddar, bacon jam, brioche bun, fries", category: "main", sellPrice: 17.50, active: true },
+      { id: dish6, businessId: BIZ, name: "Anchor House Burger", description: "6oz beef patty, smoked cheddar, bacon jam, brioche bun, fries", category: "main", sellPrice: 17.50, active: true, imageUrl: "https://efxjg5pqfqlyxu80.private.blob.vercel-storage.com/dish-photos/demo/burger.jpg" },
     ],
   });
 
@@ -1076,6 +1077,37 @@ async function main(prisma: PrismaClient = new PrismaClient()) {
     ],
   });
   console.log("✅ HACCP equipment seeded");
+
+  // ─── HACCP Records + Reminder Schedule ─────────────────────────────────────
+  await prisma.hACCPRecord.deleteMany({ where: { businessId: BIZ } });
+  await prisma.hACCPRecord.createMany({
+    data: [
+      { businessId: BIZ, checkType: "fridge_temp",    checkedById: USERS.sarah, checkedAt: days(0, 8),   data: { equipment: "Main Walk-In Fridge", temp: 3.0 }, status: "pass" },
+      { businessId: BIZ, checkType: "freezer_temp",   checkedById: USERS.sarah, checkedAt: days(0, 8),   data: { equipment: "Main Freezer", temp: -19.0 },      status: "pass" },
+      { businessId: BIZ, checkType: "opening_checks", checkedById: USERS.tony,  checkedAt: days(0, 7),   data: { items: ["Fridges checked", "Floors clean", "Fire exits clear"] }, status: "pass" },
+      { businessId: BIZ, checkType: "cleaning_daily", checkedById: USERS.marco, checkedAt: days(-1, 22), data: { items: ["Surfaces sanitised", "Bins emptied"] },  status: "pass" },
+      { businessId: BIZ, checkType: "delivery",       checkedById: USERS.marco, checkedAt: days(-1, 10), data: { supplier: "Pallas Foods", deliveryTemp: 2.5 },   status: "pass" },
+      { businessId: BIZ, checkType: "hot_holding",    checkedById: USERS.fiona, checkedAt: days(-2, 12), data: { equipment: "Bain Marie #1", temp: 67 },          status: "pass" },
+      { businessId: BIZ, checkType: "closing_checks", checkedById: USERS.tony,  checkedAt: days(-2, 23), data: { items: ["Equipment off", "Doors locked"] },      status: "pass" },
+      { businessId: BIZ, checkType: "cleaning_weekly", checkedById: USERS.sarah, checkedAt: days(-6, 21), data: { items: ["Deep clean fridges", "Behind equipment"] }, status: "pass" },
+    ],
+  });
+  await prisma.hACCPSchedule.upsert({
+    where: { businessId_checkType: { businessId: BIZ, checkType: "fridge_temp" } },
+    create: { businessId: BIZ, checkType: "fridge_temp", times: ["08:00", "14:00", "20:00"], daysOfWeek: [], active: true },
+    update: {},
+  });
+  await prisma.hACCPSchedule.upsert({
+    where: { businessId_checkType: { businessId: BIZ, checkType: "opening_checks" } },
+    create: { businessId: BIZ, checkType: "opening_checks", times: ["07:30"], daysOfWeek: [], active: true },
+    update: {},
+  });
+  await prisma.hACCPSchedule.upsert({
+    where: { businessId_checkType: { businessId: BIZ, checkType: "closing_checks" } },
+    create: { businessId: BIZ, checkType: "closing_checks", times: ["23:30"], daysOfWeek: [], active: true },
+    update: {},
+  });
+  console.log("✅ HACCP records + reminder schedules seeded");
 
   console.log("\n✅ Demo seed complete!");
   console.log("\n📋 Demo Login Accounts:");
@@ -1364,8 +1396,20 @@ async function seedOwnerDemos(prisma: PrismaClient) {
   // Pro reservations
   await prisma.reservation.deleteMany({ where: { businessId: P_BIZ } });
   const pTables = ["demo-p-t1","demo-p-t2","demo-p-t3","demo-p-t4","demo-p-t5"];
+  const pTablePos = [
+    { posX: 40,  posY: 40,  shape: "circle" },
+    { posX: 160, posY: 40,  shape: "square" },
+    { posX: 280, posY: 40,  shape: "square" },
+    { posX: 40,  posY: 160, shape: "rect" },
+    { posX: 200, posY: 160, width: 180, height: 55, shape: "counter" },
+  ];
   for (const tid of pTables) {
-    await prisma.table.upsert({ where: { id: tid }, create: { id: tid, businessId: P_BIZ, name: `Table ${pTables.indexOf(tid)+1}`, capacity: [2,4,4,6,8][pTables.indexOf(tid)], location: "Main Floor" }, update: {} });
+    const i = pTables.indexOf(tid);
+    await prisma.table.upsert({
+      where: { id: tid },
+      create: { id: tid, businessId: P_BIZ, name: `Table ${i+1}`, capacity: [2,4,4,6,8][i], location: "Main Floor", ...pTablePos[i] },
+      update: { ...pTablePos[i] },
+    });
   }
   const pRes = [
     { name: "O'Sullivan x4", size: 4, dayOff: 0, time: "19:30", status: "confirmed", notes: "Anniversary", tableId: "demo-p-t2" },
@@ -1440,6 +1484,57 @@ async function seedOwnerDemos(prisma: PrismaClient) {
   ]});
 
   console.log("✅ Pro owner demo created");
+
+  // HACCP for Pro — equipment, check history, and a reminder schedule so the page is never empty
+  await prisma.hACCPEquipment.deleteMany({ where: { businessId: P_BIZ } });
+  await prisma.hACCPEquipment.createMany({ data: [
+    { businessId: P_BIZ, name: "Main Walk-In Fridge", equipType: "fridge",      sortOrder: 0 },
+    { businessId: P_BIZ, name: "Prep Fridge",         equipType: "fridge",      sortOrder: 1 },
+    { businessId: P_BIZ, name: "Main Freezer",        equipType: "freezer",     sortOrder: 0 },
+    { businessId: P_BIZ, name: "Bain Marie #1",       equipType: "hot_holding", sortOrder: 0 },
+  ]});
+  await prisma.hACCPRecord.deleteMany({ where: { businessId: P_BIZ } });
+  await prisma.hACCPRecord.createMany({ data: [
+    { businessId: P_BIZ, checkType: "fridge_temp",     checkedById: P_USER, checkedAt: days(0, 8),  data: { equipment: "Main Walk-In Fridge", temp: 3.2 },  status: "pass" },
+    { businessId: P_BIZ, checkType: "freezer_temp",    checkedById: P_USER, checkedAt: days(0, 8),  data: { equipment: "Main Freezer", temp: -19.5 },        status: "pass" },
+    { businessId: P_BIZ, checkType: "opening_checks",  checkedById: P_USER, checkedAt: days(0, 7),  data: { items: ["Fridges checked", "Floors clean", "Fire exits clear"] }, status: "pass" },
+    { businessId: P_BIZ, checkType: "cleaning_daily",  checkedById: P_USER, checkedAt: days(-1, 22), data: { items: ["Surfaces sanitised", "Bins emptied"] }, status: "pass" },
+    { businessId: P_BIZ, checkType: "delivery",        checkedById: P_USER, checkedAt: days(-1, 10), data: { supplier: "Pallas Foods", deliveryTemp: 2.8 },  status: "pass" },
+    { businessId: P_BIZ, checkType: "hot_holding",      checkedById: P_USER, checkedAt: days(-2, 12), data: { equipment: "Bain Marie #1", temp: 68 },         status: "pass" },
+    { businessId: P_BIZ, checkType: "closing_checks",  checkedById: P_USER, checkedAt: days(-2, 23), data: { items: ["Equipment off", "Doors locked"] },     status: "pass" },
+  ]});
+  await prisma.hACCPSchedule.upsert({
+    where: { businessId_checkType: { businessId: P_BIZ, checkType: "fridge_temp" } },
+    create: { businessId: P_BIZ, checkType: "fridge_temp", times: ["08:00", "14:00", "20:00"], daysOfWeek: [], active: true },
+    update: {},
+  });
+  await prisma.hACCPSchedule.upsert({
+    where: { businessId_checkType: { businessId: P_BIZ, checkType: "opening_checks" } },
+    create: { businessId: P_BIZ, checkType: "opening_checks", times: ["07:30"], daysOfWeek: [], active: true },
+    update: {},
+  });
+  console.log("✅ Pro HACCP data seeded");
+
+  // Recipes for Pro — so the Recipes page isn't empty
+  await prisma.dishIngredient.deleteMany({ where: { dish: { businessId: P_BIZ } } });
+  await prisma.dish.deleteMany({ where: { businessId: P_BIZ } });
+  const pDish1 = "demo-p-dish-flatbread";
+  const pDish2 = "demo-p-dish-risotto";
+  const pDish3 = "demo-p-dish-brunch";
+  await prisma.dish.createMany({ data: [
+    { id: pDish1, businessId: P_BIZ, name: "Wild Mushroom Flatbread", description: "Truffle oil, taleggio, rocket, balsamic glaze", category: "starter", sellPrice: 14.00, active: true, imageUrl: "https://efxjg5pqfqlyxu80.private.blob.vercel-storage.com/dish-photos/demo/flatbread.jpg" },
+    { id: pDish2, businessId: P_BIZ, name: "Wild Garlic Risotto", description: "Arborio rice, wild garlic, parmesan, lemon zest", category: "main", sellPrice: 19.50, active: true },
+    { id: pDish3, businessId: P_BIZ, name: "Bloom Brunch Board", description: "Sourdough, smashed avo, poached eggs, feta, chorizo", category: "main", sellPrice: 16.00, active: true, imageUrl: "https://efxjg5pqfqlyxu80.private.blob.vercel-storage.com/dish-photos/demo/brunch.jpg" },
+  ]});
+  await prisma.dishIngredient.createMany({ data: [
+    { dishId: pDish1, stockItemId: null, name: "Mixed Mushrooms", qty: 0.15, unit: "kg" },
+    { dishId: pDish1, stockItemId: null, name: "Taleggio Cheese", qty: 0.08, unit: "kg" },
+    { dishId: pDish2, stockItemId: null, name: "Arborio Rice",    qty: 0.12, unit: "kg" },
+    { dishId: pDish2, stockItemId: null, name: "Parmesan",        qty: 0.05, unit: "kg" },
+    { dishId: pDish3, stockItemId: null, name: "Sourdough Loaf",  qty: 0.1,  unit: "kg" },
+    { dishId: pDish3, stockItemId: null, name: "Eggs",            qty: 2,    unit: "unit" },
+  ]});
+  console.log("✅ Pro recipes seeded");
 
   // ── ENTERPRISE ────────────────────────────────────────────────────────────────
   const E_BIZ    = "demo-owner-ent-biz";
@@ -1606,12 +1701,21 @@ async function seedOwnerDemos(prisma: PrismaClient) {
   // Enterprise reservations across venues
   await prisma.reservation.deleteMany({ where: { businessId: E_BIZ } });
   const entTables = [
-    { id: "demo-e-t1", cap: 2, loc: "Main Floor" }, { id: "demo-e-t2", cap: 4, loc: "Main Floor" },
-    { id: "demo-e-t3", cap: 4, loc: "Booth" },       { id: "demo-e-t4", cap: 6, loc: "Private" },
-    { id: "demo-e-t5", cap: 8, loc: "Private" },     { id: "demo-e-t6", cap: 4, loc: "Main Floor" },
+    { id: "demo-e-t1", cap: 2, loc: "Main Floor", posX: 40,  posY: 40,  shape: "circle" },
+    { id: "demo-e-t2", cap: 4, loc: "Main Floor", posX: 160, posY: 40,  shape: "square" },
+    { id: "demo-e-t3", cap: 4, loc: "Booth",      posX: 280, posY: 40,  shape: "rect" },
+    { id: "demo-e-t4", cap: 6, loc: "Private",    posX: 40,  posY: 160, shape: "rect" },
+    { id: "demo-e-t5", cap: 8, loc: "Private",    posX: 200, posY: 160, shape: "rect" },
+    { id: "demo-e-t6", cap: 4, loc: "Main Floor", posX: 40,  posY: 280, width: 180, height: 55, shape: "counter" },
   ];
   for (const t of entTables) {
-    await prisma.table.upsert({ where: { id: t.id }, create: { id: t.id, businessId: E_BIZ, name: `Table ${entTables.indexOf(t)+1}`, capacity: t.cap, location: t.loc }, update: {} });
+    const i = entTables.indexOf(t);
+    const { id, cap, loc, ...pos } = t;
+    await prisma.table.upsert({
+      where: { id },
+      create: { id, businessId: E_BIZ, name: `Table ${i+1}`, capacity: cap, location: loc, ...pos },
+      update: { ...pos },
+    });
   }
   const eRes = [
     { name: "Corporate — Meta",         size: 8, dayOff: 1, time: "13:00", status: "confirmed", notes: "Board lunch",          tableId: "demo-e-t5", venue: E_VENUE1 },
