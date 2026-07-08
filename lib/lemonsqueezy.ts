@@ -6,15 +6,15 @@ export const LS_API_KEY = process.env.LEMONSQUEEZY_API_KEY!
 export const LS_WEBHOOK_SECRET = process.env.LEMONSQUEEZY_WEBHOOK_SECRET!
 
 export const VARIANT_MAP: Record<string, string> = {
-  starter: "1817302",
-  pro: "1818421",
-  enterprise: "1818423",
+  starter: "1883638",
+  pro: "1883789",
+  enterprise: "1883902",
 }
 
 export const VARIANT_TO_PLAN: Record<string, string> = {
-  "1817302": "starter",
-  "1818421": "pro",
-  "1818423": "enterprise",
+  "1883638": "starter",
+  "1883789": "pro",
+  "1883902": "enterprise",
 }
 
 export function lsHeaders() {
@@ -49,9 +49,9 @@ export function checkoutUrl(variantId: string, email: string, businessId: string
 
 // Map variant IDs to their checkout UUIDs (from product buy_now_url)
 const CHECKOUT_IDS: Record<string, string> = {
-  "1817302": "193c8b0d-63d6-40ee-a654-fec1dfcba1fc", // starter
-  "1818421": "69ee8a82-4eaf-4f8d-b0dc-f8d3aca6fcf2", // pro
-  "1818423": "2a383bb5-4cad-4a3b-bccf-fa21a69f1995", // enterprise
+  "1883638": "3c0f7992-3b73-4b80-96b4-ed019c8e1fc7", // starter
+  "1883789": "0f85962f-cbab-4454-aa76-906b77343c19", // pro
+  "1883902": "d1187409-d725-4da4-906e-13ef14cf6f98", // enterprise
 }
 
 function variantIdToCheckoutId(variantId: string): string {
