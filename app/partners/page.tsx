@@ -116,6 +116,23 @@ export default function PartnersPage() {
         </div>
       </div>
 
+      {/* Resource kit CTA */}
+      <div style={{ padding: "0 24px" }}>
+        <div className="earnings" style={{ textAlign: "center" }}>
+          <h2>Affiliate resource kit</h2>
+          <p className="earnings-sub">
+            Everything you need to pitch Rotahr — pitch deck and a full product walkthrough guide, ready to download.
+          </p>
+          <a
+            href="/partners/resources"
+            className="ls-btn"
+            style={{ display: "inline-block" }}
+          >
+            View resource kit
+          </a>
+        </div>
+      </div>
+
       {/* Earnings table */}
       <div style={{ padding: "0 24px" }}>
         <div className="earnings">
