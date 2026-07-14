@@ -1,6 +1,6 @@
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth/options";
-import { Role } from "@/types/roles";
+import { isSuperAdminEmail } from "@/lib/auth/super-admins";
 import { NextResponse } from "next/server";
 
 const EMAIL_SYSTEM_URL = process.env.EMAIL_SYSTEM_URL || "https://rotahr-email-production.up.railway.app";
@@ -8,7 +8,7 @@ const API_SECRET = process.env.OUTREACH_API_SECRET || "rotahr-api-2026";
 
 export async function requireAdmin() {
   const session = await getServerSession(authOptions);
-  if (!session || session.user.role !== Role.ADMIN) {
+  if (!session?.user || !isSuperAdminEmail(session.user.email)) {
     return { error: NextResponse.json({ error: "Forbidden" }, { status: 403 }), session: null };
   }
   return { error: null, session };

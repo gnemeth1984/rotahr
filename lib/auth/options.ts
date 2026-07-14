@@ -10,6 +10,7 @@ import { isDemoEmail, triggerDemoReset } from "@/lib/demo/reset";
 import { triggerWelcomeEmail } from "@/lib/email/marketing";
 import { isRateLimited } from "@/lib/auth/rate-limit";
 import { logActivity } from "@/lib/services/activity.service";
+import { isSuperAdminEmail } from "@/lib/auth/super-admins";
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma) as any,
@@ -56,12 +57,15 @@ export const authOptions: NextAuthOptions = {
   },
   callbacks: {
     async jwt({ token, user }) {
-      // Super-admin emails — always force ADMIN role regardless of DB state
-      const SUPER_ADMINS = ["gnemeth1984@gmail.com"];
-
       // Always re-fetch from DB so role/businessId/permissions are always current
       const emailToLookup = user?.email ?? (token.email as string | undefined);
-      const isSuperAdmin = emailToLookup ? SUPER_ADMINS.includes(emailToLookup) : false;
+      const isSuperAdmin = isSuperAdminEmail(emailToLookup);
+
+      // Real platform-admin flag — the ONLY thing that should ever gate
+      // platform-wide views (cross-business activity, all users, email
+      // marketing, etc). Never derive this from role or businessId — every
+      // business owner is also role: ADMIN within their own business.
+      token.isPlatformAdmin = isSuperAdmin;
 
       // Fallback: force ADMIN even before DB record is confirmed
       if (isSuperAdmin) token.role = UserRole.ADMIN;
@@ -135,6 +139,7 @@ export const authOptions: NextAuthOptions = {
         session.user.businessId = token.businessId as string | null;
         session.user.permissions = (token.permissions as string[]) ?? [];
         session.user.lsPlan = (token.lsPlan as string | null) ?? null;
+        session.user.isPlatformAdmin = Boolean(token.isPlatformAdmin);
       }
       return session;
     },

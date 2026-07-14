@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { isSuperAdminEmail } from "@/lib/auth/super-admins";
 import { Resend } from "resend";
 
 const resend = new Resend(process.env.RESEND_API_KEY!);
@@ -8,7 +9,7 @@ const resend = new Resend(process.env.RESEND_API_KEY!);
 // GET /api/admin/email/broadcasts
 export async function GET() {
   const session = await getServerSession(authOptions);
-  if (!session || session.user?.role !== "ADMIN") {
+  if (!session?.user || !isSuperAdminEmail(session.user.email)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -25,7 +26,7 @@ export async function GET() {
 // body: { name, subject, previewText, html, audienceId }
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
-  if (!session || session.user?.role !== "ADMIN") {
+  if (!session?.user || !isSuperAdminEmail(session.user.email)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

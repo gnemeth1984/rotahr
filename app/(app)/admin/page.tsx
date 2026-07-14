@@ -366,7 +366,7 @@ export default function AdminPage() {
   const [searchInput, setSearchInput] = useState("");
 
   useEffect(() => {
-    if (status === "authenticated" && session?.user?.role !== "ADMIN") {
+    if (status === "authenticated" && !session?.user?.isPlatformAdmin) {
       router.replace("/dashboard");
     }
   }, [status, session, router]);
@@ -385,7 +385,7 @@ export default function AdminPage() {
   }, [page, search]);
 
   useEffect(() => {
-    if (status === "authenticated" && session?.user?.role === "ADMIN") {
+    if (status === "authenticated" && session?.user?.isPlatformAdmin) {
       load();
     }
   }, [load, status, session]);
@@ -398,7 +398,7 @@ export default function AdminPage() {
 
   if (
     status === "loading" ||
-    (status === "authenticated" && session?.user?.role !== "ADMIN")
+    (status === "authenticated" && !session?.user?.isPlatformAdmin)
   ) {
     return (
       <div className="flex items-center justify-center h-64">

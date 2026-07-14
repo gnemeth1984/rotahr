@@ -272,6 +272,7 @@ const navItems = [
     permission: null,
     featureKey: null,
     plans: null,
+    platformAdminOnly: true,
   },
   {
     href: "/blog",
@@ -294,11 +295,13 @@ export function Sidebar() {
   const userPermissions: string[] = (session?.user as any)?.permissions ?? [];
   const lsPlan: string | null = (session?.user as any)?.lsPlan ?? null;
   const isManager = userRole === Role.MANAGER || userRole === Role.ADMIN;
-  // Platform-level ADMIN (Gabor) bypasses all plan gates
-  const isPlatformAdmin = userRole === Role.ADMIN && !session?.user?.businessId;
+  // Real platform-level super-admin (Gabor only) — derived server-side from
+  // the SUPER_ADMINS email allowlist, never from role/businessId (every
+  // business owner is also role: ADMIN within their own business).
+  const isPlatformAdmin = Boolean((session?.user as any)?.isPlatformAdmin);
 
   const visibleItems = navItems.filter((item) => {
-    // platformAdminOnly items only shown when no businessId
+    // platformAdminOnly items only shown to the real platform super-admin
     if ((item as any).platformAdminOnly && !isPlatformAdmin) return false;
 
     // Role check — platform admin bypasses everything
