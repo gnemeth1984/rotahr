@@ -31,6 +31,10 @@
     {
       "path": "/api/cron/haccp-reminder",
       "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/demo/reset",
+      "schedule": "0 4 * * *"
     }
   ]
 }

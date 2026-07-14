@@ -94,7 +94,7 @@ async function hash(pw: string) {
 }
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
-async function main(prisma: PrismaClient = new PrismaClient()) {
+export async function main(prisma: PrismaClient = new PrismaClient()) {
   console.log("🌱 Seeding demo: The Anchor & Tap...");
 
   const pw = await hash(PW);
@@ -1136,7 +1136,7 @@ async function main(prisma: PrismaClient = new PrismaClient()) {
  *  PRO       — owner.pro@rotahr.demo       / Demo1234!  (Bloom Bistro, 18 staff)
  *  ENTERPRISE — owner.enterprise@rotahr.demo / Demo1234! (Harrington Group, 3 venues)
  */
-async function seedOwnerDemos(prisma: PrismaClient) {
+export async function seedOwnerDemos(prisma: PrismaClient) {
   console.log("🌱 Seeding owner demo businesses...");
   const pw = await hash(PW);
 
