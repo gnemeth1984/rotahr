@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -81,6 +81,8 @@ export default function BlogCommentsPage() {
   const [note, setNote] = useState("");
   const [generating, setGenerating] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [latestDraft, setLatestDraft] = useState<Draft | null>(null);
+  const generatePanelRef = useRef<HTMLDivElement | null>(null);
   const [pendingDeleteArticle, setPendingDeleteArticle] = useState<Article | null>(null);
   const [pendingDeleteDraft, setPendingDeleteDraft] = useState<Draft | null>(null);
 
@@ -181,6 +183,7 @@ export default function BlogCommentsPage() {
   async function handleGenerate() {
     if (!selected) return;
     setGenerating(true);
+    setLatestDraft(null);
     try {
       const res = await fetch("/api/blog-comments/generate", {
         method: "POST",
@@ -194,7 +197,17 @@ export default function BlogCommentsPage() {
         }),
       });
       if (!res.ok) throw new Error();
+      const data = await res.json();
       toast.success("Draft generated");
+      setLatestDraft({
+        id: data.id,
+        articleId: selected.id,
+        articleTitle: selected.title,
+        articleUrl: selected.url,
+        note: note || null,
+        draftComment: data.draft,
+        createdAt: new Date().toISOString(),
+      });
       setNote("");
       await load();
     } catch {
@@ -350,7 +363,7 @@ export default function BlogCommentsPage() {
               return (
                 <Card
                   key={a.id}
-                  onClick={() => setSelected(a)}
+                  onClick={() => { setSelected(a); setLatestDraft(null); generatePanelRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }); }}
                   className={`cursor-pointer border transition ${
                     isSelected
                       ? "border-[#ff6b35] bg-white/10 ring-1 ring-[#ff6b35]/50"
@@ -408,6 +421,8 @@ export default function BlogCommentsPage() {
                         onClick={(e) => {
                           e.stopPropagation();
                           setSelected(a);
+                          setLatestDraft(null);
+                          generatePanelRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
                         }}
                         className={isSelected ? "bg-gradient-to-r from-[#ff6b35] to-[#e8365d]" : ""}
                       >
@@ -432,14 +447,24 @@ export default function BlogCommentsPage() {
           </div>
         )}
 
-        {/* Generate — sticky-ish panel */}
-        <div className="sticky bottom-4 mt-10">
-          <Card className="border-white/10 bg-[#132345]/95 shadow-2xl backdrop-blur">
+        {/* Generate panel */}
+        <div ref={generatePanelRef} className="mt-10 scroll-mt-6">
+          <Card className="border-[#ff6b35]/30 bg-[#132345] shadow-xl">
             <CardContent className="pt-5">
               <div className="text-sm text-white/60">Selected thread</div>
               <div className="mt-1 font-medium">
                 {selected ? selected.title : <span className="text-white/40">Pick a thread above first</span>}
               </div>
+              {selected && (
+                <a
+                  href={selected.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-1 flex w-fit items-center gap-1 text-xs text-white/40 hover:text-white/70 hover:underline"
+                >
+                  Open thread <ExternalLink className="h-3 w-3" />
+                </a>
+              )}
               <div className="mt-3 flex flex-col gap-2 sm:flex-row">
                 <Input
                   value={note}
@@ -460,6 +485,28 @@ export default function BlogCommentsPage() {
                   Generate Comment
                 </Button>
               </div>
+
+              {latestDraft && (
+                <div className="mt-4 rounded-lg border border-[#ff6b35]/30 bg-black/20 p-4">
+                  <p className="whitespace-pre-wrap text-sm text-white/90">{latestDraft.draftComment}</p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Button size="sm" onClick={() => handleCopy(latestDraft)} className="bg-white/10 hover:bg-white/20">
+                      {copiedId === latestDraft.id ? (
+                        <Check className="mr-1 h-3.5 w-3.5" />
+                      ) : (
+                        <Copy className="mr-1 h-3.5 w-3.5" />
+                      )}
+                      {copiedId === latestDraft.id ? "Copied" : "Copy"}
+                    </Button>
+                    <Button size="sm" asChild className="bg-gradient-to-r from-[#ff6b35] to-[#e8365d]">
+                      <a href={latestDraft.articleUrl} target="_blank" rel="noreferrer">
+                        <ExternalLink className="mr-1 h-3.5 w-3.5" />
+                        Open thread &amp; post it
+                      </a>
+                    </Button>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -493,7 +540,7 @@ export default function BlogCommentsPage() {
                     <p className="mt-3 whitespace-pre-wrap rounded-lg bg-black/20 p-3 text-sm text-white/85">
                       {d.draftComment}
                     </p>
-                    <div className="mt-2 flex gap-2">
+                    <div className="mt-2 flex flex-wrap gap-2">
                       <Button size="sm" variant="secondary" onClick={() => handleCopy(d)}>
                         {copiedId === d.id ? (
                           <Check className="mr-1 h-3.5 w-3.5" />
@@ -501,6 +548,12 @@ export default function BlogCommentsPage() {
                           <Copy className="mr-1 h-3.5 w-3.5" />
                         )}
                         {copiedId === d.id ? "Copied" : "Copy"}
+                      </Button>
+                      <Button size="sm" asChild className="bg-gradient-to-r from-[#ff6b35] to-[#e8365d]">
+                        <a href={d.articleUrl} target="_blank" rel="noreferrer">
+                          <ExternalLink className="mr-1 h-3.5 w-3.5" />
+                          Open thread &amp; post it
+                        </a>
                       </Button>
                       <Button
                         size="sm"
