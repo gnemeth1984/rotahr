@@ -126,6 +126,15 @@ export const FEATURE_DEFINITIONS = [
     canRestrictToRoles: ["MANAGER", "ADMIN"],
   },
   {
+    key: "reports",
+    label: "Reports & Insights",
+    description: "Labour cost vs revenue trends over time, overtime tracking, and forecast accuracy — visual dashboards for smarter scheduling decisions.",
+    category: "Finance",
+    defaultRoles: ["MANAGER", "ADMIN"],
+    canDisable: true,
+    canRestrictToRoles: ["MANAGER", "ADMIN"],
+  },
+  {
     key: "tips",
     label: "Tips & Tronc",
     description: "Pool and distribute customer tips fairly across staff. Fully compliant with the Irish Tips Act 2022.",

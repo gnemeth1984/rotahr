@@ -771,6 +771,22 @@ function RotaInner() {
     : labourPct > 30 ? "text-amber-600"
     : "text-emerald-600";
 
+  // ── Working-time compliance: flag employees scheduled beyond 48h/week ──────
+  // (EU Working Time Directive default threshold — applies to Ireland & UK)
+  const WEEKLY_HOURS_THRESHOLD = 48;
+  const hoursByEmployee: Record<string, number> = {};
+  for (const s of shifts) {
+    if (!s.employeeId) continue;
+    hoursByEmployee[s.employeeId] = (hoursByEmployee[s.employeeId] ?? 0) + shiftHours(s) + (s.overtimeHours ?? 0);
+  }
+  const overtimeWarnings = Object.entries(hoursByEmployee)
+    .filter(([, hrs]) => hrs > WEEKLY_HOURS_THRESHOLD)
+    .map(([empId, hrs]) => ({
+      employee: empMap[empId],
+      hours: Math.round(hrs * 10) / 10,
+    }))
+    .filter((w) => w.employee);
+
   const totalShifts = shifts.length;
   const publishedShifts = shifts.filter((s) => s.published).length;
 
@@ -1124,6 +1140,25 @@ function RotaInner() {
                 {weeklyRevenueTarget ? `Target: ${symbol}${weeklyRevenueTarget.toLocaleString(locale)}` : "Set revenue target"}
               </button>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Weekly overtime / working-time compliance warning (managers) ── */}
+      {isManager && overtimeWarnings.length > 0 && (
+        <div className="mb-4 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3.5 py-2.5">
+          <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-600" />
+          <div className="text-sm text-amber-800">
+            <span className="font-semibold">
+              {overtimeWarnings.length} staff member{overtimeWarnings.length > 1 ? "s" : ""} scheduled over {WEEKLY_HOURS_THRESHOLD}h this week
+            </span>
+            {" — "}
+            {overtimeWarnings.map((w, i) => (
+              <span key={w.employee!.id}>
+                {w.employee!.firstName} {w.employee!.lastName} ({w.hours}h){i < overtimeWarnings.length - 1 ? ", " : ""}
+              </span>
+            ))}
+            . EU Working Time Directive caps weekly hours at 48h averaged — worth reviewing before publishing.
           </div>
         </div>
       )}

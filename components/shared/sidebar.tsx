@@ -36,6 +36,7 @@ import {
   FileText,
   ClipboardCheck,
   Newspaper,
+  BarChart2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -168,6 +169,15 @@ const navItems = [
     roles: [Role.MANAGER, Role.ADMIN],
     permission: "payroll",
     featureKey: "payroll" as FeatureKey,
+    plans: ["pro", "enterprise"],
+  },
+  {
+    href: "/reports",
+    label: "Reports & Insights",
+    icon: BarChart2,
+    roles: [Role.MANAGER, Role.ADMIN],
+    permission: "reports",
+    featureKey: "reports" as FeatureKey,
     plans: ["pro", "enterprise"],
   },
   {
