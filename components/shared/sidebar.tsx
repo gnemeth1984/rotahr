@@ -37,6 +37,7 @@ import {
   ClipboardCheck,
   Newspaper,
   BarChart2,
+  NotebookPen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -105,6 +106,15 @@ const navItems = [
     roles: [Role.EMPLOYEE, Role.MANAGER, Role.ADMIN],
     permission: null,
     featureKey: "shiftswaps" as FeatureKey,
+    plans: null,
+  },
+  {
+    href: "/log-book",
+    label: "Log Book",
+    icon: NotebookPen,
+    roles: [Role.EMPLOYEE, Role.MANAGER, Role.ADMIN],
+    permission: "logbook",
+    featureKey: "logbook" as FeatureKey,
     plans: null,
   },
   {

@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
   const rangeStart = new Date(thisMonday);
   rangeStart.setDate(rangeStart.getDate() - 7 * (weeks - 1));
 
-  const [shifts, snapshots] = await Promise.all([
+  const [shifts, snapshots, venues] = await Promise.all([
     prisma.shift.findMany({
       where: {
         startTime: { gte: rangeStart },
@@ -40,12 +40,17 @@ export async function GET(req: NextRequest) {
         startTime: true,
         endTime: true,
         overtimeHours: true,
+        venueId: true,
         employee: { select: { hourlyRate: true } },
       },
     }),
     prisma.posSnapshot.findMany({
       where: { businessId, date: { gte: rangeStart } },
       select: { date: true, totalRevenue: true },
+    }),
+    prisma.venue.findMany({
+      where: { businessId, active: true },
+      select: { id: true, name: true },
     }),
   ]);
 
@@ -84,6 +89,34 @@ export async function GET(req: NextRequest) {
     bucket.labourCost += hours * rate + ot * rate * 1.5;
   }
 
+  // Per-venue breakdown (labour cost only — revenue isn't tracked per-venue yet,
+  // POS snapshots are business-wide). Only meaningful for multi-venue businesses.
+  const venueTotals: Record<string, { venueId: string | null; venueName: string; labourCost: number; totalHours: number; overtimeHours: number }> = {};
+  for (const v of venues) {
+    venueTotals[v.id] = { venueId: v.id, venueName: v.name, labourCost: 0, totalHours: 0, overtimeHours: 0 };
+  }
+  venueTotals["__unassigned__"] = { venueId: null, venueName: "Unassigned", labourCost: 0, totalHours: 0, overtimeHours: 0 };
+
+  for (const s of shifts) {
+    const hours = (new Date(s.endTime).getTime() - new Date(s.startTime).getTime()) / 3_600_000;
+    const rate = s.employee?.hourlyRate ?? 0;
+    const ot = s.overtimeHours ?? 0;
+    const key = s.venueId && venueTotals[s.venueId] ? s.venueId : "__unassigned__";
+    venueTotals[key].totalHours += hours;
+    venueTotals[key].overtimeHours += ot;
+    venueTotals[key].labourCost += hours * rate + ot * rate * 1.5;
+  }
+
+  const venueBreakdown = Object.values(venueTotals)
+    .filter((v) => v.totalHours > 0)
+    .map((v) => ({
+      ...v,
+      labourCost: Math.round(v.labourCost * 100) / 100,
+      totalHours: Math.round(v.totalHours * 10) / 10,
+      overtimeHours: Math.round(v.overtimeHours * 10) / 10,
+    }))
+    .sort((a, b) => b.labourCost - a.labourCost);
+
   for (const snap of snapshots) {
     const key = bucketKeyFor(new Date(snap.date));
     const bucket = weekBuckets[key];
@@ -118,6 +151,7 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     weeks: result,
+    venueBreakdown: venues.length > 1 ? venueBreakdown : [],
     summary: {
       avgLabourPct: avgLabourPct !== null ? Math.round(avgLabourPct * 10) / 10 : null,
       totalLabourCost: Math.round(totalLabourCost * 100) / 100,

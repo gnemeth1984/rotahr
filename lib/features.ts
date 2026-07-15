@@ -163,6 +163,15 @@ export const FEATURE_DEFINITIONS = [
     canDisable: true,
     canRestrictToRoles: ["EMPLOYEE", "MANAGER", "ADMIN"],
   },
+  {
+    key: "logbook",
+    label: "Manager Log Book & Tasks",
+    description: "Daily shift notes, out-of-stock (86'd) items, maintenance/repair issues, and assignable ops tasks with photo proof of completion.",
+    category: "Core",
+    defaultRoles: ["EMPLOYEE", "MANAGER", "ADMIN"],
+    canDisable: true,
+    canRestrictToRoles: ["EMPLOYEE", "MANAGER", "ADMIN"],
+  },
 
   // ── Compliance ───────────────────────────────────────────────────────────
   {

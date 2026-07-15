@@ -30,6 +30,14 @@ interface WeekRow {
   labourPct: number | null;
 }
 
+interface VenueRow {
+  venueId: string | null;
+  venueName: string;
+  labourCost: number;
+  totalHours: number;
+  overtimeHours: number;
+}
+
 interface Summary {
   avgLabourPct: number | null;
   totalLabourCost: number;
@@ -48,6 +56,7 @@ export default function ReportsPage() {
   const [weeksParam, setWeeksParam] = useState(12);
   const [weeks, setWeeks] = useState<WeekRow[]>([]);
   const [summary, setSummary] = useState<Summary | null>(null);
+  const [venueBreakdown, setVenueBreakdown] = useState<VenueRow[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -57,6 +66,7 @@ export default function ReportsPage() {
       .then((d) => {
         setWeeks(d.weeks || []);
         setSummary(d.summary || null);
+        setVenueBreakdown(d.venueBreakdown || []);
       })
       .finally(() => setLoading(false));
   }, [weeksParam]);
@@ -250,6 +260,45 @@ export default function ReportsPage() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Per-venue breakdown (multi-venue businesses only) */}
+          {venueBreakdown.length > 0 && (
+            <Card className="mt-6">
+              <CardHeader>
+                <CardTitle className="text-base">Labour cost by venue</CardTitle>
+                <p className="text-xs text-slate-400">
+                  Revenue isn't tracked per-venue yet, so this shows labour cost and hours only.
+                </p>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-400">
+                        <th className="py-2 pr-4">Venue</th>
+                        <th className="py-2 pr-4 text-right">Labour cost</th>
+                        <th className="py-2 pr-4 text-right">Total hours</th>
+                        <th className="py-2 text-right">Overtime hours</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {venueBreakdown.map((v) => (
+                        <tr key={v.venueId ?? "unassigned"} className="border-b border-slate-100 last:border-0">
+                          <td className="py-2.5 pr-4 font-medium text-slate-800">{v.venueName}</td>
+                          <td className="py-2.5 pr-4 text-right text-slate-700">
+                            {symbol}
+                            {v.labourCost.toLocaleString("en-IE", { maximumFractionDigits: 0 })}
+                          </td>
+                          <td className="py-2.5 pr-4 text-right text-slate-700">{v.totalHours}h</td>
+                          <td className="py-2.5 text-right text-slate-700">{v.overtimeHours}h</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </>
       )}
     </div>

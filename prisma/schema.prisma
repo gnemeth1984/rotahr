@@ -52,6 +52,10 @@ model Business {
   // Wastage
   wastageRecords WastageRecord[]
 
+  // Manager Log Book / Ops Tasks
+  logEntries     LogEntry[]
+  opsTasks       OpsTask[]
+
   // HACCP
   haccpRecords     HACCPRecord[]
   haccpEquipment        HACCPEquipment[]
@@ -101,6 +105,8 @@ model User {
   crmEmails           CrmEmail[]
   haccpRecords             HACCPRecord[]
   haccpTemplatesUpdated    HACCPChecklistTemplate[] @relation("HaccpTemplateUpdater")
+  logEntries               LogEntry[]
+  opsTasksCreated          OpsTask[]
 }
 
 model PasswordResetToken {
@@ -171,6 +177,7 @@ model Employee {
   shiftSwapRequestsReceived ShiftSwapRequest[] @relation("SwapReceiver")
   tipDistributions TipDistribution[]
   certifications   TrainingCertification[]
+  opsTasks         OpsTask[]
   venueId          String?
   venue            Venue?   @relation(fields: [venueId], references: [id], onDelete: SetNull)
   permissions      String[] @default([])
@@ -662,6 +669,8 @@ model Venue {
   shifts          Shift[]
   shiftTemplates  ShiftTemplate[]
   checklists      VenueChecklist[]
+  logEntries      LogEntry[]
+  opsTasks        OpsTask[]
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -1210,4 +1219,65 @@ model BlogCommentDraft {
   note         String?
   draftComment String   @db.Text
   createdAt    DateTime @default(now())
+}
+
+// ── Manager Log Book ─────────────────────────────────────────────────────────
+// Daily shift notes, 86'd items, and maintenance/repair issues — separate from
+// HACCP (food-safety specific). Matches the "manager log book" pattern.
+model LogEntry {
+  id          String   @id @default(cuid())
+  businessId  String
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  venueId     String?
+  venue       Venue?   @relation(fields: [venueId], references: [id], onDelete: SetNull)
+
+  type        String   // "note" | "86" | "repair"
+  title       String
+  description String?  @db.Text
+  resolved    Boolean  @default(false) // relevant for "86" (back in stock) and "repair" (fixed)
+  resolvedAt  DateTime?
+
+  createdById String
+  createdBy   User     @relation(fields: [createdById], references: [id])
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([businessId, type, resolved])
+  @@index([businessId, createdAt])
+}
+
+// ── Ops Task Management ──────────────────────────────────────────────────────
+// General daily/weekly/one-time operational tasks (not food-safety — see HACCP
+// for that). Assignable to an employee, with optional photo proof of completion.
+model OpsTask {
+  id           String    @id @default(cuid())
+  businessId   String
+  business     Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  venueId      String?
+  venue        Venue?    @relation(fields: [venueId], references: [id], onDelete: SetNull)
+
+  title        String
+  description  String?   @db.Text
+  frequency    String    @default("once") // "once" | "daily" | "weekly"
+  dueDate      DateTime?
+  requirePhoto Boolean   @default(false)
+
+  assignedToId String?
+  assignedTo   Employee? @relation(fields: [assignedToId], references: [id], onDelete: SetNull)
+
+  completed    Boolean   @default(false)
+  completedAt  DateTime?
+  completedById String?
+  photoUrl     String?   // Vercel Blob URL, present if requirePhoto and completed
+
+  createdById  String
+  createdBy    User      @relation(fields: [createdById], references: [id])
+
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([businessId, completed, dueDate])
+  @@index([businessId, frequency])
+  @@index([assignedToId])
 }
