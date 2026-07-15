@@ -1187,3 +1187,27 @@ model HACCPSchedule {
   @@unique([businessId, checkType])
   @@index([businessId])
 }
+
+// Internal tool: Blog Comment Assistant (Gabor-only, not tenant-scoped)
+model BlogCommentArticle {
+  id              String   @id @default(cuid())
+  title           String
+  url             String
+  snippet         String?
+  topic           String?
+  region          String?
+  source          String   @default("user") // "seed" | "user"
+  hasComments     Boolean?
+  commentPlatform String?
+  createdAt       DateTime @default(now())
+}
+
+model BlogCommentDraft {
+  id           String   @id @default(cuid())
+  articleId    String?
+  articleTitle String
+  articleUrl   String
+  note         String?
+  draftComment String   @db.Text
+  createdAt    DateTime @default(now())
+}
