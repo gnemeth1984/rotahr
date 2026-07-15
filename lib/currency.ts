@@ -114,3 +114,45 @@ export function getDefaultCountry(currency: Currency | string): string {
     default: return "IE";
   }
 }
+
+// ── Working-time / overtime compliance rules ────────────────────────────────
+// Deliberately simplified defaults, not full legal advice — always show the
+// caveat in the UI. Real rules vary by state/province/sector; these are
+// sane national baselines so the warning is at least relevant to the region.
+export interface WorkingTimeRule {
+  weeklyThresholdHours: number;
+  label: string; // short name of the rule, shown in the warning banner
+  caveat: string; // one-line disclaimer shown under the warning
+}
+
+const WORKING_TIME_RULES: Record<Currency, WorkingTimeRule> = {
+  EUR: {
+    weeklyThresholdHours: 48,
+    label: "EU Working Time Directive",
+    caveat: "Weekly hours capped at 48h (averaged) under the EU Working Time Directive — worth reviewing before publishing.",
+  },
+  GBP: {
+    weeklyThresholdHours: 48,
+    label: "UK Working Time Regulations",
+    caveat: "Weekly hours capped at 48h (averaged over 17 weeks) under the UK Working Time Regulations 1998, unless the employee has opted out in writing.",
+  },
+  USD: {
+    weeklyThresholdHours: 40,
+    label: "US FLSA overtime threshold",
+    caveat: "No federal cap on hours, but hours over 40/week trigger overtime pay (1.5x) under the Fair Labor Standards Act — some states (e.g. California) also require daily overtime over 8h/day.",
+  },
+  CAD: {
+    weeklyThresholdHours: 48,
+    label: "Canadian federal overtime baseline",
+    caveat: "48h/week is a common provincial default before overtime rules kick in, but exact thresholds vary by province — check your province's employment standards.",
+  },
+  AUD: {
+    weeklyThresholdHours: 38,
+    label: "Fair Work Act ordinary hours",
+    caveat: "38 ordinary hours/week under the Fair Work Act 2009, plus \"reasonable\" additional hours — anything well above 38h is worth a second look.",
+  },
+};
+
+export function getWorkingTimeRule(currency: Currency | string): WorkingTimeRule {
+  return WORKING_TIME_RULES[currency as Currency] ?? WORKING_TIME_RULES.EUR;
+}

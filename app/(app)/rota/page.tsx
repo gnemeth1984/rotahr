@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef, useMemo, Suspense } from "rea
 import { useSession } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 import { useCurrency } from "@/components/shared/CurrencyProvider";
+import { getWorkingTimeRule } from "@/lib/currency";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -237,7 +238,7 @@ function CompliancePanel({ alerts }: { alerts: ComplianceAlertItem[] }) {
 
 function RotaInner() {
   const { data: session } = useSession();
-  const { symbol, fmt, locale } = useCurrency();
+  const { symbol, fmt, locale, currency } = useCurrency();
   const searchParams = useSearchParams();
   const isManager =
     session?.user?.role === Role.MANAGER || session?.user?.role === Role.ADMIN;
@@ -771,9 +772,11 @@ function RotaInner() {
     : labourPct > 30 ? "text-amber-600"
     : "text-emerald-600";
 
-  // ── Working-time compliance: flag employees scheduled beyond 48h/week ──────
-  // (EU Working Time Directive default threshold — applies to Ireland & UK)
-  const WEEKLY_HOURS_THRESHOLD = 48;
+  // ── Working-time compliance: flag employees scheduled beyond the region's
+  // weekly-hours threshold (rule set derived from the business's currency/
+  // country — EU/UK/US/CA/AU each have different defaults, see lib/currency.ts)
+  const workingTimeRule = getWorkingTimeRule(currency);
+  const WEEKLY_HOURS_THRESHOLD = workingTimeRule.weeklyThresholdHours;
   const hoursByEmployee: Record<string, number> = {};
   for (const s of shifts) {
     if (!s.employeeId) continue;
@@ -1150,7 +1153,7 @@ function RotaInner() {
           <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-600" />
           <div className="text-sm text-amber-800">
             <span className="font-semibold">
-              {overtimeWarnings.length} staff member{overtimeWarnings.length > 1 ? "s" : ""} scheduled over {WEEKLY_HOURS_THRESHOLD}h this week
+              {overtimeWarnings.length} staff member{overtimeWarnings.length > 1 ? "s" : ""} scheduled over {WEEKLY_HOURS_THRESHOLD}h this week ({workingTimeRule.label})
             </span>
             {" — "}
             {overtimeWarnings.map((w, i) => (
@@ -1158,7 +1161,7 @@ function RotaInner() {
                 {w.employee!.firstName} {w.employee!.lastName} ({w.hours}h){i < overtimeWarnings.length - 1 ? ", " : ""}
               </span>
             ))}
-            . EU Working Time Directive caps weekly hours at 48h averaged — worth reviewing before publishing.
+            . {workingTimeRule.caveat}
           </div>
         </div>
       )}
