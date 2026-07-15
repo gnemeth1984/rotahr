@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
     ...(withChecklists && {
       include: {
         checklists: {
-          include: { items: { orderBy: { order: "asc" } } },
+          include: { items: { orderBy: { sortOrder: "asc" } } },
           orderBy: { createdAt: "asc" as const },
         },
       },

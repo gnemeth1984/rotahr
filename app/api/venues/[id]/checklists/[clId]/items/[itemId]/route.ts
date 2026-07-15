@@ -20,7 +20,7 @@ export async function DELETE(
   return NextResponse.json({ ok: true });
 }
 
-// PATCH /api/venues/[id]/checklists/[clId]/items/[itemId] — update text/order
+// PATCH /api/venues/[id]/checklists/[clId]/items/[itemId] — update label/sortOrder
 export async function PATCH(
   req: NextRequest,
   { params }: { params: { id: string; clId: string; itemId: string } }
@@ -31,12 +31,12 @@ export async function PATCH(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const { text, order } = await req.json();
+  const { label, sortOrder } = await req.json();
   const item = await prisma.venueChecklistItem.update({
     where: { id: params.itemId },
     data: {
-      ...(text !== undefined && { text }),
-      ...(order !== undefined && { order }),
+      ...(label !== undefined && { label }),
+      ...(sortOrder !== undefined && { sortOrder }),
     },
   });
   return NextResponse.json({ item });

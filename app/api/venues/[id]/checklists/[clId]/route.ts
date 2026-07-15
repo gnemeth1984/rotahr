@@ -31,14 +31,14 @@ export async function PATCH(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const { title, type } = await req.json();
+  const { title, category } = await req.json();
   const checklist = await prisma.venueChecklist.update({
     where: { id: params.clId },
     data: {
       ...(title !== undefined && { title }),
-      ...(type !== undefined && { type }),
+      ...(category !== undefined && { category }),
     },
-    include: { items: { orderBy: { order: "asc" } } },
+    include: { items: { orderBy: { sortOrder: "asc" } } },
   });
   return NextResponse.json({ checklist });
 }

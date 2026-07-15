@@ -16,18 +16,18 @@ export async function POST(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const { text, order } = await req.json();
-  if (!text) return NextResponse.json({ error: "Text required" }, { status: 400 });
+  const { label, sortOrder } = await req.json();
+  if (!label) return NextResponse.json({ error: "Label required" }, { status: 400 });
 
-  // Get next order if not provided
-  let itemOrder = order;
-  if (itemOrder === undefined) {
+  // Get next sortOrder if not provided
+  let itemSortOrder = sortOrder;
+  if (itemSortOrder === undefined) {
     const count = await prisma.venueChecklistItem.count({ where: { checklistId: params.clId } });
-    itemOrder = count;
+    itemSortOrder = count;
   }
 
   const item = await prisma.venueChecklistItem.create({
-    data: { checklistId: params.clId, text, order: itemOrder },
+    data: { checklistId: params.clId, label, sortOrder: itemSortOrder },
   });
   return NextResponse.json({ item }, { status: 201 });
 }

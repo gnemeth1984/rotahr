@@ -12,7 +12,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
   const checklists = await prisma.venueChecklist.findMany({
     where: { venueId: params.id },
-    include: { items: { orderBy: { order: "asc" } } },
+    include: { items: { orderBy: { sortOrder: "asc" } } },
     orderBy: { createdAt: "asc" },
   });
   return NextResponse.json({ checklists });
@@ -26,12 +26,22 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const { title, type } = await req.json();
+  const { title, category, items } = await req.json();
   if (!title) return NextResponse.json({ error: "Title required" }, { status: 400 });
 
+  const itemList: string[] = Array.isArray(items) ? items.filter((i: string) => i && i.trim()) : [];
+
   const checklist = await prisma.venueChecklist.create({
-    data: { venueId: params.id, title, type: type ?? "OPENING" },
-    include: { items: true },
+    data: {
+      venueId: params.id,
+      businessId: (await prisma.venue.findUnique({ where: { id: params.id }, select: { businessId: true } }))?.businessId ?? "",
+      title,
+      category: category ?? "general",
+      items: {
+        create: itemList.map((label, i) => ({ label, sortOrder: i })),
+      },
+    },
+    include: { items: { orderBy: { sortOrder: "asc" } } },
   });
   return NextResponse.json({ checklist }, { status: 201 });
 }
