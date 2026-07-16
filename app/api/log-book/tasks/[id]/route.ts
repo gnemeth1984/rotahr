@@ -1,7 +1,8 @@
 // @ts-nocheck
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
-import { requirePermission, isResponse } from "@/lib/auth/middleware";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/auth/options";
 import { prisma } from "@/lib/db";
 import { z } from "zod";
 
@@ -14,10 +15,13 @@ const patchSchema = z.object({
   dueDate: z.string().optional().nullable(),
 });
 
+// Anyone can mark a task complete (that's the point — staff do the tasks),
+// but only manager/admin can edit title/assignment (enforced below).
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
-  const session = await requirePermission("logbook");
-  if (isResponse(session)) return session;
+  const session = await getServerSession(authOptions);
+  if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const businessId = session.user.businessId ?? "christys-bar-seed-id";
+  const isManager = session.user.role === "MANAGER" || session.user.role === "ADMIN";
 
   const existing = await prisma.opsTask.findUnique({ where: { id: params.id } });
   if (!existing || existing.businessId !== businessId) {
@@ -27,6 +31,12 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const body = await req.json();
   const parsed = patchSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: parsed.error.message }, { status: 400 });
+
+  if (!isManager) {
+    const allowedKeys = new Set(["completed", "photoUrl"]);
+    const hasDisallowed = Object.keys(parsed.data).some((k) => !allowedKeys.has(k));
+    if (hasDisallowed) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   if (existing.requirePhoto && parsed.data.completed === true && !parsed.data.photoUrl && !existing.photoUrl) {
     return NextResponse.json({ error: "This task requires a photo before it can be marked complete" }, { status: 400 });
@@ -46,8 +56,11 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 }
 
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
-  const session = await requirePermission("logbook");
-  if (isResponse(session)) return session;
+  const session = await getServerSession(authOptions);
+  if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (session.user.role !== "MANAGER" && session.user.role !== "ADMIN") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
   const businessId = session.user.businessId ?? "christys-bar-seed-id";
 
   const existing = await prisma.opsTask.findUnique({ where: { id: params.id } });

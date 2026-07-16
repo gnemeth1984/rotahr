@@ -1,13 +1,16 @@
 // @ts-nocheck
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
-import { requirePermission, isResponse } from "@/lib/auth/middleware";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/auth/options";
 import { prisma } from "@/lib/db";
 import { z } from "zod";
 
+// Any authenticated staff member can view/log entries (matches Messages/Shift
+// Swaps — this is a "core, all roles" feature, not manager/admin-gated).
 export async function GET(req: NextRequest) {
-  const session = await requirePermission("logbook");
-  if (isResponse(session)) return session;
+  const session = await getServerSession(authOptions);
+  if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const businessId = session.user.businessId ?? "christys-bar-seed-id";
 
   const { searchParams } = new URL(req.url);
@@ -23,6 +26,10 @@ export async function GET(req: NextRequest) {
     include: {
       createdBy: { select: { name: true, email: true } },
       venue: { select: { name: true } },
+      updates: {
+        include: { createdBy: { select: { name: true, email: true } } },
+        orderBy: { createdAt: "asc" },
+      },
     },
     orderBy: { createdAt: "desc" },
     take: 200,
@@ -36,11 +43,13 @@ const createSchema = z.object({
   title: z.string().min(1).max(200),
   description: z.string().optional().nullable(),
   venueId: z.string().optional().nullable(),
+  assignedToName: z.string().max(120).optional().nullable(),
+  dueAt: z.string().optional().nullable(),
 });
 
 export async function POST(req: NextRequest) {
-  const session = await requirePermission("logbook");
-  if (isResponse(session)) return session;
+  const session = await getServerSession(authOptions);
+  if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const businessId = session.user.businessId ?? "christys-bar-seed-id";
 
   const body = await req.json();
@@ -54,6 +63,8 @@ export async function POST(req: NextRequest) {
       type: parsed.data.type,
       title: parsed.data.title,
       description: parsed.data.description || null,
+      assignedToName: parsed.data.assignedToName || null,
+      dueAt: parsed.data.dueAt ? new Date(parsed.data.dueAt) : null,
       createdById: session.user.id,
     },
   });

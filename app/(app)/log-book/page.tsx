@@ -45,13 +45,15 @@ const LOG_TYPES = [
   { value: "repair", label: "Repair / Maintenance", icon: Wrench, color: "text-amber-600 bg-amber-50 border-amber-200" },
 ];
 
-function LogTab() {
+function LogTab({ isManager }: { isManager: boolean }) {
   const [entries, setEntries] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>("all");
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({ type: "note", title: "", description: "" });
+  const [form, setForm] = useState({ type: "note", title: "", description: "", assignedToName: "", dueAt: "" });
+  const [updateDrafts, setUpdateDrafts] = useState<Record<string, string>>({});
+  const [postingUpdateFor, setPostingUpdateFor] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     const params = filter !== "all" ? `?type=${filter}` : "";
@@ -71,11 +73,15 @@ function LogTab() {
       const res = await fetch("/api/log-book/entries", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          ...form,
+          assignedToName: form.assignedToName || null,
+          dueAt: form.dueAt || null,
+        }),
       });
       if (!res.ok) throw new Error();
       toast.success("Logged");
-      setForm({ type: "note", title: "", description: "" });
+      setForm({ type: "note", title: "", description: "", assignedToName: "", dueAt: "" });
       setOpen(false);
       load();
     } catch {
@@ -98,6 +104,26 @@ function LogTab() {
     await fetch(`/api/log-book/entries/${id}`, { method: "DELETE" });
     toast.success("Deleted");
     load();
+  }
+
+  async function postUpdate(entryId: string) {
+    const note = updateDrafts[entryId]?.trim();
+    if (!note) return;
+    setPostingUpdateFor(entryId);
+    try {
+      const res = await fetch(`/api/log-book/entries/${entryId}/updates`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ note }),
+      });
+      if (!res.ok) throw new Error();
+      setUpdateDrafts((d) => ({ ...d, [entryId]: "" }));
+      load();
+    } catch {
+      toast.error("Couldn't post update — try again");
+    } finally {
+      setPostingUpdateFor(null);
+    }
   }
 
   return (
@@ -137,40 +163,98 @@ function LogTab() {
           {entries.map((e) => {
             const meta = LOG_TYPES.find((t) => t.value === e.type) || LOG_TYPES[0];
             const Icon = meta.icon;
+            const isOverdue = e.dueAt && !e.resolved && new Date(e.dueAt) < new Date();
             return (
               <Card key={e.id} className={cn("border", e.resolved && "opacity-60")}>
-                <CardContent className="flex items-start justify-between gap-3 py-3.5">
-                  <div className="flex items-start gap-3">
-                    <div className={cn("mt-0.5 rounded-lg border p-1.5", meta.color)}>
-                      <Icon className="h-4 w-4" />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-slate-900">{e.title}</span>
-                        {e.resolved && (
-                          <Badge variant="success" className="gap-1">
-                            <Check className="h-3 w-3" /> Resolved
-                          </Badge>
-                        )}
+                <CardContent className="py-3.5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-3">
+                      <div className={cn("mt-0.5 rounded-lg border p-1.5", meta.color)}>
+                        <Icon className="h-4 w-4" />
                       </div>
-                      {e.description && <p className="mt-1 text-sm text-slate-500">{e.description}</p>}
-                      <p className="mt-1 text-xs text-slate-400">
-                        {e.createdBy?.name || e.createdBy?.email} ·{" "}
-                        {new Date(e.createdAt).toLocaleString("en-IE", { dateStyle: "medium", timeStyle: "short" })}
-                        {e.venue?.name ? ` · ${e.venue.name}` : ""}
-                      </p>
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-medium text-slate-900">{e.title}</span>
+                          {e.resolved && (
+                            <Badge variant="success" className="gap-1">
+                              <Check className="h-3 w-3" /> Resolved
+                            </Badge>
+                          )}
+                          {isOverdue && (
+                            <Badge variant="destructive" className="gap-1">
+                              Overdue
+                            </Badge>
+                          )}
+                        </div>
+                        {e.description && <p className="mt-1 text-sm text-slate-500">{e.description}</p>}
+                        {(e.assignedToName || e.dueAt) && (
+                          <p className="mt-1.5 text-sm text-slate-600">
+                            {e.assignedToName && <span className="font-medium">{e.assignedToName}</span>}
+                            {e.assignedToName && e.dueAt ? " — " : ""}
+                            {e.dueAt && (
+                              <span className={cn(isOverdue && "font-medium text-red-600")}>
+                                due {new Date(e.dueAt).toLocaleString("en-IE", { dateStyle: "medium", timeStyle: "short" })}
+                              </span>
+                            )}
+                          </p>
+                        )}
+                        <p className="mt-1 text-xs text-slate-400">
+                          {e.createdBy?.name || e.createdBy?.email} ·{" "}
+                          {new Date(e.createdAt).toLocaleString("en-IE", { dateStyle: "medium", timeStyle: "short" })}
+                          {e.venue?.name ? ` · ${e.venue.name}` : ""}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex shrink-0 gap-1.5">
+                      {(e.type === "86" || e.type === "repair") && (
+                        <Button size="sm" variant="outline" onClick={() => toggleResolved(e)}>
+                          {e.resolved ? "Reopen" : "Resolve"}
+                        </Button>
+                      )}
+                      {isManager && (
+                        <Button size="sm" variant="ghost" className="text-slate-400 hover:text-red-500" onClick={() => handleDelete(e.id)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
                     </div>
                   </div>
-                  <div className="flex shrink-0 gap-1.5">
-                    {(e.type === "86" || e.type === "repair") && (
-                      <Button size="sm" variant="outline" onClick={() => toggleResolved(e)}>
-                        {e.resolved ? "Reopen" : "Resolve"}
-                      </Button>
-                    )}
-                    <Button size="sm" variant="ghost" className="text-slate-400 hover:text-red-500" onClick={() => handleDelete(e.id)}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
+
+                  {/* Update notes thread — visible to everyone, only managers can post */}
+                  {(e.updates?.length > 0 || isManager) && (
+                    <div className="mt-3 ml-9 border-l-2 border-slate-100 pl-3">
+                      {e.updates?.map((u: any) => (
+                        <div key={u.id} className="mb-1.5 text-sm">
+                          <span className="text-slate-700">{u.note}</span>
+                          <span className="ml-1.5 text-xs text-slate-400">
+                            — {u.createdBy?.name || u.createdBy?.email},{" "}
+                            {new Date(u.createdAt).toLocaleString("en-IE", { dateStyle: "medium", timeStyle: "short" })}
+                          </span>
+                        </div>
+                      ))}
+                      {isManager && (
+                        <div className="mt-1.5 flex gap-1.5">
+                          <Input
+                            value={updateDrafts[e.id] || ""}
+                            onChange={(ev) => setUpdateDrafts((d) => ({ ...d, [e.id]: ev.target.value }))}
+                            onKeyDown={(ev) => {
+                              if (ev.key === "Enter") postUpdate(e.id);
+                            }}
+                            placeholder="Add an update — e.g. 'Called Ben, due Tuesday 2pm'"
+                            className="h-8 text-sm"
+                          />
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 shrink-0"
+                            disabled={postingUpdateFor === e.id || !updateDrafts[e.id]?.trim()}
+                            onClick={() => postUpdate(e.id)}
+                          >
+                            {postingUpdateFor === e.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Post"}
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             );
@@ -206,6 +290,24 @@ function LogTab() {
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
             />
+            {form.type === "repair" && (
+              <div className="grid grid-cols-2 gap-2">
+                <Input
+                  placeholder="Who's fixing it — e.g. 'Ben' or 'ACME Refrigeration'"
+                  value={form.assignedToName}
+                  onChange={(e) => setForm({ ...form, assignedToName: e.target.value })}
+                  className="col-span-2"
+                />
+                <div>
+                  <label className="text-xs text-slate-500">Due date/time</label>
+                  <Input
+                    type="datetime-local"
+                    value={form.dueAt}
+                    onChange={(e) => setForm({ ...form, dueAt: e.target.value })}
+                  />
+                </div>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>
@@ -530,7 +632,7 @@ function LogBookInner() {
         })}
       </div>
 
-      {activeTab === "log" && <LogTab />}
+      {activeTab === "log" && <LogTab isManager={isManager} />}
       {activeTab === "tasks" && <TasksTab isManager={isManager} />}
     </div>
   );
