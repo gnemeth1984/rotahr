@@ -56,6 +56,9 @@ model Business {
   logEntries     LogEntry[]
   opsTasks       OpsTask[]
 
+  // Connected email for sending CRM emails as the business's own inbox
+  emailConnection EmailConnection?
+
   // HACCP
   haccpRecords     HACCPRecord[]
   haccpEquipment        HACCPEquipment[]
@@ -108,6 +111,7 @@ model User {
   logEntries               LogEntry[]
   logEntryUpdates          LogEntryUpdate[]
   opsTasksCreated          OpsTask[]
+  emailConnectionsMade     EmailConnection[]
 }
 
 model PasswordResetToken {
@@ -1303,4 +1307,28 @@ model OpsTask {
   @@index([businessId, completed, dueDate])
   @@index([businessId, frequency])
   @@index([assignedToId])
+}
+
+// ── Connected Email (send-as-yourself via Gmail/Outlook) ─────────────────────
+// One connection per business — CRM emails send through the connected inbox
+// instead of the shared no-reply@rotahr.com address when present.
+model EmailConnection {
+  id             String   @id @default(cuid())
+  businessId     String   @unique
+  business       Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  provider       String   // "gmail" (more providers can be added later)
+  email          String   // the connected inbox address, e.g. manager@theirbar.com
+
+  accessToken    String   @db.Text
+  refreshToken   String   @db.Text
+  expiresAt      DateTime // access token expiry — refreshed automatically when sending
+
+  connectedById  String
+  connectedBy    User     @relation(fields: [connectedById], references: [id])
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([businessId])
 }

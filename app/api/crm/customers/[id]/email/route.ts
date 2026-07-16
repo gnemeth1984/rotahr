@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Resend } from "resend";
 import { z } from "zod";
+import { sendViaGmail } from "@/lib/google/gmail";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -30,13 +31,39 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const parsed = emailSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
 
-  // Send via Resend
-  await resend.emails.send({
-    from: "Rotahr <no-reply@rotahr.com>",
-    to: customer.email,
-    subject: parsed.data.subject,
-    html: parsed.data.body,
+  // Send via the business's connected Gmail account if they've set one up,
+  // otherwise fall back to the shared Rotahr sending address.
+  let sentFrom = "Rotahr <no-reply@rotahr.com>";
+  const emailConnection = await prisma.emailConnection.findUnique({
+    where: { businessId: session.user.businessId },
   });
+
+  if (emailConnection) {
+    try {
+      const result = await sendViaGmail({
+        businessId: session.user.businessId,
+        to: customer.email,
+        subject: parsed.data.subject,
+        html: parsed.data.body,
+      });
+      sentFrom = result.sentFrom;
+    } catch (err) {
+      console.error("Gmail send failed, falling back to Resend:", err);
+      await resend.emails.send({
+        from: "Rotahr <no-reply@rotahr.com>",
+        to: customer.email,
+        subject: parsed.data.subject,
+        html: parsed.data.body,
+      });
+    }
+  } else {
+    await resend.emails.send({
+      from: "Rotahr <no-reply@rotahr.com>",
+      to: customer.email,
+      subject: parsed.data.subject,
+      html: parsed.data.body,
+    });
+  }
 
   // Log
   const preview = parsed.data.body.replace(/<[^>]*>/g, "").slice(0, 200);
@@ -51,5 +78,5 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     include: { sentBy: { select: { name: true, email: true } } },
   });
 
-  return NextResponse.json(log, { status: 201 });
+  return NextResponse.json({ ...log, sentFrom }, { status: 201 });
 }

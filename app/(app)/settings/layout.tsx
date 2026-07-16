@@ -12,6 +12,7 @@ const tabs = [
   { href: "/settings/features", label: "Features & Menu", roles: ["MANAGER", "ADMIN"] },
   { href: "/settings/billing", label: "Billing", roles: ["MANAGER", "ADMIN"] },
   { href: "/settings/pos", label: "POS Integration", roles: ["MANAGER", "ADMIN"] },
+  { href: "/settings/email", label: "Email", roles: ["MANAGER", "ADMIN"] },
 ];
 
 export default function SettingsLayout({ children }: { children: React.ReactNode }) {
