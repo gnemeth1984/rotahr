@@ -5,6 +5,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth/options";
 import { prisma } from "@/lib/db";
 import { z } from "zod";
+import { notifyUsers } from "@/lib/services/appNotification.service";
 
 // Any authenticated staff member can view/log entries (matches Messages/Shift
 // Swaps — this is a "core, all roles" feature, not manager/admin-gated).
@@ -68,6 +69,34 @@ export async function POST(req: NextRequest) {
       createdById: session.user.id,
     },
   });
+
+  // Notify managers/admins immediately for anything that needs action —
+  // an 86'd item or a repair issue. Plain shift notes don't need to interrupt
+  // anyone. Reporter themselves is excluded if they're already a manager.
+  if (parsed.data.type === "86" || parsed.data.type === "repair") {
+    const managers = await prisma.user.findMany({
+      where: {
+        businessId,
+        role: { in: ["MANAGER", "ADMIN"] },
+        id: { not: session.user.id },
+      },
+      select: { id: true },
+    });
+
+    if (managers.length > 0) {
+      const reporterName = session.user.name || session.user.email || "A team member";
+      const typeLabel = parsed.data.type === "86" ? "86'd an item" : "reported a repair issue";
+      await notifyUsers(
+        managers.map((m) => m.id),
+        {
+          type: "logbook",
+          title: `${reporterName} ${typeLabel}`,
+          body: parsed.data.title,
+          link: "/log-book",
+        }
+      ).catch(() => {});
+    }
+  }
 
   return NextResponse.json({ entry }, { status: 201 });
 }
