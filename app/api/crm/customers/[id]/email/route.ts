@@ -49,20 +49,26 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       sentFrom = result.sentFrom;
     } catch (err) {
       console.error("Gmail send failed, falling back to Resend:", err);
-      await resend.emails.send({
+      const fallback = await resend.emails.send({
         from: "Rotahr <no-reply@rotahr.com>",
         to: customer.email,
         subject: parsed.data.subject,
         html: parsed.data.body,
       });
+      if (fallback.error) {
+        return NextResponse.json({ error: `Email failed to send: ${fallback.error.message}` }, { status: 502 });
+      }
     }
   } else {
-    await resend.emails.send({
+    const result = await resend.emails.send({
       from: "Rotahr <no-reply@rotahr.com>",
       to: customer.email,
       subject: parsed.data.subject,
       html: parsed.data.body,
     });
+    if (result.error) {
+      return NextResponse.json({ error: `Email failed to send: ${result.error.message}` }, { status: 502 });
+    }
   }
 
   // Log
