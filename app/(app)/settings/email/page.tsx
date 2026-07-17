@@ -101,6 +101,24 @@ export default function EmailSettingsPage() {
         </AlertDescription>
       </Alert>
 
+      <Alert>
+        <Mail className="h-4 w-4" />
+        <AlertDescription>
+          <strong>Automatic details.</strong> Every CRM email automatically shows your registered
+          business name in the "From" field and adds a small signature with your business name and
+          contact details — nothing to set up manually.
+        </AlertDescription>
+      </Alert>
+
+      <Alert className="border-amber-200 bg-amber-50">
+        <AlertDescription>
+          <strong>Heads up on spam folders.</strong> The very first email to a brand-new contact can
+          occasionally land in spam — that's normal for any new sender, not a sign of a problem. Ask
+          early customers to reply once (or mark it "Not Spam"), and it reliably lands in the inbox
+          from then on.
+        </AlertDescription>
+      </Alert>
+
       {loading && (
         <div className="flex items-center gap-2 text-muted-foreground py-8">
           <RefreshCw className="h-4 w-4 animate-spin" />

@@ -59,6 +59,9 @@ model Business {
   // Connected email for sending CRM emails as the business's own inbox
   emailConnection EmailConnection?
 
+  // CRM promotional offers
+  promoOffers    PromoOffer[]
+
   // HACCP
   haccpRecords     HACCPRecord[]
   haccpEquipment        HACCPEquipment[]
@@ -112,6 +115,7 @@ model User {
   logEntryUpdates          LogEntryUpdate[]
   opsTasksCreated          OpsTask[]
   emailConnectionsMade     EmailConnection[]
+  promoOffersCreated       PromoOffer[]
 }
 
 model PasswordResetToken {
@@ -1040,6 +1044,7 @@ model Customer {
   reservations  Reservation[]
   crmNotes      CrmNote[]
   crmEmails     CrmEmail[]
+  promoOffers   PromoOffer[]
 
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -1331,4 +1336,33 @@ model EmailConnection {
   updatedAt      DateTime @updatedAt
 
   @@index([businessId])
+}
+
+// ── CRM Promotional Offers ────────────────────────────────────────────────────
+// Quick, ready-made offer codes managers can generate per customer (birthday
+// drink, win-back discount, VIP thank-you, welcome offer, or a custom one) and
+// drop straight into a CRM email.
+model PromoOffer {
+  id          String    @id @default(cuid())
+  businessId  String
+  business    Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  customerId  String
+  customer    Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  code        String    @unique // e.g. "SARAH-BDAY-7F3K"
+  offerType   String    // "birthday" | "winback" | "vip" | "welcome" | "custom"
+  title       String    // e.g. "Happy Birthday!"
+  description String    // e.g. "Enjoy a free drink on us during your birthday month"
+
+  expiresAt   DateTime?
+  redeemed    Boolean   @default(false)
+  redeemedAt  DateTime?
+
+  createdById String
+  createdBy   User      @relation(fields: [createdById], references: [id])
+
+  createdAt   DateTime  @default(now())
+
+  @@index([businessId, redeemed])
+  @@index([customerId])
 }

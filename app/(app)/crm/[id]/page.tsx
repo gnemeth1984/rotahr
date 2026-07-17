@@ -21,6 +21,10 @@ import {
   AlertCircle,
   CheckCircle,
   PenLine,
+  Gift,
+  Sparkles,
+  Copy,
+  Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,6 +39,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { OFFER_PRESETS } from "@/lib/crm/offer-presets";
 
 const TAG_PRESETS = ["VIP", "Regular", "No-show Risk", "Allergy", "Corporate", "Birthday"];
 const TAG_COLORS: Record<string, string> = {
@@ -122,9 +127,78 @@ export default function CustomerProfilePage() {
   const [emailBody, setEmailBody] = useState("");
   const [sendingEmail, setSendingEmail] = useState(false);
 
+  // Promo Offers
+  const [offers, setOffers] = useState<any[]>([]);
+  const [showOfferModal, setShowOfferModal] = useState(false);
+  const [selectedPreset, setSelectedPreset] = useState<string>("birthday");
+  const [customTitle, setCustomTitle] = useState("");
+  const [customDescription, setCustomDescription] = useState("");
+  const [generatingOffer, setGeneratingOffer] = useState(false);
+  const [copiedCode, setCopiedCode] = useState<string | null>(null);
+  const [gmailStatus, setGmailStatus] = useState<{ connected: boolean; email?: string } | null>(null);
+
   // GDPR
   const [showAnonymise, setShowAnonymise] = useState(false);
   const [anonymising, setAnonymising] = useState(false);
+
+  const fetchOffers = async () => {
+    const res = await fetch(`/api/crm/customers/${id}/offers`);
+    if (res.ok) setOffers((await res.json()).offers);
+  };
+
+  const generateOffer = async () => {
+    setGeneratingOffer(true);
+    try {
+      const preset = OFFER_PRESETS.find((p) => p.id === selectedPreset)!;
+      const res = await fetch(`/api/crm/customers/${id}/offers`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          offerType: selectedPreset,
+          title: selectedPreset === "custom" ? customTitle : undefined,
+          description: selectedPreset === "custom" ? customDescription : undefined,
+          expiresInDays: 30,
+        }),
+      });
+      if (res.ok) {
+        const { offer } = await res.json();
+        setOffers((prev) => [offer, ...prev]);
+        setShowOfferModal(false);
+        setCustomTitle("");
+        setCustomDescription("");
+        // Pre-fill the email compose with the offer, ready to send
+        setEmailSubject(offer.title);
+        setEmailBody(`${offer.description}\n\nYour code: ${offer.code}`);
+        setShowEmailModal(true);
+      } else {
+        const err = await res.json();
+        alert(err.error?.formErrors?.[0] || err.error || "Couldn't generate offer");
+      }
+    } finally {
+      setGeneratingOffer(false);
+    }
+  };
+
+  const toggleRedeemed = async (offerId: string, redeemed: boolean) => {
+    const res = await fetch(`/api/crm/offers/${offerId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ redeemed }),
+    });
+    if (res.ok) fetchOffers();
+  };
+
+  const deleteOffer = async (offerId: string) => {
+    if (!confirm("Delete this offer code?")) return;
+    const res = await fetch(`/api/crm/offers/${offerId}`, { method: "DELETE" });
+    if (res.ok) fetchOffers();
+  };
+
+  const copyCode = (code: string) => {
+    navigator.clipboard.writeText(code);
+    setCopiedCode(code);
+    setTimeout(() => setCopiedCode(null), 1500);
+  };
 
   const fetchCustomer = async () => {
     setLoading(true);
@@ -136,7 +210,14 @@ export default function CustomerProfilePage() {
     }
   };
 
-  useEffect(() => { fetchCustomer(); }, [id]);
+  useEffect(() => {
+    fetchCustomer();
+    fetchOffers();
+    fetch("/api/integrations/gmail/status")
+      .then((r) => r.json())
+      .then(setGmailStatus)
+      .catch(() => {});
+  }, [id]);
 
   const startEdit = () => {
     if (!customer) return;
@@ -450,6 +531,85 @@ export default function CustomerProfilePage() {
             </div>
           </div>
 
+          {/* Why email this customer — info callout */}
+          {customer.email && customer.gdprConsent && (
+            <div className="rounded-xl border border-indigo-100 bg-indigo-50/60 p-3.5 text-xs text-indigo-900">
+              <p className="font-medium flex items-center gap-1.5">
+                <Sparkles className="h-3.5 w-3.5" /> Why email this customer?
+              </p>
+              <p className="mt-1 text-indigo-800/80">
+                A quick, personal email costs nothing but a few minutes — and something small like a free
+                drink or coffee is usually cheaper than what it'd cost to bring in a brand-new customer.
+                Good moments to send one: it's their <strong>birthday</strong>, they haven't been back in a
+                while (<strong>win-back</strong>), they're one of your <strong>regulars</strong> you want to
+                thank, or they just visited for the <strong>first time</strong>. Use the Promo Offers below
+                to generate a ready-made code for any of these in one click.
+              </p>
+            </div>
+          )}
+
+          {/* Promo Offers */}
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+            <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-1.5">
+              <Gift className="h-4 w-4 text-indigo-600" />
+              Promo Offers
+              {customer.email && customer.gdprConsent && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setShowOfferModal(true)}
+                  className="ml-auto gap-1 text-xs"
+                >
+                  <Sparkles className="h-3 w-3" /> New offer
+                </Button>
+              )}
+            </h3>
+            <div className="space-y-2 max-h-60 overflow-y-auto">
+              {offers.length === 0 && (
+                <p className="text-sm text-gray-400">
+                  No offer codes yet — generate a birthday drink, win-back offer, or VIP thank-you above.
+                </p>
+              )}
+              {offers.map((o) => (
+                <div key={o.id} className={`rounded-lg px-3 py-2 text-sm ${o.redeemed ? "bg-gray-50 opacity-60" : "bg-indigo-50/60"}`}>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="font-medium text-gray-800">{o.title}</div>
+                    {o.redeemed && (
+                      <span className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full shrink-0">
+                        Redeemed
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-xs text-gray-500 mt-0.5">{o.description}</div>
+                  <div className="mt-1.5 flex items-center gap-2">
+                    <code className="text-xs font-mono bg-white border border-gray-200 rounded px-1.5 py-0.5">
+                      {o.code}
+                    </code>
+                    <button onClick={() => copyCode(o.code)} className="text-gray-400 hover:text-gray-600">
+                      {copiedCode === o.code ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                    </button>
+                    {o.expiresAt && (
+                      <span className="text-xs text-gray-400">
+                        expires {formatDate(o.expiresAt)}
+                      </span>
+                    )}
+                    <div className="ml-auto flex gap-2">
+                      <button
+                        onClick={() => toggleRedeemed(o.id, !o.redeemed)}
+                        className="text-xs text-indigo-600 hover:underline"
+                      >
+                        {o.redeemed ? "Mark unredeemed" : "Mark redeemed"}
+                      </button>
+                      <button onClick={() => deleteOffer(o.id)} className="text-xs text-red-500 hover:underline">
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
           {/* Email log */}
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
             <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-1.5">
@@ -488,6 +648,53 @@ export default function CustomerProfilePage() {
           </div>
         </div>
       </div>
+
+      {/* Generate Offer Dialog */}
+      <Dialog open={showOfferModal} onOpenChange={setShowOfferModal}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Generate a promo offer for {customer.name}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2 py-2">
+            {OFFER_PRESETS.map((preset) => (
+              <button
+                key={preset.id}
+                onClick={() => setSelectedPreset(preset.id)}
+                className={`w-full text-left rounded-lg border p-3 transition ${
+                  selectedPreset === preset.id
+                    ? "border-indigo-500 bg-indigo-50"
+                    : "border-gray-200 hover:border-gray-300"
+                }`}
+              >
+                <div className="font-medium text-sm text-gray-800">{preset.label}</div>
+                <div className="text-xs text-gray-500 mt-0.5">{preset.why}</div>
+              </button>
+            ))}
+            {selectedPreset === "custom" && (
+              <div className="space-y-2 pt-1">
+                <div>
+                  <Label>Title</Label>
+                  <Input value={customTitle} onChange={(e) => setCustomTitle(e.target.value)} placeholder="E.g. Sorry we missed the mark" />
+                </div>
+                <div>
+                  <Label>Description</Label>
+                  <Textarea value={customDescription} onChange={(e) => setCustomDescription(e.target.value)} rows={3} placeholder="E.g. Enjoy 20% off your next visit" />
+                </div>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowOfferModal(false)}>Cancel</Button>
+            <Button
+              onClick={generateOffer}
+              disabled={generatingOffer || (selectedPreset === "custom" && (!customTitle || !customDescription))}
+              className="bg-indigo-600 hover:bg-indigo-700 gap-1.5"
+            >
+              <Gift className="h-4 w-4" /> {generatingOffer ? "Generating…" : "Generate & draft email"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Edit Dialog */}
       <Dialog open={editing} onOpenChange={(v) => { if (!v) setEditing(false); }}>
@@ -580,7 +787,11 @@ export default function CustomerProfilePage() {
               <Label>Message</Label>
               <Textarea value={emailBody} onChange={(e) => setEmailBody(e.target.value)} rows={6} placeholder="Write your message…" />
             </div>
-            <p className="text-xs text-gray-400">This email will be sent from no-reply@rotahr.com and logged in the email history.</p>
+            <p className="text-xs text-gray-400">
+              {gmailStatus?.connected
+                ? `This email will be sent from your connected Gmail (${gmailStatus.email}) and logged in the email history.`
+                : "This email will be sent from Rotahr's shared address (no-reply@rotahr.com). Connect your own Gmail in Settings > Email to send as yourself instead."}
+            </p>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowEmailModal(false)}>Cancel</Button>

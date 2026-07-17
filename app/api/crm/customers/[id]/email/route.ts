@@ -31,6 +31,28 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const parsed = emailSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
 
+  // Auto-append a signature with the business's registered name + contact
+  // details (from their default venue) — no manual setup needed per email.
+  const business = await prisma.business.findUnique({
+    where: { id: session.user.businessId },
+    select: {
+      name: true,
+      venues: {
+        where: { isDefault: true },
+        select: { phone: true, email: true, address: true },
+        take: 1,
+      },
+    },
+  });
+  const contactVenue = business?.venues?.[0];
+  const contactLines = [contactVenue?.phone, contactVenue?.email, contactVenue?.address].filter(Boolean);
+  const signatureHtml = business?.name
+    ? `<p style="margin-top:24px;color:#64748b;font-size:13px;">${business.name}${
+        contactLines.length ? `<br>${contactLines.join(" · ")}` : ""
+      }</p>`
+    : "";
+  const emailBody = `${parsed.data.body}${signatureHtml}`;
+
   // Send via the business's connected Gmail account if they've set one up,
   // otherwise fall back to the shared Rotahr sending address.
   let sentFrom = "Rotahr <no-reply@rotahr.com>";
@@ -45,17 +67,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         businessId: session.user.businessId,
         to: customer.email,
         subject: parsed.data.subject,
-        html: parsed.data.body,
+        html: emailBody,
       });
       sentFrom = result.sentFrom;
     } catch (err) {
       console.error("Gmail send failed, falling back to Resend:", err);
       fellBackToDefault = true;
       const fallback = await resend.emails.send({
-        from: "Rotahr <no-reply@rotahr.com>",
+        from: business?.name ? `${business.name} <no-reply@rotahr.com>` : "Rotahr <no-reply@rotahr.com>",
         to: customer.email,
         subject: parsed.data.subject,
-        html: parsed.data.body,
+        html: emailBody,
       });
       if (fallback.error) {
         return NextResponse.json({ error: `Email failed to send: ${fallback.error.message}` }, { status: 502 });
@@ -63,10 +85,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
   } else {
     const result = await resend.emails.send({
-      from: "Rotahr <no-reply@rotahr.com>",
+      from: business?.name ? `${business.name} <no-reply@rotahr.com>` : "Rotahr <no-reply@rotahr.com>",
       to: customer.email,
       subject: parsed.data.subject,
-      html: parsed.data.body,
+      html: emailBody,
     });
     if (result.error) {
       return NextResponse.json({ error: `Email failed to send: ${result.error.message}` }, { status: 502 });

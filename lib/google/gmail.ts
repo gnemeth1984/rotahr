@@ -126,11 +126,18 @@ export async function sendViaGmail(params: {
   const token = await getValidAccessToken(params.businessId);
   if (!token) throw new Error("No Gmail connection for this business");
 
+  const business = await prisma.business.findUnique({
+    where: { id: params.businessId },
+    select: { name: true },
+  });
+  const displayName = business?.name ? `"${business.name.replace(/"/g, "'")}"` : null;
+  const fromHeader = displayName ? `${displayName} <${token.email}>` : token.email;
+
   const boundary = `----=_RotahrBoundary_${crypto.randomUUID()}`;
   const plainText = htmlToPlainText(params.html);
 
   const mime = [
-    `From: ${token.email}`,
+    `From: ${fromHeader}`,
     `To: ${params.to}`,
     `Subject: ${encodeMimeSubject(params.subject)}`,
     "MIME-Version: 1.0",
@@ -164,5 +171,5 @@ export async function sendViaGmail(params: {
     throw new Error(`Gmail send failed: ${await res.text()}`);
   }
 
-  return { sentFrom: token.email };
+  return { sentFrom: fromHeader };
 }
