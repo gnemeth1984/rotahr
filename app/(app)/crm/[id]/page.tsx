@@ -136,6 +136,8 @@ export default function CustomerProfilePage() {
   const [generatingOffer, setGeneratingOffer] = useState(false);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const [gmailStatus, setGmailStatus] = useState<{ connected: boolean; email?: string } | null>(null);
+  const [pendingOfferQr, setPendingOfferQr] = useState<string | null>(null);
+  const [pendingOfferCode, setPendingOfferCode] = useState<string | null>(null);
 
   // GDPR
   const [showAnonymise, setShowAnonymise] = useState(false);
@@ -161,7 +163,7 @@ export default function CustomerProfilePage() {
         }),
       });
       if (res.ok) {
-        const { offer } = await res.json();
+        const { offer, qrDataUri } = await res.json();
         setOffers((prev) => [offer, ...prev]);
         setShowOfferModal(false);
         setCustomTitle("");
@@ -169,6 +171,8 @@ export default function CustomerProfilePage() {
         // Pre-fill the email compose with the offer, ready to send
         setEmailSubject(offer.title);
         setEmailBody(`${offer.description}\n\nYour code: ${offer.code}`);
+        setPendingOfferQr(qrDataUri);
+        setPendingOfferCode(offer.code);
         setShowEmailModal(true);
       } else {
         const err = await res.json();
@@ -198,6 +202,17 @@ export default function CustomerProfilePage() {
     navigator.clipboard.writeText(code);
     setCopiedCode(code);
     setTimeout(() => setCopiedCode(null), 1500);
+  };
+
+  const insertOfferIntoEmail = async (offer: any) => {
+    const res = await fetch(`/api/crm/offers/${offer.id}`);
+    if (!res.ok) return;
+    const { qrDataUri } = await res.json();
+    setEmailSubject(offer.title);
+    setEmailBody(`${offer.description}\n\nYour code: ${offer.code}`);
+    setPendingOfferQr(qrDataUri);
+    setPendingOfferCode(offer.code);
+    setShowEmailModal(true);
   };
 
   const fetchCustomer = async () => {
@@ -274,16 +289,21 @@ export default function CustomerProfilePage() {
     if (!emailSubject || !emailBody) return;
     setSendingEmail(true);
     try {
+      const qrBlock = pendingOfferQr
+        ? `<div style="margin-top:16px;text-align:center;"><img src="${pendingOfferQr}" alt="Scan to redeem" width="180" height="180" /><p style="font-size:12px;color:#94a3b8;margin-top:4px;">Scan to redeem, or show code ${pendingOfferCode} in person</p></div>`
+        : "";
       const res = await fetch(`/api/crm/customers/${id}/email`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ subject: emailSubject, body: `<p>${emailBody.replace(/\n/g, "<br>")}</p>` }),
+        body: JSON.stringify({ subject: emailSubject, body: `<p>${emailBody.replace(/\n/g, "<br>")}</p>${qrBlock}` }),
       });
       if (res.ok) {
         const data = await res.json();
         setShowEmailModal(false);
         setEmailSubject("");
         setEmailBody("");
+        setPendingOfferQr(null);
+        setPendingOfferCode(null);
         await fetchCustomer();
         if (data.fellBackToDefault) {
           alert(
@@ -594,6 +614,14 @@ export default function CustomerProfilePage() {
                       </span>
                     )}
                     <div className="ml-auto flex gap-2">
+                      {!o.redeemed && customer.email && customer.gdprConsent && (
+                        <button
+                          onClick={() => insertOfferIntoEmail(o)}
+                          className="text-xs text-indigo-600 hover:underline"
+                        >
+                          Email this
+                        </button>
+                      )}
                       <button
                         onClick={() => toggleRedeemed(o.id, !o.redeemed)}
                         className="text-xs text-indigo-600 hover:underline"
@@ -787,6 +815,18 @@ export default function CustomerProfilePage() {
               <Label>Message</Label>
               <Textarea value={emailBody} onChange={(e) => setEmailBody(e.target.value)} rows={6} placeholder="Write your message…" />
             </div>
+            {pendingOfferQr && (
+              <div className="flex items-center gap-3 rounded-lg border border-indigo-100 bg-indigo-50/60 p-3">
+                <img src={pendingOfferQr} alt="Offer QR code" className="h-16 w-16 rounded border border-white" />
+                <div className="text-xs text-indigo-800">
+                  <p className="font-medium">Scannable QR code will be included</p>
+                  <p className="text-indigo-800/70">Scans straight to a redemption page staff can confirm on the spot.</p>
+                  <button onClick={() => setPendingOfferQr(null)} className="mt-1 text-indigo-600 underline">
+                    Remove
+                  </button>
+                </div>
+              </div>
+            )}
             <p className="text-xs text-gray-400">
               {gmailStatus?.connected
                 ? `This email will be sent from your connected Gmail (${gmailStatus.email}) and logged in the email history.`
@@ -794,7 +834,7 @@ export default function CustomerProfilePage() {
             </p>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowEmailModal(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => { setShowEmailModal(false); setPendingOfferQr(null); setPendingOfferCode(null); }}>Cancel</Button>
             <Button onClick={sendEmail} disabled={sendingEmail || !emailSubject || !emailBody} className="bg-indigo-600 hover:bg-indigo-700 gap-1.5">
               <Send className="h-4 w-4" /> {sendingEmail ? "Sending…" : "Send"}
             </Button>

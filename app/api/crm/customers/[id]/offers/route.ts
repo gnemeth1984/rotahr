@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { getPreset, generateOfferCode } from "@/lib/crm/offer-presets";
+import { generateOfferQrDataUri, getRedeemUrl } from "@/lib/crm/qr";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -71,5 +72,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     },
   });
 
-  return NextResponse.json({ offer }, { status: 201 });
+  const qrDataUri = await generateOfferQrDataUri(offer.code);
+  const redeemUrl = getRedeemUrl(offer.code);
+
+  return NextResponse.json({ offer, qrDataUri, redeemUrl }, { status: 201 });
 }
