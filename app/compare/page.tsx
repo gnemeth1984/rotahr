@@ -33,6 +33,8 @@ const rows: Row[] = [
   { feature: "Employee profiles & docs", category: "HR", rotahr: YES, deputy: YES, bizimply: YES, sevenShifts: PARTIAL, planday: YES, sling: NO },
   { feature: "Training & cert tracker (HACCP)", category: "HR", rotahr: YES, deputy: NO, bizimply: YES, sevenShifts: NO, planday: NO, sling: NO },
   { feature: "Late / no-show auto-alerts", category: "HR", rotahr: YES, deputy: YES, bizimply: YES, sevenShifts: YES, planday: YES, sling: PARTIAL },
+  { feature: "Manager log book (86'd items, repairs)", category: "HR", rotahr: YES, deputy: NO, bizimply: NO, sevenShifts: YES, planday: NO, sling: NO },
+  { feature: "Region-aware overtime compliance (EU/UK/US/CA/AU)", category: "HR", rotahr: YES, deputy: PARTIAL, bizimply: PARTIAL, sevenShifts: PARTIAL, planday: PARTIAL, sling: NO },
   // Comms
   { feature: "Team messaging", category: "Comms", rotahr: YES, deputy: YES, bizimply: NO, sevenShifts: YES, planday: YES, sling: YES },
   { feature: "Mobile app (iOS & Android)", category: "Comms", rotahr: YES, deputy: YES, bizimply: YES, sevenShifts: YES, planday: YES, sling: YES },
@@ -42,10 +44,14 @@ const rows: Row[] = [
   { feature: "Labour cost % on rota", category: "Finance", rotahr: YES, deputy: YES, bizimply: YES, sevenShifts: YES, planday: YES, sling: NO },
   { feature: "Bookkeeping & receipt AI", category: "Finance", rotahr: YES, deputy: NO, bizimply: NO, sevenShifts: NO, planday: NO, sling: NO },
   { feature: "VAT tracking & P&L dashboard", category: "Finance", rotahr: YES, deputy: NO, bizimply: NO, sevenShifts: NO, planday: NO, sling: NO },
+  { feature: "Labour cost vs revenue trend reports", category: "Finance", rotahr: YES, deputy: NO, bizimply: NO, sevenShifts: YES, planday: YES, sling: NO },
+  { feature: "Per-venue labour cost breakdown", category: "Finance", rotahr: YES, deputy: PARTIAL, bizimply: NO, sevenShifts: YES, planday: PARTIAL, sling: NO },
   // Hospitality-specific
   { feature: "Reservations / table bookings", category: "Hospitality", rotahr: YES, deputy: NO, bizimply: NO, sevenShifts: NO, planday: NO, sling: NO },
   { feature: "Menu specials board", category: "Hospitality", rotahr: YES, deputy: NO, bizimply: NO, sevenShifts: NO, planday: NO, sling: NO },
   { feature: "AI booking assistant", category: "Hospitality", rotahr: YES, deputy: NO, bizimply: NO, sevenShifts: NO, planday: NO, sling: NO },
+  { feature: "CRM promo codes with QR redemption", category: "Hospitality", rotahr: YES, deputy: NO, bizimply: NO, sevenShifts: NO, planday: NO, sling: NO },
+  { feature: "Send CRM email from your own Gmail", category: "Hospitality", rotahr: YES, deputy: NO, bizimply: NO, sevenShifts: NO, planday: NO, sling: NO },
   // Scale
   { feature: "Multi-venue support", category: "Scale", rotahr: YES, deputy: YES, bizimply: YES, sevenShifts: YES, planday: YES, sling: YES },
   { feature: "AI assistant (scheduling + ops)", category: "Scale", rotahr: YES, deputy: PARTIAL, bizimply: NO, sevenShifts: PARTIAL, planday: NO, sling: NO },

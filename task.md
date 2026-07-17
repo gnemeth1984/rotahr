@@ -1,32 +1,26 @@
-# Task: QR code redemption for Promo Offers — DONE
+# Task: Offer expiry UI + site-wide update pass — DONE
 
-## What shipped
-- Installed `qrcode` package (+ @types/qrcode dev dep).
-- lib/crm/qr.ts — generates a small (~2.5KB) inline base64 PNG data URI encoding a link to
-  /redeem/{code}, not a hotlinked external image (avoids the "external image request" spam
-  signal; combined with existing multipart/alternative plain-text fallback, this is deliverability-safe).
-- Offer creation (POST /api/crm/customers/[id]/offers) now returns qrDataUri + redeemUrl alongside the offer.
-- New GET /api/crm/offers/[offerId] returns offer + regenerated qrDataUri (for "Email this" on older offers).
-- New GET /api/crm/offers/by-code/[code] — business-scoped lookup used by the redemption page.
-- PATCH /api/crm/offers/[offerId] relaxed from manager/admin-only to any authenticated staff member —
-  redemption happens at the till, often by front-of-house staff, not just managers.
-- New page app/(app)/redeem/[code]/page.tsx — shows offer + customer name, "Mark as redeemed" button,
-  undo option, expired badge if past expiry. Lives inside (app) so it inherits the existing auth guard
-  (redirects to /auth/signin if not logged in) and sidebar shell.
-- CRM customer page: generating an offer now also fetches/shows a QR thumbnail preview in the compose
-  dialog with a "Remove" option (in case they don't want it), and older offers in the list get an
-  "Email this" action that re-fetches the QR and opens the compose dialog pre-filled.
-- Answer to "would a QR flag as spam": no — inline/embedded images (not hotlinked, not tracking pixels)
-  are normal in commercial email and don't inherently trigger spam filters; the earlier plain-text-only
-  fix was the real spam factor already addressed.
+## 1. Offer expiry — was already built server-side (expiresAt, default hardcoded 30d), just no UI control.
+- Added a pill selector (7/14/30/90 days / No expiry) in the CRM offer generation dialog.
+- Offer list now flags expired-but-unredeemed offers in red ("expired {date}").
+- Redemption page already had an expired badge from before.
 
-## Verified
-- tsc --noEmit clean.
-- lib/crm/qr.ts tested directly — generates valid ~2.5KB data URI.
-- Redemption page + by-code API respond correctly to unauthenticated requests (307/401 as expected).
-- (Browser-based live click-through wasn't possible this pass — mb tool was unresponsive/timing out
-  repeatedly; relied on direct script + curl verification instead, consistent with how the rest of this
-  feature was already proven live in earlier turns.)
+## 2. Updated public pages to reflect all recent work
+- /pitch — "What's New" slide: added 5 new highlighted cards (Reports & Insights, Manager Log Book,
+  CRM Promo Offers + QR, Send-as-yourself CRM email, Region-aware overtime compliance). Demoted old
+  "New" badges on Floor Plan/Recipe Photos/HACCP schedules (no longer new). Compare table got 4 new rows.
+- /compare — added rows: Manager log book, Region-aware overtime compliance, Labour cost vs revenue
+  trend reports, Per-venue labour cost breakdown, CRM promo codes w/ QR, Send CRM email as yourself.
+  Scored fairly against Deputy/Bizimply/7shifts/Planday/Sling based on earlier research in this
+  conversation (7shifts/Planday get partial/yes credit for their own reporting; nobody else has
+  QR-redeemable CRM offers or send-as-yourself CRM email).
 
-## Deploy
-- Committed, pushed, needs Vercel deploy confirmation next.
+## 3. Blog post published
+- New article: "What's New in Rotahr: Reports, a Manager Log Book, and Smarter CRM Emails"
+  (slug: whats-new-in-rotahr-reports-log-book-crm-emails), category "product", published: true.
+  Matches house style (general/international audience, direct tone, markdown, mentions Rotahr
+  naturally — though more centrally here since it's explicitly a product-update post).
+  Published directly to the DB (no admin UI for this, cron only auto-generates SEO topics) —
+  confirmed live via /api/blog/[slug].
+
+## Status: code changes committed + pushed, waiting on Vercel deploy confirmation, then final live checks.

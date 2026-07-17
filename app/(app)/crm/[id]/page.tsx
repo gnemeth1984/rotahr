@@ -135,6 +135,7 @@ export default function CustomerProfilePage() {
   const [customDescription, setCustomDescription] = useState("");
   const [generatingOffer, setGeneratingOffer] = useState(false);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
+  const [expiresInDays, setExpiresInDays] = useState<number | null>(30);
   const [gmailStatus, setGmailStatus] = useState<{ connected: boolean; email?: string } | null>(null);
   const [pendingOfferQr, setPendingOfferQr] = useState<string | null>(null);
   const [pendingOfferCode, setPendingOfferCode] = useState<string | null>(null);
@@ -159,7 +160,7 @@ export default function CustomerProfilePage() {
           offerType: selectedPreset,
           title: selectedPreset === "custom" ? customTitle : undefined,
           description: selectedPreset === "custom" ? customDescription : undefined,
-          expiresInDays: 30,
+          expiresInDays: expiresInDays ?? undefined,
         }),
       });
       if (res.ok) {
@@ -609,8 +610,9 @@ export default function CustomerProfilePage() {
                       {copiedCode === o.code ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
                     </button>
                     {o.expiresAt && (
-                      <span className="text-xs text-gray-400">
-                        expires {formatDate(o.expiresAt)}
+                      <span className={`text-xs ${new Date(o.expiresAt) < new Date() && !o.redeemed ? "font-medium text-red-500" : "text-gray-400"}`}>
+                        {new Date(o.expiresAt) < new Date() && !o.redeemed ? "expired " : "expires "}
+                        {formatDate(o.expiresAt)}
                       </span>
                     )}
                     <div className="ml-auto flex gap-2">
@@ -710,6 +712,30 @@ export default function CustomerProfilePage() {
                 </div>
               </div>
             )}
+            <div className="pt-2">
+              <Label>Expires</Label>
+              <div className="mt-1.5 flex flex-wrap gap-1.5">
+                {[
+                  { label: "7 days", value: 7 },
+                  { label: "14 days", value: 14 },
+                  { label: "30 days", value: 30 },
+                  { label: "90 days", value: 90 },
+                  { label: "No expiry", value: null },
+                ].map((opt) => (
+                  <button
+                    key={opt.label}
+                    onClick={() => setExpiresInDays(opt.value)}
+                    className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
+                      expiresInDays === opt.value
+                        ? "border-indigo-500 bg-indigo-50 text-indigo-700"
+                        : "border-gray-200 text-gray-600 hover:border-gray-300"
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowOfferModal(false)}>Cancel</Button>
