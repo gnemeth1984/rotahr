@@ -105,6 +105,17 @@ function toBase64Url(input: string) {
     .replace(/=+$/, "");
 }
 
+function htmlToPlainText(html: string) {
+  return html
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>/gi, "\n\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 /** Sends an email via the business's connected Gmail account. Throws if not connected. */
 export async function sendViaGmail(params: {
   businessId: string;
@@ -115,14 +126,29 @@ export async function sendViaGmail(params: {
   const token = await getValidAccessToken(params.businessId);
   if (!token) throw new Error("No Gmail connection for this business");
 
+  const boundary = `----=_RotahrBoundary_${crypto.randomUUID()}`;
+  const plainText = htmlToPlainText(params.html);
+
   const mime = [
     `From: ${token.email}`,
     `To: ${params.to}`,
     `Subject: ${encodeMimeSubject(params.subject)}`,
     "MIME-Version: 1.0",
+    `Content-Type: multipart/alternative; boundary="${boundary}"`,
+    "",
+    `--${boundary}`,
+    'Content-Type: text/plain; charset="UTF-8"',
+    "Content-Transfer-Encoding: 7bit",
+    "",
+    plainText,
+    "",
+    `--${boundary}`,
     'Content-Type: text/html; charset="UTF-8"',
+    "Content-Transfer-Encoding: 7bit",
     "",
     params.html,
+    "",
+    `--${boundary}--`,
   ].join("\r\n");
 
   const res = await fetch(GMAIL_SEND_URL, {
