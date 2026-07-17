@@ -199,10 +199,16 @@ export default function CustomerProfilePage() {
         body: JSON.stringify({ subject: emailSubject, body: `<p>${emailBody.replace(/\n/g, "<br>")}</p>` }),
       });
       if (res.ok) {
+        const data = await res.json();
         setShowEmailModal(false);
         setEmailSubject("");
         setEmailBody("");
         await fetchCustomer();
+        if (data.fellBackToDefault) {
+          alert(
+            "Email sent, but your connected Gmail account failed (check Settings > Email), so it went out from Rotahr's address instead."
+          );
+        }
       } else {
         const err = await res.json();
         alert(err.error);

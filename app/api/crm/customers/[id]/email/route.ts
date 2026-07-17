@@ -34,6 +34,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   // Send via the business's connected Gmail account if they've set one up,
   // otherwise fall back to the shared Rotahr sending address.
   let sentFrom = "Rotahr <no-reply@rotahr.com>";
+  let fellBackToDefault = false;
   const emailConnection = await prisma.emailConnection.findUnique({
     where: { businessId: session.user.businessId },
   });
@@ -49,6 +50,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       sentFrom = result.sentFrom;
     } catch (err) {
       console.error("Gmail send failed, falling back to Resend:", err);
+      fellBackToDefault = true;
       const fallback = await resend.emails.send({
         from: "Rotahr <no-reply@rotahr.com>",
         to: customer.email,
@@ -84,5 +86,5 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     include: { sentBy: { select: { name: true, email: true } } },
   });
 
-  return NextResponse.json({ ...log, sentFrom }, { status: 201 });
+  return NextResponse.json({ ...log, sentFrom, fellBackToDefault }, { status: 201 });
 }
