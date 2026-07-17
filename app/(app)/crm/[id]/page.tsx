@@ -306,7 +306,11 @@ export default function CustomerProfilePage() {
         setPendingOfferQr(null);
         setPendingOfferCode(null);
         await fetchCustomer();
-        if (data.fellBackToDefault) {
+        if (data.simulated) {
+          alert(
+            "Demo mode — this email was logged but not actually sent. No real emails go out from demo accounts."
+          );
+        } else if (data.fellBackToDefault) {
           alert(
             "Email sent, but your connected Gmail account failed (check Settings > Email), so it went out from Rotahr's address instead."
           );
@@ -854,7 +858,9 @@ export default function CustomerProfilePage() {
               </div>
             )}
             <p className="text-xs text-gray-400">
-              {gmailStatus?.connected
+              {session?.user?.email?.endsWith("@rotahr.demo")
+                ? "Demo mode — this will be logged in the email history but no real email is sent."
+                : gmailStatus?.connected
                 ? `This email will be sent from your connected Gmail (${gmailStatus.email}) and logged in the email history.`
                 : "This email will be sent from Rotahr's shared address (no-reply@rotahr.com). Connect your own Gmail in Settings > Email to send as yourself instead."}
             </p>

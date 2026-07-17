@@ -19,6 +19,13 @@ export function isDemoEmail(email: string): boolean {
   return email.endsWith("@rotahr.demo");
 }
 
+// Any business seeded by the demo scripts uses a "demo-" prefixed id (see
+// scripts/seed-demo.ts) — use this alongside isDemoEmail to catch every case
+// (session email OR business id) before sending anything to a real inbox.
+export function isDemoBusinessId(businessId: string | null | undefined): boolean {
+  return !!businessId && businessId.startsWith("demo-");
+}
+
 export function triggerDemoReset(): void {
   const now = Date.now();
 

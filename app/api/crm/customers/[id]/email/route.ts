@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { Resend } from "resend";
 import { z } from "zod";
 import { sendViaGmail } from "@/lib/google/gmail";
+import { isDemoEmail, isDemoBusinessId } from "@/lib/demo/reset";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -53,45 +54,57 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     : "";
   const emailBody = `${parsed.data.body}${signatureHtml}`;
 
-  // Send via the business's connected Gmail account if they've set one up,
-  // otherwise fall back to the shared Rotahr sending address.
+  // Demo accounts/businesses never send a real email — visitors playing with
+  // the demo (including anyone who types in a real address to "test" it)
+  // must never actually trigger an outbound message.
+  const isDemo = isDemoEmail(session.user.email || "") || isDemoBusinessId(session.user.businessId);
+
   let sentFrom = "Rotahr <no-reply@rotahr.com>";
   let fellBackToDefault = false;
-  const emailConnection = await prisma.emailConnection.findUnique({
-    where: { businessId: session.user.businessId },
-  });
+  let simulated = false;
 
-  if (emailConnection) {
-    try {
-      const result = await sendViaGmail({
-        businessId: session.user.businessId,
-        to: customer.email,
-        subject: parsed.data.subject,
-        html: emailBody,
-      });
-      sentFrom = result.sentFrom;
-    } catch (err) {
-      console.error("Gmail send failed, falling back to Resend:", err);
-      fellBackToDefault = true;
-      const fallback = await resend.emails.send({
+  if (isDemo) {
+    simulated = true;
+    sentFrom = business?.name ? `${business.name} <no-reply@rotahr.com>` : "Rotahr <no-reply@rotahr.com>";
+  } else {
+    // Send via the business's connected Gmail account if they've set one up,
+    // otherwise fall back to the shared Rotahr sending address.
+    const emailConnection = await prisma.emailConnection.findUnique({
+      where: { businessId: session.user.businessId },
+    });
+
+    if (emailConnection) {
+      try {
+        const result = await sendViaGmail({
+          businessId: session.user.businessId,
+          to: customer.email,
+          subject: parsed.data.subject,
+          html: emailBody,
+        });
+        sentFrom = result.sentFrom;
+      } catch (err) {
+        console.error("Gmail send failed, falling back to Resend:", err);
+        fellBackToDefault = true;
+        const fallback = await resend.emails.send({
+          from: business?.name ? `${business.name} <no-reply@rotahr.com>` : "Rotahr <no-reply@rotahr.com>",
+          to: customer.email,
+          subject: parsed.data.subject,
+          html: emailBody,
+        });
+        if (fallback.error) {
+          return NextResponse.json({ error: `Email failed to send: ${fallback.error.message}` }, { status: 502 });
+        }
+      }
+    } else {
+      const result = await resend.emails.send({
         from: business?.name ? `${business.name} <no-reply@rotahr.com>` : "Rotahr <no-reply@rotahr.com>",
         to: customer.email,
         subject: parsed.data.subject,
         html: emailBody,
       });
-      if (fallback.error) {
-        return NextResponse.json({ error: `Email failed to send: ${fallback.error.message}` }, { status: 502 });
+      if (result.error) {
+        return NextResponse.json({ error: `Email failed to send: ${result.error.message}` }, { status: 502 });
       }
-    }
-  } else {
-    const result = await resend.emails.send({
-      from: business?.name ? `${business.name} <no-reply@rotahr.com>` : "Rotahr <no-reply@rotahr.com>",
-      to: customer.email,
-      subject: parsed.data.subject,
-      html: emailBody,
-    });
-    if (result.error) {
-      return NextResponse.json({ error: `Email failed to send: ${result.error.message}` }, { status: 502 });
     }
   }
 
@@ -108,5 +121,5 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     include: { sentBy: { select: { name: true, email: true } } },
   });
 
-  return NextResponse.json({ ...log, sentFrom, fellBackToDefault }, { status: 201 });
+  return NextResponse.json({ ...log, sentFrom, fellBackToDefault, simulated }, { status: 201 });
 }
