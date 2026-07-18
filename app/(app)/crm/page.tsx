@@ -16,6 +16,12 @@ import {
   Merge,
   ChevronRight,
   Loader2,
+  Crown,
+  TrendingDown,
+  Sparkles,
+  ShieldCheck,
+  X,
+  Lightbulb,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -61,6 +67,18 @@ interface Customer {
   gdprConsent: boolean;
   birthday: string | null;
   createdAt: string;
+  isVip?: boolean;
+  isAtRisk?: boolean;
+  isNew?: boolean;
+}
+
+interface CrmStats {
+  total: number;
+  vipCount: number;
+  atRiskCount: number;
+  newCount: number;
+  gdprConsentCount: number;
+  avgVisits: number;
 }
 
 export default function CrmPage() {
@@ -69,11 +87,14 @@ export default function CrmPage() {
 
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [total, setTotal] = useState(0);
+  const [stats, setStats] = useState<CrmStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [tagFilter, setTagFilter] = useState("");
+  const [segment, setSegment] = useState<"" | "at-risk" | "vip" | "new">("");
   const [sort, setSort] = useState("lastVisit");
   const [page, setPage] = useState(1);
+  const [dismissedSuggestions, setDismissedSuggestions] = useState<string[]>([]);
 
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -102,17 +123,19 @@ export default function CrmPage() {
         sort,
         page: String(page),
         ...(tagFilter ? { tag: tagFilter } : {}),
+        ...(segment ? { segment } : {}),
       });
       const res = await fetch(`/api/crm/customers?${params}`);
       if (res.ok) {
         const data = await res.json();
         setCustomers(data.customers);
         setTotal(data.total);
+        setStats(data.stats ?? null);
       }
     } finally {
       setLoading(false);
     }
-  }, [search, sort, page, tagFilter]);
+  }, [search, sort, page, tagFilter, segment]);
 
   useEffect(() => { fetchCustomers(); }, [fetchCustomers]);
 
@@ -239,6 +262,113 @@ export default function CrmPage() {
           </Button>
         </div>
       </div>
+
+      {/* ── Stats bar ── */}
+      {stats && (
+        <div className="px-4 pb-3 grid grid-cols-5 gap-2">
+          <button
+            onClick={() => { setSegment(""); setPage(1); }}
+            className={cn(
+              "rounded-xl border p-2 text-center transition-all",
+              segment === "" ? "border-indigo-400 bg-indigo-50 ring-1 ring-indigo-200" : "border-slate-200 bg-white"
+            )}
+          >
+            <div className="text-sm font-bold text-slate-900">{stats.total}</div>
+            <div className="text-[10px] text-slate-500 leading-tight">Total</div>
+          </button>
+          <button
+            onClick={() => { setSegment(segment === "vip" ? "" : "vip"); setPage(1); }}
+            className={cn(
+              "rounded-xl border p-2 text-center transition-all",
+              segment === "vip" ? "border-yellow-400 bg-yellow-50 ring-1 ring-yellow-200" : "border-slate-200 bg-white"
+            )}
+          >
+            <div className="text-sm font-bold text-yellow-700 flex items-center justify-center gap-0.5">
+              <Crown className="h-3 w-3" />{stats.vipCount}
+            </div>
+            <div className="text-[10px] text-slate-500 leading-tight">VIPs</div>
+          </button>
+          <button
+            onClick={() => { setSegment(segment === "at-risk" ? "" : "at-risk"); setPage(1); }}
+            className={cn(
+              "rounded-xl border p-2 text-center transition-all",
+              segment === "at-risk" ? "border-red-400 bg-red-50 ring-1 ring-red-200" : "border-slate-200 bg-white"
+            )}
+          >
+            <div className="text-sm font-bold text-red-700 flex items-center justify-center gap-0.5">
+              <TrendingDown className="h-3 w-3" />{stats.atRiskCount}
+            </div>
+            <div className="text-[10px] text-slate-500 leading-tight">At Risk</div>
+          </button>
+          <button
+            onClick={() => { setSegment(segment === "new" ? "" : "new"); setPage(1); }}
+            className={cn(
+              "rounded-xl border p-2 text-center transition-all",
+              segment === "new" ? "border-emerald-400 bg-emerald-50 ring-1 ring-emerald-200" : "border-slate-200 bg-white"
+            )}
+          >
+            <div className="text-sm font-bold text-emerald-700 flex items-center justify-center gap-0.5">
+              <Sparkles className="h-3 w-3" />{stats.newCount}
+            </div>
+            <div className="text-[10px] text-slate-500 leading-tight">New</div>
+          </button>
+          <div className="rounded-xl border border-slate-200 bg-white p-2 text-center">
+            <div className="text-sm font-bold text-slate-900 flex items-center justify-center gap-0.5">
+              <ShieldCheck className="h-3 w-3 text-slate-400" />
+              {stats.total ? Math.round((stats.gdprConsentCount / stats.total) * 100) : 0}%
+            </div>
+            <div className="text-[10px] text-slate-500 leading-tight">GDPR</div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Suggestions banner ── */}
+      {stats && (() => {
+        const suggestions: { id: string; text: string; cta: string; onClick: () => void }[] = [];
+        if (stats.atRiskCount > 0 && !dismissedSuggestions.includes("at-risk")) {
+          suggestions.push({
+            id: "at-risk",
+            text: `${stats.atRiskCount} customer${stats.atRiskCount === 1 ? "" : "s"} haven't visited in 30+ days — send a win-back offer.`,
+            cta: "View At Risk",
+            onClick: () => { setSegment("at-risk"); setPage(1); },
+          });
+        }
+        if (stats.vipCount > 0 && !dismissedSuggestions.includes("vip")) {
+          suggestions.push({
+            id: "vip",
+            text: `${stats.vipCount} VIP customer${stats.vipCount === 1 ? "" : "s"} — consider a loyalty perk or thank-you note.`,
+            cta: "View VIPs",
+            onClick: () => { setSegment("vip"); setPage(1); },
+          });
+        }
+        if (stats.newCount > 0 && !dismissedSuggestions.includes("new")) {
+          suggestions.push({
+            id: "new",
+            text: `${stats.newCount} new customer${stats.newCount === 1 ? "" : "s"} this month — a welcome email could boost repeat visits.`,
+            cta: "View New",
+            onClick: () => { setSegment("new"); setPage(1); },
+          });
+        }
+        if (suggestions.length === 0) return null;
+        const s = suggestions[0];
+        return (
+          <div className="mx-4 mb-3 flex items-start gap-2.5 rounded-2xl border border-indigo-200 bg-indigo-50/70 p-3">
+            <Lightbulb className="h-4 w-4 text-indigo-500 flex-shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <p className="text-xs text-indigo-900 leading-snug">{s.text}</p>
+              <button onClick={s.onClick} className="text-xs font-semibold text-indigo-700 hover:text-indigo-900 mt-1">
+                {s.cta} →
+              </button>
+            </div>
+            <button
+              onClick={() => setDismissedSuggestions((d) => [...d, s.id])}
+              className="flex-shrink-0 text-indigo-400 hover:text-indigo-600"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        );
+      })()}
 
       {/* ── Search + filters ── */}
       <div className="px-4 pb-3 space-y-2">

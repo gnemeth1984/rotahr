@@ -25,6 +25,9 @@ import {
   Sparkles,
   Copy,
   Check,
+  History,
+  MessageSquare,
+  Ticket,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -367,6 +370,58 @@ export default function CustomerProfilePage() {
   const noShows = customer.reservations.filter((r) => r.status === "no-show");
   const lastVisit = visits[0]?.date ?? null;
 
+  // Unified activity timeline: notes + emails + reservations + offers, newest first
+  type TimelineItem = {
+    id: string;
+    type: "note" | "email" | "reservation" | "offer";
+    date: string;
+    title: string;
+    subtitle?: string;
+  };
+  const timeline: TimelineItem[] = [
+    ...customer.crmNotes.map((n) => ({
+      id: `note-${n.id}`,
+      type: "note" as const,
+      date: n.createdAt,
+      title: n.note,
+      subtitle: `Note by ${n.author.name ?? n.author.email}`,
+    })),
+    ...customer.crmEmails.map((e) => ({
+      id: `email-${e.id}`,
+      type: "email" as const,
+      date: e.sentAt,
+      title: e.subject,
+      subtitle: `Sent by ${e.sentBy.name ?? e.sentBy.email}`,
+    })),
+    ...customer.reservations.map((r) => ({
+      id: `res-${r.id}`,
+      type: "reservation" as const,
+      date: r.date,
+      title: `${r.partySize} guests · ${r.time}${r.occasion ? ` · ${r.occasion}` : ""}`,
+      subtitle: r.status,
+    })),
+    ...offers.map((o) => ({
+      id: `offer-${o.id}`,
+      type: "offer" as const,
+      date: o.createdAt ?? o.expiresAt ?? new Date().toISOString(),
+      title: o.title,
+      subtitle: o.redeemed ? "Offer redeemed" : "Offer created",
+    })),
+  ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  const TIMELINE_ICON: Record<TimelineItem["type"], React.ReactElement> = {
+    note: <PenLine className="h-3.5 w-3.5 text-purple-600" />,
+    email: <Mail className="h-3.5 w-3.5 text-indigo-600" />,
+    reservation: <Calendar className="h-3.5 w-3.5 text-blue-600" />,
+    offer: <Ticket className="h-3.5 w-3.5 text-amber-600" />,
+  };
+  const TIMELINE_BG: Record<TimelineItem["type"], string> = {
+    note: "bg-purple-100",
+    email: "bg-indigo-100",
+    reservation: "bg-blue-100",
+    offer: "bg-amber-100",
+  };
+
   return (
     <div className="p-6 max-w-6xl mx-auto">
       {/* Back */}
@@ -526,6 +581,39 @@ export default function CustomerProfilePage() {
 
         {/* Right column: reservations + emails */}
         <div className="lg:col-span-2 space-y-5">
+          {/* Unified Activity Timeline */}
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+            <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-1.5">
+              <History className="h-4 w-4 text-indigo-600" />
+              Activity Timeline
+              <span className="ml-auto text-xs text-gray-400 font-normal">{timeline.length} events</span>
+            </h3>
+            {timeline.length === 0 ? (
+              <p className="text-sm text-gray-400">No activity yet.</p>
+            ) : (
+              <div className="space-y-0 max-h-80 overflow-y-auto">
+                {timeline.slice(0, 30).map((item, idx) => (
+                  <div key={item.id} className="flex gap-3 relative">
+                    <div className="flex flex-col items-center">
+                      <div className={`h-6 w-6 rounded-full flex items-center justify-center shrink-0 ${TIMELINE_BG[item.type]}`}>
+                        {TIMELINE_ICON[item.type]}
+                      </div>
+                      {idx < Math.min(timeline.length, 30) - 1 && (
+                        <div className="w-px flex-1 bg-gray-100 my-0.5" />
+                      )}
+                    </div>
+                    <div className="pb-3 min-w-0 flex-1">
+                      <p className="text-sm text-gray-800 truncate">{item.title}</p>
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        {item.subtitle ? `${item.subtitle} · ` : ""}{formatDateTime(item.date)}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           {/* Reservation history */}
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
             <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-1.5">

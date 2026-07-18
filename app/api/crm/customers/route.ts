@@ -24,6 +24,7 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const search = searchParams.get("search") || "";
   const tag = searchParams.get("tag") || "";
+  const segment = searchParams.get("segment") || ""; // "at-risk" | "vip" | "new"
   const sort = searchParams.get("sort") || "lastVisit";
   const page = parseInt(searchParams.get("page") || "1");
   const pageSize = 50;
@@ -45,6 +46,9 @@ export async function GET(req: NextRequest) {
     where.tags = { has: tag };
   }
 
+  // Fetch everything matching search/tag (not paginated yet) so stats and
+  // smart-list segments are computed over the full matching set, not just
+  // whatever page happens to be on screen.
   const customers = await prisma.customer.findMany({
     where,
     include: {
@@ -53,28 +57,54 @@ export async function GET(req: NextRequest) {
         orderBy: { date: "desc" },
       },
     },
-    skip: (page - 1) * pageSize,
-    take: pageSize,
+    take: 5000,
     orderBy: { updatedAt: "desc" },
   });
 
-  const total = await prisma.customer.count({ where });
+  const now = Date.now();
+  const THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000;
 
   // Enrich with derived stats
   const enriched = customers.map((c) => {
     const visits = c.reservations.filter((r) => r.status !== "no-show" && r.status !== "cancelled");
     const noShows = c.reservations.filter((r) => r.status === "no-show");
     const lastVisit = visits[0]?.date ?? null;
+    const totalVisits = visits.length;
+    const isVip = c.tags.includes("VIP") || totalVisits >= 10;
+    const isAtRisk = totalVisits >= 1 && (!!lastVisit ? now - new Date(lastVisit).getTime() > THIRTY_DAYS : false);
+    const isNew = now - new Date(c.createdAt).getTime() <= THIRTY_DAYS;
     return {
       ...c,
-      totalVisits: visits.length,
+      totalVisits,
       noShows: noShows.length,
       lastVisit,
+      isVip,
+      isAtRisk,
+      isNew,
     };
   });
 
-  // Client-side sort
-  const sorted = enriched.sort((a, b) => {
+  // Aggregate stats over the full matching set (unaffected by segment filter,
+  // so the stats bar always reflects "everyone matching search/tag")
+  const stats = {
+    total: enriched.length,
+    vipCount: enriched.filter((c) => c.isVip).length,
+    atRiskCount: enriched.filter((c) => c.isAtRisk).length,
+    newCount: enriched.filter((c) => c.isNew).length,
+    gdprConsentCount: enriched.filter((c) => c.gdprConsent).length,
+    avgVisits: enriched.length
+      ? Math.round((enriched.reduce((s, c) => s + c.totalVisits, 0) / enriched.length) * 10) / 10
+      : 0,
+  };
+
+  // Apply smart-list segment filter (if any)
+  let filtered = enriched;
+  if (segment === "at-risk") filtered = enriched.filter((c) => c.isAtRisk);
+  else if (segment === "vip") filtered = enriched.filter((c) => c.isVip);
+  else if (segment === "new") filtered = enriched.filter((c) => c.isNew);
+
+  // Sort
+  const sorted = filtered.sort((a, b) => {
     if (sort === "visits") return b.totalVisits - a.totalVisits;
     if (sort === "noShows") return b.noShows - a.noShows;
     if (sort === "name") return a.name.localeCompare(b.name);
@@ -84,7 +114,10 @@ export async function GET(req: NextRequest) {
     return db_ - da;
   });
 
-  return NextResponse.json({ customers: sorted, total, page, pageSize });
+  const total = sorted.length;
+  const paged = sorted.slice((page - 1) * pageSize, page * pageSize);
+
+  return NextResponse.json({ customers: paged, total, page, pageSize, stats });
 }
 
 export async function POST(req: NextRequest) {
