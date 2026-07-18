@@ -42,7 +42,7 @@ export default async function BlogPage() {
     where: { published: true },
     orderBy: { createdAt: 'desc' },
     take: 30,
-    select: { slug: true, title: true, excerpt: true, category: true, createdAt: true },
+    select: { slug: true, title: true, excerpt: true, category: true, createdAt: true, coverImage: true },
   });
 
   return (
@@ -72,8 +72,15 @@ export default async function BlogPage() {
               <Link
                 key={post.slug}
                 href={`/blog/${post.slug}`}
-                className="bg-white rounded-xl border border-gray-200 p-6 hover:shadow-md hover:border-emerald-300 transition-all group"
+                className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-md hover:border-emerald-300 transition-all group"
               >
+                {post.coverImage ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={post.coverImage} alt={post.title} className="w-full h-40 object-cover" />
+                ) : (
+                  <div className="w-full h-40 bg-gradient-to-br from-emerald-50 to-emerald-100" />
+                )}
+                <div className="p-6">
                 <div className="flex items-center gap-2 mb-3">
                   <span className={`text-xs font-medium px-2 py-1 rounded-full ${CATEGORY_COLORS[post.category] || 'bg-gray-100 text-gray-600'}`}>
                     {CATEGORY_LABELS[post.category] || post.category}
@@ -84,6 +91,7 @@ export default async function BlogPage() {
                 </h2>
                 <p className="text-sm text-gray-500 line-clamp-3 mb-4">{post.excerpt}</p>
                 <p className="text-xs text-gray-400">{formatDate(post.createdAt)}</p>
+                </div>
               </Link>
             ))}
           </div>

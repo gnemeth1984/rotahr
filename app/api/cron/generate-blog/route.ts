@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import OpenAI from 'openai';
+import { put } from '@vercel/blob';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -116,6 +117,95 @@ function slugify(text: string) {
   return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 }
 
+// When the static topic pool runs dry, ask the model for fresh, non-duplicate,
+// search-intent-driven topic ideas so the blog never stops publishing.
+async function generateFreshTopics(existingTitles: string[]): Promise<
+  { title: string; category: string; tags: string; region: string }[]
+> {
+  const categories = ['scheduling', 'compliance', 'hr', 'finance', 'costs', 'payroll', 'management', 'technology', 'product'];
+  const prompt = `You are an SEO strategist for Rotahr, a staff scheduling/bookings/payroll app for restaurants, bars and hotels worldwide.
+
+Generate 15 NEW blog article topics that hospitality owners/managers are actually searching for right now (think real Google queries — practical, specific, some commercial-intent like "best X software" or "how much does X cost", some informational like "how to do X"). Cover a healthy spread of these categories: ${categories.join(', ')}.
+
+Do NOT repeat or closely resemble any of these existing titles:
+${existingTitles.slice(-120).join('\n')}
+
+Return ONLY a JSON array, no markdown fences, no commentary, in this exact shape:
+[{"title": "...", "category": "one of: ${categories.join('|')}", "tags": "comma,separated,tags", "region": "general|us|uk"}]`;
+
+  const completion = await openai.chat.completions.create({
+    model: 'gpt-4o-mini',
+    messages: [{ role: 'user', content: prompt }],
+    max_tokens: 1800,
+    temperature: 0.9,
+  });
+
+  const raw = (completion.choices[0].message.content || '').trim()
+    .replace(/^```json/i, '').replace(/^```/, '').replace(/```$/, '').trim();
+
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) return parsed;
+  } catch (e) {
+    console.error('[Blog] Failed to parse fresh topics JSON:', e, raw.slice(0, 300));
+  }
+  return [];
+}
+
+// Generate a simple, on-brand cover image for an article and store it in Vercel Blob.
+async function generateCoverImage(title: string, category: string): Promise<string | null> {
+  try {
+    const img = await openai.images.generate({
+      model: 'gpt-image-1',
+      prompt: `Clean, modern editorial illustration for a hospitality industry blog article titled "${title}" (category: ${category}). Professional restaurant/bar/hotel setting relevant to the topic. Flat, minimal, premium SaaS blog cover style, warm neutral tones with a hint of amber/orange accent, no text or logos in the image, wide aspect ratio.`,
+      size: '1536x1024',
+    });
+    const b64 = img.data?.[0]?.b64_json;
+    if (!b64) return null;
+    const buffer = Buffer.from(b64, 'base64');
+    const blob = await put(`blog-covers/${slugify(title)}-${Date.now()}.png`, buffer, {
+      access: 'public',
+      contentType: 'image/png',
+    });
+    return blob.url;
+  } catch (e) {
+    console.error('[Blog] Cover image generation failed:', e);
+    return null;
+  }
+}
+
+// Naturally weave 2-3 internal links to existing related articles (plus one product link)
+// into the generated markdown body, Outrank-style internal linking.
+function insertInternalLinks(
+  content: string,
+  related: { slug: string; title: string }[],
+): string {
+  if (related.length === 0) return content;
+
+  const paragraphs = content.split('\n\n');
+  // Find body paragraphs (skip headings) to append inline links after, spread through the article
+  const bodyIdxs = paragraphs
+    .map((p, i) => ({ p, i }))
+    .filter(({ p }) => p.trim() && !p.trim().startsWith('#'))
+    .map(({ i }) => i);
+
+  const linksToInsert = related.slice(0, 3);
+  const spots = linksToInsert.map((_, i) =>
+    bodyIdxs[Math.floor(((i + 1) / (linksToInsert.length + 1)) * bodyIdxs.length)]
+  );
+
+  linksToInsert.forEach((link, i) => {
+    const idx = spots[i];
+    if (idx === undefined) return;
+    paragraphs[idx] = `${paragraphs[idx]}\n\n*Related: [${link.title}](/blog/${link.slug})*`;
+  });
+
+  // Always close with a soft product link
+  paragraphs.push(`Want to see how this works in practice? [Explore Rotahr](/landing) for restaurants, bars and hotels.`);
+
+  return paragraphs.join('\n\n');
+}
+
 export async function GET(req: Request) {
   const authHeader = req.headers.get('authorization');
   const secret = req.headers.get('x-cron-secret') || new URL(req.url).searchParams.get('secret');
@@ -127,12 +217,21 @@ export async function GET(req: Request) {
   }
 
   try {
-    const existingSlugs = await prisma.blogPost.findMany({ select: { slug: true } });
-    const usedSlugs = new Set(existingSlugs.map((p: { slug: string }) => p.slug));
-    const available = TOPICS.filter(t => !usedSlugs.has(slugify(t.title)));
+    const existingPosts = await prisma.blogPost.findMany({
+      select: { slug: true, title: true },
+      orderBy: { createdAt: 'desc' },
+    });
+    const usedSlugs = new Set(existingPosts.map((p: { slug: string }) => p.slug));
+    let available = TOPICS.filter(t => !usedSlugs.has(slugify(t.title)));
 
+    // Static pool exhausted — self-generate new, non-duplicate, search-intent topics
+    // so the blog keeps publishing indefinitely (Outrank-style keyword expansion).
     if (available.length === 0) {
-      return NextResponse.json({ message: 'All topics published, great job!' });
+      const fresh = await generateFreshTopics(existingPosts.map((p: { title: string }) => p.title));
+      available = fresh.filter(t => t.title && !usedSlugs.has(slugify(t.title)));
+      if (available.length === 0) {
+        return NextResponse.json({ message: 'Could not generate fresh topics this run, will retry next cron.' });
+      }
     }
 
     const topic = available[Math.floor(Math.random() * available.length)];
@@ -171,9 +270,28 @@ Write the article now:`;
       max_tokens: 1400,
     });
 
-    const content = completion.choices[0].message.content || '';
+    let content = completion.choices[0].message.content || '';
     const plainLines = content.split('\n').filter((l: string) => l.trim() && !l.startsWith('#'));
     const excerpt = plainLines.slice(0, 2).join(' ').slice(0, 220) + '...';
+
+    // Internal linking: pull recent posts in the same category (or fall back to any recent posts)
+    const sameCategory = await prisma.blogPost.findMany({
+      where: { published: true, category: topic.category },
+      orderBy: { createdAt: 'desc' },
+      take: 5,
+      select: { slug: true, title: true },
+    });
+    const fallbackPosts = sameCategory.length >= 2 ? [] : await prisma.blogPost.findMany({
+      where: { published: true },
+      orderBy: { createdAt: 'desc' },
+      take: 5,
+      select: { slug: true, title: true },
+    });
+    const relatedForLinks = [...sameCategory, ...fallbackPosts].slice(0, 3);
+    content = insertInternalLinks(content, relatedForLinks);
+
+    // Featured cover image (Outrank-style auto image generation)
+    const coverImage = await generateCoverImage(topic.title, topic.category);
 
     const post = await prisma.blogPost.create({
       data: {
@@ -185,12 +303,13 @@ Write the article now:`;
         tags: topic.tags,
         metaTitle: topic.title + ' | Rotahr',
         metaDesc: excerpt.slice(0, 160),
+        coverImage: coverImage ?? undefined,
         published: true,
       }
     });
 
-    console.log(`[Blog] Published: ${post.title}`);
-    return NextResponse.json({ success: true, slug: post.slug, title: post.title });
+    console.log(`[Blog] Published: ${post.title}${coverImage ? ' (with cover image)' : ' (no cover image)'}`);
+    return NextResponse.json({ success: true, slug: post.slug, title: post.title, coverImage: !!coverImage });
   } catch (err: any) {
     console.error('Blog generation error:', err);
     return NextResponse.json({ error: err.message }, { status: 500 });

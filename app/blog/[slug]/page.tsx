@@ -70,6 +70,11 @@ export default async function BlogPostPage({ params }: Props) {
           <p className="text-lg text-gray-500 leading-relaxed">{post.excerpt}</p>
         </div>
 
+        {post.coverImage && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={post.coverImage} alt={post.title} className="w-full h-64 sm:h-80 object-cover rounded-2xl mb-8" />
+        )}
+
         <ShareButtons title={post.title} slug={post.slug} />
 
         <hr className="border-gray-100 my-8" />
