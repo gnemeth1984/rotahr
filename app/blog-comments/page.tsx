@@ -44,6 +44,7 @@ interface Article {
   region: string | null;
   hasComments: boolean | null;
   commentPlatform: string | null;
+  used: boolean;
   createdAt: string;
 }
 
@@ -75,6 +76,7 @@ export default function BlogCommentsPage() {
   const [adding, setAdding] = useState(false);
   const [showAddBox, setShowAddBox] = useState(false);
   const [onlyWithComments, setOnlyWithComments] = useState(true);
+  const [hideUsed, setHideUsed] = useState(true);
   const [search, setSearch] = useState("");
   const [topicFilter, setTopicFilter] = useState<string>("all");
   const [selected, setSelected] = useState<Article | null>(null);
@@ -113,6 +115,7 @@ export default function BlogCommentsPage() {
   const visibleArticles = useMemo(() => {
     return articles
       .filter((a) => (onlyWithComments ? a.hasComments : true))
+      .filter((a) => (hideUsed ? !a.used : true))
       .filter((a) => (topicFilter === "all" ? true : a.topic === topicFilter))
       .filter((a) => {
         if (!search.trim()) return true;
@@ -123,7 +126,7 @@ export default function BlogCommentsPage() {
           (a.snippet || "").toLowerCase().includes(q)
         );
       });
-  }, [articles, onlyWithComments, topicFilter, search]);
+  }, [articles, onlyWithComments, hideUsed, topicFilter, search]);
 
   const confirmedCount = articles.filter(
     (a) => a.hasComments && a.snippet && !a.snippet.toLowerCase().includes("verify")
@@ -337,6 +340,14 @@ export default function BlogCommentsPage() {
             />
             Only with comments
           </label>
+          <label className="flex items-center gap-2 whitespace-nowrap text-sm text-white/60">
+            <input
+              type="checkbox"
+              checked={hideUsed}
+              onChange={(e) => setHideUsed(e.target.checked)}
+            />
+            Hide already-used
+          </label>
         </div>
 
         {/* Articles list */}
@@ -372,6 +383,11 @@ export default function BlogCommentsPage() {
                 >
                   <CardContent className="pt-4">
                     <div className="flex flex-wrap items-center gap-1.5">
+                      {a.used && (
+                        <Badge variant="outline" className="border-emerald-400/40 bg-emerald-400/10 text-emerald-300">
+                          Done
+                        </Badge>
+                      )}
                       <Badge
                         variant="outline"
                         className={`${

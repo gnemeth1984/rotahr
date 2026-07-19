@@ -82,3 +82,25 @@ export async function DELETE(req: NextRequest) {
   await prisma.blogCommentArticle.delete({ where: { id } });
   return NextResponse.json({ success: true });
 }
+
+const patchSchema = z.object({
+  used: z.boolean().optional(),
+  title: z.string().optional(),
+  snippet: z.string().optional().nullable(),
+});
+
+export async function PATCH(req: NextRequest) {
+  const session = await requireAdmin();
+  if (!session) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+  const { searchParams } = new URL(req.url);
+  const id = searchParams.get("id");
+  if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
+
+  const body = await req.json();
+  const parsed = patchSchema.safeParse(body);
+  if (!parsed.success) return NextResponse.json({ error: parsed.error.message }, { status: 400 });
+
+  await prisma.blogCommentArticle.update({ where: { id }, data: parsed.data });
+  return NextResponse.json({ success: true });
+}

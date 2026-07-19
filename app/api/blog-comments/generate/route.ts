@@ -41,5 +41,9 @@ export async function POST(req: NextRequest) {
     },
   });
 
+  if (articleId) {
+    await prisma.blogCommentArticle.update({ where: { id: articleId }, data: { used: true } }).catch(() => {});
+  }
+
   return NextResponse.json({ id: saved.id, draft });
 }
