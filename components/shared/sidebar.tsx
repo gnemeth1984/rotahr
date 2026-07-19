@@ -38,6 +38,7 @@ import {
   Newspaper,
   BarChart2,
   NotebookPen,
+  ScanLine,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -222,6 +223,15 @@ const navItems = [
     label: "Customer CRM",
     icon: ContactRound,
     roles: [Role.MANAGER, Role.ADMIN],
+    permission: null,
+    featureKey: null,
+    plans: ["pro", "enterprise"],
+  },
+  {
+    href: "/scan",
+    label: "Scan Offer",
+    icon: ScanLine,
+    roles: [Role.EMPLOYEE, Role.MANAGER, Role.ADMIN],
     permission: null,
     featureKey: null,
     plans: ["pro", "enterprise"],
