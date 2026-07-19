@@ -263,7 +263,6 @@ export function DeliveryNoteModal({ open, onClose, onApplied }: Props) {
                 ref={fileRef}
                 type="file"
                 accept="image/*"
-                capture="environment"
                 className="hidden"
                 onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); }}
               />
