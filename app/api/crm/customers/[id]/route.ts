@@ -11,9 +11,11 @@ const updateSchema = z.object({
   birthday: z.string().optional().nullable(),
   dietaryNotes: z.string().optional().nullable(),
   allergies: z.string().optional().nullable(),
+  seatingPreference: z.string().optional().nullable(),
   tags: z.array(z.string()).optional(),
   internalNotes: z.string().optional().nullable(),
   gdprConsent: z.boolean().optional(),
+  smsWhatsappConsent: z.boolean().optional(),
 });
 
 async function getCustomer(id: string, businessId: string) {
@@ -64,10 +66,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         birthday: null,
         dietaryNotes: null,
         allergies: null,
+        seatingPreference: null,
         internalNotes: null,
         tags: [],
         gdprConsent: false,
         gdprConsentAt: null,
+        smsWhatsappConsent: false,
         isAnonymised: true,
       },
     });
@@ -85,12 +89,14 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (data.birthday !== undefined) updateData.birthday = data.birthday ? new Date(data.birthday) : null;
   if (data.dietaryNotes !== undefined) updateData.dietaryNotes = data.dietaryNotes;
   if (data.allergies !== undefined) updateData.allergies = data.allergies;
+  if (data.seatingPreference !== undefined) updateData.seatingPreference = data.seatingPreference;
   if (data.tags !== undefined) updateData.tags = data.tags;
   if (data.internalNotes !== undefined) updateData.internalNotes = data.internalNotes;
   if (data.gdprConsent !== undefined) {
     updateData.gdprConsent = data.gdprConsent;
     if (data.gdprConsent) updateData.gdprConsentAt = new Date();
   }
+  if (data.smsWhatsappConsent !== undefined) updateData.smsWhatsappConsent = data.smsWhatsappConsent;
 
   const updated = await prisma.customer.update({ where: { id }, data: updateData });
   return NextResponse.json(updated);
@@ -112,9 +118,11 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
       birthday: null,
       dietaryNotes: null,
       allergies: null,
+      seatingPreference: null,
       internalNotes: null,
       tags: [],
       gdprConsent: false,
+      smsWhatsappConsent: false,
       isAnonymised: true,
     },
   });

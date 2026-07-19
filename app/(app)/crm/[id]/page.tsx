@@ -28,6 +28,7 @@ import {
   History,
   MessageSquare,
   Ticket,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -95,10 +96,12 @@ interface Customer {
   birthday: string | null;
   dietaryNotes: string | null;
   allergies: string | null;
+  seatingPreference: string | null;
   tags: string[];
   internalNotes: string | null;
   gdprConsent: boolean;
   gdprConsentAt: string | null;
+  smsWhatsappConsent: boolean;
   isAnonymised: boolean;
   createdAt: string;
   reservations: Reservation[];
@@ -140,6 +143,12 @@ export default function CustomerProfilePage() {
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const [expiresInDays, setExpiresInDays] = useState<number | null>(30);
   const [gmailStatus, setGmailStatus] = useState<{ connected: boolean; email?: string } | null>(null);
+  const [messagingStatus, setMessagingStatus] = useState<{ configured: boolean; hasWhatsapp: boolean; hasSms: boolean } | null>(null);
+  const [showMessageModal, setShowMessageModal] = useState(false);
+  const [messageChannel, setMessageChannel] = useState<"whatsapp" | "sms">("whatsapp");
+  const [messageBody, setMessageBody] = useState("");
+  const [sendingMessage, setSendingMessage] = useState(false);
+  const [messages, setMessages] = useState<any[]>([]);
   const [pendingOfferQr, setPendingOfferQr] = useState<string | null>(null);
   const [pendingOfferCode, setPendingOfferCode] = useState<string | null>(null);
 
@@ -236,7 +245,40 @@ export default function CustomerProfilePage() {
       .then((r) => r.json())
       .then(setGmailStatus)
       .catch(() => {});
+    // Only ever shows messaging UI if the business has a real, verified Twilio setup
+    fetch("/api/messaging/status")
+      .then((r) => r.json())
+      .then(setMessagingStatus)
+      .catch(() => {});
+    fetch(`/api/crm/customers/${id}/messages`)
+      .then((r) => (r.ok ? r.json() : { messages: [] }))
+      .then((d) => setMessages(d.messages || []))
+      .catch(() => {});
   }, [id]);
+
+  const sendGuestMessage = async () => {
+    if (!customer || !messageBody.trim()) return;
+    setSendingMessage(true);
+    try {
+      const res = await fetch("/api/messaging/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ customerId: customer.id, channel: messageChannel, body: messageBody }),
+      });
+      if (res.ok) {
+        setShowMessageModal(false);
+        setMessageBody("");
+        fetch(`/api/crm/customers/${id}/messages`)
+          .then((r) => (r.ok ? r.json() : { messages: [] }))
+          .then((d) => setMessages(d.messages || []));
+      } else {
+        const err = await res.json().catch(() => ({}));
+        alert(err.error || "Failed to send message");
+      }
+    } finally {
+      setSendingMessage(false);
+    }
+  };
 
   const startEdit = () => {
     if (!customer) return;
@@ -247,9 +289,11 @@ export default function CustomerProfilePage() {
       birthday: customer.birthday ? customer.birthday.split("T")[0] : null,
       dietaryNotes: customer.dietaryNotes,
       allergies: customer.allergies,
+      seatingPreference: customer.seatingPreference,
       tags: [...customer.tags],
       internalNotes: customer.internalNotes,
       gdprConsent: customer.gdprConsent,
+      smsWhatsappConsent: customer.smsWhatsappConsent,
     });
     setEditing(true);
   };
@@ -470,6 +514,11 @@ export default function CustomerProfilePage() {
                   <Send className="h-4 w-4" /> Send Email
                 </Button>
               )}
+              {messagingStatus?.configured && customer.phone && customer.smsWhatsappConsent && (
+                <Button size="sm" variant="outline" onClick={() => setShowMessageModal(true)} className="gap-1.5">
+                  <Send className="h-4 w-4" /> Message
+                </Button>
+              )}
               <Button size="sm" onClick={startEdit} className="gap-1.5 bg-indigo-600 hover:bg-indigo-700">
                 <Edit2 className="h-4 w-4" /> Edit
               </Button>
@@ -516,6 +565,12 @@ export default function CustomerProfilePage() {
                     <AlertTriangle className="h-3 w-3 text-orange-500" /> Allergies
                   </dt>
                   <dd className="text-orange-700 font-medium">{customer.allergies}</dd>
+                </div>
+              )}
+              {customer.seatingPreference && (
+                <div>
+                  <dt className="text-xs text-gray-500 font-medium">Seating Preference</dt>
+                  <dd className="text-gray-800">{customer.seatingPreference}</dd>
                 </div>
               )}
               {customer.internalNotes && (
@@ -768,8 +823,97 @@ export default function CustomerProfilePage() {
               ))}
             </div>
           </div>
+
+          {/* Message history — only rendered once messaging is verified & configured for this business */}
+          {messagingStatus?.configured && (
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+              <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-1.5">
+                <Send className="h-4 w-4 text-indigo-600" />
+                WhatsApp / SMS History
+                {!customer.smsWhatsappConsent && customer.phone && (
+                  <span className="ml-2 text-xs text-orange-600 bg-orange-50 border border-orange-200 px-2 py-0.5 rounded-full">
+                    No SMS/WhatsApp consent — can't send
+                  </span>
+                )}
+                {customer.phone && customer.smsWhatsappConsent && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setShowMessageModal(true)}
+                    className="ml-auto gap-1 text-xs"
+                  >
+                    <Send className="h-3 w-3" /> Send
+                  </Button>
+                )}
+              </h3>
+              <div className="space-y-2 max-h-60 overflow-y-auto">
+                {messages.length === 0 && (
+                  <p className="text-sm text-gray-400">No messages yet.</p>
+                )}
+                {messages.map((m) => (
+                  <div key={m.id} className={`rounded-lg px-3 py-2 text-sm ${m.direction === "inbound" ? "bg-indigo-50/60" : "bg-gray-50"}`}>
+                    <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                      <span className="uppercase font-medium">{m.channel}</span>
+                      <span>·</span>
+                      <span>{m.direction === "inbound" ? "Received" : "Sent"}</span>
+                      <span>·</span>
+                      <span className={m.status === "failed" ? "text-red-500" : ""}>{m.status}</span>
+                    </div>
+                    <div className="text-gray-800 mt-0.5">{m.body}</div>
+                    <div className="text-xs text-gray-400 mt-1">{formatDateTime(m.createdAt)}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Send WhatsApp/SMS Dialog */}
+      <Dialog open={showMessageModal} onOpenChange={setShowMessageModal}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Message {customer.name}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div>
+              <Label>Channel</Label>
+              <div className="flex gap-2 mt-1">
+                {messagingStatus?.hasWhatsapp && (
+                  <Button
+                    size="sm"
+                    variant={messageChannel === "whatsapp" ? "default" : "outline"}
+                    onClick={() => setMessageChannel("whatsapp")}
+                    className={messageChannel === "whatsapp" ? "bg-indigo-600 hover:bg-indigo-700" : ""}
+                  >
+                    WhatsApp
+                  </Button>
+                )}
+                {messagingStatus?.hasSms && (
+                  <Button
+                    size="sm"
+                    variant={messageChannel === "sms" ? "default" : "outline"}
+                    onClick={() => setMessageChannel("sms")}
+                    className={messageChannel === "sms" ? "bg-indigo-600 hover:bg-indigo-700" : ""}
+                  >
+                    SMS
+                  </Button>
+                )}
+              </div>
+            </div>
+            <div>
+              <Label>Message</Label>
+              <Textarea value={messageBody} onChange={(e) => setMessageBody(e.target.value)} rows={4} placeholder="Write your message…" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowMessageModal(false)}>Cancel</Button>
+            <Button onClick={sendGuestMessage} disabled={sendingMessage || !messageBody.trim()} className="bg-indigo-600 hover:bg-indigo-700 gap-1.5">
+              {sendingMessage ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} Send
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Generate Offer Dialog */}
       <Dialog open={showOfferModal} onOpenChange={setShowOfferModal}>
@@ -895,6 +1039,10 @@ export default function CustomerProfilePage() {
               <Input value={editForm.allergies ?? ""} onChange={(e) => setEditForm((f) => ({ ...f, allergies: e.target.value || null }))} />
             </div>
             <div>
+              <Label>Seating Preference</Label>
+              <Input value={editForm.seatingPreference ?? ""} onChange={(e) => setEditForm((f) => ({ ...f, seatingPreference: e.target.value || null }))} placeholder="Window table, booth, quiet corner..." />
+            </div>
+            <div>
               <Label>Internal Notes</Label>
               <Textarea value={editForm.internalNotes ?? ""} onChange={(e) => setEditForm((f) => ({ ...f, internalNotes: e.target.value || null }))} rows={3} />
             </div>
@@ -906,6 +1054,16 @@ export default function CustomerProfilePage() {
               />
               <Label htmlFor="gdpr-edit" className="text-sm cursor-pointer">
                 Marketing consent (GDPR)
+              </Label>
+            </div>
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="sms-consent-edit"
+                checked={editForm.smsWhatsappConsent ?? false}
+                onCheckedChange={(v) => setEditForm((f) => ({ ...f, smsWhatsappConsent: !!v }))}
+              />
+              <Label htmlFor="sms-consent-edit" className="text-sm cursor-pointer">
+                SMS/WhatsApp consent
               </Label>
             </div>
           </div>

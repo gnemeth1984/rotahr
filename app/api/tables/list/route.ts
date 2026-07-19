@@ -61,7 +61,8 @@ export async function GET(req: NextRequest) {
         },
         select: {
           id: true, tableId: true, customerName: true, partySize: true,
-          time: true, status: true, duration: true,
+          time: true, status: true, duration: true, dietary: true,
+          customer: { select: { allergies: true, dietaryNotes: true, seatingPreference: true } },
         },
         orderBy: { time: "asc" },
       });
@@ -75,7 +76,19 @@ export async function GET(req: NextRequest) {
 
       const withReservations = tables.map((t) => ({
         ...t,
-        dayReservations: byTable.get(t.id) ?? [],
+        dayReservations: (byTable.get(t.id) ?? []).map((r) => ({
+          id: r.id,
+          tableId: r.tableId,
+          customerName: r.customerName,
+          partySize: r.partySize,
+          time: r.time,
+          status: r.status,
+          duration: r.duration,
+          allergyAlert: Boolean(r.customer?.allergies) || Boolean(r.dietary),
+          allergies: r.customer?.allergies ?? null,
+          dietaryNotes: r.customer?.dietaryNotes ?? r.dietary ?? null,
+          seatingPreference: r.customer?.seatingPreference ?? null,
+        })),
       }));
       return NextResponse.json({ tables: withReservations });
     }

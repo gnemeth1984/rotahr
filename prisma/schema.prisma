@@ -62,6 +62,10 @@ model Business {
   // CRM promotional offers
   promoOffers    PromoOffer[]
 
+  // WhatsApp/SMS guest messaging
+  guestMessages     GuestMessage[]
+  messagingSettings MessagingSettings?
+
   // HACCP
   haccpRecords     HACCPRecord[]
   haccpEquipment        HACCPEquipment[]
@@ -109,6 +113,7 @@ model User {
   menuSpecials        MenuSpecial[]     @relation("MenuSpecialAuthor")
   crmNotes            CrmNote[]
   crmEmails           CrmEmail[]
+  guestMessages       GuestMessage[]
   haccpRecords             HACCPRecord[]
   haccpTemplatesUpdated    HACCPChecklistTemplate[] @relation("HaccpTemplateUpdater")
   logEntries               LogEntry[]
@@ -1034,6 +1039,7 @@ model Customer {
   birthday      DateTime?
   dietaryNotes  String?
   allergies     String?
+  seatingPreference String?
   tags          String[]  @default([])
   internalNotes String?
 
@@ -1041,10 +1047,13 @@ model Customer {
   gdprConsentAt DateTime?
   isAnonymised  Boolean   @default(false)
 
+  smsWhatsappConsent Boolean @default(false)
+
   reservations  Reservation[]
   crmNotes      CrmNote[]
   crmEmails     CrmEmail[]
   promoOffers   PromoOffer[]
+  guestMessages GuestMessage[]
 
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -1077,6 +1086,42 @@ model CrmEmail {
   sentAt     DateTime @default(now())
 
   @@index([customerId])
+}
+
+// WhatsApp/SMS guest messaging (built but gated in the UI until a business has
+// real Twilio credentials configured and verified — see lib/messaging/config.ts)
+model GuestMessage {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  sentById   String?
+  sentBy     User?    @relation(fields: [sentById], references: [id])
+  channel    String   // "whatsapp" | "sms"
+  direction  String   @default("outbound") // "outbound" | "inbound"
+  body       String
+  status     String   @default("queued") // "queued" | "sent" | "delivered" | "failed" | "received"
+  providerSid String? // Twilio message SID, for webhook status matching
+  errorMessage String?
+  createdAt  DateTime @default(now())
+
+  @@index([businessId])
+  @@index([customerId])
+  @@index([providerSid])
+}
+
+model MessagingSettings {
+  id                String   @id @default(cuid())
+  businessId        String   @unique
+  business          Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  twilioAccountSid  String?
+  twilioAuthToken   String?
+  twilioWhatsappNumber String? // e.g. "whatsapp:+14155238886"
+  twilioSmsNumber   String?
+  enabled           Boolean  @default(false) // manager can only turn on once a live test send succeeds
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 }
 
 model ReferralPartner {

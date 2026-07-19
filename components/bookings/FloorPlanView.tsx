@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
-  Plus, Loader2, Trash2, Users, LayoutGrid, Maximize2, Wine,
+  Plus, Loader2, Trash2, Users, LayoutGrid, Maximize2, Wine, AlertTriangle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,6 +23,10 @@ interface DayReservation {
   time: string;
   status: string;
   duration: number;
+  allergyAlert?: boolean;
+  allergies?: string | null;
+  dietaryNotes?: string | null;
+  seatingPreference?: string | null;
 }
 
 type TableShape = "square" | "circle" | "rect" | "counter";
@@ -67,15 +71,21 @@ const SIZE_PRESETS = [
   { label: "L", width: 140, height: 140 },
 ];
 
-function currentTableStatus(res: DayReservation[]): { color: string; label: string; res: DayReservation | null } {
-  if (res.length === 0) return { color: "bg-white border-slate-300", label: "Free", res: null };
+function currentTableStatus(res: DayReservation[]): { color: string; label: string; res: DayReservation | null; hasAlert: boolean } {
+  const hasAlert = res.some((r) => r.allergyAlert);
+  if (res.length === 0) return { color: "bg-white border-slate-300", label: "Free", res: null, hasAlert: false };
   const seated = res.find((r) => r.status === "seated");
-  if (seated) return { color: STATUS_COLOR.seated, label: `Seated · ${seated.customerName}`, res: seated };
+  if (seated) {
+    const alertNote = seated.allergyAlert ? ` — ⚠ ${seated.allergies || seated.dietaryNotes}` : "";
+    return { color: STATUS_COLOR.seated, label: `Seated · ${seated.customerName}${alertNote}`, res: seated, hasAlert };
+  }
   const next = res[0];
+  const alertNote = next.allergyAlert ? ` — ⚠ ${next.allergies || next.dietaryNotes}` : "";
   return {
     color: STATUS_COLOR[next.status] ?? "bg-slate-300 border-slate-400",
-    label: `${next.time} · ${next.customerName}`,
+    label: `${next.time} · ${next.customerName}${alertNote}`,
     res: next,
+    hasAlert,
   };
 }
 
@@ -348,6 +358,14 @@ export function FloorPlanView({ date, isManager, onOpenBooking, onNewBookingForT
                   title={status.label}
                 >
                   {isCounter && <Wine className="h-3 w-3 opacity-60 mb-0.5" />}
+                  {status.hasAlert && (
+                    <span
+                      className="absolute -top-1.5 -left-1.5 h-4 w-4 rounded-full bg-red-500 border border-white shadow flex items-center justify-center"
+                      title="Guest has allergy/dietary info on file"
+                    >
+                      <AlertTriangle className="h-2.5 w-2.5 text-white" />
+                    </span>
+                  )}
                   <span className="font-bold text-sm leading-tight px-1 text-center truncate max-w-full">{t.name}</span>
                   <span className="text-[10px] opacity-80 flex items-center gap-0.5">
                     <Users className="h-2.5 w-2.5" /> {t.capacity}
