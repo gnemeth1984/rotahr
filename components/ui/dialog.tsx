@@ -36,11 +36,15 @@ const DialogContent = React.forwardRef<
       className={cn(
         // Base
         "fixed z-50 grid w-full gap-4 bg-background shadow-lg duration-200",
-        // Mobile: bottom sheet
+        // Mobile: bottom sheet — capped height + internal scroll so content
+        // (and whatever input you're typing into) stays reachable above the
+        // on-screen keyboard instead of being pushed out of view
         "bottom-0 left-0 right-0 rounded-t-2xl border-x border-t p-4",
+        "max-h-[85dvh] overflow-y-auto",
         // Desktop: centered modal
         "sm:bottom-auto sm:left-[50%] sm:top-[50%] sm:right-auto",
         "sm:max-w-lg sm:w-full sm:-translate-x-1/2 sm:-translate-y-1/2",
+        "sm:max-h-[85vh]",
         "sm:rounded-lg sm:border sm:p-6",
         // Animations
         "data-[state=open]:animate-in data-[state=closed]:animate-out",
