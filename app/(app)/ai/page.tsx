@@ -18,6 +18,8 @@ import { cn } from "@/lib/utils";
 interface IntakeResult {
   parsed: {
     customerName: string | null;
+    customerEmail: string | null;
+    customerPhone: string | null;
     partySize: number | null;
     date: string | null;
     time: string | null;
@@ -171,6 +173,8 @@ function BookingIntakePanel() {
             {/* Parsed fields grid */}
             <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
               <Field label="Customer" value={intake.parsed.customerName} />
+              <Field label="Phone" value={intake.parsed.customerPhone} />
+              <Field label="Email" value={intake.parsed.customerEmail} />
               <Field label="Party size" value={intake.parsed.partySize?.toString()} />
               <Field label="Date" value={intake.parsed.date} />
               <Field label="Time" value={intake.parsed.time ? new Date(intake.parsed.time).toLocaleTimeString("en-IE", { hour: "2-digit", minute: "2-digit", hour12: false }) : null} />

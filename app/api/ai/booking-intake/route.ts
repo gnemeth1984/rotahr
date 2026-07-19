@@ -54,6 +54,8 @@ export async function POST(req: NextRequest) {
       reservation = await reservationService.create(
         {
           customerName: intake.parsed.customerName,
+          customerEmail: intake.parsed.customerEmail ?? undefined,
+          customerPhone: intake.parsed.customerPhone ?? undefined,
           partySize: intake.parsed.partySize,
           date: intake.parsed.date,
           time: intake.parsed.time,
@@ -64,6 +66,7 @@ export async function POST(req: NextRequest) {
           kitchenNotes: intake.kitchenNotes,
           upsellNotes: intake.upsellSuggestions,
           aiWarnings: intake.warnings.join("\n"),
+          aiTranscript: message,
         },
         businessId,
         session.user.id

@@ -298,6 +298,7 @@ model Reservation {
   kitchenNotes  String?
   upsellNotes   String?
   aiWarnings    String?
+  aiTranscript  String?  @db.Text // the exact raw message typed/said to the AI booking assistant, kept verbatim for audit
   createdById   String?
   createdByName     String?
   marketingConsent  Boolean @default(false)

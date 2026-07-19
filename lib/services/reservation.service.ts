@@ -16,6 +16,7 @@ export const createReservationSchema = z.object({
   kitchenNotes: z.string().optional(),
   upsellNotes: z.string().optional(),
   aiWarnings: z.string().optional(),
+  aiTranscript: z.string().optional(),
 });
 
 export const updateReservationSchema = createReservationSchema.partial().extend({
@@ -45,6 +46,7 @@ export const reservationService = {
         kitchenNotes: data.kitchenNotes,
         upsellNotes: data.upsellNotes,
         aiWarnings: data.aiWarnings,
+        aiTranscript: data.aiTranscript,
       },
       include: {
         table: true,

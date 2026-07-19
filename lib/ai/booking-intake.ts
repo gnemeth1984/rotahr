@@ -6,6 +6,8 @@ import { tableService } from "@/lib/services/table.service";
 export interface BookingIntakeResult {
   parsed: {
     customerName: string | null;
+    customerEmail: string | null;
+    customerPhone: string | null;
     partySize: number | null;
     date: string | null;
     time: string | null;
@@ -69,6 +71,32 @@ function extractCustomerName(msg: string): string | null {
     if (m && !stopWords.has(m[1].toLowerCase())) {
       // Capitalise first letter of each word
       return m[1].replace(/\b\w/g, (c) => c.toUpperCase());
+    }
+  }
+  return null;
+}
+
+function extractEmail(msg: string): string | null {
+  const m = msg.match(/\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b/);
+  return m ? m[0].toLowerCase() : null;
+}
+
+function extractPhone(msg: string): string | null {
+  // Matches Irish/UK mobile & landline formats and generic international numbers:
+  // "085 123 4567", "+353 85 123 4567", "07123456789", "01-234-5678"
+  const patterns = [
+    /\+?\d[\d\s\-()]{7,}\d/g,
+  ];
+  for (const p of patterns) {
+    const matches = msg.match(p);
+    if (matches) {
+      for (const raw of matches) {
+        const digits = raw.replace(/[^\d+]/g, "");
+        // Guard against picking up party size / table numbers / years by requiring enough digits
+        if (digits.replace(/^\+/, "").length >= 7) {
+          return raw.trim();
+        }
+      }
     }
   }
   return null;
@@ -169,6 +197,8 @@ export async function processBookingIntake(
   // 1. Parse fields
   const partySize = extractPartySize(message);
   const customerName = extractCustomerName(message);
+  const customerEmail = extractEmail(message);
+  const customerPhone = extractPhone(message);
   const occasion = extractOccasion(message);
   const dietary = extractDietary(message);
   const notes = extractNotes(message);
@@ -289,6 +319,8 @@ export async function processBookingIntake(
     `📋 Booking Intake Summary`,
     `─────────────────────────`,
     `Customer: ${customerName ?? "Not specified"}`,
+    customerPhone ? `Phone: ${customerPhone}` : "",
+    customerEmail ? `Email: ${customerEmail}` : "",
     `Party: ${partySize ?? "?"} guests`,
     `Date/Time: ${dateTime ? dateTime.toLocaleString("en-IE") : "Not parsed"}`,
     `Occasion: ${occasion ?? "None"}`,
@@ -303,6 +335,8 @@ export async function processBookingIntake(
   return {
     parsed: {
       customerName,
+      customerEmail,
+      customerPhone,
       partySize,
       date: dateStr,
       time: timeStr,

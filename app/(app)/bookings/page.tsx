@@ -53,6 +53,7 @@ import {
   UserCircle,
   List,
   LayoutGrid,
+  Mail,
 } from "lucide-react";
 import { UserRole as Role } from "@/types/roles";
 import { cn } from "@/lib/utils";
@@ -72,6 +73,8 @@ interface Booking {
   menuRequired: boolean;
   createdByName: string | null;
   marketingConsent: boolean;
+  aiWarnings: string | null;
+  aiTranscript: string | null;
   table: { id: string; name: string; capacity: number } | null;
 }
 
@@ -675,6 +678,24 @@ function BookingsInner() {
                 )}
                 {activeBooking?.menuRequired && (
                   <p className="text-xs text-amber-600 mt-0.5 font-medium">📋 Menu pre-order required</p>
+                )}
+                {activeBooking?.customerEmail && (
+                  <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-1">
+                    <Mail className="h-3 w-3" />{activeBooking.customerEmail}
+                  </p>
+                )}
+                {activeBooking?.aiWarnings && (
+                  <p className="text-xs text-amber-600 mt-0.5 font-medium">⚠️ {activeBooking.aiWarnings}</p>
+                )}
+                {activeBooking?.aiTranscript && (
+                  <details className="mt-1.5">
+                    <summary className="text-xs text-indigo-600 cursor-pointer select-none flex items-center gap-1">
+                      <Sparkles className="h-3 w-3" /> View original AI booking message
+                    </summary>
+                    <p className="text-xs text-slate-500 mt-1 bg-slate-50 border border-slate-200 rounded-lg p-2 whitespace-pre-wrap">
+                      {activeBooking.aiTranscript}
+                    </p>
+                  </details>
                 )}
               </div>
               <span className={cn(
