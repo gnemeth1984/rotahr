@@ -340,7 +340,13 @@ function TasksTab({ isManager }: { isManager: boolean }) {
     dueDate: "",
     requirePhoto: false,
     assignedToId: "",
+    assignedDepartmentId: "",
   });
+  const [departments, setDepartments] = useState<any[]>([]);
+  const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
+  const [taskUpdates, setTaskUpdates] = useState<Record<string, any[]>>({});
+  const [newComment, setNewComment] = useState("");
+  const [postingComment, setPostingComment] = useState(false);
 
   const load = useCallback(async () => {
     const res = await fetch("/api/log-book/tasks");
@@ -355,8 +361,43 @@ function TasksTab({ isManager }: { isManager: boolean }) {
         .then((r) => r.json())
         .then((d) => setEmployees(d.employees || d || []))
         .catch(() => {});
+      fetch("/api/department/list")
+        .then((r) => (r.ok ? r.json() : { departments: [] }))
+        .then((d) => setDepartments(d.departments ?? []))
+        .catch(() => {});
     }
   }, [load, isManager]);
+
+  async function toggleTaskExpand(taskId: string) {
+    if (expandedTaskId === taskId) { setExpandedTaskId(null); return; }
+    setExpandedTaskId(taskId);
+    if (!taskUpdates[taskId]) {
+      const res = await fetch(`/api/log-book/tasks/${taskId}/updates`);
+      if (res.ok) {
+        const d = await res.json();
+        setTaskUpdates((prev) => ({ ...prev, [taskId]: d.updates || [] }));
+      }
+    }
+  }
+
+  async function postComment(taskId: string) {
+    if (!newComment.trim()) return;
+    setPostingComment(true);
+    try {
+      const res = await fetch(`/api/log-book/tasks/${taskId}/updates`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ note: newComment.trim() }),
+      });
+      if (res.ok) {
+        const d = await res.json();
+        setTaskUpdates((prev) => ({ ...prev, [taskId]: [...(prev[taskId] || []), d.update] }));
+        setNewComment("");
+      }
+    } finally {
+      setPostingComment(false);
+    }
+  }
 
   async function handleCreate() {
     if (!form.title.trim()) return;
@@ -365,11 +406,11 @@ function TasksTab({ isManager }: { isManager: boolean }) {
       const res = await fetch("/api/log-book/tasks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, dueDate: form.dueDate || null, assignedToId: form.assignedToId || null }),
+        body: JSON.stringify({ ...form, dueDate: form.dueDate || null, assignedToId: form.assignedToId || null, assignedDepartmentId: form.assignedDepartmentId || null }),
       });
       if (!res.ok) throw new Error();
       toast.success("Task created");
-      setForm({ title: "", description: "", frequency: "once", dueDate: "", requirePhoto: false, assignedToId: "" });
+      setForm({ title: "", description: "", frequency: "once", dueDate: "", requirePhoto: false, assignedToId: "", assignedDepartmentId: "" });
       setOpen(false);
       load();
     } catch {
@@ -490,7 +531,11 @@ function TasksTab({ isManager }: { isManager: boolean }) {
                     </div>
                     {t.description && <p className="mt-1 text-sm text-slate-500">{t.description}</p>}
                     <p className="mt-1 text-xs text-slate-400">
-                      {t.assignedTo ? `${t.assignedTo.firstName} ${t.assignedTo.lastName}` : "Unassigned"}
+                      {t.assignedTo
+                        ? `${t.assignedTo.firstName} ${t.assignedTo.lastName}`
+                        : t.assignedDepartment
+                        ? `${t.assignedDepartment.name} — whoever's working`
+                        : "Unassigned"}
                       {t.dueDate ? ` · due ${new Date(t.dueDate).toLocaleDateString("en-IE")}` : ""}
                       {t.venue?.name ? ` · ${t.venue.name}` : ""}
                     </p>
@@ -498,6 +543,38 @@ function TasksTab({ isManager }: { isManager: boolean }) {
                       <a href={t.photoUrl} target="_blank" rel="noreferrer" className="mt-1.5 inline-block">
                         <img src={t.photoUrl} alt="proof" className="h-16 w-16 rounded-md border object-cover" />
                       </a>
+                    )}
+                    <button
+                      onClick={() => toggleTaskExpand(t.id)}
+                      className="mt-1.5 text-xs text-indigo-600 hover:underline"
+                    >
+                      {expandedTaskId === t.id ? "Hide comments" : `Comments${t._count?.updates ? ` (${t._count.updates})` : ""}`}
+                    </button>
+                    {expandedTaskId === t.id && (
+                      <div className="mt-2 space-y-2 rounded-lg bg-slate-50 border border-slate-200 p-2.5">
+                        {(taskUpdates[t.id] || []).length === 0 && (
+                          <p className="text-xs text-slate-400">No comments yet.</p>
+                        )}
+                        {(taskUpdates[t.id] || []).map((u: any) => (
+                          <div key={u.id} className="text-xs">
+                            <span className="font-medium text-slate-700">{u.createdBy?.name ?? u.createdBy?.email}</span>
+                            <span className="text-slate-400"> · {new Date(u.createdAt).toLocaleString("en-IE", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
+                            <p className="text-slate-600 mt-0.5">{u.note}</p>
+                          </div>
+                        ))}
+                        <div className="flex gap-1.5 pt-1">
+                          <Input
+                            value={newComment}
+                            onChange={(e) => setNewComment(e.target.value)}
+                            placeholder="Add a comment…"
+                            className="h-8 text-xs"
+                            onKeyDown={(e) => { if (e.key === "Enter") postComment(t.id); }}
+                          />
+                          <Button size="sm" className="h-8" disabled={postingComment || !newComment.trim()} onClick={() => postComment(t.id)}>
+                            {postingComment ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Post"}
+                          </Button>
+                        </div>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -545,9 +622,9 @@ function TasksTab({ isManager }: { isManager: boolean }) {
                 onChange={(e) => setForm({ ...form, dueDate: e.target.value })}
               />
             </div>
-            <Select value={form.assignedToId || "__none__"} onValueChange={(v) => setForm({ ...form, assignedToId: v === "__none__" ? "" : v })}>
+            <Select value={form.assignedToId || "__none__"} onValueChange={(v) => setForm({ ...form, assignedToId: v === "__none__" ? "" : v, assignedDepartmentId: v === "__none__" ? form.assignedDepartmentId : "" })}>
               <SelectTrigger>
-                <SelectValue placeholder="Assign to (optional)" />
+                <SelectValue placeholder="Assign to a person (optional)" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="__none__">Unassigned</SelectItem>
@@ -558,6 +635,27 @@ function TasksTab({ isManager }: { isManager: boolean }) {
                 ))}
               </SelectContent>
             </Select>
+            {departments.length > 0 && (
+              <Select
+                value={form.assignedDepartmentId || "__none__"}
+                onValueChange={(v) => setForm({ ...form, assignedDepartmentId: v === "__none__" ? "" : v, assignedToId: v === "__none__" ? form.assignedToId : "" })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Or assign to a whole department (optional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">No department</SelectItem>
+                  {departments.map((d: any) => (
+                    <SelectItem key={d.id} value={d.id}>
+                      {d.name} — whoever's working
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            <p className="text-xs text-slate-400 -mt-1">
+              Assigning to a department shows the task to whoever's clocked in or on today's published shift — never orphaned if the named person is off.
+            </p>
             <label className="flex items-center gap-2 text-sm text-slate-600">
               <input
                 type="checkbox"

@@ -39,6 +39,7 @@ import {
   BarChart2,
   NotebookPen,
   ScanLine,
+  Sun,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -62,6 +63,15 @@ const navItems = [
     roles: [Role.EMPLOYEE, Role.MANAGER, Role.ADMIN],
     permission: null,
     featureKey: "dashboard" as FeatureKey,
+    plans: null,
+  },
+  {
+    href: "/today",
+    label: "Today",
+    icon: Sun,
+    roles: [Role.EMPLOYEE, Role.MANAGER, Role.ADMIN],
+    permission: null,
+    featureKey: null,
     plans: null,
   },
   {
