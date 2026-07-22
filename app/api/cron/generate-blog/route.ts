@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import OpenAI from 'openai';
-import { put } from '@vercel/blob';
+import { generateCoverImage, slugify } from '@/lib/blog/cover-image';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -113,10 +113,6 @@ const UK_TOPICS: { title: string; category: string; tags: string; region: string
 
 const TOPICS = [...GENERAL_TOPICS, ...US_TOPICS, ...UK_TOPICS];
 
-function slugify(text: string) {
-  return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-}
-
 // When the static topic pool runs dry, ask the model for fresh, non-duplicate,
 // search-intent-driven topic ideas so the blog never stops publishing.
 async function generateFreshTopics(existingTitles: string[]): Promise<
@@ -150,28 +146,6 @@ Return ONLY a JSON array, no markdown fences, no commentary, in this exact shape
     console.error('[Blog] Failed to parse fresh topics JSON:', e, raw.slice(0, 300));
   }
   return [];
-}
-
-// Generate a simple, on-brand cover image for an article and store it in Vercel Blob.
-async function generateCoverImage(title: string, category: string): Promise<string | null> {
-  try {
-    const img = await openai.images.generate({
-      model: 'gpt-image-1',
-      prompt: `Clean, modern editorial illustration for a hospitality industry blog article titled "${title}" (category: ${category}). Professional restaurant/bar/hotel setting relevant to the topic. Flat, minimal, premium SaaS blog cover style, warm neutral tones with a hint of amber/orange accent, no text or logos in the image, wide aspect ratio.`,
-      size: '1536x1024',
-    });
-    const b64 = img.data?.[0]?.b64_json;
-    if (!b64) return null;
-    const buffer = Buffer.from(b64, 'base64');
-    const blob = await put(`blog-covers/${slugify(title)}-${Date.now()}.png`, buffer, {
-      access: 'public',
-      contentType: 'image/png',
-    });
-    return blob.url;
-  } catch (e) {
-    console.error('[Blog] Cover image generation failed:', e);
-    return null;
-  }
 }
 
 // Naturally weave 2-3 internal links to existing related articles (plus one product link)
