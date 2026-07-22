@@ -21,8 +21,10 @@ export async function GET(req: NextRequest) {
     },
     include: {
       assignedTo: { select: { firstName: true, lastName: true } },
+      assignedDepartment: { select: { id: true, name: true } },
       venue: { select: { name: true } },
       createdBy: { select: { name: true } },
+      _count: { select: { updates: true } },
     },
     orderBy: [{ completed: "asc" }, { dueDate: "asc" }, { createdAt: "desc" }],
     take: 200,
@@ -38,6 +40,9 @@ const createSchema = z.object({
   dueDate: z.string().optional().nullable(),
   requirePhoto: z.boolean().default(false),
   assignedToId: z.string().optional().nullable(),
+  assignedRole: z.string().optional().nullable(),
+  assignedDepartmentId: z.string().optional().nullable(),
+  sourceMessageId: z.string().optional().nullable(),
   venueId: z.string().optional().nullable(),
 });
 
@@ -64,6 +69,9 @@ export async function POST(req: NextRequest) {
       dueDate: parsed.data.dueDate ? new Date(parsed.data.dueDate) : null,
       requirePhoto: parsed.data.requirePhoto,
       assignedToId: parsed.data.assignedToId || null,
+      assignedRole: parsed.data.assignedRole || null,
+      assignedDepartmentId: parsed.data.assignedDepartmentId || null,
+      sourceMessageId: parsed.data.sourceMessageId || null,
       createdById: session.user.id,
     },
   });

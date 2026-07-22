@@ -311,7 +311,6 @@ function EquipmentTempModal({
   const readyEntries = equipment.filter((eq) => {
     const t = temps[eq.id];
     if (!t || t.value === "") return false;
-    if (outOfRange(t.value) && !t.notes) return false;
     return true;
   });
 
@@ -460,15 +459,15 @@ function EquipmentTempModal({
                 </div>
               </div>
 
-              {/* Out of range: notes required */}
+              {/* Out of range: still saveable — note is recommended, not required */}
               {isOut && (
                 <div className="mt-2 space-y-1">
                   <p className="text-xs text-red-600 flex items-center gap-1">
                     <AlertTriangle className="h-3 w-3" />
-                    Out of safe range — add corrective action note
+                    Out of safe range — will be logged as a fail. Add a corrective action note if you can.
                   </p>
                   <Input
-                    placeholder="What action was taken?"
+                    placeholder="What action was taken? (optional)"
                     value={t.notes}
                     onChange={(e) =>
                       setTemps((prev) => ({
@@ -1006,7 +1005,7 @@ function CookingTempForm({
         )}
       </div>
       <div className="space-y-2">
-        <Label>{isFailed ? "Corrective Action (required)" : "Notes (optional)"}</Label>
+        <Label>{isFailed ? "Corrective Action (recommended)" : "Notes (optional)"}</Label>
         <Textarea
           placeholder={
             isFailed
@@ -1021,7 +1020,7 @@ function CookingTempForm({
       <Button
         className="w-full bg-slate-900 hover:bg-slate-800"
         onClick={handleSubmit}
-        disabled={loading || !itemName || !coreTemp || !endTime || (isFailed && !notes)}
+        disabled={loading || !itemName || !coreTemp || !endTime}
       >
         {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
         Save Cooking Record
@@ -1182,7 +1181,7 @@ function CoolingForm({
       )}
 
       <div className="space-y-2">
-        <Label>{isFailed ? "Corrective Action (required)" : "Notes (optional)"}</Label>
+        <Label>{isFailed ? "Corrective Action (recommended)" : "Notes (optional)"}</Label>
         <Textarea
           placeholder={
             isFailed
@@ -1197,7 +1196,7 @@ function CoolingForm({
       <Button
         className="w-full bg-slate-900 hover:bg-slate-800"
         onClick={handleSubmit}
-        disabled={loading || !itemName || !endTemp || !endTime || (isFailed && !notes)}
+        disabled={loading || !itemName || !endTemp || !endTime}
       >
         {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
         Save Cooling Record

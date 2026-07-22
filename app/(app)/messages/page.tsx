@@ -3,10 +3,12 @@
 import { useEffect, useRef, useState, Component, ReactNode, Suspense } from "react";
 import { useSession } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
-import { Send, MessageSquare, User, ArrowLeft, AlertCircle, Users, Check, Loader2 } from "lucide-react";
+import { Send, MessageSquare, User, ArrowLeft, AlertCircle, Users, Check, Loader2, Hash, AlertTriangle, ListChecks, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -59,6 +61,26 @@ function MessagesInner() {
   const [error, setError] = useState<string | null>(null);
   const [contactsError, setContactsError] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  // ── Channels (persistent department/everyone broadcasts) ──────────────────
+  type ChannelT = { id: string; name: string; departmentId: string | null; unread: number };
+  type ChannelMsg = { id: string; channelId: string; sender: { id: string; firstName: string; lastName: string }; body: string; urgent: boolean; createdAt: string; readByMe: boolean };
+  const [view, setView] = useState<"direct" | "channels">("direct");
+  const [channels, setChannels] = useState<ChannelT[]>([]);
+  const [selectedChannelId, setSelectedChannelId] = useState<string | null>(null);
+  const [channelMessages, setChannelMessages] = useState<ChannelMsg[]>([]);
+  const [channelBody, setChannelBody] = useState("");
+  const [channelUrgent, setChannelUrgent] = useState(false);
+  const [channelSending, setChannelSending] = useState(false);
+  const [receiptsFor, setReceiptsFor] = useState<ChannelMsg | null>(null);
+  const [receipts, setReceipts] = useState<{ total: number; readCount: number; status: { employeeId: string; name: string; read: boolean }[] } | null>(null);
+  const channelBottomRef = useRef<HTMLDivElement>(null);
+
+  // Convert message → task
+  const [taskDraftFor, setTaskDraftFor] = useState<{ id: string; source: "message" | "channelMessage"; body: string } | null>(null);
+  const [taskTitle, setTaskTitle] = useState("");
+  const [taskDueDate, setTaskDueDate] = useState("");
+  const [taskCreating, setTaskCreating] = useState(false);
 
   // Group message state
   const [groupOpen, setGroupOpen] = useState(false);
@@ -121,6 +143,93 @@ function MessagesInner() {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // Fetch channels when switching to that tab
+  useEffect(() => {
+    if (view !== "channels") return;
+    fetch("/api/channels")
+      .then((r) => r.json())
+      .then((d) => setChannels(Array.isArray(d.channels) ? d.channels : []))
+      .catch(() => {});
+  }, [view]);
+
+  // Fetch channel messages when a channel is selected
+  useEffect(() => {
+    if (!selectedChannelId) return;
+    fetch(`/api/channels/${selectedChannelId}/messages`)
+      .then((r) => r.json())
+      .then((d) => {
+        setChannelMessages(Array.isArray(d.messages) ? d.messages : []);
+        setChannels((prev) => prev.map((c) => (c.id === selectedChannelId ? { ...c, unread: 0 } : c)));
+      })
+      .catch(() => {});
+  }, [selectedChannelId]);
+
+  useEffect(() => {
+    channelBottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [channelMessages]);
+
+  async function sendChannelMessage() {
+    if (!channelBody.trim() || !selectedChannelId) return;
+    const text = channelBody.trim();
+    const urgent = channelUrgent;
+    setChannelBody("");
+    setChannelUrgent(false);
+    setChannelSending(true);
+    try {
+      const res = await fetch(`/api/channels/${selectedChannelId}/messages`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ body: text, urgent }),
+      });
+      if (res.ok) {
+        const d = await fetch(`/api/channels/${selectedChannelId}/messages`).then((r) => r.json());
+        setChannelMessages(Array.isArray(d.messages) ? d.messages : []);
+      }
+    } finally {
+      setChannelSending(false);
+    }
+  }
+
+  async function acknowledgeMessage(msgId: string) {
+    const res = await fetch(`/api/channels/messages/${msgId}/ack`, { method: "POST" });
+    if (res.ok) {
+      setChannelMessages((prev) => prev.map((m) => (m.id === msgId ? { ...m, readByMe: true } : m)));
+    }
+  }
+
+  async function openReceipts(msg: ChannelMsg) {
+    setReceiptsFor(msg);
+    setReceipts(null);
+    const res = await fetch(`/api/channels/messages/${msg.id}/receipts`);
+    if (res.ok) setReceipts(await res.json());
+  }
+
+  function openTaskDraft(id: string, source: "message" | "channelMessage", body: string) {
+    setTaskDraftFor({ id, source, body });
+    setTaskTitle(body.length > 60 ? body.slice(0, 57) + "…" : body);
+    setTaskDueDate("");
+  }
+
+  async function createTaskFromMessage() {
+    if (!taskDraftFor || !taskTitle.trim()) return;
+    setTaskCreating(true);
+    try {
+      const res = await fetch("/api/log-book/tasks/from-message", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messageId: taskDraftFor.id,
+          source: taskDraftFor.source,
+          title: taskTitle.trim(),
+          dueDate: taskDueDate || undefined,
+        }),
+      });
+      if (res.ok) setTaskDraftFor(null);
+    } finally {
+      setTaskCreating(false);
+    }
+  }
 
   async function sendMessage() {
     if (!body.trim() || !selectedId) return;
@@ -190,8 +299,10 @@ function MessagesInner() {
   }
 
   const totalUnread = Object.values(unread).reduce((a, b) => a + b, 0);
+  const totalChannelUnread = channels.reduce((a, c) => a + c.unread, 0);
   const selectedEmp = employees.find((e) => e.id === selectedId);
-  const showChat = !!selectedId;
+  const selectedChannel = channels.find((c) => c.id === selectedChannelId);
+  const showChat = view === "direct" ? !!selectedId : !!selectedChannelId;
 
   return (
     <div className="h-[calc(100vh-4rem)] flex overflow-hidden bg-slate-50">
@@ -234,7 +345,57 @@ function MessagesInner() {
             )}
           </div>
         </div>
+        <div className="flex border-b border-slate-200">
+          <button
+            onClick={() => setView("direct")}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-sm font-medium transition-colors ${
+              view === "direct" ? "text-blue-600 border-b-2 border-blue-500" : "text-slate-400 hover:text-slate-600"
+            }`}
+          >
+            <User className="h-3.5 w-3.5" /> Direct
+            {totalUnread > 0 && <span className="bg-blue-500 text-white text-[10px] rounded-full px-1.5">{totalUnread}</span>}
+          </button>
+          <button
+            onClick={() => setView("channels")}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-sm font-medium transition-colors ${
+              view === "channels" ? "text-blue-600 border-b-2 border-blue-500" : "text-slate-400 hover:text-slate-600"
+            }`}
+          >
+            <Hash className="h-3.5 w-3.5" /> Channels
+            {totalChannelUnread > 0 && <span className="bg-blue-500 text-white text-[10px] rounded-full px-1.5">{totalChannelUnread}</span>}
+          </button>
+        </div>
         <div className="flex-1 overflow-y-auto">
+          {view === "channels" ? (
+            <>
+              {channels.length === 0 && (
+                <p className="text-sm text-slate-400 px-4 py-6">No channels yet</p>
+              )}
+              {channels.map((c) => {
+                const isSelected = selectedChannelId === c.id;
+                return (
+                  <button
+                    key={c.id}
+                    onClick={() => setSelectedChannelId(c.id)}
+                    className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors border-b border-slate-100 ${
+                      isSelected ? "bg-blue-50 border-l-4 border-l-blue-500" : "hover:bg-slate-50"
+                    }`}
+                  >
+                    <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0">
+                      <Hash className="h-4 w-4 text-indigo-500" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-slate-900 truncate">{c.name}</p>
+                    </div>
+                    {c.unread > 0 && (
+                      <span className="bg-blue-500 text-white text-xs rounded-full px-2 py-0.5 flex-shrink-0">{c.unread}</span>
+                    )}
+                  </button>
+                );
+              })}
+            </>
+          ) : (
+          <>
           {contactsError && (
             <div className="mx-4 mt-4 flex items-center gap-2 text-red-600 text-sm bg-red-50 border border-red-200 rounded-lg px-3 py-2">
               <AlertCircle className="h-4 w-4 flex-shrink-0" />
@@ -273,6 +434,8 @@ function MessagesInner() {
               </button>
             );
           })}
+          </>
+          )}
         </div>
       </div>
 
@@ -283,7 +446,112 @@ function MessagesInner() {
           ${showChat ? "flex" : "hidden md:flex"}
         `}
       >
-        {!selectedId ? (
+        {view === "channels" ? (
+          !selectedChannelId ? (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-center text-slate-400">
+                <Hash className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                <p>Select a channel</p>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="px-4 py-3 bg-white border-b border-slate-200 flex items-center gap-3">
+                <button
+                  className="md:hidden p-1 -ml-1 rounded-full hover:bg-slate-100"
+                  onClick={() => setSelectedChannelId(null)}
+                >
+                  <ArrowLeft className="h-5 w-5 text-slate-600" />
+                </button>
+                <div className="h-9 w-9 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0">
+                  <Hash className="h-4 w-4 text-indigo-500" />
+                </div>
+                <p className="font-semibold text-slate-900">{selectedChannel?.name ?? "Channel"}</p>
+              </div>
+
+              <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+                {channelMessages.length === 0 && (
+                  <p className="text-center text-slate-400 text-sm mt-8">No messages yet.</p>
+                )}
+                {channelMessages.map((msg) => (
+                  <div key={msg.id} className="flex flex-col gap-1">
+                    <div
+                      className={`max-w-[85%] px-4 py-2.5 rounded-2xl text-sm border ${
+                        msg.urgent ? "bg-amber-50 border-amber-300" : "bg-white border-slate-200"
+                      }`}
+                    >
+                      <p className="text-xs font-medium text-slate-500 mb-0.5 flex items-center gap-1">
+                        {msg.sender.firstName} {msg.sender.lastName}
+                        {msg.urgent && (
+                          <span className="inline-flex items-center gap-0.5 text-amber-700 bg-amber-100 rounded-full px-1.5 py-0.5 text-[10px] font-semibold">
+                            <AlertTriangle className="h-2.5 w-2.5" /> Urgent
+                          </span>
+                        )}
+                      </p>
+                      <p className="text-slate-900">{msg.body}</p>
+                      <div className="flex items-center justify-between mt-1.5">
+                        <p className="text-xs text-slate-400">
+                          {new Date(msg.createdAt).toLocaleTimeString("en-IE", { hour: "2-digit", minute: "2-digit" })}
+                        </p>
+                        <div className="flex items-center gap-2">
+                          {isManager && (
+                            <button
+                              onClick={() => openTaskDraft(msg.id, "channelMessage", msg.body)}
+                              className="text-[11px] text-indigo-600 hover:underline flex items-center gap-0.5"
+                            >
+                              <ListChecks className="h-3 w-3" /> Make task
+                            </button>
+                          )}
+                          {isManager && msg.urgent && (
+                            <button onClick={() => openReceipts(msg)} className="text-[11px] text-slate-500 hover:underline flex items-center gap-0.5">
+                              <Eye className="h-3 w-3" /> Seen by
+                            </button>
+                          )}
+                          {msg.urgent && !msg.readByMe && (
+                            <button
+                              onClick={() => acknowledgeMessage(msg.id)}
+                              className="text-[11px] bg-amber-500 text-white rounded-full px-2 py-0.5 font-medium hover:bg-amber-600"
+                            >
+                              Acknowledge
+                            </button>
+                          )}
+                          {msg.urgent && msg.readByMe && (
+                            <span className="text-[11px] text-emerald-600 flex items-center gap-0.5">
+                              <Check className="h-3 w-3" /> Acknowledged
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                <div ref={channelBottomRef} />
+              </div>
+
+              <div className="px-4 py-3 bg-white border-t border-slate-200 space-y-2">
+                <div className="flex items-center gap-2">
+                  <Checkbox id="urgent-toggle" checked={channelUrgent} onCheckedChange={(v) => setChannelUrgent(!!v)} />
+                  <Label htmlFor="urgent-toggle" className="text-xs text-slate-500 cursor-pointer flex items-center gap-1">
+                    <AlertTriangle className="h-3 w-3 text-amber-500" /> Mark urgent (requires acknowledgement)
+                  </Label>
+                </div>
+                <div className="flex gap-2">
+                  <Input
+                    value={channelBody}
+                    onChange={(e) => setChannelBody(e.target.value)}
+                    placeholder={`Message ${selectedChannel?.name ?? "channel"}…`}
+                    disabled={channelSending}
+                    onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendChannelMessage(); } }}
+                    className="flex-1"
+                  />
+                  <Button onClick={sendChannelMessage} disabled={channelSending || !channelBody.trim()} size="icon" className="bg-blue-500 hover:bg-blue-600">
+                    <Send className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </>
+          )
+        ) : !selectedId ? (
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center text-slate-400">
               <MessageSquare className="h-12 w-12 mx-auto mb-3 opacity-30" />
@@ -338,6 +606,14 @@ function MessagesInner() {
                           minute: "2-digit",
                         })}
                       </p>
+                      {isManager && (
+                        <button
+                          onClick={() => openTaskDraft(msg.id, "message", msg.body)}
+                          className={`text-[11px] mt-1 flex items-center gap-0.5 hover:underline ${isMe ? "text-blue-100" : "text-indigo-600"}`}
+                        >
+                          <ListChecks className="h-3 w-3" /> Make task
+                        </button>
+                      )}
                     </div>
                   </div>
                 );
@@ -473,6 +749,63 @@ function MessagesInner() {
               Send to {groupSelected.length || "…"} member{groupSelected.length !== 1 ? "s" : ""}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Convert message to task ────────────────────────────────────────────── */}
+      <Dialog open={!!taskDraftFor} onOpenChange={(o) => !taskCreating && !o && setTaskDraftFor(null)}>
+        <DialogContent className="max-w-md mx-4 rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ListChecks className="h-4 w-4 text-indigo-600" /> Create task from message
+            </DialogTitle>
+            <DialogDescription>&ldquo;{taskDraftFor?.body}&rdquo;</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label>Task title</Label>
+              <Input value={taskTitle} onChange={(e) => setTaskTitle(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Due date (optional)</Label>
+              <Input type="date" value={taskDueDate} onChange={(e) => setTaskDueDate(e.target.value)} />
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setTaskDraftFor(null)} className="flex-1">Cancel</Button>
+            <Button onClick={createTaskFromMessage} disabled={taskCreating || !taskTitle.trim()} className="flex-1 bg-indigo-600 hover:bg-indigo-700">
+              {taskCreating && <Loader2 className="h-4 w-4 animate-spin" />} Create task
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Urgent message receipts ────────────────────────────────────────────── */}
+      <Dialog open={!!receiptsFor} onOpenChange={(o) => !o && setReceiptsFor(null)}>
+        <DialogContent className="max-w-md mx-4 rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Eye className="h-4 w-4 text-indigo-600" /> Who's seen this
+            </DialogTitle>
+            <DialogDescription>&ldquo;{receiptsFor?.body}&rdquo;</DialogDescription>
+          </DialogHeader>
+          {!receipts ? (
+            <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-slate-400" /></div>
+          ) : (
+            <div className="space-y-1.5 max-h-64 overflow-y-auto">
+              <p className="text-xs text-slate-400 mb-2">{receipts.readCount} of {receipts.total} acknowledged</p>
+              {receipts.status.map((s) => (
+                <div key={s.employeeId} className="flex items-center justify-between text-sm px-2 py-1.5 rounded-lg bg-slate-50">
+                  <span>{s.name}</span>
+                  {s.read ? (
+                    <span className="text-emerald-600 text-xs flex items-center gap-1"><Check className="h-3 w-3" /> Seen</span>
+                  ) : (
+                    <span className="text-slate-400 text-xs">Not yet</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

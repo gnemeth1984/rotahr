@@ -65,6 +65,7 @@ model Business {
   // WhatsApp/SMS guest messaging
   guestMessages     GuestMessage[]
   messagingSettings MessagingSettings?
+  messageChannels   MessageChannel[]
 
   // HACCP
   haccpRecords     HACCPRecord[]
@@ -119,6 +120,7 @@ model User {
   logEntries               LogEntry[]
   logEntryUpdates          LogEntryUpdate[]
   opsTasksCreated          OpsTask[]
+  opsTaskUpdates           OpsTaskUpdate[]
   emailConnectionsMade     EmailConnection[]
   promoOffersCreated       PromoOffer[]
 }
@@ -143,6 +145,8 @@ model Department {
   updatedAt  DateTime @updatedAt
 
   employees Employee[]
+  opsTasks  OpsTask[]
+  channel   MessageChannel?
 }
 
 model Employee {
@@ -197,6 +201,8 @@ model Employee {
   permissions      String[] @default([])
   documents        EmployeeDocument[]
   onboardingTasks  OnboardingTask[]
+  channelMessages  ChannelMessage[]
+  channelMessageReceipts ChannelMessageReceipt[]
 }
 
 model Shift {
@@ -1346,6 +1352,17 @@ model OpsTask {
   assignedToId String?
   assignedTo   Employee? @relation(fields: [assignedToId], references: [id], onDelete: SetNull)
 
+  // Auto-assign mode: instead of (or in addition to) one fixed person, a task
+  // can target a role and/or department — visible/notifiable to whoever is
+  // actually clocked in or on today's published shift matching it, so a
+  // recurring task never sits orphaned just because the named person is off.
+  assignedRole         String?
+  assignedDepartmentId String?
+  assignedDepartment   Department? @relation(fields: [assignedDepartmentId], references: [id], onDelete: SetNull)
+
+  // Set when this task was created directly from a message ("convert to task")
+  sourceMessageId String?
+
   completed    Boolean   @default(false)
   completedAt  DateTime?
   completedById String?
@@ -1354,12 +1371,78 @@ model OpsTask {
   createdById  String
   createdBy    User      @relation(fields: [createdById], references: [id])
 
+  updates      OpsTaskUpdate[]
+
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
   @@index([businessId, completed, dueDate])
   @@index([businessId, frequency])
   @@index([assignedToId])
+  @@index([assignedDepartmentId])
+}
+
+// Comment/activity thread on a task — same pattern as LogEntryUpdate, so a
+// task is a running conversation ("tried calling the supplier, no answer")
+// instead of a bare checkbox with no context.
+model OpsTaskUpdate {
+  id          String   @id @default(cuid())
+  opsTaskId   String
+  opsTask     OpsTask  @relation(fields: [opsTaskId], references: [id], onDelete: Cascade)
+  note        String   @db.Text
+  createdById String
+  createdBy   User     @relation(fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+
+  @@index([opsTaskId])
+}
+
+// ── Persistent department channels (replace one-off group broadcasts) ──────
+// Membership is derived from Employee.departmentId (or "everyone" when
+// departmentId is null) — no separate membership table to keep in sync when
+// staff join/leave a department.
+model MessageChannel {
+  id           String       @id @default(cuid())
+  businessId   String
+  business     Business     @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  departmentId String?      @unique
+  department   Department?  @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  name         String       // "Everyone" for the businesswide channel, else the department name
+
+  messages     ChannelMessage[]
+  createdAt    DateTime     @default(now())
+
+  @@index([businessId])
+}
+
+model ChannelMessage {
+  id         String    @id @default(cuid())
+  channelId  String
+  channel    MessageChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  senderId   String
+  sender     Employee  @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  body       String    @db.Text
+  urgent     Boolean   @default(false) // urgent messages require explicit acknowledgement, not just "seen on open"
+
+  receipts   ChannelMessageReceipt[]
+  createdAt  DateTime  @default(now())
+
+  @@index([channelId, createdAt])
+}
+
+// Read/acknowledge receipts — normal messages get one automatically when a
+// member opens the channel; urgent messages only get one via an explicit
+// "Acknowledge" tap, so a manager can see who has and hasn't actually seen it.
+model ChannelMessageReceipt {
+  id               String         @id @default(cuid())
+  channelMessageId String
+  channelMessage   ChannelMessage @relation(fields: [channelMessageId], references: [id], onDelete: Cascade)
+  employeeId       String
+  employee         Employee       @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  readAt           DateTime       @default(now())
+
+  @@unique([channelMessageId, employeeId])
+  @@index([employeeId])
 }
 
 // ── Connected Email (send-as-yourself via Gmail/Outlook) ─────────────────────

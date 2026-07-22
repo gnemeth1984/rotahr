@@ -12,6 +12,8 @@ const patchSchema = z.object({
   title: z.string().optional(),
   description: z.string().optional().nullable(),
   assignedToId: z.string().optional().nullable(),
+  assignedRole: z.string().optional().nullable(),
+  assignedDepartmentId: z.string().optional().nullable(),
   dueDate: z.string().optional().nullable(),
 });
 
