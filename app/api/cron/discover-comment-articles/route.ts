@@ -25,6 +25,33 @@ function slugTitle(url: string): string {
   }
 }
 
+// Restrict discovery to genuinely hospitality-focused communities rather than
+// open site-wide search — an earlier run proved that open "OR restaurant"
+// keyword matching returns almost anything (Singapore Sling cocktails for
+// competitor "Sling", Nora Roberts novels for "Nory", etc).
+const HOSPITALITY_SUBREDDITS = [
+  'restaurantowners', 'BarOwners', 'Restaurant_Managers', 'KitchenConfidential',
+  'Chefit', 'restaurateur', 'restaurant', 'ToastPOS', 'POS', 'HospitalityIreland',
+  'smallbusinessuk', 'HumanResourcesUK', 'Restaurant101',
+];
+
+// Known spam/content-farm subreddits seen flooding fake "X vs Y" template
+// comparison posts — these aren't real discussions and should never be
+// surfaced as somewhere to genuinely comment.
+const SPAM_SUBREDDIT_PATTERN = /^(Brand(Critique|ChoiceMix)|Pick(Choice|Talk)|Choice(Corner|Mix))/i;
+
+function isSpamSubreddit(url: string): boolean {
+  const match = url.match(/reddit\.com\/r\/([^/]+)/);
+  if (!match) return false;
+  return SPAM_SUBREDDIT_PATTERN.test(match[1]);
+}
+
+function buildQuery(name: string, qualifier: string | null): string {
+  const siteClause = HOSPITALITY_SUBREDDITS.map((s) => `site:reddit.com/r/${s}`).join(' OR ');
+  const nameClause = qualifier ? `"${name}" ${qualifier}` : `"${name}"`;
+  return `(${siteClause}) ${nameClause}`;
+}
+
 async function serperSearch(query: string): Promise<{ title: string; link: string; snippet: string }[]> {
   const res = await fetch('https://google.serper.dev/search', {
     method: 'POST',
@@ -86,12 +113,13 @@ export async function GET(req: Request) {
 
   for (const comp of toCheck) {
     try {
-      const query = `site:reddit.com "${comp.name}" (restaurant OR bar OR cafe OR hotel OR hospitality)`;
+      const query = buildQuery(comp.name, comp.searchQualifier);
       const results = await serperSearch(query);
 
       for (const r of results) {
         if (!r.link.includes('reddit.com/r/') || !r.link.includes('/comments/')) continue;
         if (existingUrls.has(r.link)) continue;
+        if (isSpamSubreddit(r.link)) continue;
 
         await prisma.blogCommentArticle.create({
           data: {

@@ -1281,6 +1281,7 @@ model Competitor {
   id            String    @id @default(cuid())
   name          String    @unique
   category      String?   // e.g. "scheduling", "HR", "POS", "food costing", "menu"
+  searchQualifier String? // extra disambiguating phrase for generic names, e.g. "Sling" -> "employee scheduling app"
   active        Boolean   @default(true)
   lastCheckedAt DateTime?
   createdAt     DateTime  @default(now())
