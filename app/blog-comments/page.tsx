@@ -16,6 +16,7 @@ import {
   Plus,
   AlertTriangle,
   Inbox,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -45,6 +46,7 @@ interface Article {
   hasComments: boolean | null;
   commentPlatform: string | null;
   used: boolean;
+  source: string;
   createdAt: string;
 }
 
@@ -87,6 +89,11 @@ export default function BlogCommentsPage() {
   const generatePanelRef = useRef<HTMLDivElement | null>(null);
   const [pendingDeleteArticle, setPendingDeleteArticle] = useState<Article | null>(null);
   const [pendingDeleteDraft, setPendingDeleteDraft] = useState<Draft | null>(null);
+  const [competitors, setCompetitors] = useState<{ id: string; name: string; category: string | null; active: boolean; lastCheckedAt: string | null }[]>([]);
+  const [showCompetitors, setShowCompetitors] = useState(false);
+  const [newCompName, setNewCompName] = useState("");
+  const [newCompCategory, setNewCompCategory] = useState("");
+  const [addingCompetitor, setAddingCompetitor] = useState(false);
 
   const load = useCallback(async () => {
     const [aRes, dRes] = await Promise.all([
@@ -98,6 +105,44 @@ export default function BlogCommentsPage() {
     setLoading(false);
   }, []);
 
+  const loadCompetitors = useCallback(async () => {
+    const res = await fetch("/api/blog-comments/competitors");
+    if (res.ok) setCompetitors((await res.json()).competitors);
+  }, []);
+
+  async function addCompetitor() {
+    if (!newCompName.trim()) return;
+    setAddingCompetitor(true);
+    try {
+      const res = await fetch("/api/blog-comments/competitors", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newCompName.trim(), category: newCompCategory.trim() || undefined }),
+      });
+      if (res.ok) {
+        setNewCompName("");
+        setNewCompCategory("");
+        loadCompetitors();
+      }
+    } finally {
+      setAddingCompetitor(false);
+    }
+  }
+
+  async function toggleCompetitorActive(id: string, active: boolean) {
+    const res = await fetch("/api/blog-comments/competitors", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, active }),
+    });
+    if (res.ok) loadCompetitors();
+  }
+
+  async function deleteCompetitor(id: string) {
+    const res = await fetch(`/api/blog-comments/competitors?id=${id}`, { method: "DELETE" });
+    if (res.ok) loadCompetitors();
+  }
+
   useEffect(() => {
     if (status === "loading") return;
     if (!session?.user || session.user.email !== SUPER_ADMIN_EMAIL) {
@@ -105,7 +150,8 @@ export default function BlogCommentsPage() {
       return;
     }
     load();
-  }, [status, session, router, load]);
+    loadCompetitors();
+  }, [status, session, router, load, loadCompetitors]);
 
   const topics = useMemo(() => {
     const set = new Set(articles.map((a) => a.topic).filter(Boolean) as string[]);
@@ -263,7 +309,7 @@ export default function BlogCommentsPage() {
         </div>
 
         {/* Add articles */}
-        <div className="mt-8">
+        <div className="mt-8 flex flex-wrap gap-3">
           {!showAddBox ? (
             <Button
               onClick={() => setShowAddBox(true)}
@@ -272,7 +318,65 @@ export default function BlogCommentsPage() {
             >
               <Plus className="mr-2 h-4 w-4" /> Add articles / threads
             </Button>
-          ) : (
+          ) : null}
+          <Button
+            onClick={() => setShowCompetitors((v) => !v)}
+            variant="outline"
+            className="border-white/15 bg-white/5 text-white hover:bg-white/10"
+          >
+            {showCompetitors ? "Hide" : "Manage"} competitors ({competitors.filter((c) => c.active).length} active)
+          </Button>
+        </div>
+
+        {/* Competitors panel */}
+        {showCompetitors && (
+          <Card className="mt-4 border-white/10 bg-white/5">
+            <CardContent className="pt-4 space-y-3">
+              <p className="text-sm text-white/60">
+                The daily auto-discovery cron searches Reddit for these names (rotating ~8/day, past 2 months only)
+                and adds new relevant threads automatically. Untick any that shouldn't be searched anymore.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {competitors.map((c) => (
+                  <div
+                    key={c.id}
+                    className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm ${
+                      c.active ? "border-white/20 bg-white/10" : "border-white/10 bg-white/5 text-white/40"
+                    }`}
+                  >
+                    <button onClick={() => toggleCompetitorActive(c.id, !c.active)} className="font-medium">
+                      {c.name}
+                    </button>
+                    {c.category && <span className="text-xs text-white/40">({c.category})</span>}
+                    <button onClick={() => deleteCompetitor(c.id)} className="text-white/30 hover:text-red-400">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+                {competitors.length === 0 && <p className="text-sm text-white/40">No competitors yet.</p>}
+              </div>
+              <div className="flex gap-2 pt-1">
+                <Input
+                  value={newCompName}
+                  onChange={(e) => setNewCompName(e.target.value)}
+                  placeholder="Competitor/service name"
+                  className="border-white/15 bg-white/5 text-white placeholder:text-white/30"
+                />
+                <Input
+                  value={newCompCategory}
+                  onChange={(e) => setNewCompCategory(e.target.value)}
+                  placeholder="Category (optional)"
+                  className="border-white/15 bg-white/5 text-white placeholder:text-white/30 max-w-[180px]"
+                />
+                <Button onClick={addCompetitor} disabled={addingCompetitor || !newCompName.trim()} className="bg-[#ff6b35] hover:bg-[#e8365d]">
+                  Add
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {showAddBox ? (
             <Card className="border-white/10 bg-white/5">
               <CardContent className="pt-5">
                 <label className="text-sm font-medium text-white/80">
@@ -306,8 +410,7 @@ export default function BlogCommentsPage() {
                 </div>
               </CardContent>
             </Card>
-          )}
-        </div>
+        ) : null}
 
         {/* Filters */}
         <div className="mt-8 flex flex-wrap items-center gap-3">
@@ -386,6 +489,11 @@ export default function BlogCommentsPage() {
                       {a.used && (
                         <Badge variant="outline" className="border-emerald-400/40 bg-emerald-400/10 text-emerald-300">
                           Done
+                        </Badge>
+                      )}
+                      {a.source === "auto" && (
+                        <Badge variant="outline" className="border-indigo-400/40 bg-indigo-400/10 text-indigo-300">
+                          Auto-found
                         </Badge>
                       )}
                       <Badge

@@ -25,6 +25,10 @@
       "schedule": "0 6 * * *"
     },
     {
+      "path": "/api/cron/discover-comment-articles",
+      "schedule": "0 5 * * *"
+    },
+    {
       "path": "/api/cron/break-reminder",
       "schedule": "*/15 * * * *"
     },

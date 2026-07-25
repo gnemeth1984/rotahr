@@ -1268,11 +1268,22 @@ model BlogCommentArticle {
   snippet         String?
   topic           String?
   region          String?
-  source          String   @default("user") // "seed" | "user"
+  source          String   @default("user") // "seed" | "user" | "auto"
   hasComments     Boolean?
   commentPlatform String?
   used            Boolean  @default(false) // true once a comment has been drafted for this article
   createdAt       DateTime @default(now())
+}
+
+// Maintained list of competitor/other-service names the daily discovery cron
+// searches for — editable so Gabor can add/remove without a code change.
+model Competitor {
+  id            String    @id @default(cuid())
+  name          String    @unique
+  category      String?   // e.g. "scheduling", "HR", "POS", "food costing", "menu"
+  active        Boolean   @default(true)
+  lastCheckedAt DateTime?
+  createdAt     DateTime  @default(now())
 }
 
 model BlogCommentDraft {
