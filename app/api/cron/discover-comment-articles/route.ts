@@ -3,13 +3,13 @@ import { prisma } from '@/lib/prisma';
 
 // Daily discovery: searches for recent Reddit/Quora threads mentioning any
 // active competitor, relevant to hospitality, and not already in the list.
-// Requires GOOGLE_SEARCH_API_KEY + GOOGLE_SEARCH_CX (Google Custom Search
-// JSON API — free for 100 queries/day, which comfortably covers a daily run
-// across ~10-15 competitors). Scraping Reddit directly gets blocked by its
-// bot detection from any datacenter IP (confirmed), which is why this uses a
-// search API instead of hitting Reddit's own endpoints.
+// Requires SERPER_API_KEY (serper.dev — 2,500 free queries on signup, no
+// credit card, then $0.30/1k after — comfortably covers a daily run across
+// ~10-15 competitors for a fraction of a cent/month). Scraping Reddit
+// directly gets blocked by its bot detection from any datacenter IP
+// (confirmed), which is why this goes through a search API instead.
 function isConfigured() {
-  return Boolean(process.env.GOOGLE_SEARCH_API_KEY && process.env.GOOGLE_SEARCH_CX);
+  return Boolean(process.env.SERPER_API_KEY);
 }
 
 function slugTitle(url: string): string {
@@ -23,21 +23,21 @@ function slugTitle(url: string): string {
   }
 }
 
-async function googleSearch(query: string): Promise<{ title: string; link: string; snippet: string }[]> {
-  const params = new URLSearchParams({
-    key: process.env.GOOGLE_SEARCH_API_KEY!,
-    cx: process.env.GOOGLE_SEARCH_CX!,
-    q: query,
-    dateRestrict: 'm2', // past 2 months only
-    num: '10',
+async function serperSearch(query: string): Promise<{ title: string; link: string; snippet: string }[]> {
+  const res = await fetch('https://google.serper.dev/search', {
+    method: 'POST',
+    headers: {
+      'X-API-KEY': process.env.SERPER_API_KEY!,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ q: query, tbs: 'qdr:m2' }), // qdr:m2 = past 2 months
   });
-  const res = await fetch(`https://www.googleapis.com/customsearch/v1?${params.toString()}`);
   if (!res.ok) {
-    console.error('[discover-comment-articles] Google Search API error', res.status, await res.text());
+    console.error('[discover-comment-articles] Serper API error', res.status, await res.text());
     return [];
   }
   const data = await res.json();
-  return (data.items || []).map((i: any) => ({ title: i.title, link: i.link, snippet: i.snippet || '' }));
+  return (data.organic || []).map((i: any) => ({ title: i.title, link: i.link, snippet: i.snippet || '' }));
 }
 
 export async function GET(req: Request) {
@@ -53,7 +53,7 @@ export async function GET(req: Request) {
   if (!isConfigured()) {
     return NextResponse.json({
       skipped: true,
-      reason: 'Not configured — set GOOGLE_SEARCH_API_KEY and GOOGLE_SEARCH_CX to enable daily auto-discovery.',
+      reason: 'Not configured — set SERPER_API_KEY to enable daily auto-discovery.',
     });
   }
 
@@ -81,7 +81,7 @@ export async function GET(req: Request) {
   for (const comp of toCheck) {
     try {
       const query = `site:reddit.com "${comp.name}" (restaurant OR bar OR cafe OR hotel OR hospitality)`;
-      const results = await googleSearch(query);
+      const results = await serperSearch(query);
 
       for (const r of results) {
         if (!r.link.includes('reddit.com/r/') || !r.link.includes('/comments/')) continue;
