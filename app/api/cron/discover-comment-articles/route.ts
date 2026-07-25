@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/lib/auth/options';
 
 // Daily discovery: searches for recent Reddit/Quora threads mentioning any
 // active competitor, relevant to hospitality, and not already in the list.
@@ -43,11 +45,15 @@ async function serperSearch(query: string): Promise<{ title: string; link: strin
 export async function GET(req: Request) {
   const authHeader = req.headers.get('authorization');
   const secret = req.headers.get('x-cron-secret') || new URL(req.url).searchParams.get('secret');
-  const authed =
+  const cronAuthed =
     authHeader === `Bearer ${process.env.CRON_SECRET}` ||
     secret === process.env.CRON_SECRET;
-  if (!authed) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  if (!cronAuthed) {
+    const session = await getServerSession(authOptions);
+    if (!session?.user || session.user.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
   }
 
   if (!isConfigured()) {
