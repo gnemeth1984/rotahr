@@ -230,6 +230,9 @@ export default function PitchPage() {
                   <div className="slide-title">Built for <span>Irish Hospitality</span></div>
                   <div className="slide-sub">Every feature driven by real feedback from Irish pub &amp; restaurant owners</div>
                   <div className="wn-grid">
+                    <div className="wn-card hl"><div className="wn-new">New</div><div className="wn-icon">📣</div><div className="wn-name">Social Post Creator</div><div className="wn-desc">Turn today's specials into a branded, ready-to-share image in seconds — 10 template styles, then share straight to Facebook, Instagram or WhatsApp from your phone's own share sheet.</div></div>
+                    <div className="wn-card hl"><div className="wn-new">New</div><div className="wn-icon">🌍</div><div className="wn-name">Multi-Currency & Global Ready</div><div className="wn-desc">EUR, USD, GBP, CAD or AUD — tax labels adapt automatically (VAT, Sales Tax, GST/HST). Built for Ireland, now expanding to the UK & US.</div></div>
+                    <div className="wn-card hl"><div className="wn-new">New</div><div className="wn-icon">🚚</div><div className="wn-name">One-Scan Delivery Notes</div><div className="wn-desc">Snap a photo of a delivery note — AI populates bookkeeping, stock levels and the HACCP delivery check simultaneously. Recipe costs update live.</div></div>
                     <div className="wn-card hl"><div className="wn-new">New</div><div className="wn-icon">📊</div><div className="wn-name">Reports &amp; Insights</div><div className="wn-desc">Labour cost vs revenue trends over time, overtime tracking, and per-venue breakdowns for multi-site operators — spot problems before they hit your margin.</div></div>
                     <div className="wn-card hl"><div className="wn-new">New</div><div className="wn-icon">📋</div><div className="wn-name">Manager Log Book</div><div className="wn-desc">Staff report 86'd items and repair issues themselves — managers get notified instantly and can add running updates like "Called Ben, due Tuesday 2pm".</div></div>
                     <div className="wn-card hl"><div className="wn-new">New</div><div className="wn-icon">🎁</div><div className="wn-name">CRM Promo Offers + QR Redemption</div><div className="wn-desc">Generate a birthday drink, win-back offer, or VIP thank-you in one click — complete with a scannable QR code staff can redeem right at the till.</div></div>
@@ -292,6 +295,7 @@ export default function PitchPage() {
                           ["CRM Promo Codes with QR Redemption", true, false, false, false],
                           ["Send-as-yourself CRM Email", true, false, false, false],
                           ["Region-Aware Overtime Compliance", true, false, false, true],
+                          ["Social Post Creator (branded specials graphics)", true, false, false, false],
                         ].map(([label, rh, nory, supy, dep]) => (
                           <tr key={String(label)}>
                             <td className="feat">{String(label)}</td>
