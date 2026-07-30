@@ -223,7 +223,7 @@ export default function SocialPostPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto p-4 md:p-6 space-y-6">
+    <div className="max-w-xl mx-auto p-4 space-y-6 pb-24">
       <div className="flex items-center gap-3">
         <Megaphone className="w-7 h-7 text-orange-500" />
         <div>
@@ -234,7 +234,7 @@ export default function SocialPostPage() {
         </div>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-6">
+      <div className="flex flex-col gap-6">
         {/* Left: builder */}
         <div className="space-y-5">
           {/* Photo */}
@@ -402,7 +402,7 @@ export default function SocialPostPage() {
           </Button>
         </div>
 
-        {/* Right: preview */}
+        {/* Preview */}
         <div className="space-y-3">
           <Label className="text-base font-semibold">Preview</Label>
           <Card className="p-4 flex items-center justify-center min-h-[420px] bg-muted/30">
@@ -435,6 +435,23 @@ export default function SocialPostPage() {
           </p>
         </div>
       </div>
+
+      {/* Sticky action bar — always reachable regardless of scroll position, mirrors the buttons above */}
+      {resultUrl && (
+        <div className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t shadow-[0_-4px_12px_rgba(0,0,0,0.08)] p-3">
+          <div className="max-w-xl mx-auto flex gap-2">
+            <Button onClick={shareImage} disabled={sharing} className="flex-1">
+              {sharing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Share2 className="w-4 h-4 mr-2" />}
+              Share
+            </Button>
+            <a href={resultUrl} download="rotahr-social-post.png" className="flex-1">
+              <Button variant="outline" className="w-full">
+                <Download className="w-4 h-4 mr-2" /> Download
+              </Button>
+            </a>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
