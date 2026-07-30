@@ -18,7 +18,16 @@ const VALID_TEMPLATES: SocialPostTemplateId[] = ["classic", "split", "overlay"];
 
 async function photoUrlToDataUri(photoUrl: string): Promise<string> {
   if (photoUrl.startsWith("data:")) return photoUrl;
-  const res = await fetch(photoUrl);
+
+  // Our dish/special photos live in a private Vercel Blob store — those URLs
+  // 403 on a plain fetch and need the read/write token as a bearer header.
+  const isOwnBlob = photoUrl.includes("blob.vercel-storage.com");
+  const headers: Record<string, string> = {};
+  if (isOwnBlob && process.env.BLOB_READ_WRITE_TOKEN) {
+    headers.Authorization = `Bearer ${process.env.BLOB_READ_WRITE_TOKEN}`;
+  }
+
+  const res = await fetch(photoUrl, { headers });
   if (!res.ok) throw new Error(`Could not fetch photo (${res.status})`);
   const contentType = res.headers.get("content-type") || "image/jpeg";
   const buf = Buffer.from(await res.arrayBuffer());

@@ -38,6 +38,15 @@ interface SpecialLine {
   description?: string;
 }
 
+// Proxy private Vercel Blob photos through the server for display (store is private-access only)
+function displaySrc(url: string | null): string {
+  if (!url) return "";
+  if (url.includes("blob.vercel-storage.com")) {
+    return `/api/menu/dishes/image-url?url=${encodeURIComponent(url)}`;
+  }
+  return url;
+}
+
 export default function SocialPostPage() {
   const { data: session } = useSession();
 
@@ -234,7 +243,7 @@ export default function SocialPostPage() {
                       title={d.name}
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={d.imageUrl || ""} alt={d.name} className="w-full h-full object-cover" />
+                      <img src={displaySrc(d.imageUrl)} alt={d.name} className="w-full h-full object-cover" />
                     </button>
                   ))}
                 </div>
@@ -243,7 +252,7 @@ export default function SocialPostPage() {
             {photoUrl && (
               <div className="relative w-full h-40 rounded-md overflow-hidden border">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={photoUrl} alt="Selected" className="w-full h-full object-cover" />
+                <img src={displaySrc(photoUrl)} alt="Selected" className="w-full h-full object-cover" />
                 <button
                   onClick={() => setPhotoUrl(null)}
                   className="absolute top-2 right-2 bg-black/60 text-white rounded-full p-1"
