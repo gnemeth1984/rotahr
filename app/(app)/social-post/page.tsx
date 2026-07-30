@@ -334,7 +334,7 @@ export default function SocialPostPage() {
           {/* Style */}
           <Card className="p-4 space-y-3">
             <Label className="text-base font-semibold">Style</Label>
-            <div className="grid grid-cols-1 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-80 overflow-y-auto pr-1">
               {TEMPLATE_OPTIONS.map((t) => (
                 <button
                   key={t.id}

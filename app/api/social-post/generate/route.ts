@@ -14,7 +14,18 @@ function canUse(role: string, permissions: string[]) {
   return role === Role.ADMIN || role === Role.MANAGER || permissions.includes("menu_planning");
 }
 
-const VALID_TEMPLATES: SocialPostTemplateId[] = ["classic", "split", "overlay"];
+const VALID_TEMPLATES: SocialPostTemplateId[] = [
+  "classic",
+  "split",
+  "overlay",
+  "minimal",
+  "neon",
+  "chalkboard",
+  "polaroid",
+  "boldtype",
+  "story",
+  "print",
+];
 
 async function photoUrlToDataUri(photoUrl: string): Promise<string> {
   if (photoUrl.startsWith("data:")) return photoUrl;

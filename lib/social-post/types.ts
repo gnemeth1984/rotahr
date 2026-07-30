@@ -1,4 +1,14 @@
-export type SocialPostTemplateId = "classic" | "split" | "overlay";
+export type SocialPostTemplateId =
+  | "classic"
+  | "split"
+  | "overlay"
+  | "minimal"
+  | "neon"
+  | "chalkboard"
+  | "polaroid"
+  | "boldtype"
+  | "story"
+  | "print";
 
 export interface SocialPostSpecialInput {
   title: string;
@@ -31,6 +41,41 @@ export const TEMPLATE_OPTIONS: { id: SocialPostTemplateId; label: string; descri
     id: "overlay",
     label: "Bold Overlay",
     description: "Full-bleed photo with a dark gradient and specials text overlaid on top.",
+  },
+  {
+    id: "minimal",
+    label: "Minimal Card",
+    description: "Clean white background, thin frame, small photo — understated and modern.",
+  },
+  {
+    id: "neon",
+    label: "Neon Night",
+    description: "Dark background with glowing neon accent text — great for bars & late-night spots.",
+  },
+  {
+    id: "chalkboard",
+    label: "Chalkboard",
+    description: "Dark chalkboard look with a handwritten-style headline — classic pub specials board.",
+  },
+  {
+    id: "polaroid",
+    label: "Polaroid Stack",
+    description: "Photo styled like a polaroid snapshot with a handwritten caption underneath.",
+  },
+  {
+    id: "boldtype",
+    label: "Big Bold Type",
+    description: "Giant typographic poster style with the photo tucked in a small frame — text does the talking.",
+  },
+  {
+    id: "story",
+    label: "Story (Vertical)",
+    description: "Tall 9:16 layout sized for Instagram/Facebook Stories — photo top, specials below.",
+  },
+  {
+    id: "print",
+    label: "Menu Print",
+    description: "Cream background with an ornate double border — looks like a printed table card.",
   },
 ];
 
