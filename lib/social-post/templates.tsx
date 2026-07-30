@@ -9,7 +9,7 @@ export const TEMPLATE_SIZE: Record<SocialPostTemplateId, { width: number; height
   neon: { width: 1080, height: 1350 },
   chalkboard: { width: 1080, height: 1350 },
   polaroid: { width: 1080, height: 1350 },
-  boldtype: { width: 1080, height: 1080 },
+  boldtype: { width: 1080, height: 1350 },
   story: { width: 1080, height: 1920 },
   print: { width: 1080, height: 1350 },
 };
@@ -697,7 +697,7 @@ export function PolaroidStack(props: SocialPostRenderProps) {
 }
 
 // ── Template H — Big Bold Type ──────────────────────────────────────────────
-// Giant typographic poster — text does the talking, photo tucked in a small frame
+// Large full-bleed photo up top, giant typographic headline + specials below
 export function BigBoldType(props: SocialPostRenderProps) {
   const { photoDataUri, businessName, headline, specials, tagline, hashtags, accent, panelColor } = props;
   const items = specials.slice(0, 3);
@@ -710,32 +710,51 @@ export function BigBoldType(props: SocialPostRenderProps) {
         display: "flex",
         flexDirection: "column",
         backgroundColor: panelColor,
-        padding: 56,
         fontFamily: "Inter",
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <span style={{ fontFamily: "Inter", fontWeight: 700, fontSize: 20, color: "#ffffff", letterSpacing: 4 }}>
-          {businessName.toUpperCase()}
-        </span>
-        <div style={{ display: "flex", width: 100, height: 100, borderRadius: 12, overflow: "hidden" }}>
-          <img src={photoDataUri} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+      <div style={{ display: "flex", width: "100%", height: 650, position: "relative" }}>
+        <img src={photoDataUri} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+        <div
+          style={{
+            position: "absolute",
+            top: 36,
+            left: 48,
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "10px 18px",
+              borderRadius: 24,
+              backgroundColor: "rgba(0,0,0,0.55)",
+            }}
+          >
+            <span style={{ fontFamily: "Inter", fontWeight: 700, fontSize: 18, color: "#ffffff", letterSpacing: 4 }}>
+              {businessName.toUpperCase()}
+            </span>
+          </div>
         </div>
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", flex: 1, justifyContent: "center" }}>
+      <div style={{ display: "flex", flexDirection: "column", flex: 1, padding: "44px 56px", justifyContent: "center" }}>
         <span
           style={{
             fontFamily: "Playfair Display",
             fontWeight: 700,
-            fontSize: 88,
+            fontSize: 84,
             color: "#ffffff",
             lineHeight: 1.05,
           }}
         >
           {headline}
         </span>
-        <div style={{ display: "flex", flexDirection: "column", gap: 14, marginTop: 30 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 14, marginTop: 28 }}>
           {items.map((s, i) => (
             <div key={i} style={{ display: "flex", flexDirection: "column" }}>
               <span style={{ fontFamily: "Inter", fontWeight: 700, fontSize: 30, color: accent }}>{s.title}</span>
@@ -747,19 +766,19 @@ export function BigBoldType(props: SocialPostRenderProps) {
             </div>
           ))}
         </div>
-      </div>
 
-      <div style={{ display: "flex", flexDirection: "column" }}>
-        {tagline ? (
-          <span style={{ fontFamily: "Playfair Display", fontStyle: "italic", fontSize: 24, color: "#ffffff", opacity: 0.85 }}>
-            {tagline}
-          </span>
-        ) : null}
-        {hashtags && hashtags.length ? (
-          <span style={{ fontFamily: "Inter", fontSize: 16, color: "rgba(255,255,255,0.6)", marginTop: 10 }}>
-            {hashtagLine(hashtags)}
-          </span>
-        ) : null}
+        <div style={{ display: "flex", flexDirection: "column", marginTop: 28 }}>
+          {tagline ? (
+            <span style={{ fontFamily: "Playfair Display", fontStyle: "italic", fontSize: 24, color: "#ffffff", opacity: 0.85 }}>
+              {tagline}
+            </span>
+          ) : null}
+          {hashtags && hashtags.length ? (
+            <span style={{ fontFamily: "Inter", fontSize: 16, color: "rgba(255,255,255,0.6)", marginTop: 10 }}>
+              {hashtagLine(hashtags)}
+            </span>
+          ) : null}
+        </div>
       </div>
     </div>
   );
