@@ -38,6 +38,7 @@ import {
   Newspaper,
   BarChart2,
   NotebookPen,
+  Megaphone,
   ScanLine,
   Sun,
 } from "lucide-react";
@@ -144,6 +145,15 @@ const navItems = [
     roles: [Role.EMPLOYEE, Role.MANAGER, Role.ADMIN],
     permission: null,
     featureKey: "menu-specials" as FeatureKey,
+    plans: null,
+  },
+  {
+    href: "/social-post",
+    label: "Social Posts",
+    icon: Megaphone,
+    roles: [Role.MANAGER, Role.ADMIN],
+    permission: null,
+    featureKey: null,
     plans: null,
   },
   {

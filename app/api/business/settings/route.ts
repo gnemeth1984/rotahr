@@ -14,12 +14,13 @@ export async function GET(req: NextRequest) {
 
   const business = await prisma.business.findUnique({
     where: { id: session.user.businessId },
-    select: { currency: true, country: true },
+    select: { currency: true, country: true, name: true },
   });
 
   return NextResponse.json({
     currency: business?.currency ?? "EUR",
     country: business?.country ?? "IE",
+    name: business?.name ?? "",
   });
 }
 
