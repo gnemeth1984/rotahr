@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Megaphone, Upload, ImageIcon, Plus, Trash2, Loader2, Download, Sparkles, X } from "lucide-react";
+import { Megaphone, Upload, ImageIcon, Plus, Trash2, Loader2, Download, Sparkles, X, Share2 } from "lucide-react";
 import { TEMPLATE_OPTIONS, ACCENT_PRESETS, type SocialPostTemplateId } from "@/lib/social-post/types";
 
 interface DishOption {
@@ -77,6 +77,9 @@ export default function SocialPostPage() {
   // Generation
   const [generating, setGenerating] = useState(false);
   const [resultUrl, setResultUrl] = useState<string | null>(null);
+  const [resultBlob, setResultBlob] = useState<Blob | null>(null);
+  const [sharing, setSharing] = useState(false);
+  const [shareUnsupported, setShareUnsupported] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -185,11 +188,37 @@ export default function SocialPostPage() {
         throw new Error(data.error || "Failed to generate image");
       }
       const blob = await res.blob();
+      setResultBlob(blob);
       setResultUrl(URL.createObjectURL(blob));
+      setShareUnsupported(false);
     } catch (e: any) {
       setError(e.message || "Failed to generate image");
     } finally {
       setGenerating(false);
+    }
+  }
+
+  async function shareImage() {
+    if (!resultBlob) return;
+    setError(null);
+    setSharing(true);
+    try {
+      const file = new File([resultBlob], "rotahr-social-post.png", { type: "image/png" });
+      const shareText = tagline || headline || "Check out our specials!";
+
+      if (typeof navigator !== "undefined" && (navigator as any).canShare?.({ files: [file] })) {
+        await (navigator as any).share({ files: [file], title: headline, text: shareText });
+      } else if (typeof navigator !== "undefined" && navigator.share) {
+        // Browser can't share files (e.g. some desktop browsers) — share text/title instead.
+        await navigator.share({ title: headline, text: shareText });
+        setShareUnsupported(true);
+      } else {
+        setShareUnsupported(true);
+      }
+    } catch (e: any) {
+      if (e?.name !== "AbortError") setError(e?.message || "Couldn't open the share sheet on this device.");
+    } finally {
+      setSharing(false);
     }
   }
 
@@ -387,14 +416,22 @@ export default function SocialPostPage() {
             )}
           </Card>
           {resultUrl && (
-            <a href={resultUrl} download="rotahr-social-post.png">
-              <Button variant="outline" className="w-full">
-                <Download className="w-4 h-4 mr-2" /> Download image
+            <div className="flex gap-2">
+              <Button onClick={shareImage} disabled={sharing} className="flex-1">
+                {sharing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Share2 className="w-4 h-4 mr-2" />}
+                Share
               </Button>
-            </a>
+              <a href={resultUrl} download="rotahr-social-post.png" className="flex-1">
+                <Button variant="outline" className="w-full">
+                  <Download className="w-4 h-4 mr-2" /> Download
+                </Button>
+              </a>
+            </div>
           )}
           <p className="text-xs text-muted-foreground">
-            Download the image, then post it manually on your Facebook Page or Instagram — direct auto-posting isn't available yet.
+            {shareUnsupported
+              ? "Direct image sharing isn't supported in this browser — download the image and upload it manually on Facebook, Instagram, etc."
+              : "Share opens your device's share sheet — pick Facebook, Instagram, WhatsApp, X or any app you have installed. On desktop, use Download and post manually."}
           </p>
         </div>
       </div>
