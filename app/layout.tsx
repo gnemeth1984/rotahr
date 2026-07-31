@@ -10,8 +10,8 @@ export const metadata = {
   verification: {
     google: "7cibzOGL029tVn1J5xlrUiLUp_dvHZbmzR7WfeHdvOY",
   },
-  title: "Rotahr — Venue Management for Irish Hospitality",
-  description: "Staff rotas, table reservations, bookkeeping and HR — all in one app. Built for Irish bars, restaurants and cafes.",
+  title: "Rotahr — All-in-One Venue Management for Hospitality",
+  description: "Staff rotas, table reservations, bookkeeping and HR — all in one app. Built for bars, restaurants and cafes everywhere.",
   manifest: "/manifest.json",
   icons: {
     icon: "/favicon.ico",
@@ -27,7 +27,7 @@ export const metadata = {
   },
   openGraph: {
     type: "website",
-    title: "Rotahr — Venue Management for Irish Hospitality",
+    title: "Rotahr — All-in-One Venue Management for Hospitality",
     description: "Staff rotas, table reservations, bookkeeping and HR — all in one app.",
     images: ["/logo-dark.png"],
   },
