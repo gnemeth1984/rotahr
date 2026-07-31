@@ -177,7 +177,7 @@ export default function LandingPage() {
         <div className="inline-flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-full mb-6 border"
           style={{ borderColor: "#F9731640", color: "#F97316", background: "#FFF7F0" }}>
           <Zap className="w-3 h-3" />
-          Built for Irish hospitality
+          Built for hospitality teams
         </div>
 
         <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight leading-tight mb-6">
@@ -215,7 +215,7 @@ export default function LandingPage() {
       <section className="py-12" style={{ background: "#FFF7F0" }}>
         <div className="max-w-3xl mx-auto px-6">
           <p className="text-center text-sm font-semibold text-slate-600 mb-2">What you'd pay using separate tools</p>
-          <p className="text-center text-xs text-slate-400 mb-6">Most Irish venues are paying for 3–4 tools that don't talk to each other</p>
+          <p className="text-center text-xs text-slate-400 mb-6">Most venues are paying for 3–4 tools that don't talk to each other</p>
           <div className="bg-white rounded-2xl border border-orange-100 overflow-hidden shadow-sm">
             {competitors.map((c) => (
               <div
@@ -242,7 +242,7 @@ export default function LandingPage() {
         <div className="text-center mb-16">
           <h2 className="text-3xl font-extrabold mb-4">Everything your venue needs</h2>
           <p className="text-slate-500 text-lg max-w-xl mx-auto">
-            12 tools in one platform. Built specifically for bars, restaurants and cafés in Ireland.
+            12 tools in one platform. Built specifically for bars, restaurants and cafés.
           </p>
         </div>
         <div className="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
@@ -263,7 +263,7 @@ export default function LandingPage() {
         <div className="max-w-6xl mx-auto px-6">
           <div className="text-center mb-16">
             <h2 className="text-3xl font-extrabold mb-4">Simple, transparent pricing</h2>
-            <p className="text-slate-500 text-lg">All prices include 23% Irish VAT. No setup fees. Cancel anytime.</p>
+            <p className="text-slate-500 text-lg">All prices include VAT/tax. No setup fees. Cancel anytime.</p>
           </div>
 
           <div className="grid md:grid-cols-3 gap-8 items-start">
@@ -328,7 +328,7 @@ export default function LandingPage() {
           <Image src="/logo-dark.png" alt="Rotahr" width={130} height={42} className="object-contain mx-auto mb-8" />
           <h2 className="text-3xl font-extrabold text-white mb-4">Ready to simplify your operations?</h2>
           <p className="text-slate-400 text-lg mb-10 max-w-xl mx-auto">
-            Join hospitality businesses across Ireland already using Rotahr to manage their teams and venues.
+            Join hospitality businesses already using Rotahr to manage their teams and venues.
           </p>
           <Link
             href="/auth/register"
@@ -345,7 +345,7 @@ export default function LandingPage() {
         <div className="max-w-6xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-slate-400">
           <Image src="/logo-light.png" alt="Rotahr" width={80} height={26} className="object-contain" />
           <span>© 2026 Rotahr. All rights reserved.</span>
-          <span>Ireland — VAT included in all prices</span>
+          <span>EUR, USD, GBP, CAD &amp; AUD supported — VAT/tax included in all prices</span>
         </div>
       </footer>
     </div>

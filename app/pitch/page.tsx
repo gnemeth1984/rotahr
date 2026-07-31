@@ -216,7 +216,7 @@ export default function PitchPage() {
       <section className="hero">
         <div className="hero-label">Pitch Deck · 12 Slides</div>
         <h1>One app to run<br /><span>your entire venue</span></h1>
-        <p>Rotas · Clock-In · Reservations · Bookkeeping · CRM · Menu Specials · POS Integration — built for Irish hospitality.</p>
+        <p>Rotas · Clock-In · Reservations · Bookkeeping · CRM · Menu Specials · POS Integration — built for hospitality teams everywhere.</p>
         <a className="btn-primary" href="/auth/signin">Check Our Demo</a>
       </section>
 
@@ -227,11 +227,11 @@ export default function PitchPage() {
               <div className="inline-slide">
                 <div className="slide-inner" style={{ textAlign: "center" }}>
                   <div className="slide-badge">What&apos;s New in 2026</div>
-                  <div className="slide-title">Built for <span>Irish Hospitality</span></div>
-                  <div className="slide-sub">Every feature driven by real feedback from Irish pub &amp; restaurant owners</div>
+                  <div className="slide-title">Built for <span>Hospitality Teams</span></div>
+                  <div className="slide-sub">Every feature driven by real feedback from pub, bar &amp; restaurant owners</div>
                   <div className="wn-grid">
                     <div className="wn-card hl"><div className="wn-new">New</div><div className="wn-icon">📣</div><div className="wn-name">Social Post Creator</div><div className="wn-desc">Turn today's specials into a branded, ready-to-share image in seconds — 10 template styles, then share straight to Facebook, Instagram or WhatsApp from your phone's own share sheet.</div></div>
-                    <div className="wn-card hl"><div className="wn-new">New</div><div className="wn-icon">🌍</div><div className="wn-name">Multi-Currency & Global Ready</div><div className="wn-desc">EUR, USD, GBP, CAD or AUD — tax labels adapt automatically (VAT, Sales Tax, GST/HST). Built for Ireland, now expanding to the UK & US.</div></div>
+                    <div className="wn-card hl"><div className="wn-new">New</div><div className="wn-icon">🌍</div><div className="wn-name">Multi-Currency & Global Ready</div><div className="wn-desc">EUR, USD, GBP, CAD or AUD — tax labels adapt automatically (VAT, Sales Tax, GST/HST). Live in Ireland, the UK &amp; the US, with more regions on the way.</div></div>
                     <div className="wn-card hl"><div className="wn-new">New</div><div className="wn-icon">🚚</div><div className="wn-name">One-Scan Delivery Notes</div><div className="wn-desc">Snap a photo of a delivery note — AI populates bookkeeping, stock levels and the HACCP delivery check simultaneously. Recipe costs update live.</div></div>
                     <div className="wn-card hl"><div className="wn-new">New</div><div className="wn-icon">📊</div><div className="wn-name">Reports &amp; Insights</div><div className="wn-desc">Labour cost vs revenue trends over time, overtime tracking, and per-venue breakdowns for multi-site operators — spot problems before they hit your margin.</div></div>
                     <div className="wn-card hl"><div className="wn-new">New</div><div className="wn-icon">📋</div><div className="wn-name">Manager Log Book</div><div className="wn-desc">Staff report 86'd items and repair issues themselves — managers get notified instantly and can add running updates like "Called Ben, due Tuesday 2pm".</div></div>
@@ -241,7 +241,7 @@ export default function PitchPage() {
                     <div className="wn-card"><div className="wn-icon">🪑</div><div className="wn-name">Visual Floor Plan</div><div className="wn-desc">Drag-and-drop table layout matching your real venue — square, round, rectangular or bar/counter seating, freely sized. Live status per table: free, upcoming, confirmed, seated.</div></div>
                     <div className="wn-card"><div className="wn-icon">📸</div><div className="wn-name">Recipe Photos</div><div className="wn-desc">Upload a photo of the finished dish to every recipe so kitchen staff always know exactly how a plate should look before it goes out.</div></div>
                     <div className="wn-card"><div className="wn-icon">⏰</div><div className="wn-name">HACCP Reminder Schedules</div><div className="wn-desc">Set custom reminder times per check type. Notifies whoever's clocked in or on rota, and keeps reminding until the check is logged.</div></div>
-                    <div className="wn-card"><div className="wn-icon">☕</div><div className="wn-name">Break Entitlement Reminders</div><div className="wn-desc">Tracks worked hours live and reminds staff the moment they're due a 15 or 30-minute break under Irish law. On-break clock button included.</div></div>
+                    <div className="wn-card"><div className="wn-icon">☕</div><div className="wn-name">Break Entitlement Reminders</div><div className="wn-desc">Tracks worked hours live and reminds staff the moment they're due a break under local labour law. On-break clock button included.</div></div>
                     <div className="wn-card"><div className="wn-icon">✅</div><div className="wn-name">Editable HACCP Checklists</div><div className="wn-desc">Managers customise daily/weekly/deep-clean checklist tasks per venue. Full digital food safety log — no more paper folders.</div></div>
                     <div className="wn-card"><div className="wn-icon">🗑️</div><div className="wn-name">Wastage Recording</div><div className="wn-desc">Log spoilage, over-prep, spills and expiry. See the true cost of waste per item and in total — across your whole kitchen.</div></div>
                     <div className="wn-card"><div className="wn-icon">👨‍🍳</div><div className="wn-name">Recipe Costing & GP%</div><div className="wn-desc">Build recipes from your stock list. Live cost-per-portion and gross profit % — auto-updates whenever supplier prices change.</div></div>
@@ -279,7 +279,7 @@ export default function PitchPage() {
                         {[
                           ["Rota & Scheduling", true, true, false, true],
                           ["Visual Floor Plan (drag & drop)", true, false, false, false],
-                          ["Break Entitlement Reminders (Irish law)", true, false, false, false],
+                          ["Break Entitlement Reminders (region-aware labour law)", true, false, false, false],
                           ["Editable HACCP Checklists", true, false, false, false],
                           ["AI Invoice Reading", true, false, true, false],
                           ["Wastage Recording", true, false, true, false],
@@ -326,7 +326,7 @@ export default function PitchPage() {
                 <div className="slide-inner" style={{ textAlign: "center" }}>
                   <div className="slide-badge">Pricing</div>
                   <div className="slide-title">Simple, <span>Transparent</span> Pricing</div>
-                  <div className="slide-sub">All prices include 23% Irish VAT · No hidden fees · Cancel anytime</div>
+                  <div className="slide-sub">All prices include VAT/tax · No hidden fees · Cancel anytime</div>
                   <div className="price-grid">
                     <div className="price-card">
                       <div className="plan-label">Starter</div>
@@ -374,7 +374,7 @@ export default function PitchPage() {
                       </ul>
                     </div>
                   </div>
-                  <div className="price-footnote">All prices include 23% Irish VAT · First month free on Starter & Pro</div>
+                  <div className="price-footnote">All prices include VAT/tax · First month free on Starter & Pro</div>
                 </div>
               </div>
             </div>
