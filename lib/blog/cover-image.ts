@@ -10,7 +10,11 @@ export function slugify(text: string) {
 // silently failed for every one of the 46 published posts, so cover images went live
 // with none at all. Pollinations needs no API key and no account, which removes that
 // whole failure class.
-export async function generateCoverImage(title: string, category: string): Promise<string | null> {
+export async function generateCoverImage(
+  title: string,
+  category: string,
+  opts?: { rethrow?: boolean }
+): Promise<string | null> {
   try {
     const prompt = `Clean, modern flat editorial illustration for a hospitality industry blog article titled "${title}" (category: ${category}). Professional restaurant/bar/hotel setting relevant to the topic. Minimal, premium SaaS blog cover style, warm neutral tones with a hint of amber/orange accent, no text or logos in the image, wide aspect ratio.`;
 
@@ -26,13 +30,17 @@ export async function generateCoverImage(title: string, category: string): Promi
 
     const res = await fetch(url, { signal: AbortSignal.timeout(45000) });
     if (!res.ok) {
-      console.error(`[Blog] Pollinations image fetch failed: ${res.status} ${await res.text().catch(() => '')}`);
+      const msg = `Pollinations image fetch failed: ${res.status} ${await res.text().catch(() => '')}`;
+      console.error(`[Blog] ${msg}`);
+      if (opts?.rethrow) throw new Error(msg);
       return null;
     }
     const contentType = res.headers.get('content-type') || 'image/jpeg';
     const buffer = Buffer.from(await res.arrayBuffer());
     if (buffer.byteLength < 1000) {
-      console.error(`[Blog] Pollinations returned a suspiciously small image (${buffer.byteLength} bytes), skipping`);
+      const msg = `Pollinations returned a suspiciously small image (${buffer.byteLength} bytes), skipping`;
+      console.error(`[Blog] ${msg}`);
+      if (opts?.rethrow) throw new Error(msg);
       return null;
     }
 
@@ -44,6 +52,7 @@ export async function generateCoverImage(title: string, category: string): Promi
     return blob.url;
   } catch (e: any) {
     console.error('[Blog] Cover image generation failed:', e?.message || e);
+    if (opts?.rethrow) throw e;
     return null;
   }
 }
