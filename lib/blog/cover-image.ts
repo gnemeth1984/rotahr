@@ -10,11 +10,7 @@ export function slugify(text: string) {
 // silently failed for every one of the 46 published posts, so cover images went live
 // with none at all. Pollinations needs no API key and no account, which removes that
 // whole failure class.
-export async function generateCoverImage(
-  title: string,
-  category: string,
-  opts?: { rethrow?: boolean }
-): Promise<string | null> {
+export async function generateCoverImage(title: string, category: string): Promise<string | null> {
   try {
     const prompt = `Clean, modern flat editorial illustration for a hospitality industry blog article titled "${title}" (category: ${category}). Professional restaurant/bar/hotel setting relevant to the topic. Minimal, premium SaaS blog cover style, warm neutral tones with a hint of amber/orange accent, no text or logos in the image, wide aspect ratio.`;
 
@@ -30,29 +26,28 @@ export async function generateCoverImage(
 
     const res = await fetch(url, { signal: AbortSignal.timeout(45000) });
     if (!res.ok) {
-      const msg = `Pollinations image fetch failed: ${res.status} ${await res.text().catch(() => '')}`;
-      console.error(`[Blog] ${msg}`);
-      if (opts?.rethrow) throw new Error(msg);
+      console.error(`[Blog] Pollinations image fetch failed: ${res.status} ${await res.text().catch(() => '')}`);
       return null;
     }
     const contentType = res.headers.get('content-type') || 'image/jpeg';
     const buffer = Buffer.from(await res.arrayBuffer());
     if (buffer.byteLength < 1000) {
-      const msg = `Pollinations returned a suspiciously small image (${buffer.byteLength} bytes), skipping`;
-      console.error(`[Blog] ${msg}`);
-      if (opts?.rethrow) throw new Error(msg);
+      console.error(`[Blog] Pollinations returned a suspiciously small image (${buffer.byteLength} bytes), skipping`);
       return null;
     }
 
+    // This Vercel Blob store is configured private-only (no public access mode
+    // allowed) — same as dish/receipt photos elsewhere in the app. Blog posts are
+    // public pages though, so we proxy the image through /api/blog/cover-image
+    // (no auth required there) instead of using the raw blob URL directly.
     const ext = contentType.includes('png') ? 'png' : 'jpg';
     const blob = await put(`blog-covers/${slugify(title)}-${Date.now()}.${ext}`, buffer, {
-      access: 'public',
+      access: 'private',
       contentType,
     });
-    return blob.url;
+    return `/api/blog/cover-image?url=${encodeURIComponent(blob.url)}`;
   } catch (e: any) {
     console.error('[Blog] Cover image generation failed:', e?.message || e);
-    if (opts?.rethrow) throw e;
     return null;
   }
 }
