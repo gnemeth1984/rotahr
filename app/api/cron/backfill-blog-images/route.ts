@@ -39,7 +39,7 @@ export async function GET(req: Request) {
     try {
       coverImage = await generateCoverImage(post.title, post.category, { rethrow: true });
     } catch (e: any) {
-      debugError = e?.message || String(e);
+      debugError = e?.message || String(e) || 'unknown error (no message)';
     }
     if (coverImage) {
       await prisma.blogPost.update({ where: { id: post.id }, data: { coverImage } });

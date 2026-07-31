@@ -30,13 +30,17 @@ export async function generateCoverImage(
 
     const res = await fetch(url, { signal: AbortSignal.timeout(45000) });
     if (!res.ok) {
-      console.error(`[Blog] Pollinations image fetch failed: ${res.status}`);
+      const msg = `Pollinations image fetch failed: ${res.status} ${await res.text().catch(() => '')}`;
+      console.error(`[Blog] ${msg}`);
+      if (opts?.rethrow) throw new Error(msg);
       return null;
     }
     const contentType = res.headers.get('content-type') || 'image/jpeg';
     const buffer = Buffer.from(await res.arrayBuffer());
     if (buffer.byteLength < 1000) {
-      console.error('[Blog] Pollinations returned a suspiciously small image, skipping');
+      const msg = `Pollinations returned a suspiciously small image (${buffer.byteLength} bytes), skipping`;
+      console.error(`[Blog] ${msg}`);
+      if (opts?.rethrow) throw new Error(msg);
       return null;
     }
 
