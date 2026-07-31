@@ -34,11 +34,17 @@ export async function GET(req: Request) {
 
   const results = [];
   for (const post of posts) {
-    const coverImage = await generateCoverImage(post.title, post.category);
+    let coverImage: string | null = null;
+    let debugError: string | null = null;
+    try {
+      coverImage = await generateCoverImage(post.title, post.category, { rethrow: true });
+    } catch (e: any) {
+      debugError = e?.message || String(e);
+    }
     if (coverImage) {
       await prisma.blogPost.update({ where: { id: post.id }, data: { coverImage } });
     }
-    results.push({ slug: post.slug, title: post.title, success: !!coverImage });
+    results.push({ slug: post.slug, title: post.title, success: !!coverImage, debugError });
   }
 
   const remaining = await prisma.blogPost.count({ where: { coverImage: null, published: true } });
