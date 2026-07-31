@@ -61,10 +61,10 @@ interface Draft {
 }
 
 const PLATFORM_COLORS: Record<string, string> = {
-  reddit: "bg-orange-500/15 text-orange-300 border-orange-500/30",
-  disqus: "bg-blue-500/15 text-blue-300 border-blue-500/30",
-  wordpress: "bg-slate-500/15 text-slate-300 border-slate-500/30",
-  quora: "bg-red-500/15 text-red-300 border-red-500/30",
+  reddit: "bg-orange-50 text-orange-700 border-orange-200",
+  disqus: "bg-blue-50 text-blue-700 border-blue-200",
+  wordpress: "bg-slate-100 text-slate-700 border-slate-300",
+  quora: "bg-red-50 text-red-700 border-red-200",
 };
 
 export default function BlogCommentsPage() {
@@ -183,8 +183,8 @@ export default function BlogCommentsPage() {
 
   if (status === "loading" || !session?.user || session.user.email !== SUPER_ADMIN_EMAIL) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#0f1c35]">
-        <Loader2 className="h-6 w-6 animate-spin text-white/60" />
+      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+        <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
       </div>
     );
   }
@@ -282,28 +282,28 @@ export default function BlogCommentsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0f1c35] text-white">
+    <div className="min-h-screen bg-slate-50 text-slate-900">
       <div className="mx-auto max-w-5xl px-6 py-10">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h1 className="text-2xl font-semibold">Blog Comment Assistant</h1>
-            <p className="mt-2 max-w-xl text-sm text-white/60">
+            <p className="mt-2 max-w-xl text-sm text-slate-500">
               Pick a relevant thread, get a genuine draft comment — mentions Rotahr only where it truly
               fits. You review and post it yourself, nothing is auto-posted.
             </p>
           </div>
           <div className="flex gap-3 text-sm">
-            <div className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-center">
+            <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-center">
               <div className="text-lg font-semibold">{articles.length}</div>
-              <div className="text-white/50">total</div>
+              <div className="text-slate-500">total</div>
             </div>
-            <div className="rounded-lg border border-green-500/20 bg-green-500/10 px-3 py-2 text-center">
-              <div className="text-lg font-semibold text-green-300">{confirmedCount}</div>
-              <div className="text-white/50">confirmed</div>
+            <div className="rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-center">
+              <div className="text-lg font-semibold text-green-700">{confirmedCount}</div>
+              <div className="text-slate-500">confirmed</div>
             </div>
-            <div className="rounded-lg border border-yellow-500/20 bg-yellow-500/10 px-3 py-2 text-center">
-              <div className="text-lg font-semibold text-yellow-300">{needsVerifyCount}</div>
-              <div className="text-white/50">verify first</div>
+            <div className="rounded-lg border border-yellow-200 bg-yellow-50 px-3 py-2 text-center">
+              <div className="text-lg font-semibold text-yellow-700">{needsVerifyCount}</div>
+              <div className="text-slate-500">verify first</div>
             </div>
           </div>
         </div>
@@ -314,7 +314,7 @@ export default function BlogCommentsPage() {
             <Button
               onClick={() => setShowAddBox(true)}
               variant="outline"
-              className="border-white/15 bg-white/5 text-white hover:bg-white/10"
+              className="border-slate-200 bg-white text-slate-900 hover:bg-slate-100"
             >
               <Plus className="mr-2 h-4 w-4" /> Add articles / threads
             </Button>
@@ -322,7 +322,7 @@ export default function BlogCommentsPage() {
           <Button
             onClick={() => setShowCompetitors((v) => !v)}
             variant="outline"
-            className="border-white/15 bg-white/5 text-white hover:bg-white/10"
+            className="border-slate-200 bg-white text-slate-900 hover:bg-slate-100"
           >
             {showCompetitors ? "Hide" : "Manage"} competitors ({competitors.filter((c) => c.active).length} active)
           </Button>
@@ -330,9 +330,9 @@ export default function BlogCommentsPage() {
 
         {/* Competitors panel */}
         {showCompetitors && (
-          <Card className="mt-4 border-white/10 bg-white/5">
+          <Card className="mt-4 border-slate-200 bg-white">
             <CardContent className="pt-4 space-y-3">
-              <p className="text-sm text-white/60">
+              <p className="text-sm text-slate-500">
                 The daily auto-discovery cron searches Reddit for these names (rotating ~8/day, past 2 months only)
                 and adds new relevant threads automatically. Untick any that shouldn't be searched anymore.
               </p>
@@ -341,32 +341,32 @@ export default function BlogCommentsPage() {
                   <div
                     key={c.id}
                     className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm ${
-                      c.active ? "border-white/20 bg-white/10" : "border-white/10 bg-white/5 text-white/40"
+                      c.active ? "border-slate-300 bg-slate-100" : "border-slate-200 bg-white text-slate-400"
                     }`}
                   >
                     <button onClick={() => toggleCompetitorActive(c.id, !c.active)} className="font-medium">
                       {c.name}
                     </button>
-                    {c.category && <span className="text-xs text-white/40">({c.category})</span>}
-                    <button onClick={() => deleteCompetitor(c.id)} className="text-white/30 hover:text-red-400">
+                    {c.category && <span className="text-xs text-slate-400">({c.category})</span>}
+                    <button onClick={() => deleteCompetitor(c.id)} className="text-slate-400 hover:text-red-600">
                       <X className="h-3 w-3" />
                     </button>
                   </div>
                 ))}
-                {competitors.length === 0 && <p className="text-sm text-white/40">No competitors yet.</p>}
+                {competitors.length === 0 && <p className="text-sm text-slate-400">No competitors yet.</p>}
               </div>
               <div className="flex gap-2 pt-1">
                 <Input
                   value={newCompName}
                   onChange={(e) => setNewCompName(e.target.value)}
                   placeholder="Competitor/service name"
-                  className="border-white/15 bg-white/5 text-white placeholder:text-white/30"
+                  className="border-slate-200 bg-white text-slate-900 placeholder:text-slate-400"
                 />
                 <Input
                   value={newCompCategory}
                   onChange={(e) => setNewCompCategory(e.target.value)}
                   placeholder="Category (optional)"
-                  className="border-white/15 bg-white/5 text-white placeholder:text-white/30 max-w-[180px]"
+                  className="border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 max-w-[180px]"
                 />
                 <Button onClick={addCompetitor} disabled={addingCompetitor || !newCompName.trim()} className="bg-[#ff6b35] hover:bg-[#e8365d]">
                   Add
@@ -377,16 +377,16 @@ export default function BlogCommentsPage() {
         )}
 
         {showAddBox ? (
-            <Card className="border-white/10 bg-white/5">
+            <Card className="border-slate-200 bg-white">
               <CardContent className="pt-5">
-                <label className="text-sm font-medium text-white/80">
+                <label className="text-sm font-medium text-slate-700">
                   Paste one URL per line — Reddit threads, blog posts, anything relevant
                 </label>
                 <Textarea
                   value={bulkText}
                   onChange={(e) => setBulkText(e.target.value)}
                   placeholder="https://www.reddit.com/r/restaurantowners/comments/..."
-                  className="mt-2 min-h-[100px] border-white/10 bg-white/5 text-white placeholder:text-white/30"
+                  className="mt-2 min-h-[100px] border-slate-200 bg-white text-slate-900 placeholder:text-slate-400"
                   autoFocus
                 />
                 <div className="mt-3 flex gap-2">
@@ -415,27 +415,27 @@ export default function BlogCommentsPage() {
         {/* Filters */}
         <div className="mt-8 flex flex-wrap items-center gap-3">
           <div className="relative flex-1 min-w-[220px]">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/40" />
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search title, URL, or context..."
-              className="border-white/10 bg-white/5 pl-9 text-white placeholder:text-white/30"
+              className="border-slate-200 bg-white pl-9 text-slate-900 placeholder:text-slate-400"
             />
           </div>
           <select
             value={topicFilter}
             onChange={(e) => setTopicFilter(e.target.value)}
-            className="rounded-md border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
+            className="rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900"
           >
-            <option value="all" className="bg-[#0f1c35]">All topics</option>
+            <option value="all" className="bg-slate-50">All topics</option>
             {topics.map((t) => (
-              <option key={t} value={t} className="bg-[#0f1c35]">
+              <option key={t} value={t} className="bg-slate-50">
                 {t}
               </option>
             ))}
           </select>
-          <label className="flex items-center gap-2 whitespace-nowrap text-sm text-white/60">
+          <label className="flex items-center gap-2 whitespace-nowrap text-sm text-slate-600">
             <input
               type="checkbox"
               checked={onlyWithComments}
@@ -443,7 +443,7 @@ export default function BlogCommentsPage() {
             />
             Only with comments
           </label>
-          <label className="flex items-center gap-2 whitespace-nowrap text-sm text-white/60">
+          <label className="flex items-center gap-2 whitespace-nowrap text-sm text-slate-600">
             <input
               type="checkbox"
               checked={hideUsed}
@@ -455,17 +455,17 @@ export default function BlogCommentsPage() {
 
         {/* Articles list */}
         <div className="mt-4 flex items-center justify-between">
-          <h2 className="text-sm font-medium text-white/50">
+          <h2 className="text-sm font-medium text-slate-500">
             {visibleArticles.length} thread{visibleArticles.length === 1 ? "" : "s"}
           </h2>
         </div>
 
         {loading ? (
           <div className="mt-10 flex justify-center">
-            <Loader2 className="h-6 w-6 animate-spin text-white/40" />
+            <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
           </div>
         ) : visibleArticles.length === 0 ? (
-          <div className="mt-10 flex flex-col items-center gap-2 rounded-xl border border-dashed border-white/15 py-14 text-white/40">
+          <div className="mt-10 flex flex-col items-center gap-2 rounded-xl border border-dashed border-slate-300 py-14 text-slate-400">
             <Inbox className="h-8 w-8" />
             <p>No threads match your filters</p>
           </div>
@@ -480,19 +480,19 @@ export default function BlogCommentsPage() {
                   onClick={() => { setSelected(a); setLatestDraft(null); generatePanelRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }); }}
                   className={`cursor-pointer border transition ${
                     isSelected
-                      ? "border-[#ff6b35] bg-white/10 ring-1 ring-[#ff6b35]/50"
-                      : "border-white/10 bg-white/5 hover:border-white/25 hover:bg-white/[0.07]"
+                      ? "border-[#ff6b35] bg-orange-50 ring-1 ring-[#ff6b35]/40"
+                      : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
                   }`}
                 >
                   <CardContent className="pt-4">
                     <div className="flex flex-wrap items-center gap-1.5">
                       {a.used && (
-                        <Badge variant="outline" className="border-emerald-400/40 bg-emerald-400/10 text-emerald-300">
+                        <Badge variant="outline" className="border-emerald-300 bg-emerald-50 text-emerald-700">
                           Done
                         </Badge>
                       )}
                       {a.source === "auto" && (
-                        <Badge variant="outline" className="border-indigo-400/40 bg-indigo-400/10 text-indigo-300">
+                        <Badge variant="outline" className="border-indigo-300 bg-indigo-50 text-indigo-700">
                           Auto-found
                         </Badge>
                       )}
@@ -500,18 +500,18 @@ export default function BlogCommentsPage() {
                         variant="outline"
                         className={`${
                           PLATFORM_COLORS[a.commentPlatform || ""] ||
-                          "border-white/20 bg-white/5 text-white/60"
+                          "border-slate-300 bg-slate-50 text-slate-600"
                         }`}
                       >
                         {a.commentPlatform || "unknown"}
                       </Badge>
                       {a.topic && (
-                        <Badge variant="outline" className="border-white/15 bg-white/5 text-white/50">
+                        <Badge variant="outline" className="border-slate-200 bg-slate-50 text-slate-500">
                           {a.topic}
                         </Badge>
                       )}
                       {a.region && (
-                        <Badge variant="outline" className="border-white/15 bg-white/5 text-white/50">
+                        <Badge variant="outline" className="border-slate-200 bg-slate-50 text-slate-500">
                           {a.region.toUpperCase()}
                         </Badge>
                       )}
@@ -529,13 +529,13 @@ export default function BlogCommentsPage() {
                       target="_blank"
                       rel="noreferrer"
                       onClick={(e) => e.stopPropagation()}
-                      className="mt-1 flex items-center gap-1 text-xs text-white/40 hover:text-white/70 hover:underline"
+                      className="mt-1 flex items-center gap-1 text-xs text-slate-400 hover:text-slate-700 hover:underline"
                     >
                       Open thread <ExternalLink className="h-3 w-3" />
                     </a>
 
                     {a.snippet && (
-                      <p className="mt-2 line-clamp-3 text-sm text-white/60">{a.snippet}</p>
+                      <p className="mt-2 line-clamp-3 text-sm text-slate-600">{a.snippet}</p>
                     )}
 
                     <div className="mt-3 flex items-center justify-between">
@@ -555,7 +555,7 @@ export default function BlogCommentsPage() {
                       <Button
                         size="sm"
                         variant="ghost"
-                        className="text-white/40 hover:text-red-400"
+                        className="text-slate-400 hover:text-red-600"
                         onClick={(e) => {
                           e.stopPropagation();
                           setPendingDeleteArticle(a);
@@ -573,18 +573,18 @@ export default function BlogCommentsPage() {
 
         {/* Generate panel */}
         <div ref={generatePanelRef} className="mt-10 scroll-mt-6">
-          <Card className="border-[#ff6b35]/30 bg-[#132345] shadow-xl">
+          <Card className="border-[#ff6b35]/40 bg-orange-50/60 shadow-sm">
             <CardContent className="pt-5">
-              <div className="text-sm text-white/60">Selected thread</div>
+              <div className="text-sm text-slate-500">Selected thread</div>
               <div className="mt-1 font-medium">
-                {selected ? selected.title : <span className="text-white/40">Pick a thread above first</span>}
+                {selected ? selected.title : <span className="text-slate-400">Pick a thread above first</span>}
               </div>
               {selected && (
                 <a
                   href={selected.url}
                   target="_blank"
                   rel="noreferrer"
-                  className="mt-1 flex w-fit items-center gap-1 text-xs text-white/40 hover:text-white/70 hover:underline"
+                  className="mt-1 flex w-fit items-center gap-1 text-xs text-slate-400 hover:text-slate-700 hover:underline"
                 >
                   Open thread <ExternalLink className="h-3 w-3" />
                 </a>
@@ -594,7 +594,7 @@ export default function BlogCommentsPage() {
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
                   placeholder="Your angle/note (optional) — e.g. mention the payroll feature"
-                  className="border-white/10 bg-white/5 text-white placeholder:text-white/30"
+                  className="border-slate-200 bg-white text-slate-900 placeholder:text-slate-400"
                 />
                 <Button
                   onClick={handleGenerate}
@@ -611,10 +611,10 @@ export default function BlogCommentsPage() {
               </div>
 
               {latestDraft && (
-                <div className="mt-4 rounded-lg border border-[#ff6b35]/30 bg-black/20 p-4">
-                  <p className="whitespace-pre-wrap text-sm text-white/90">{latestDraft.draftComment}</p>
+                <div className="mt-4 rounded-lg border border-[#ff6b35]/30 bg-white p-4">
+                  <p className="whitespace-pre-wrap text-sm text-slate-800">{latestDraft.draftComment}</p>
                   <div className="mt-3 flex flex-wrap gap-2">
-                    <Button size="sm" onClick={() => handleCopy(latestDraft)} className="bg-white/10 hover:bg-white/20">
+                    <Button size="sm" onClick={() => handleCopy(latestDraft)} className="bg-slate-100 hover:bg-slate-200 text-slate-900">
                       {copiedId === latestDraft.id ? (
                         <Check className="mr-1 h-3.5 w-3.5" />
                       ) : (
@@ -639,11 +639,11 @@ export default function BlogCommentsPage() {
         <div className="mt-10">
           <h2 className="text-lg font-medium">Recent comment drafts</h2>
           {drafts.length === 0 ? (
-            <p className="mt-3 text-sm text-white/40">Generated drafts will show up here.</p>
+            <p className="mt-3 text-sm text-slate-400">Generated drafts will show up here.</p>
           ) : (
             <div className="mt-4 space-y-3">
               {drafts.map((d) => (
-                <Card key={d.id} className="border-white/10 bg-white/5">
+                <Card key={d.id} className="border-slate-200 bg-white">
                   <CardContent className="pt-4">
                     <div className="flex items-start justify-between gap-3">
                       <div>
@@ -652,16 +652,16 @@ export default function BlogCommentsPage() {
                           href={d.articleUrl}
                           target="_blank"
                           rel="noreferrer"
-                          className="text-xs text-white/40 hover:underline"
+                          className="text-xs text-slate-400 hover:underline"
                         >
                           {d.articleUrl}
                         </a>
                       </div>
-                      <span className="whitespace-nowrap text-xs text-white/30">
+                      <span className="whitespace-nowrap text-xs text-slate-400">
                         {new Date(d.createdAt).toLocaleDateString()}
                       </span>
                     </div>
-                    <p className="mt-3 whitespace-pre-wrap rounded-lg bg-black/20 p-3 text-sm text-white/85">
+                    <p className="mt-3 whitespace-pre-wrap rounded-lg bg-slate-50 border border-slate-200 p-3 text-sm text-slate-800">
                       {d.draftComment}
                     </p>
                     <div className="mt-2 flex flex-wrap gap-2">
@@ -682,7 +682,7 @@ export default function BlogCommentsPage() {
                       <Button
                         size="sm"
                         variant="ghost"
-                        className="text-white/40 hover:text-red-400"
+                        className="text-slate-400 hover:text-red-600"
                         onClick={() => setPendingDeleteDraft(d)}
                       >
                         <Trash2 className="mr-1 h-3.5 w-3.5" /> Delete
