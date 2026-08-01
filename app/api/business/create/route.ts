@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireRole, isResponse } from "@/lib/auth/middleware";
 import { businessService, createBusinessSchema } from "@/lib/services/business.service";
 import { prisma } from "@/lib/db";
+import { provisionPublicPageForBusiness } from "@/lib/public-page/provision";
 
 export async function POST(req: NextRequest) {
   const session = await requireRole("ADMIN");
@@ -23,7 +24,10 @@ export async function POST(req: NextRequest) {
       data: { businessId: business.id },
     });
 
-    return NextResponse.json({ business }, { status: 201 });
+    // Auto-create the public page for this business too.
+    const publicSlug = await provisionPublicPageForBusiness(business.id, business.name);
+
+    return NextResponse.json({ business, publicSlug }, { status: 201 });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 400 });
   }

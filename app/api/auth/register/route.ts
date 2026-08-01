@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import bcrypt from "bcryptjs";
 import { isRateLimited } from "@/lib/auth/rate-limit";
+import { provisionPublicPageForBusiness } from "@/lib/public-page/provision";
 
 export async function POST(req: NextRequest) {
   try {
@@ -62,10 +63,15 @@ export async function POST(req: NextRequest) {
       return { user, business };
     });
 
+    // Every new business gets a public page at rotahr.com/v/<slug>.
+    // Fails soft inside — never blocks signup.
+    const publicSlug = await provisionPublicPageForBusiness(result.business.id, result.business.name);
+
     return NextResponse.json({
       ok: true,
       userId: result.user.id,
       businessId: result.business.id,
+      publicSlug,
     });
   } catch (err: any) {
     console.error("[register]", err);

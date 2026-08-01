@@ -5,6 +5,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth/options";
 import { prisma } from "@/lib/db";
 import { triggerWelcomeEmail } from "@/lib/email/marketing";
+import { provisionPublicPageForBusiness } from "@/lib/public-page/provision";
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -92,7 +93,12 @@ export async function POST(req: NextRequest) {
       });
       return business;
     });
-    return NextResponse.json({ ok: true, business: result, newBusiness: true });
+
+    // Every new business gets a public page at rotahr.com/v/<slug> automatically.
+    // Fails soft — a slug problem must never break signup.
+    const publicSlug = await provisionPublicPageForBusiness(result.id, result.name);
+
+    return NextResponse.json({ ok: true, business: result, newBusiness: true, publicSlug });
   }
 
   if (!businessId) {

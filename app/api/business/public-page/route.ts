@@ -9,6 +9,7 @@ import {
   PUBLIC_SPECIAL_CATEGORIES,
   type OpeningHoursEntry,
 } from "@/lib/public-page/types";
+import { syncAutoIndex } from "@/lib/public-page/provision";
 
 export const dynamic = "force-dynamic";
 
@@ -183,8 +184,20 @@ export async function PATCH(req: NextRequest) {
     select: SELECT,
   });
 
+  // New signups start noindex because a name-only page is a thin page. Once
+  // they add an address, hours or a description, let search engines in — unless
+  // they explicitly ticked "hide from search" in this same save.
+  await syncAutoIndex(businessId, body.publicNoIndex === true ? true : undefined).catch(() => {});
+
+  // Re-read the flag so the UI shows the state syncAutoIndex may have just changed.
+  const fresh = await prisma.business.findUnique({
+    where: { id: businessId },
+    select: { publicNoIndex: true },
+  });
+
   return NextResponse.json({
     ...updated,
+    publicNoIndex: fresh?.publicNoIndex ?? updated.publicNoIndex,
     publicOpeningHours: normaliseOpeningHours(updated.publicOpeningHours),
   });
 }

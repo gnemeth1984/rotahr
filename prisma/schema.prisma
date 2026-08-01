@@ -104,6 +104,8 @@ model Business {
   publicShowPrices   Boolean @default(true)
   publicShowBooking  Boolean @default(true) // in-page booking request form
   publicNoIndex      Boolean @default(false) // let a venue opt out of search engines
+  publicProspect     Boolean @default(false) // page built by us for a venue that isn't a customer yet
+  publicClaimToken   String? @unique // one-time token so an owner can claim their prospect page
 
   // Lemon Squeezy subscription
   lsCustomerId     String? // Lemon Squeezy customer ID

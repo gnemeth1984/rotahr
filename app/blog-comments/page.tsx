@@ -33,6 +33,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import VenuePages from "./_venue-pages";
 
 const SUPER_ADMIN_EMAIL = "gnemeth1984@gmail.com";
 
@@ -694,6 +695,9 @@ export default function BlogCommentsPage() {
             </div>
           )}
         </div>
+
+        {/* Public venue pages builder */}
+        <VenuePages />
       </div>
 
       {/* Delete article confirm */}
