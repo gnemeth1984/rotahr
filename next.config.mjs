@@ -42,6 +42,13 @@ const nextConfig = {
       },
     ];
   },
+  async redirects() {
+    return [
+      // Short, memorable URL for print material and QR codes. Lands on the
+      // sign-in page, which has the one-click demo panel open by default.
+      { source: "/try", destination: "/auth/signin", permanent: false },
+    ];
+  },
 };
 
 export default nextConfig;
