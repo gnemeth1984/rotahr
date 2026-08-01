@@ -10,6 +10,7 @@ const tabs = [
   { href: "/settings/general", label: "Account", roles: ["EMPLOYEE", "MANAGER", "ADMIN"] },
   { href: "/settings/venues", label: "Venues", roles: ["MANAGER", "ADMIN"] },
   { href: "/settings/features", label: "Features & Menu", roles: ["MANAGER", "ADMIN"] },
+  { href: "/settings/public-page", label: "Public Page", roles: ["MANAGER", "ADMIN"] },
   { href: "/settings/billing", label: "Billing", roles: ["MANAGER", "ADMIN"] },
   { href: "/settings/pos", label: "POS Integration", roles: ["MANAGER", "ADMIN"] },
   { href: "/settings/email", label: "Email", roles: ["MANAGER", "ADMIN"] },

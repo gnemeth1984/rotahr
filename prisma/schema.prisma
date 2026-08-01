@@ -8,59 +8,59 @@ datasource db {
 }
 
 model Business {
-  id                 String       @id @default(cuid())
+  id                 String   @id @default(cuid())
   name               String
-  onboardingComplete Boolean      @default(false)
-  createdAt          DateTime     @default(now())
-  updatedAt          DateTime     @updatedAt
+  onboardingComplete Boolean  @default(false)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
   // Geofencing for clock in/out
-  geoLat             Float?       // premises latitude
-  geoLng             Float?       // premises longitude
-  geoRadius          Int          @default(200) // metres
+  geoLat    Float? // premises latitude
+  geoLng    Float? // premises longitude
+  geoRadius Int    @default(200) // metres
 
   // Labour cost / revenue target (used in rota live cost banner)
-  weeklyRevenueTarget Float?      // manager-set revenue target for current week
+  weeklyRevenueTarget Float? // manager-set revenue target for current week
   venues              Venue[]
 
-  users        User[]
-  departments  Department[]
-  employees    Employee[]
-  tables       Table[]
-  reservations Reservation[]
-  expenses     Expense[]
-  menuSpecials MenuSpecial[]
-  aiSettings   AISettings?
-  suppliers    Supplier[]
-  stockItems   StockItem[]
-  supplierOrders SupplierOrder[]
+  users              User[]
+  departments        Department[]
+  employees          Employee[]
+  tables             Table[]
+  reservations       Reservation[]
+  expenses           Expense[]
+  menuSpecials       MenuSpecial[]
+  aiSettings         AISettings?
+  suppliers          Supplier[]
+  stockItems         StockItem[]
+  supplierOrders     SupplierOrder[]
   supplierStatements SupplierStatement[]
-  shiftSwapRequests ShiftSwapRequest[]
-  tipPools     TipPool[]
-  dishes       Dish[]
-  weeklyMenuPlans WeeklyMenuPlan[]
-  menuTemplates   MenuTemplate[]
-  functionMenus   FunctionMenu[]
+  shiftSwapRequests  ShiftSwapRequest[]
+  tipPools           TipPool[]
+  dishes             Dish[]
+  weeklyMenuPlans    WeeklyMenuPlan[]
+  menuTemplates      MenuTemplate[]
+  functionMenus      FunctionMenu[]
 
   // POS Integration
-  posConnection  PosConnection?
-  posSnapshots   PosSnapshot[]
+  posConnection PosConnection?
+  posSnapshots  PosSnapshot[]
 
   // CRM
-  customers      Customer[]
+  customers Customer[]
 
   // Wastage
   wastageRecords WastageRecord[]
 
   // Manager Log Book / Ops Tasks
-  logEntries     LogEntry[]
-  opsTasks       OpsTask[]
+  logEntries LogEntry[]
+  opsTasks   OpsTask[]
 
   // Connected email for sending CRM emails as the business's own inbox
   emailConnection EmailConnection?
 
   // CRM promotional offers
-  promoOffers    PromoOffer[]
+  promoOffers PromoOffer[]
 
   // WhatsApp/SMS guest messaging
   guestMessages     GuestMessage[]
@@ -68,28 +68,51 @@ model Business {
   messageChannels   MessageChannel[]
 
   // HACCP
-  haccpRecords     HACCPRecord[]
-  haccpEquipment        HACCPEquipment[]
+  haccpRecords            HACCPRecord[]
+  haccpEquipment          HACCPEquipment[]
   haccpChecklistTemplates HACCPChecklistTemplate[]
-  haccpSchedules HACCPSchedule[]
+  haccpSchedules          HACCPSchedule[]
 
   // Locale / currency
-  currency           String   @default("EUR") // "EUR" | "GBP"
-  country            String   @default("IE")  // "IE" | "GB"
+  currency String @default("EUR") // "EUR" | "GBP"
+  country  String @default("IE") // "IE" | "GB"
 
   // Feature flags — controls which modules are enabled and who can see them
   // Stored as JSON: { [featureKey]: { enabled: boolean, roles: string[] } }
   // roles = subset of ["EMPLOYEE","MANAGER","ADMIN"] — who can SEE this feature
-  featureFlags       Json?     // null = all features on with default roles
+  featureFlags Json? // null = all features on with default roles
+
+  // ── Public venue page (rotahr.com/v/<publicSlug>) ─────────────────────────
+  // Auto-generated marketing page built from data the venue already maintains
+  // for operational reasons (dishes, specials, hours). Off by default — a
+  // business must explicitly opt in before anything is exposed publicly.
+  publicPageEnabled  Boolean @default(false)
+  publicSlug         String? @unique
+  publicTagline      String? // short line under the venue name
+  publicAbout        String? @db.Text
+  publicHeroImage    String? // blob URL
+  publicPhone        String? // override — falls back to default venue phone
+  publicEmail        String?
+  publicAddress      String?
+  publicBookingUrl   String? // external booking link, if they use one
+  publicInstagram    String?
+  publicFacebook     String?
+  publicWebsite      String?
+  publicOpeningHours Json? // [{ day: 0-6, closed: bool, open: "HH:mm", close: "HH:mm" }]
+  publicShowMenu     Boolean @default(true)
+  publicShowSpecials Boolean @default(true)
+  publicShowPrices   Boolean @default(true)
+  publicShowBooking  Boolean @default(true) // in-page booking request form
+  publicNoIndex      Boolean @default(false) // let a venue opt out of search engines
 
   // Lemon Squeezy subscription
-  lsCustomerId       String?   // Lemon Squeezy customer ID
-  lsSubscriptionId   String?   // Lemon Squeezy subscription ID
-  lsVariantId        String?   // active variant ID
-  lsPlan             String?   @default("none") // "none" | "starter" | "pro" | "enterprise"
-  lsStatus           String?   @default("none") // "active" | "cancelled" | "past_due" | "none"
-  lsRenewsAt         DateTime?
-  lsEndsAt           DateTime?
+  lsCustomerId     String? // Lemon Squeezy customer ID
+  lsSubscriptionId String? // Lemon Squeezy subscription ID
+  lsVariantId      String? // active variant ID
+  lsPlan           String?   @default("none") // "none" | "starter" | "pro" | "enterprise"
+  lsStatus         String?   @default("none") // "active" | "cancelled" | "past_due" | "none"
+  lsRenewsAt       DateTime?
+  lsEndsAt         DateTime?
 }
 
 model User {
@@ -106,23 +129,23 @@ model User {
   lastLoginAt DateTime?
   loginCount  Int       @default(0)
 
-  pushSubscription    String?   // Web Push subscription JSON
+  pushSubscription String? // Web Push subscription JSON
 
-  employees           Employee[]
-  passwordResetTokens PasswordResetToken[]
-  appNotifications    AppNotification[]
-  menuSpecials        MenuSpecial[]     @relation("MenuSpecialAuthor")
-  crmNotes            CrmNote[]
-  crmEmails           CrmEmail[]
-  guestMessages       GuestMessage[]
-  haccpRecords             HACCPRecord[]
-  haccpTemplatesUpdated    HACCPChecklistTemplate[] @relation("HaccpTemplateUpdater")
-  logEntries               LogEntry[]
-  logEntryUpdates          LogEntryUpdate[]
-  opsTasksCreated          OpsTask[]
-  opsTaskUpdates           OpsTaskUpdate[]
-  emailConnectionsMade     EmailConnection[]
-  promoOffersCreated       PromoOffer[]
+  employees             Employee[]
+  passwordResetTokens   PasswordResetToken[]
+  appNotifications      AppNotification[]
+  menuSpecials          MenuSpecial[]            @relation("MenuSpecialAuthor")
+  crmNotes              CrmNote[]
+  crmEmails             CrmEmail[]
+  guestMessages         GuestMessage[]
+  haccpRecords          HACCPRecord[]
+  haccpTemplatesUpdated HACCPChecklistTemplate[] @relation("HaccpTemplateUpdater")
+  logEntries            LogEntry[]
+  logEntryUpdates       LogEntryUpdate[]
+  opsTasksCreated       OpsTask[]
+  opsTaskUpdates        OpsTaskUpdate[]
+  emailConnectionsMade  EmailConnection[]
+  promoOffersCreated    PromoOffer[]
 }
 
 model PasswordResetToken {
@@ -150,14 +173,14 @@ model Department {
 }
 
 model Employee {
-  id           String   @id @default(cuid())
+  id           String      @id @default(cuid())
   firstName    String
   lastName     String
-  email        String   @unique
+  email        String      @unique
   phone        String?
-  role         String   @default("staff")
+  role         String      @default("staff")
   hourlyRate   Float?
-  active       Boolean  @default(true)
+  active       Boolean     @default(true)
   businessId   String
   business     Business    @relation(fields: [businessId], references: [id])
   departmentId String?
@@ -166,43 +189,43 @@ model Employee {
   user         User?       @relation(fields: [userId], references: [id])
 
   // HR / Payroll fields
-  startDate       DateTime?
-  contractType    String?   // full-time | part-time | casual | zero-hours
-  address         String?
-  nationality     String?
-  ppsn            String?   // PPS Number (encrypted at app layer ideally)
-  bankIban        String?   // IBAN (sensitive)
-  bankBic         String?
-  emergencyName   String?
-  emergencyPhone  String?
-  emergencyRel    String?   // relationship
+  startDate      DateTime?
+  contractType   String? // full-time | part-time | casual | zero-hours
+  address        String?
+  nationality    String?
+  ppsn           String? // PPS Number (encrypted at app layer ideally)
+  bankIban       String? // IBAN (sensitive)
+  bankBic        String?
+  emergencyName  String?
+  emergencyPhone String?
+  emergencyRel   String? // relationship
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  shifts          Shift[]
-  timeOffRequests TimeOffRequest[]
-  expenses        Expense[]
-  notifications   BookingNotification[]
-  flags           BookingFlag[]
-  clockEvents     ClockEvent[]
-  sentMessages    Message[]              @relation("MessageSender")
-  receivedMessages Message[]             @relation("MessageRecipient")
-  availability    AvailabilityPreference[]
-  extraAvailability ExtraAvailability[]
-  shiftTemplates  ShiftTemplate[]
-  shiftSwapRequestsOffered  ShiftSwapRequest[] @relation("SwapOfferer")
-  shiftSwapRequestsReceived ShiftSwapRequest[] @relation("SwapReceiver")
-  tipDistributions TipDistribution[]
-  certifications   TrainingCertification[]
-  opsTasks         OpsTask[]
-  venueId          String?
-  venue            Venue?   @relation(fields: [venueId], references: [id], onDelete: SetNull)
-  permissions      String[] @default([])
-  documents        EmployeeDocument[]
-  onboardingTasks  OnboardingTask[]
-  channelMessages  ChannelMessage[]
-  channelMessageReceipts ChannelMessageReceipt[]
+  shifts                    Shift[]
+  timeOffRequests           TimeOffRequest[]
+  expenses                  Expense[]
+  notifications             BookingNotification[]
+  flags                     BookingFlag[]
+  clockEvents               ClockEvent[]
+  sentMessages              Message[]                @relation("MessageSender")
+  receivedMessages          Message[]                @relation("MessageRecipient")
+  availability              AvailabilityPreference[]
+  extraAvailability         ExtraAvailability[]
+  shiftTemplates            ShiftTemplate[]
+  shiftSwapRequestsOffered  ShiftSwapRequest[]       @relation("SwapOfferer")
+  shiftSwapRequestsReceived ShiftSwapRequest[]       @relation("SwapReceiver")
+  tipDistributions          TipDistribution[]
+  certifications            TrainingCertification[]
+  opsTasks                  OpsTask[]
+  venueId                   String?
+  venue                     Venue?                   @relation(fields: [venueId], references: [id], onDelete: SetNull)
+  permissions               String[]                 @default([])
+  documents                 EmployeeDocument[]
+  onboardingTasks           OnboardingTask[]
+  channelMessages           ChannelMessage[]
+  channelMessageReceipts    ChannelMessageReceipt[]
 }
 
 model Shift {
@@ -255,9 +278,9 @@ model Table {
 }
 
 model Expense {
-  id            String   @id @default(cuid())
-  businessId    String
-  business      Business @relation(fields: [businessId], references: [id])
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id])
 
   amount        Float
   vatAmount     Float    @default(0)
@@ -269,18 +292,18 @@ model Expense {
   paymentMethod String?
   status        String   @default("confirmed")
 
-  receiptUrl      String?
-  receiptDataUrl  String?   // base64 data URI — permanent fallback for 30-day recall
+  receiptUrl       String?
+  receiptDataUrl   String? // base64 data URI — permanent fallback for 30-day recall
   receiptExpiresAt DateTime? // 30 days from upload
-  aiRawText       String?
-  aiLineItems     Json?     // structured line items extracted by AI: [{name, quantity, unit, unitPrice}]
+  aiRawText        String?
+  aiLineItems      Json? // structured line items extracted by AI: [{name, quantity, unit, unitPrice}]
 
   // Irish Revenue / VAT compliance fields
-  supplierVatNumber String?   // supplier's VAT registration number (required for VAT reclaim)
-  legalBasis        String?   @default("legal_obligation") // GDPR Art.6(1)(c) — legal obligation
+  supplierVatNumber String? // supplier's VAT registration number (required for VAT reclaim)
+  legalBasis        String? @default("legal_obligation") // GDPR Art.6(1)(c) — legal obligation
 
-  employeeId    String?
-  employee      Employee? @relation(fields: [employeeId], references: [id])
+  employeeId String?
+  employee   Employee? @relation(fields: [employeeId], references: [id])
 
   createdById String?
   createdAt   DateTime @default(now())
@@ -288,34 +311,34 @@ model Expense {
 }
 
 model Reservation {
-  id            String   @id @default(cuid())
-  customerName  String
-  customerEmail String?
-  customerPhone String?
-  partySize     Int
-  date          DateTime
-  time          String
-  duration      Int      @default(90)
-  status        String   @default("confirmed")
-  notes         String?
-  dietary       String?
-  occasion      String?
-  menuRequired  Boolean @default(false)
-  kitchenNotes  String?
-  upsellNotes   String?
-  aiWarnings    String?
-  aiTranscript  String?  @db.Text // the exact raw message typed/said to the AI booking assistant, kept verbatim for audit
-  createdById   String?
-  createdByName     String?
-  marketingConsent  Boolean @default(false)
-  tableId           String?
-  table         Table?   @relation(fields: [tableId], references: [id])
-  businessId    String
-  business      Business @relation(fields: [businessId], references: [id])
-  customerId    String?
-  customer      Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id               String    @id @default(cuid())
+  customerName     String
+  customerEmail    String?
+  customerPhone    String?
+  partySize        Int
+  date             DateTime
+  time             String
+  duration         Int       @default(90)
+  status           String    @default("confirmed")
+  notes            String?
+  dietary          String?
+  occasion         String?
+  menuRequired     Boolean   @default(false)
+  kitchenNotes     String?
+  upsellNotes      String?
+  aiWarnings       String?
+  aiTranscript     String?   @db.Text // the exact raw message typed/said to the AI booking assistant, kept verbatim for audit
+  createdById      String?
+  createdByName    String?
+  marketingConsent Boolean   @default(false)
+  tableId          String?
+  table            Table?    @relation(fields: [tableId], references: [id])
+  businessId       String
+  business         Business  @relation(fields: [businessId], references: [id])
+  customerId       String?
+  customer         Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   notifications BookingNotification[]
   flags         BookingFlag[]
@@ -353,7 +376,7 @@ model Message {
   read        Boolean  @default(false)
   createdAt   DateTime @default(now())
 
-  sender    Employee @relation("MessageSender",    fields: [senderId],    references: [id], onDelete: Cascade)
+  sender    Employee @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
   recipient Employee @relation("MessageRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
 }
 
@@ -362,11 +385,11 @@ model ClockEvent {
   id         String   @id @default(cuid())
   employeeId String
   businessId String
-  type       String   // "in" | "out"
+  type       String // "in" | "out"
   timestamp  DateTime @default(now())
   note       String?
   shiftId    String?
-  latitude   Float?   // where employee clocked in/out
+  latitude   Float? // where employee clocked in/out
   longitude  Float?
 
   employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
@@ -377,10 +400,10 @@ model AvailabilityPreference {
   id         String   @id @default(cuid())
   employeeId String
   businessId String
-  dayOfWeek  Int      // 0=Sun 1=Mon … 6=Sat
+  dayOfWeek  Int // 0=Sun 1=Mon … 6=Sat
   available  Boolean  @default(true)
-  fromTime   String?  // "09:00"
-  toTime     String?  // "17:00"
+  fromTime   String? // "09:00"
+  toTime     String? // "17:00"
   note       String?
   updatedAt  DateTime @updatedAt
 
@@ -395,8 +418,8 @@ model ExtraAvailability {
   employeeId String
   businessId String
   date       DateTime // specific date they're available for extras
-  fromTime   String?  // "09:00" optional preferred window
-  toTime     String?  // "17:00"
+  fromTime   String? // "09:00" optional preferred window
+  toTime     String? // "17:00"
   note       String?
   createdAt  DateTime @default(now())
 
@@ -431,14 +454,14 @@ model ShiftTemplate {
 
 // ── In-App Notifications ───────────────────────────────────────────────────────
 model AppNotification {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  type        String   // "message" | "shift" | "timeoff" | "booking" | "rota" | "late_checkin" | "cert_expiry"
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type        String // "message" | "shift" | "timeoff" | "booking" | "rota" | "late_checkin" | "cert_expiry"
   title       String
   body        String
   link        String?
-  referenceId String?  // shift/cert/etc ID for dedup
+  referenceId String? // shift/cert/etc ID for dedup
   read        Boolean  @default(false)
   createdAt   DateTime @default(now())
 
@@ -447,24 +470,24 @@ model AppNotification {
 
 // ── Menu Specials / Board ──────────────────────────────────────────────────────
 model MenuSpecial {
-  id          String    @id @default(cuid())
+  id          String   @id @default(cuid())
   businessId  String
-  business    Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
   createdById String
-  createdBy   User      @relation("MenuSpecialAuthor", fields: [createdById], references: [id])
+  createdBy   User     @relation("MenuSpecialAuthor", fields: [createdById], references: [id])
 
-  title       String
-  description String?   @db.Text
-  category    String    @default("special") // "special" | "change" | "announcement" | "86'd"
-  date        DateTime  // primary date / start of range
-  endDate     DateTime? // optional end date for multi-day
-  pinned      Boolean   @default(false)
-  imageUrl    String?   // optional photo of the dish
-  imageDataUri String?  @db.Text
-  archived    Boolean   @default(false)
+  title        String
+  description  String?   @db.Text
+  category     String    @default("special") // "special" | "change" | "announcement" | "86'd"
+  date         DateTime // primary date / start of range
+  endDate      DateTime? // optional end date for multi-day
+  pinned       Boolean   @default(false)
+  imageUrl     String? // optional photo of the dish
+  imageDataUri String?   @db.Text
+  archived     Boolean   @default(false)
 
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([businessId, archived, date])
 }
@@ -476,96 +499,96 @@ model AISettings {
   business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
   // Staffing thresholds
-  bookingThresholdForStaffIncrease Int     @default(20)   // covers → suggest more staff
-  kitchenRatio                     Int     @default(20)   // 1 kitchen per N covers
-  floorRatio                       Int     @default(15)   // 1 floor per N covers
-  minBarStaff                      Int     @default(1)
+  bookingThresholdForStaffIncrease Int @default(20) // covers → suggest more staff
+  kitchenRatio                     Int @default(20) // 1 kitchen per N covers
+  floorRatio                       Int @default(15) // 1 floor per N covers
+  minBarStaff                      Int @default(1)
 
   // Rota settings
-  rotaWarningDaysAhead             Int     @default(3)    // warn about short staffing X days ahead
-  autoFlagShortStaffedShifts       Boolean @default(true)
-  minStaffPerShift                 Int     @default(2)
+  rotaWarningDaysAhead       Int     @default(3) // warn about short staffing X days ahead
+  autoFlagShortStaffedShifts Boolean @default(true)
+  minStaffPerShift           Int     @default(2)
 
   // Specials / price change communication
-  priceChangeNotifyScope           String  @default("managers") // "managers" | "all_staff" | "none"
-  priceChangeMessage               String? @db.Text             // custom message template
+  priceChangeNotifyScope String  @default("managers") // "managers" | "all_staff" | "none"
+  priceChangeMessage     String? @db.Text // custom message template
 
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // ── Stock Management ───────────────────────────────────────────────────────────
 model Supplier {
-  id          String   @id @default(cuid())
-  businessId  String
-  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
   name        String
   contactName String?
   email       String?
   phone       String?
   address     String?
-  notes       String?  @db.Text
-  active      Boolean  @default(true)
+  notes       String? @db.Text
+  active      Boolean @default(true)
 
-  stockItems  StockItem[]
-  orders      SupplierOrder[]
-  statements  SupplierStatement[]
+  stockItems StockItem[]
+  orders     SupplierOrder[]
+  statements SupplierStatement[]
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([businessId, active])
 }
 
 model StockItem {
-  id           String   @id @default(cuid())
-  businessId   String
-  business     Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  supplierId   String?
-  supplier     Supplier? @relation(fields: [supplierId], references: [id])
+  id         String    @id @default(cuid())
+  businessId String
+  business   Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  supplierId String?
+  supplier   Supplier? @relation(fields: [supplierId], references: [id])
 
-  name         String
-  sku          String?          // supplier's product code
-  unit         String           @default("unit") // "unit", "kg", "litre", "case", "box", "bottle" etc
-  category     String           @default("general") // "food", "beverage", "cleaning", "packaging", "equipment", "other"
+  name     String
+  sku      String? // supplier's product code
+  unit     String  @default("unit") // "unit", "kg", "litre", "case", "box", "bottle" etc
+  category String  @default("general") // "food", "beverage", "cleaning", "packaging", "equipment", "other"
 
-  lastPrice    Float?           // price from most recent receipt/invoice
-  lastOrdered  DateTime?        // date of last order
-  reorderLevel Float?           // trigger reorder below this qty
-  currentStock Float?           // optional manual stock count
-  notes        String?          @db.Text
+  lastPrice    Float? // price from most recent receipt/invoice
+  lastOrdered  DateTime? // date of last order
+  reorderLevel Float? // trigger reorder below this qty
+  currentStock Float? // optional manual stock count
+  notes        String?   @db.Text
 
   // Source tracing
-  lastExpenseId String?         // which expense/receipt last updated this item
+  lastExpenseId String? // which expense/receipt last updated this item
 
-  orderItems   OrderItem[]
+  orderItems      OrderItem[]
   dishIngredients DishIngredient[]
-  wastageRecords WastageRecord[]
+  wastageRecords  WastageRecord[]
 
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([businessId, supplierId])
   @@index([businessId, category])
 }
 
 model SupplierOrder {
-  id          String      @id @default(cuid())
-  businessId  String
-  business    Business    @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  supplierId  String
-  supplier    Supplier    @relation(fields: [supplierId], references: [id])
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  supplierId String
+  supplier   Supplier @relation(fields: [supplierId], references: [id])
 
-  status      String      @default("draft")   // "draft" | "sent" | "received"
-  notes       String?     @db.Text
-  sentAt      DateTime?
-  receivedAt  DateTime?
+  status     String    @default("draft") // "draft" | "sent" | "received"
+  notes      String?   @db.Text
+  sentAt     DateTime?
+  receivedAt DateTime?
 
-  items       OrderItem[]
+  items OrderItem[]
 
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([businessId, supplierId, status])
 }
@@ -577,9 +600,9 @@ model OrderItem {
   stockItemId String
   stockItem   StockItem     @relation(fields: [stockItemId], references: [id])
 
-  quantity    Float
-  unitPrice   Float?
-  notes       String?
+  quantity  Float
+  unitPrice Float?
+  notes     String?
 
   @@index([orderId])
 }
@@ -588,32 +611,32 @@ model OrderItem {
 // Complies with: Organisation of Working Time Act 1997 (rest periods enforced
 // in validation before approval), GDPR Art.6(1)(b) performance of contract.
 model ShiftSwapRequest {
-  id              String   @id @default(cuid())
-  businessId      String
-  business        Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
   // The employee offering their shift
-  offererId       String
-  offerer         Employee @relation("SwapOfferer", fields: [offererId], references: [id], onDelete: Cascade)
-  offeredShiftId  String   // Shift the offerer wants to give away
+  offererId      String
+  offerer        Employee @relation("SwapOfferer", fields: [offererId], references: [id], onDelete: Cascade)
+  offeredShiftId String // Shift the offerer wants to give away
 
   // The employee accepting (null until someone accepts)
   receiverId      String?
   receiver        Employee? @relation("SwapReceiver", fields: [receiverId], references: [id])
-  receiverShiftId String?   // Optional: the receiver's shift to swap (can be open swap)
+  receiverShiftId String? // Optional: the receiver's shift to swap (can be open swap)
 
-  status          String   @default("open")
+  status String @default("open")
   // "open"      — listed, waiting for taker
   // "pending"   — receiver accepted, awaiting manager approval
   // "approved"  — manager approved, shifts reassigned
   // "rejected"  — manager rejected
   // "cancelled" — offerer withdrew
 
-  managerNote     String?
-  managedById     String?
+  managerNote String?
+  managedById String?
 
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([businessId, status])
   @@index([offererId])
@@ -623,92 +646,91 @@ model ShiftSwapRequest {
 // Complies with: Payment of Wages (Amendment) (Tips and Gratuities) Act 2022
 // (Irish law — mandatory transparent distribution records)
 model TipPool {
-  id          String   @id @default(cuid())
-  businessId  String
-  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
-  periodStart DateTime  // start of period (typically week start)
-  periodEnd   DateTime  // end of period
-  totalAmount Float     // total tips collected (€)
-  method      String    @default("hours") // "hours" | "equal" | "custom"
-  notes       String?   @db.Text
-  status      String    @default("draft") // "draft" | "distributed"
+  periodStart   DateTime // start of period (typically week start)
+  periodEnd     DateTime // end of period
+  totalAmount   Float // total tips collected (€)
+  method        String    @default("hours") // "hours" | "equal" | "custom"
+  notes         String?   @db.Text
+  status        String    @default("draft") // "draft" | "distributed"
   distributedAt DateTime?
 
   distributions TipDistribution[]
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([businessId, periodStart])
 }
 
 model TipDistribution {
-  id          String   @id @default(cuid())
-  poolId      String
-  pool        TipPool  @relation(fields: [poolId], references: [id], onDelete: Cascade)
-  employeeId  String
-  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  id         String   @id @default(cuid())
+  poolId     String
+  pool       TipPool  @relation(fields: [poolId], references: [id], onDelete: Cascade)
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
-  hoursWorked Float    @default(0)  // hours in the period (used for "hours" method)
-  shareAmount Float    // € amount allocated to this employee
-  customNote  String?  // reason for custom override
+  hoursWorked Float   @default(0) // hours in the period (used for "hours" method)
+  shareAmount Float // € amount allocated to this employee
+  customNote  String? // reason for custom override
 
   @@index([poolId])
   @@index([employeeId])
 }
 
-
 // ── Multi-Venue Support ───────────────────────────────────────────────────────
 model Venue {
-  id          String   @id @default(cuid())
-  businessId  String
-  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
-  name        String
-  address     String?
-  phone       String?
-  email       String?
-  website     String?
-  geoLat      Float?
-  geoLng      Float?
-  geoRadius   Int      @default(200)
-  timezone    String   @default("Europe/Dublin")
-  isDefault   Boolean  @default(false)
-  active      Boolean  @default(true)
+  name      String
+  address   String?
+  phone     String?
+  email     String?
+  website   String?
+  geoLat    Float?
+  geoLng    Float?
+  geoRadius Int     @default(200)
+  timezone  String  @default("Europe/Dublin")
+  isDefault Boolean @default(false)
+  active    Boolean @default(true)
 
   // Venue details
-  capacity    Int?
-  venueType   String?  // restaurant | bar | hotel | cafe | pub | other
-  cuisine     String?  // Irish, Italian, etc.
-  foodInfo    String?  @db.Text  // food menu notes, allergies policy, dietary options
-  drinksInfo  String?  @db.Text  // bar notes, draught lines, house spirits
-  equipment   String?  @db.Text  // POS systems, kitchen equipment, A/V notes
-  notes       String?  @db.Text  // general manager notes
+  capacity   Int?
+  venueType  String? // restaurant | bar | hotel | cafe | pub | other
+  cuisine    String? // Irish, Italian, etc.
+  foodInfo   String? @db.Text // food menu notes, allergies policy, dietary options
+  drinksInfo String? @db.Text // bar notes, draught lines, house spirits
+  equipment  String? @db.Text // POS systems, kitchen equipment, A/V notes
+  notes      String? @db.Text // general manager notes
 
-  employees       Employee[]
-  shifts          Shift[]
-  shiftTemplates  ShiftTemplate[]
-  checklists      VenueChecklist[]
-  logEntries      LogEntry[]
-  opsTasks        OpsTask[]
+  employees      Employee[]
+  shifts         Shift[]
+  shiftTemplates ShiftTemplate[]
+  checklists     VenueChecklist[]
+  logEntries     LogEntry[]
+  opsTasks       OpsTask[]
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([businessId])
 }
 
 model VenueChecklist {
-  id          String   @id @default(cuid())
-  venueId     String
-  venue       Venue    @relation(fields: [venueId], references: [id], onDelete: Cascade)
-  businessId  String
-  title       String
-  category    String   @default("general") // opening | closing | cleaning | health-safety | general
-  items       VenueChecklistItem[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id         String               @id @default(cuid())
+  venueId    String
+  venue      Venue                @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  businessId String
+  title      String
+  category   String               @default("general") // opening | closing | cleaning | health-safety | general
+  items      VenueChecklistItem[]
+  createdAt  DateTime             @default(now())
+  updatedAt  DateTime             @updatedAt
 
   @@index([venueId])
   @@index([businessId])
@@ -728,14 +750,14 @@ model VenueChecklistItem {
 // ── Page Views / Visitor Analytics ───────────────────────────────────────────
 model PageView {
   id         String   @id @default(cuid())
-  path       String   // e.g. "/", "/pricing", "/auth/signin"
-  referrer   String?  // where they came from
+  path       String // e.g. "/", "/pricing", "/auth/signin"
+  referrer   String? // where they came from
   userAgent  String?  @db.Text
-  country    String?  // from Vercel geo headers
+  country    String? // from Vercel geo headers
   city       String?
-  sessionId  String?  // anonymous session cookie
-  userId     String?  // set when the visitor is logged in
-  businessId String?  // set when the visitor is logged in
+  sessionId  String? // anonymous session cookie
+  userId     String? // set when the visitor is logged in
+  businessId String? // set when the visitor is logged in
   createdAt  DateTime @default(now())
 
   @@index([path])
@@ -750,8 +772,8 @@ model ActivityLog {
   id         String   @id @default(cuid())
   businessId String?
   userId     String?
-  userName   String?  // denormalised so the feed still reads fine after deletes
-  action     String   // "login" | "booking_created" | "expense_added" | "shift_published" | "clock_in" | ...
+  userName   String? // denormalised so the feed still reads fine after deletes
+  action     String // "login" | "booking_created" | "expense_added" | "shift_published" | "clock_in" | ...
   details    Json?
   createdAt  DateTime @default(now())
 
@@ -764,24 +786,24 @@ model ActivityLog {
 // ── Training & Certifications ─────────────────────────────────────────────────
 // HACCP, alcohol serving certs, manual handling, first aid — Irish legal requirements
 model TrainingCertification {
-  id          String   @id @default(cuid())
-  businessId  String
-  employeeId  String
-  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  id         String   @id @default(cuid())
+  businessId String
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
-  title       String   // e.g. "HACCP Level 2", "RSA Bar Skills"
-  issuer      String?  // e.g. "Failte Ireland", "QQI"
-  category    String   @default("OTHER") // HACCP | ALCOHOL | MANUAL_HANDLING | FIRST_AID | FOOD_SAFETY | OTHER
+  title       String // e.g. "HACCP Level 2", "RSA Bar Skills"
+  issuer      String? // e.g. "Failte Ireland", "QQI"
+  category    String    @default("OTHER") // HACCP | ALCOHOL | MANUAL_HANDLING | FIRST_AID | FOOD_SAFETY | OTHER
   issuedDate  DateTime?
   expiryDate  DateTime?
-  documentUrl String?  // Vercel Blob URL
-  notes       String?  @db.Text
+  documentUrl String? // Vercel Blob URL
+  notes       String?   @db.Text
 
   // Computed status — set by cron, not stored (derive from expiryDate)
   // VALID = expiryDate > today+30d, EXPIRING_SOON = within 30d, EXPIRED = past, NO_EXPIRY = null expiryDate
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([businessId, category])
   @@index([employeeId])
@@ -791,65 +813,65 @@ model TrainingCertification {
 // ── Menu Planning ─────────────────────────────────────────────────────────────
 
 model Dish {
-  id          String   @id @default(cuid())
-  businessId  String
-  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
   name        String
-  description String?  @db.Text
-  category    String   @default("main") // starter | main | dessert | drinks | sides | other
+  description String? @db.Text
+  category    String  @default("main") // starter | main | dessert | drinks | sides | other
   sellPrice   Float?
-  costPrice   Float?   // auto-calculated from ingredients if set
+  costPrice   Float? // auto-calculated from ingredients if set
   imageUrl    String?
-  active      Boolean  @default(true)
+  active      Boolean @default(true)
 
   ingredients DishIngredient[]
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([businessId, active])
 }
 
 model DishIngredient {
-  id          String    @id @default(cuid())
+  id          String     @id @default(cuid())
   dishId      String
-  dish        Dish      @relation(fields: [dishId], references: [id], onDelete: Cascade)
+  dish        Dish       @relation(fields: [dishId], references: [id], onDelete: Cascade)
   stockItemId String?
   stockItem   StockItem? @relation(fields: [stockItemId], references: [id], onDelete: SetNull)
 
-  name        String    // free-text fallback if no stockItemId
-  qty         Float     @default(1)
-  unit        String    @default("unit")
+  name String // free-text fallback if no stockItemId
+  qty  Float  @default(1)
+  unit String @default("unit")
 
   @@index([dishId])
 }
 
 model WeeklyMenuPlan {
-  id          String   @id @default(cuid())
-  businessId  String
-  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
-  weekStart   DateTime // Monday date (date only, no time)
-  planData    Json     // { mon: { breakfast: [dishId,...], lunch: [...], dinner: [...] }, tue: {...}, ... }
+  weekStart DateTime // Monday date (date only, no time)
+  planData  Json // { mon: { breakfast: [dishId,...], lunch: [...], dinner: [...] }, tue: {...}, ... }
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([businessId, weekStart])
   @@index([businessId, weekStart])
 }
 
 model MenuTemplate {
-  id          String   @id @default(cuid())
-  businessId  String
-  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
-  name        String
-  planData    Json     // same shape as WeeklyMenuPlan.planData
+  name     String
+  planData Json // same shape as WeeklyMenuPlan.planData
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([businessId])
 }
@@ -857,22 +879,22 @@ model MenuTemplate {
 // ── Function Menus ────────────────────────────────────────────────────────────
 
 model FunctionMenu {
-  id          String   @id @default(cuid())
-  businessId  String
-  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
-  name        String                // e.g. "Wedding Package A"
-  description String?  @db.Text
+  name         String // e.g. "Wedding Package A"
+  description  String? @db.Text
   pricePerHead Float?
-  minGuests   Int?
-  maxGuests   Int?
-  isActive    Boolean  @default(true)
-  shareToken  String   @unique @default(cuid()) // for public shareable link
+  minGuests    Int?
+  maxGuests    Int?
+  isActive     Boolean @default(true)
+  shareToken   String  @unique @default(cuid()) // for public shareable link
 
-  courses     FunctionMenuCourse[]
+  courses FunctionMenuCourse[]
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([businessId, isActive])
 }
@@ -882,12 +904,12 @@ model FunctionMenuCourse {
   functionMenuId String
   functionMenu   FunctionMenu @relation(fields: [functionMenuId], references: [id], onDelete: Cascade)
 
-  courseType     String       // starter | soup | main | dessert | cheese | tea_coffee | canapes | kids | buffet
-  label          String?      // custom label override e.g. "Amuse Bouche"
-  choiceCount    Int          @default(1)  // "Choose X from below"
-  sortOrder      Int          @default(0)
+  courseType  String // starter | soup | main | dessert | cheese | tea_coffee | canapes | kids | buffet
+  label       String? // custom label override e.g. "Amuse Bouche"
+  choiceCount Int     @default(1) // "Choose X from below"
+  sortOrder   Int     @default(0)
 
-  dishes         FunctionMenuDish[]
+  dishes FunctionMenuDish[]
 
   @@index([functionMenuId, sortOrder])
 }
@@ -898,15 +920,15 @@ model FunctionMenuDish {
   course   FunctionMenuCourse @relation(fields: [courseId], references: [id], onDelete: Cascade)
 
   name        String
-  description String?  @db.Text
-  notes       String?  @db.Text  // staff notes
+  description String? @db.Text
+  notes       String? @db.Text // staff notes
 
   // Dietary badges
-  isVegan        Boolean @default(false)
-  isVegetarian   Boolean @default(false)
-  isGlutenFree   Boolean @default(false)
-  isHalal        Boolean @default(false)
-  isKosher       Boolean @default(false)
+  isVegan      Boolean @default(false)
+  isVegetarian Boolean @default(false)
+  isGlutenFree Boolean @default(false)
+  isHalal      Boolean @default(false)
+  isKosher     Boolean @default(false)
 
   // 14 EU allergens (true = CONTAINS)
   allergenGluten     Boolean @default(false)
@@ -916,7 +938,7 @@ model FunctionMenuDish {
   allergenPeanut     Boolean @default(false)
   allergenSoy        Boolean @default(false)
   allergenMilk       Boolean @default(false)
-  allergenNuts       Boolean @default(false)  // tree nuts
+  allergenNuts       Boolean @default(false) // tree nuts
   allergenCelery     Boolean @default(false)
   allergenMustard    Boolean @default(false)
   allergenSesame     Boolean @default(false)
@@ -931,21 +953,21 @@ model FunctionMenuDish {
 
 // ── HR: Employee Documents ─────────────────────────────────────────────────────
 model EmployeeDocument {
-  id          String   @id @default(cuid())
-  businessId  String
-  employeeId  String
-  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  id         String   @id @default(cuid())
+  businessId String
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
-  title       String
-  category    String   @default("OTHER") // CONTRACT | ID | CERT | HANDBOOK | TAX | OTHER
-  fileUrl     String   // Vercel Blob URL
-  fileName    String
-  fileSize    Int?     // bytes
+  title    String
+  category String @default("OTHER") // CONTRACT | ID | CERT | HANDBOOK | TAX | OTHER
+  fileUrl  String // Vercel Blob URL
+  fileName String
+  fileSize Int? // bytes
 
-  uploadedById String?  // userId who uploaded
+  uploadedById String? // userId who uploaded
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([businessId, employeeId])
   @@index([employeeId, category])
@@ -953,44 +975,44 @@ model EmployeeDocument {
 
 // ── HR: Onboarding Tasks ──────────────────────────────────────────────────────
 model OnboardingTask {
-  id          String   @id @default(cuid())
-  businessId  String
-  employeeId  String
-  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  id         String   @id @default(cuid())
+  businessId String
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
   title       String
   description String?
-  completed   Boolean  @default(false)
+  completed   Boolean   @default(false)
   dueDate     DateTime?
   completedAt DateTime?
-  sortOrder   Int      @default(0)
+  sortOrder   Int       @default(0)
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([businessId, employeeId])
 }
 
 // ── Supplier Statements ────────────────────────────────────────────────────────
 model SupplierStatement {
-  id          String   @id @default(cuid())
-  businessId  String
-  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  supplierId  String?
-  supplier    Supplier? @relation(fields: [supplierId], references: [id])
+  id         String    @id @default(cuid())
+  businessId String
+  business   Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  supplierId String?
+  supplier   Supplier? @relation(fields: [supplierId], references: [id])
 
-  fileUrl     String   // Vercel Blob URL
-  fileName    String
-  status      String   @default("pending") // pending | matched | discrepancy | accepted
+  fileUrl  String // Vercel Blob URL
+  fileName String
+  status   String @default("pending") // pending | matched | discrepancy | accepted
 
-  aiExtracted Json?    // raw AI-parsed line items array
+  aiExtracted    Json? // raw AI-parsed line items array
   matchedOrderId String? // SupplierOrder.id if matched
 
-  totalAmount Float?   // AI-extracted invoice total
-  invoiceRef  String?  // invoice number from document
+  totalAmount Float? // AI-extracted invoice total
+  invoiceRef  String? // invoice number from document
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([businessId, supplierId])
   @@index([businessId, status])
@@ -1002,12 +1024,12 @@ model PosConnection {
   id           String    @id @default(cuid())
   businessId   String    @unique
   business     Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  provider     String    // "lightspeed" | "square"
-  accessToken  String    // AES-256-GCM encrypted
-  refreshToken String?   // AES-256-GCM encrypted
+  provider     String // "lightspeed" | "square"
+  accessToken  String // AES-256-GCM encrypted
+  refreshToken String? // AES-256-GCM encrypted
   tokenExpiry  DateTime?
-  locationId   String?   // Square location ID or Lightspeed businessId
-  accountId    String?   // Lightspeed account ID
+  locationId   String? // Square location ID or Lightspeed businessId
+  accountId    String? // Lightspeed account ID
   connectedAt  DateTime  @default(now())
   lastSyncAt   DateTime?
   createdAt    DateTime  @default(now())
@@ -1023,9 +1045,9 @@ model PosSnapshot {
   totalRevenue      Float
   totalCovers       Int      @default(0)
   totalTransactions Int      @default(0)
-  hourlyData        Json?    // [{ hour: 9, revenue: 450.00, transactions: 12 }, ...]
-  topItems          Json?    // [{ name: "Guinness", count: 45, revenue: 202.50 }, ...]
-  rawMeta           Json?    // minimal provenance metadata, no customer PII
+  hourlyData        Json? // [{ hour: 9, revenue: 450.00, transactions: 12 }, ...]
+  topItems          Json? // [{ name: "Guinness", count: 45, revenue: 202.50 }, ...]
+  rawMeta           Json? // minimal provenance metadata, no customer PII
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
@@ -1036,19 +1058,19 @@ model PosSnapshot {
 // ─── CRM ─────────────────────────────────────────────────────────────────────
 
 model Customer {
-  id            String    @id @default(cuid())
-  businessId    String
-  business      Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
-  name          String
-  email         String?
-  phone         String?
-  birthday      DateTime?
-  dietaryNotes  String?
-  allergies     String?
+  name              String
+  email             String?
+  phone             String?
+  birthday          DateTime?
+  dietaryNotes      String?
+  allergies         String?
   seatingPreference String?
-  tags          String[]  @default([])
-  internalNotes String?
+  tags              String[]  @default([])
+  internalNotes     String?
 
   gdprConsent   Boolean   @default(false)
   gdprConsentAt DateTime?
@@ -1062,8 +1084,8 @@ model Customer {
   promoOffers   PromoOffer[]
   guestMessages GuestMessage[]
 
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([businessId])
   @@index([businessId, email])
@@ -1098,20 +1120,20 @@ model CrmEmail {
 // WhatsApp/SMS guest messaging (built but gated in the UI until a business has
 // real Twilio credentials configured and verified — see lib/messaging/config.ts)
 model GuestMessage {
-  id         String   @id @default(cuid())
-  businessId String
-  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  customerId String
-  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  sentById   String?
-  sentBy     User?    @relation(fields: [sentById], references: [id])
-  channel    String   // "whatsapp" | "sms"
-  direction  String   @default("outbound") // "outbound" | "inbound"
-  body       String
-  status     String   @default("queued") // "queued" | "sent" | "delivered" | "failed" | "received"
-  providerSid String? // Twilio message SID, for webhook status matching
+  id           String   @id @default(cuid())
+  businessId   String
+  business     Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  customerId   String
+  customer     Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  sentById     String?
+  sentBy       User?    @relation(fields: [sentById], references: [id])
+  channel      String // "whatsapp" | "sms"
+  direction    String   @default("outbound") // "outbound" | "inbound"
+  body         String
+  status       String   @default("queued") // "queued" | "sent" | "delivered" | "failed" | "received"
+  providerSid  String? // Twilio message SID, for webhook status matching
   errorMessage String?
-  createdAt  DateTime @default(now())
+  createdAt    DateTime @default(now())
 
   @@index([businessId])
   @@index([customerId])
@@ -1119,28 +1141,28 @@ model GuestMessage {
 }
 
 model MessagingSettings {
-  id                String   @id @default(cuid())
-  businessId        String   @unique
-  business          Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  twilioAccountSid  String?
-  twilioAuthToken   String?
+  id                   String   @id @default(cuid())
+  businessId           String   @unique
+  business             Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  twilioAccountSid     String?
+  twilioAuthToken      String?
   twilioWhatsappNumber String? // e.g. "whatsapp:+14155238886"
-  twilioSmsNumber   String?
-  enabled           Boolean  @default(false) // manager can only turn on once a live test send succeeds
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  twilioSmsNumber      String?
+  enabled              Boolean  @default(false) // manager can only turn on once a live test send succeeds
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
 }
 
 model ReferralPartner {
-  id           String   @id @default(cuid())
-  name         String
-  email        String   @unique
-  company      String?
-  code         String   @unique
-  commissionPct Int     @default(20)
-  active       Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  referrals    Referral[]
+  id            String     @id @default(cuid())
+  name          String
+  email         String     @unique
+  company       String?
+  code          String     @unique
+  commissionPct Int        @default(20)
+  active        Boolean    @default(true)
+  createdAt     DateTime   @default(now())
+  referrals     Referral[]
 }
 
 model Referral {
@@ -1159,41 +1181,41 @@ model Referral {
 }
 
 model BlogPost {
-  id          String   @id @default(cuid())
-  slug        String   @unique
-  title       String
-  excerpt     String
-  content     String   @db.Text
-  category    String   @default("hospitality")
-  tags        String   @default("")
-  metaTitle   String
-  metaDesc    String
-  coverImage  String?
-  published   Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id         String   @id @default(cuid())
+  slug       String   @unique
+  title      String
+  excerpt    String
+  content    String   @db.Text
+  category   String   @default("hospitality")
+  tags       String   @default("")
+  metaTitle  String
+  metaDesc   String
+  coverImage String?
+  published  Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   @@index([slug])
   @@index([published, createdAt])
 }
 
 model WastageRecord {
-  id          String    @id @default(cuid())
+  id          String     @id @default(cuid())
   businessId  String
-  business    Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  business    Business   @relation(fields: [businessId], references: [id], onDelete: Cascade)
   stockItemId String?
   stockItem   StockItem? @relation(fields: [stockItemId], references: [id], onDelete: SetNull)
 
-  itemName    String    // free-text fallback if no stockItemId
-  quantity    Float
-  unit        String    @default("unit")
-  unitCost    Float?    // cost per unit at time of recording
-  totalCost   Float?    // quantity × unitCost
-  reason      String    @default("spoilage") // spoilage | over-prep | spill | expiry | other
-  notes       String?
-  recordedBy  String    // userId
-  date        DateTime  @default(now())
-  createdAt   DateTime  @default(now())
+  itemName   String // free-text fallback if no stockItemId
+  quantity   Float
+  unit       String   @default("unit")
+  unitCost   Float? // cost per unit at time of recording
+  totalCost  Float? // quantity × unitCost
+  reason     String   @default("spoilage") // spoilage | over-prep | spill | expiry | other
+  notes      String?
+  recordedBy String // userId
+  date       DateTime @default(now())
+  createdAt  DateTime @default(now())
 
   @@index([businessId, date])
   @@index([businessId, stockItemId])
@@ -1236,8 +1258,8 @@ model HACCPEquipment {
   id         String   @id @default(cuid())
   businessId String
   business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  name       String   // "Main Fridge", "Bar Fridge 1", "Walk-in"
-  equipType  String   // fridge | freezer | hot_holding | cooking | cooling
+  name       String // "Main Fridge", "Bar Fridge 1", "Walk-in"
+  equipType  String // fridge | freezer | hot_holding | cooking | cooling
   sortOrder  Int      @default(0)
   createdAt  DateTime @default(now())
 
@@ -1246,15 +1268,15 @@ model HACCPEquipment {
 
 // Custom reminder schedule per business per check type — fully configurable
 model HACCPSchedule {
-  id                String   @id @default(cuid())
-  businessId        String
-  business          Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  checkType         String
-  times             Json     // string[] "HH:mm" in 24h format, e.g. ["08:00","14:00","20:00"]
-  daysOfWeek        Json     // int[] 0=Sun..6=Sat, empty array = every day
-  active            Boolean  @default(true)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  checkType  String
+  times      Json // string[] "HH:mm" in 24h format, e.g. ["08:00","14:00","20:00"]
+  daysOfWeek Json // int[] 0=Sun..6=Sat, empty array = every day
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   @@unique([businessId, checkType])
   @@index([businessId])
@@ -1278,13 +1300,13 @@ model BlogCommentArticle {
 // Maintained list of competitor/other-service names the daily discovery cron
 // searches for — editable so Gabor can add/remove without a code change.
 model Competitor {
-  id            String    @id @default(cuid())
-  name          String    @unique
-  category      String?   // e.g. "scheduling", "HR", "POS", "food costing", "menu"
+  id              String    @id @default(cuid())
+  name            String    @unique
+  category        String? // e.g. "scheduling", "HR", "POS", "food costing", "menu"
   searchQualifier String? // extra disambiguating phrase for generic names, e.g. "Sling" -> "employee scheduling app"
-  active        Boolean   @default(true)
-  lastCheckedAt DateTime?
-  createdAt     DateTime  @default(now())
+  active          Boolean   @default(true)
+  lastCheckedAt   DateTime?
+  createdAt       DateTime  @default(now())
 }
 
 model BlogCommentDraft {
@@ -1301,29 +1323,29 @@ model BlogCommentDraft {
 // Daily shift notes, 86'd items, and maintenance/repair issues — separate from
 // HACCP (food-safety specific). Matches the "manager log book" pattern.
 model LogEntry {
-  id          String   @id @default(cuid())
-  businessId  String
-  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  venueId     String?
-  venue       Venue?   @relation(fields: [venueId], references: [id], onDelete: SetNull)
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  venueId    String?
+  venue      Venue?   @relation(fields: [venueId], references: [id], onDelete: SetNull)
 
-  type        String   // "note" | "86" | "repair"
+  type        String // "note" | "86" | "repair"
   title       String
-  description String?  @db.Text
-  resolved    Boolean  @default(false) // relevant for "86" (back in stock) and "repair" (fixed)
+  description String?   @db.Text
+  resolved    Boolean   @default(false) // relevant for "86" (back in stock) and "repair" (fixed)
   resolvedAt  DateTime?
 
   // Repair/maintenance scheduling — who's fixing it and when they're due
-  assignedToName String?    // free text, e.g. "Ben" or "ACME Refrigeration" — not necessarily a Rotahr user
-  dueAt          DateTime?  // when the repair person/contractor is expected
+  assignedToName String? // free text, e.g. "Ben" or "ACME Refrigeration" — not necessarily a Rotahr user
+  dueAt          DateTime? // when the repair person/contractor is expected
 
   createdById String
-  createdBy   User     @relation(fields: [createdById], references: [id])
+  createdBy   User   @relation(fields: [createdById], references: [id])
 
-  updates     LogEntryUpdate[]
+  updates LogEntryUpdate[]
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([businessId, type, resolved])
   @@index([businessId, createdAt])
@@ -1349,11 +1371,11 @@ model LogEntryUpdate {
 // General daily/weekly/one-time operational tasks (not food-safety — see HACCP
 // for that). Assignable to an employee, with optional photo proof of completion.
 model OpsTask {
-  id           String    @id @default(cuid())
-  businessId   String
-  business     Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  venueId      String?
-  venue        Venue?    @relation(fields: [venueId], references: [id], onDelete: SetNull)
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  venueId    String?
+  venue      Venue?   @relation(fields: [venueId], references: [id], onDelete: SetNull)
 
   title        String
   description  String?   @db.Text
@@ -1375,18 +1397,18 @@ model OpsTask {
   // Set when this task was created directly from a message ("convert to task")
   sourceMessageId String?
 
-  completed    Boolean   @default(false)
-  completedAt  DateTime?
+  completed     Boolean   @default(false)
+  completedAt   DateTime?
   completedById String?
-  photoUrl     String?   // Vercel Blob URL, present if requirePhoto and completed
+  photoUrl      String? // Vercel Blob URL, present if requirePhoto and completed
 
-  createdById  String
-  createdBy    User      @relation(fields: [createdById], references: [id])
+  createdById String
+  createdBy   User   @relation(fields: [createdById], references: [id])
 
-  updates      OpsTaskUpdate[]
+  updates OpsTaskUpdate[]
 
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([businessId, completed, dueDate])
   @@index([businessId, frequency])
@@ -1414,30 +1436,30 @@ model OpsTaskUpdate {
 // departmentId is null) — no separate membership table to keep in sync when
 // staff join/leave a department.
 model MessageChannel {
-  id           String       @id @default(cuid())
+  id           String      @id @default(cuid())
   businessId   String
-  business     Business     @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  departmentId String?      @unique
-  department   Department?  @relation(fields: [departmentId], references: [id], onDelete: Cascade)
-  name         String       // "Everyone" for the businesswide channel, else the department name
+  business     Business    @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  departmentId String?     @unique
+  department   Department? @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  name         String // "Everyone" for the businesswide channel, else the department name
 
-  messages     ChannelMessage[]
-  createdAt    DateTime     @default(now())
+  messages  ChannelMessage[]
+  createdAt DateTime         @default(now())
 
   @@index([businessId])
 }
 
 model ChannelMessage {
-  id         String    @id @default(cuid())
-  channelId  String
-  channel    MessageChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
-  senderId   String
-  sender     Employee  @relation(fields: [senderId], references: [id], onDelete: Cascade)
-  body       String    @db.Text
-  urgent     Boolean   @default(false) // urgent messages require explicit acknowledgement, not just "seen on open"
+  id        String         @id @default(cuid())
+  channelId String
+  channel   MessageChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  senderId  String
+  sender    Employee       @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  body      String         @db.Text
+  urgent    Boolean        @default(false) // urgent messages require explicit acknowledgement, not just "seen on open"
 
-  receipts   ChannelMessageReceipt[]
-  createdAt  DateTime  @default(now())
+  receipts  ChannelMessageReceipt[]
+  createdAt DateTime                @default(now())
 
   @@index([channelId, createdAt])
 }
@@ -1461,22 +1483,22 @@ model ChannelMessageReceipt {
 // One connection per business — CRM emails send through the connected inbox
 // instead of the shared no-reply@rotahr.com address when present.
 model EmailConnection {
-  id             String   @id @default(cuid())
-  businessId     String   @unique
-  business       Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  id         String   @id @default(cuid())
+  businessId String   @unique
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
-  provider       String   // "gmail" (more providers can be added later)
-  email          String   // the connected inbox address, e.g. manager@theirbar.com
+  provider String // "gmail" (more providers can be added later)
+  email    String // the connected inbox address, e.g. manager@theirbar.com
 
-  accessToken    String   @db.Text
-  refreshToken   String   @db.Text
-  expiresAt      DateTime // access token expiry — refreshed automatically when sending
+  accessToken  String   @db.Text
+  refreshToken String   @db.Text
+  expiresAt    DateTime // access token expiry — refreshed automatically when sending
 
-  connectedById  String
-  connectedBy    User     @relation(fields: [connectedById], references: [id])
+  connectedById String
+  connectedBy   User   @relation(fields: [connectedById], references: [id])
 
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([businessId])
 }
@@ -1486,25 +1508,25 @@ model EmailConnection {
 // drink, win-back discount, VIP thank-you, welcome offer, or a custom one) and
 // drop straight into a CRM email.
 model PromoOffer {
-  id          String    @id @default(cuid())
-  businessId  String
-  business    Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  customerId  String
-  customer    Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
 
-  code        String    @unique // e.g. "SARAH-BDAY-7F3K"
-  offerType   String    // "birthday" | "winback" | "vip" | "welcome" | "custom"
-  title       String    // e.g. "Happy Birthday!"
-  description String    // e.g. "Enjoy a free drink on us during your birthday month"
+  code        String @unique // e.g. "SARAH-BDAY-7F3K"
+  offerType   String // "birthday" | "winback" | "vip" | "welcome" | "custom"
+  title       String // e.g. "Happy Birthday!"
+  description String // e.g. "Enjoy a free drink on us during your birthday month"
 
-  expiresAt   DateTime?
-  redeemed    Boolean   @default(false)
-  redeemedAt  DateTime?
+  expiresAt  DateTime?
+  redeemed   Boolean   @default(false)
+  redeemedAt DateTime?
 
   createdById String
-  createdBy   User      @relation(fields: [createdById], references: [id])
+  createdBy   User   @relation(fields: [createdById], references: [id])
 
-  createdAt   DateTime  @default(now())
+  createdAt DateTime @default(now())
 
   @@index([businessId, redeemed])
   @@index([customerId])
