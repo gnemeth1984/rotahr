@@ -6,6 +6,10 @@ import { listPublicVenueSlugs } from '@/lib/public-page/data';
 // would split ranking signals across two hostnames.
 const baseUrl = 'https://rotahr.com';
 
+// Rebuild hourly so newly published venue pages and blog posts appear without
+// waiting for the next deploy.
+export const revalidate = 3600;
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const [posts, venues] = await Promise.all([
     prisma.blogPost.findMany({

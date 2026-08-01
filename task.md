@@ -24,3 +24,30 @@ venues already maintain (dishes, specials, hours, contact). SEO for them, SEO fo
 
 ## Deploy loop
 npx tsc --noEmit -p .  -> git push -> poll GitHub commit status -> curl rotahr.com
+
+## DONE — shipped & verified live (2026-08-01)
+Commits: 41068a8 (feature), b81e988 (rate-limit fix), 7dea574 (leak fix)
+Live: https://rotahr.com/v/the-anchor-tap (demo, noindex ON)
+
+Verified on production:
+- 200, JSON-LD Restaurant + PostalAddress + GeoCoordinates + OpeningHoursSpecification
+- canonical rotahr.com, robots noindex honoured
+- leak scan clean: costPrice / supplier / businessId / internal ids / staff emails = 0
+- unknown slug -> 404; disabled page -> 404
+- image proxy rejects non-blob host, http://, substring-spoof, malformed = all 400
+- booking: honeypot silently no-ops (0 rows), validation errors correct,
+  valid request -> status "pending", createdByName "Public page", no table assigned
+- sitemap: 0 rotahr.vercel.app refs, noindex venues excluded
+
+### Bug caught during visual review (IMPORTANT)
+Staff announcement was rendering publicly ("All staff must read updated allergen
+sheet... See Marco for briefing"). Root cause: "announcement" was in the public
+category allowlist, but that category is staff-facing in Rotahr. Fixed to
+"special" only + added MenuSpecial.hideFromPublic per-item override.
+
+## Remaining / next
+- Hero image upload UI (field exists in DB + renders; no uploader in settings yet)
+- Per-special "hide from public page" toggle in the Menu Specials UI (API accepts
+  hideFromPublic already; no checkbox rendered yet)
+- Review-request automation (next highest ROI feature — data already present)
+- POS tip sync
