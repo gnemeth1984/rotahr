@@ -95,6 +95,7 @@ export default function VenuePages() {
   const [extracting, setExtracting] = useState(false);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [notes, setNotes] = useState<string[]>([]);
+  const [sources, setSources] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [indexNow, setIndexNow] = useState(true);
   const [filter, setFilter] = useState<"all" | "prospect" | "customer">("all");
@@ -114,6 +115,7 @@ export default function VenuePages() {
     if (!url) return;
     setExtracting(true);
     setNotes([]);
+    setSources([]);
     try {
       const res = await fetch("/api/blog-comments/venues/extract", {
         method: "POST",
@@ -145,6 +147,7 @@ export default function VenuePages() {
         openingHours: v.openingHours?.length ? v.openingHours : null,
       });
       setNotes(v.notesForReview || []);
+      setSources(v.sourcesUsed || []);
       toast.success("Details pulled in — check every field before saving");
     } catch {
       toast.error("Couldn't read that page");
@@ -203,6 +206,7 @@ export default function VenuePages() {
       toast.success(`Page live at /v/${data.slug}`);
       setDraft(null);
       setNotes([]);
+      setSources([]);
       setSourceUrl("");
       load();
     } finally {
@@ -267,7 +271,7 @@ export default function VenuePages() {
         <Input
           value={sourceUrl}
           onChange={(e) => setSourceUrl(e.target.value)}
-          placeholder="https://maps.google.com/... or https://facebook.com/..."
+          placeholder="Venue website, Facebook page or Google Maps link"
           className="max-w-xl flex-1 bg-white"
           onKeyDown={(e) => {
             if (e.key === "Enter") extract();
@@ -283,6 +287,7 @@ export default function VenuePages() {
           onClick={() => {
             setDraft({ ...BLANK });
             setNotes([]);
+            setSources([]);
           }}
         >
           Enter manually
@@ -292,6 +297,12 @@ export default function VenuePages() {
       {/* Review form */}
       {draft ? (
         <div className="mt-6 rounded-xl border border-slate-200 bg-white p-5">
+          {sources.length ? (
+            <div className="mb-3 text-xs text-slate-500">
+              Pulled from: {sources.join(", ")}
+            </div>
+          ) : null}
+
           {notes.length ? (
             <div className="mb-4 rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-900">
               <div className="mb-1 flex items-center gap-2 font-medium">
