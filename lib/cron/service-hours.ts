@@ -47,6 +47,76 @@ export function isQuietHours(startHour: number, endHour: number, now: Date = new
   return hour >= startHour || hour < endHour;
 }
 
+/**
+ * Offset of Europe/Dublin from UTC, in ms, at a given instant.
+ * Positive during Irish Summer Time (+1h), zero in winter.
+ */
+function dublinOffsetMs(date: Date): number {
+  const dtf = new Intl.DateTimeFormat("en-US", {
+    timeZone: DUBLIN_TZ,
+    hour12: false,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+  const map: Record<string, string> = {};
+  for (const p of dtf.formatToParts(date)) map[p.type] = p.value;
+  const asIfUtc = Date.UTC(
+    Number(map.year),
+    Number(map.month) - 1,
+    Number(map.day),
+    Number(map.hour) % 24,
+    Number(map.minute),
+    Number(map.second)
+  );
+  return asIfUtc - date.getTime();
+}
+
+/** Y/M/D of the current Dublin calendar day. */
+function dublinYmd(now: Date): { year: number; month: number; day: number } {
+  const dtf = new Intl.DateTimeFormat("en-CA", {
+    timeZone: DUBLIN_TZ,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const [year, month, day] = dtf.format(now).split("-").map(Number);
+  return { year, month, day };
+}
+
+/**
+ * Convert a Dublin wall-clock time ("HH:mm") on today's Dublin date into the
+ * correct UTC instant.
+ *
+ * Vercel runs functions in UTC, so Date#setHours() would interpret the time as
+ * UTC and land an hour early during Irish Summer Time. Schedule times entered
+ * by managers in Settings are always Dublin wall-clock.
+ */
+export function dublinWallClockToUtc(hhmm: string, now: Date = new Date()): Date {
+  const [h, m] = hhmm.split(":").map(Number);
+  const { year, month, day } = dublinYmd(now);
+  const naive = Date.UTC(year, month - 1, day, h, m, 0, 0);
+  // Resolve using the offset in effect at the approximate instant, then refine
+  // once — this settles correctly either side of a DST transition.
+  let guess = naive - dublinOffsetMs(new Date(naive));
+  guess = naive - dublinOffsetMs(new Date(guess));
+  return new Date(guess);
+}
+
+/** UTC instant of 00:00 on the current Dublin calendar day. */
+export function dublinDayStartUtc(now: Date = new Date()): Date {
+  return dublinWallClockToUtc("00:00", now);
+}
+
+/** UTC instant of 23:59:59.999 on the current Dublin calendar day. */
+export function dublinDayEndUtc(now: Date = new Date()): Date {
+  const start = dublinDayStartUtc(now);
+  return new Date(start.getTime() + 24 * 60 * 60 * 1000 - 1);
+}
+
 /** Standard JSON body for a cron that skipped itself. */
 export function quietHoursResponse(startHour: number, endHour: number, now: Date = new Date()) {
   const { hour, minute } = dublinNow(now);

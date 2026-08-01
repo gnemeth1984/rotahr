@@ -11,7 +11,13 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { createNotification } from "@/lib/services/appNotification.service";
-import { isQuietHours, quietHoursResponse } from "@/lib/cron/service-hours";
+import {
+  isQuietHours,
+  quietHoursResponse,
+  dublinNow,
+  dublinWallClockToUtc,
+  dublinDayStartUtc,
+} from "@/lib/cron/service-hours";
 
 // Quiet window: 01:00-05:00 Dublin. Deliberately starts at 01:00 rather than
 // midnight so late-night venues still get their closing-checks reminder.
@@ -34,13 +40,6 @@ const CHECK_LABELS: Record<string, string> = {
   corrective_action: "Corrective Action Log",
 };
 
-function parseTimeToday(hhmm: string, now: Date): Date {
-  const [h, m] = hhmm.split(":").map(Number);
-  const d = new Date(now);
-  d.setHours(h, m, 0, 0);
-  return d;
-}
-
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
   const secret = req.headers.get("x-cron-secret") || new URL(req.url).searchParams.get("secret");
@@ -55,9 +54,12 @@ export async function GET(req: NextRequest) {
   }
 
   const now = new Date();
-  const dayOfWeek = now.getDay(); // 0=Sun..6=Sat
+  // Day-of-week and day boundaries must be Dublin-local, not UTC. Vercel runs
+  // functions in UTC, so around midnight the UTC day is already tomorrow while
+  // the venue is still working the previous night's service.
+  const dayOfWeek = dublinNow(now).dayOfWeek; // 0=Sun..6=Sat, Dublin
   const graceWindowMs = 35 * 60 * 1000; // a scheduled time counts as "due" for 35 min after it passes, so a 30-min cron never misses it
-  const dayStart = new Date(now); dayStart.setHours(0, 0, 0, 0);
+  const dayStart = dublinDayStartUtc(now);
 
   const schedules = await prisma.hACCPSchedule.findMany({ where: { active: true } });
 
@@ -71,7 +73,8 @@ export async function GET(req: NextRequest) {
     const times: string[] = Array.isArray(schedule.times) ? schedule.times : [];
 
     for (const t of times) {
-      const scheduledAt = parseTimeToday(t, now);
+      // Schedule times are Dublin wall-clock as entered by managers in Settings.
+      const scheduledAt = dublinWallClockToUtc(t, now);
       const msSincedue = now.getTime() - scheduledAt.getTime();
       // Due window: passed, but not so long ago it's stale (within grace window + cron interval buffer)
       if (msSincedue < 0 || msSincedue > graceWindowMs) continue;

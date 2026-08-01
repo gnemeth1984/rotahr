@@ -9,7 +9,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { createNotification } from "@/lib/services/appNotification.service";
 import { computeShiftState, getBreakEntitlement } from "@/lib/services/clock.service";
-import { isQuietHours, quietHoursResponse } from "@/lib/cron/service-hours";
+import {
+  isQuietHours,
+  quietHoursResponse,
+  dublinDayStartUtc,
+  dublinDayEndUtc,
+} from "@/lib/cron/service-hours";
 
 // Break entitlement is a legal obligation, so the quiet window here is kept
 // deliberately narrow (03:00-05:00 Dublin) — even late bars are closed down by
@@ -31,8 +36,11 @@ export async function GET(req: NextRequest) {
   }
 
   const now = new Date();
-  const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0);
-  const todayEnd = new Date(now); todayEnd.setHours(23, 59, 59, 999);
+  // Dublin day boundaries, not UTC. A shift clocking in at 00:30 Dublin during
+  // summer time is 23:30 UTC on the *previous* day — with UTC boundaries that
+  // employee vanished from "today" and never got a break reminder.
+  const todayStart = dublinDayStartUtc(now);
+  const todayEnd = dublinDayEndUtc(now);
   const dedupWindow = new Date(now.getTime() - 90 * 60 * 1000); // don't re-alert same level within 90 min
 
   // Find every employee with at least one clock event today
