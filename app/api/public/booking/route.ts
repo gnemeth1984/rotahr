@@ -15,22 +15,29 @@ export const dynamic = "force-dynamic";
  * length caps, and a cap on pending requests per venue per day.
  */
 
-const MAX_PER_IP_PER_HOUR = 5;
+// Two separate limits. A guest who mistypes their email a few times must not be
+// locked out, so validation failures only count toward the generous flood cap —
+// the tighter cap applies to bookings that actually get created.
+const MAX_REQUESTS_PER_IP_PER_HOUR = 30;
+const MAX_BOOKINGS_PER_IP_PER_HOUR = 5;
 const MAX_PENDING_PER_VENUE_PER_DAY = 50;
 
 // Best-effort in-memory limiter. Serverless instances are ephemeral and not
 // shared, so this thins abuse rather than eliminating it; the per-venue daily
 // cap below is the real backstop.
-const hits = new Map<string, number[]>();
+const requestHits = new Map<string, number[]>();
+const bookingHits = new Map<string, number[]>();
 
-function rateLimited(ip: string): boolean {
+function tooMany(store: Map<string, number[]>, ip: string, max: number, record: boolean): boolean {
   const now = Date.now();
   const hourAgo = now - 60 * 60 * 1000;
-  const recent = (hits.get(ip) ?? []).filter((t) => t > hourAgo);
-  recent.push(now);
-  hits.set(ip, recent);
-  if (hits.size > 5000) hits.clear(); // crude memory ceiling
-  return recent.length > MAX_PER_IP_PER_HOUR;
+  const recent = (store.get(ip) ?? []).filter((t) => t > hourAgo);
+  if (record) {
+    recent.push(now);
+    store.set(ip, recent);
+    if (store.size > 5000) store.clear(); // crude memory ceiling
+  }
+  return recent.length > max;
 }
 
 function str(v: unknown, max: number): string {
@@ -54,9 +61,18 @@ export async function POST(req: NextRequest) {
     req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
     req.headers.get("x-real-ip") ||
     "unknown";
-  if (rateLimited(ip)) {
+  // Flood guard — counts every request, including malformed ones.
+  if (tooMany(requestHits, ip, MAX_REQUESTS_PER_IP_PER_HOUR, true)) {
     return NextResponse.json(
       { error: "Too many requests. Please call the venue directly." },
+      { status: 429 }
+    );
+  }
+  // Booking guard — checked without recording, so failed validation below
+  // doesn't burn the guest's allowance. Recorded only on success.
+  if (tooMany(bookingHits, ip, MAX_BOOKINGS_PER_IP_PER_HOUR, false)) {
+    return NextResponse.json(
+      { error: "You've made several booking requests already. Please call the venue directly." },
       { status: 429 }
     );
   }
@@ -136,6 +152,9 @@ export async function POST(req: NextRequest) {
       createdByName: "Public page",
     },
   });
+
+  // Only a real booking counts toward the tighter per-IP allowance.
+  tooMany(bookingHits, ip, MAX_BOOKINGS_PER_IP_PER_HOUR, true);
 
   return NextResponse.json({ ok: true });
 }
