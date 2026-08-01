@@ -9,6 +9,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { createNotification } from "@/lib/services/appNotification.service";
 import { computeShiftState, getBreakEntitlement } from "@/lib/services/clock.service";
+import { isQuietHours, quietHoursResponse } from "@/lib/cron/service-hours";
+
+// Break entitlement is a legal obligation, so the quiet window here is kept
+// deliberately narrow (03:00-05:00 Dublin) — even late bars are closed down by
+// then. Anyone clocked in during that window is an anomaly, not a normal shift.
+const QUIET_START = 3;
+const QUIET_END = 5;
 
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
@@ -16,6 +23,11 @@ export async function GET(req: NextRequest) {
   const authed = authHeader === `Bearer ${process.env.CRON_SECRET}` || secret === process.env.CRON_SECRET;
   if (!authed) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Bail out before touching Prisma so the DB compute can stay suspended.
+  if (isQuietHours(QUIET_START, QUIET_END)) {
+    return NextResponse.json(quietHoursResponse(QUIET_START, QUIET_END));
   }
 
   const now = new Date();

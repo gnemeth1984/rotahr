@@ -7,12 +7,23 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { createNotification } from "@/lib/services/appNotification.service";
+import { isQuietHours, quietHoursResponse } from "@/lib/cron/service-hours";
+
+// Quiet window 01:00-05:00 Dublin — no shifts start in that window, and a
+// manager is not going to action a no-show alert at 3am anyway.
+const QUIET_START = 1;
+const QUIET_END = 5;
 
 export async function GET(req: NextRequest) {
   // Verify cron secret
   const authHeader = req.headers.get("authorization");
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Bail out before touching Prisma so the DB compute can stay suspended.
+  if (isQuietHours(QUIET_START, QUIET_END)) {
+    return NextResponse.json(quietHoursResponse(QUIET_START, QUIET_END));
   }
 
   const now = new Date();

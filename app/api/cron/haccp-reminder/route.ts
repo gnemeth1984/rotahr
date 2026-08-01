@@ -1,6 +1,6 @@
 // @ts-nocheck
 // HACCP Check Reminder Cron
-// Runs every 15 minutes via Vercel cron.
+// Runs every 30 minutes via Vercel cron, skipping 01:00-05:00 Dublin.
 // For every business with an active schedule for a check type, if a scheduled
 // time has passed today and no HACCPRecord has been logged for that check type
 // since that scheduled time, notify everyone currently clocked in (or, if
@@ -11,6 +11,12 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { createNotification } from "@/lib/services/appNotification.service";
+import { isQuietHours, quietHoursResponse } from "@/lib/cron/service-hours";
+
+// Quiet window: 01:00-05:00 Dublin. Deliberately starts at 01:00 rather than
+// midnight so late-night venues still get their closing-checks reminder.
+const QUIET_START = 1;
+const QUIET_END = 5;
 
 const CHECK_LABELS: Record<string, string> = {
   fridge_temp: "Fridge / Cold Room temperature check",
@@ -43,9 +49,14 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // Bail out before touching Prisma so the DB compute can stay suspended.
+  if (isQuietHours(QUIET_START, QUIET_END)) {
+    return NextResponse.json(quietHoursResponse(QUIET_START, QUIET_END));
+  }
+
   const now = new Date();
   const dayOfWeek = now.getDay(); // 0=Sun..6=Sat
-  const graceWindowMs = 20 * 60 * 1000; // a scheduled time counts as "due" for 20 min after it passes, so a 15-min cron never misses it
+  const graceWindowMs = 35 * 60 * 1000; // a scheduled time counts as "due" for 35 min after it passes, so a 30-min cron never misses it
   const dayStart = new Date(now); dayStart.setHours(0, 0, 0, 0);
 
   const schedules = await prisma.hACCPSchedule.findMany({ where: { active: true } });

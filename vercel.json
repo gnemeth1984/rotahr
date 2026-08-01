@@ -9,14 +9,6 @@
       "schedule": "0 8 * * *"
     },
     {
-      "path": "/api/cron/purge-receipt-images",
-      "schedule": "0 3 * * *"
-    },
-    {
-      "path": "/api/cron/late-checkin",
-      "schedule": "*/30 * * * *"
-    },
-    {
       "path": "/api/cron/cert-expiry",
       "schedule": "0 7 * * *"
     },
@@ -25,20 +17,28 @@
       "schedule": "0 6 * * *"
     },
     {
-      "path": "/api/cron/discover-comment-articles",
+      "path": "/api/cron/purge-receipt-images",
       "schedule": "0 5 * * *"
     },
     {
+      "path": "/api/demo/reset",
+      "schedule": "2 5 * * *"
+    },
+    {
+      "path": "/api/cron/discover-comment-articles",
+      "schedule": "4 5 * * *"
+    },
+    {
+      "path": "/api/cron/late-checkin",
+      "schedule": "*/30 * * * *"
+    },
+    {
       "path": "/api/cron/break-reminder",
-      "schedule": "*/15 * * * *"
+      "schedule": "*/30 * * * *"
     },
     {
       "path": "/api/cron/haccp-reminder",
-      "schedule": "*/15 * * * *"
-    },
-    {
-      "path": "/api/demo/reset",
-      "schedule": "0 4 * * *"
+      "schedule": "*/30 * * * *"
     }
   ]
 }
