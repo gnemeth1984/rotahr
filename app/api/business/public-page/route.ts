@@ -6,6 +6,7 @@ import {
   normaliseOpeningHours,
   validateSlug,
   slugify,
+  PUBLIC_SPECIAL_CATEGORIES,
   type OpeningHoursEntry,
 } from "@/lib/public-page/types";
 
@@ -54,7 +55,12 @@ export async function GET() {
   const [dishCount, specialCount] = await Promise.all([
     prisma.dish.count({ where: { businessId, active: true } }),
     prisma.menuSpecial.count({
-      where: { businessId, archived: false, category: { in: ["special", "announcement"] } },
+      where: {
+        businessId,
+        archived: false,
+        hideFromPublic: false,
+        category: { in: [...PUBLIC_SPECIAL_CATEGORIES] },
+      },
     }),
   ]);
 

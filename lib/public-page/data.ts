@@ -132,6 +132,7 @@ export async function getPublicVenue(slug: string): Promise<PublicVenueData | nu
         where: {
           businessId: business.id,
           archived: false,
+          hideFromPublic: false,
           category: { in: PUBLIC_SPECIAL_CATEGORIES },
           OR: [
             { endDate: null, date: { gte: todayStart } },

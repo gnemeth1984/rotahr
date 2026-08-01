@@ -23,7 +23,7 @@ export async function PATCH(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const body = await req.json();
-  const { title, description, category, date, endDate, pinned, imageDataUri, archived } = body;
+  const { title, description, category, date, endDate, pinned, imageDataUri, archived, hideFromPublic } = body;
 
   const updated = await prisma.menuSpecial.update({
     where: { id: params.id },
@@ -34,6 +34,7 @@ export async function PATCH(
       ...(date !== undefined && { date: new Date(date) }),
       ...(endDate !== undefined && { endDate: endDate ? new Date(endDate) : null }),
       ...(pinned !== undefined && { pinned }),
+      ...(hideFromPublic !== undefined && { hideFromPublic }),
       ...(imageDataUri !== undefined && { imageDataUri }),
       ...(archived !== undefined && { archived }),
     },

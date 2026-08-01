@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const body = await req.json();
-  const { title, description, category, date, endDate, pinned, imageDataUri } = body;
+  const { title, description, category, date, endDate, pinned, imageDataUri, hideFromPublic } = body;
 
   if (!title || !date)
     return NextResponse.json({ error: "title and date required" }, { status: 400 });
@@ -54,6 +54,7 @@ export async function POST(req: NextRequest) {
       date: new Date(date),
       endDate: endDate ? new Date(endDate) : null,
       pinned: pinned ?? false,
+      hideFromPublic: hideFromPublic ?? false,
       imageDataUri: imageDataUri || null,
     },
     include: { createdBy: { select: { name: true } } },

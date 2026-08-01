@@ -61,11 +61,16 @@ export function normaliseOpeningHours(raw: unknown): OpeningHoursEntry[] {
 /**
  * Categories of MenuSpecial that may appear publicly.
  *
- * "86'd" is deliberately excluded — it means an item has run out and is an
- * internal kitchen signal. "change" is excluded too: it's staff-facing ("we
- * swapped the garnish"), not marketing copy.
+ * ONLY "special" is guest-facing. Everything else on the Menu Specials board is
+ * written for staff and must never reach the public page:
+ *  - "announcement" — staff briefings ("all staff read the allergen sheet, see
+ *    Marco"). Often names employees.
+ *  - "change" — kitchen changes ("we swapped the garnish").
+ *  - "86'd"  — an item has run out; an internal kitchen signal.
+ *
+ * Managers can additionally hide any individual special via `hideFromPublic`.
  */
-export const PUBLIC_SPECIAL_CATEGORIES = ["special", "announcement"];
+export const PUBLIC_SPECIAL_CATEGORIES = ["special"];
 
 /** Venue types we can map onto a more specific schema.org type. */
 const SCHEMA_TYPE_BY_VENUE: Record<string, string> = {

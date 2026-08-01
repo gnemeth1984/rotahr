@@ -482,6 +482,9 @@ model MenuSpecial {
   date         DateTime // primary date / start of range
   endDate      DateTime? // optional end date for multi-day
   pinned       Boolean   @default(false)
+  // Lets a manager keep an individual special off the public venue page even
+  // though its category is guest-facing. Only "special" is ever public.
+  hideFromPublic Boolean @default(false)
   imageUrl     String? // optional photo of the dish
   imageDataUri String?   @db.Text
   archived     Boolean   @default(false)
