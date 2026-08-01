@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { sendShiftReminderEmail } from "@/lib/email/shift-reminder";
+import { dublinDayStartUtcOffset } from "@/lib/cron/service-hours";
 
 // This route is called by Vercel Cron daily at 8am UTC
 // It finds all shifts starting tomorrow and emails each employee
@@ -16,12 +17,11 @@ export async function GET(req: NextRequest) {
   }
 
   const now = new Date();
-  const tomorrow = new Date(now);
-  tomorrow.setDate(now.getDate() + 1);
-  tomorrow.setHours(0, 0, 0, 0);
-
-  const dayAfter = new Date(tomorrow);
-  dayAfter.setHours(23, 59, 59, 999);
+  // "Tomorrow" must mean tomorrow in Dublin, not UTC. With UTC boundaries a
+  // shift starting 00:30 Dublin during summer time (23:30 UTC today) fell
+  // outside the window and that employee never got their reminder email.
+  const tomorrow = dublinDayStartUtcOffset(1, now);
+  const dayAfter = new Date(dublinDayStartUtcOffset(2, now).getTime() - 1);
 
   // Find all shifts tomorrow across all businesses
   const shifts = await prisma.shift.findMany({

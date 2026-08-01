@@ -111,6 +111,18 @@ export function dublinDayStartUtc(now: Date = new Date()): Date {
   return dublinWallClockToUtc("00:00", now);
 }
 
+/**
+ * UTC instant of 00:00 on the Dublin calendar day `offsetDays` from today.
+ * Uses calendar arithmetic on the Dublin date, so it stays correct across DST
+ * transitions (unlike adding 24h of milliseconds).
+ */
+export function dublinDayStartUtcOffset(offsetDays: number, now: Date = new Date()): Date {
+  const { year, month, day } = dublinYmd(now);
+  // Shift the calendar date first, then resolve that date's Dublin midnight.
+  const shifted = new Date(Date.UTC(year, month - 1, day + offsetDays, 12, 0, 0));
+  return dublinWallClockToUtc("00:00", shifted);
+}
+
 /** UTC instant of 23:59:59.999 on the current Dublin calendar day. */
 export function dublinDayEndUtc(now: Date = new Date()): Date {
   const start = dublinDayStartUtc(now);
