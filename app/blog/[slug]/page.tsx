@@ -1,4 +1,5 @@
 import { Metadata } from 'next';
+import { articleSchema, breadcrumbSchema, jsonLdProps } from "@/lib/seo/structured-data";
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
@@ -20,7 +21,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title: post.metaTitle || post.title,
     description: post.metaDesc,
-    openGraph: { title: post.metaTitle || post.title, description: post.metaDesc || '' },
+    alternates: { canonical: `/blog/${params.slug}` },
+    openGraph: {
+      type: 'article',
+      title: post.metaTitle || post.title,
+      description: post.metaDesc || '',
+      url: `/blog/${params.slug}`,
+    },
   };
 }
 
@@ -49,6 +56,22 @@ export default async function BlogPostPage({ params }: Props) {
 
   return (
     <div className="min-h-screen bg-white">
+      <script
+        {...jsonLdProps([
+          articleSchema({
+            title: post.title,
+            description: post.metaDesc || post.excerpt,
+            slug: post.slug,
+            published: post.createdAt,
+            updated: post.updatedAt,
+          }),
+          breadcrumbSchema([
+            { name: "Rotahr", path: "/landing" },
+            { name: "Blog", path: "/blog" },
+            { name: post.title, path: `/blog/${post.slug}` },
+          ]),
+        ])}
+      />
       {/* Nav */}
       <div className="border-b border-gray-100 sticky top-0 bg-white/95 backdrop-blur-sm z-10">
         <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
