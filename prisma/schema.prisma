@@ -1538,3 +1538,21 @@ model PromoOffer {
   @@index([businessId, redeemed])
   @@index([customerId])
 }
+
+/// Marketing email opt-outs.
+/// Kept in the main app database on purpose: the unsubscribe link has to keep
+/// working even when the outreach service is down, and an opt-out we lose is a
+/// GDPR problem. The outreach service is told best-effort and is not trusted
+/// as the source of truth.
+model EmailSuppression {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  source    String   @default("unsubscribe_link") // unsubscribe_link | complaint | manual | bounce
+  reason    String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  /// Set when someone undoes an opt-out (e.g. a mail scanner prefetched the link).
+  revokedAt DateTime?
+
+  @@index([email])
+}
