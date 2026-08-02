@@ -1,6 +1,8 @@
 import { MetadataRoute } from 'next';
 import { prisma } from '@/lib/prisma';
 import { listPublicVenueSlugs } from '@/lib/public-page/data';
+import { competitors } from '@/lib/seo/competitors';
+import { locations } from '@/lib/seo/locations';
 
 // Canonical production domain. Must stay rotahr.com — the Vercel subdomain
 // would split ranking signals across two hostnames.
@@ -46,6 +48,20 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${baseUrl}/pitch`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.5 },
     { url: `${baseUrl}/partners`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.6 },
     { url: `${baseUrl}/compare`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.7 },
+    // Comparison + location pages: highest commercial intent on the site, so
+    // they carry a priority just under the landing page.
+    ...competitors.map(c => ({
+      url: `${baseUrl}/compare/${c.slug}`,
+      lastModified: new Date(),
+      changeFrequency: 'monthly' as const,
+      priority: 0.9,
+    })),
+    ...locations.map(l => ({
+      url: `${baseUrl}/rota-software/${l.slug}`,
+      lastModified: new Date(),
+      changeFrequency: 'monthly' as const,
+      priority: 0.85,
+    })),
     { url: `${baseUrl}/privacy`, lastModified: new Date(), changeFrequency: 'yearly', priority: 0.3 },
     { url: `${baseUrl}/terms`, lastModified: new Date(), changeFrequency: 'yearly', priority: 0.3 },
     ...venueUrls,

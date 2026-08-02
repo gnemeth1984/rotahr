@@ -2,6 +2,10 @@
 import Link from "next/link"
 import Image from "next/image"
 import { Check, Zap, ArrowRight } from "lucide-react"
+// Aliased: this file already has a local `competitors` array (the
+// "what you'd pay for separate tools" list), which would otherwise collide.
+import { competitors as competitorPages } from "@/lib/seo/competitors"
+import { locations } from "@/lib/seo/locations"
 import {
   organizationSchema,
   softwareApplicationSchema,
@@ -357,7 +361,51 @@ export default function LandingPage() {
 
       {/* Footer */}
       <footer className="border-t border-slate-100 py-10">
-        <div className="max-w-6xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-slate-400">
+        {/* Internal links. Without these the comparison and location pages are
+            orphaned — reachable only via the sitemap, which crawls far slower
+            and passes no internal link equity. */}
+        <div className="max-w-6xl mx-auto px-6 grid sm:grid-cols-3 gap-8 mb-10 text-sm">
+          <div>
+            <h3 className="font-semibold text-slate-900 mb-3">Compare</h3>
+            <ul className="space-y-2 text-slate-500">
+              {competitorPages.slice(0, 5).map((c) => (
+                <li key={c.slug}>
+                  <Link href={`/compare/${c.slug}`} className="hover:text-slate-900">
+                    Rotahr vs {c.name}
+                  </Link>
+                </li>
+              ))}
+              <li>
+                <Link href="/compare" className="hover:text-slate-900">
+                  All comparisons
+                </Link>
+              </li>
+            </ul>
+          </div>
+          <div>
+            <h3 className="font-semibold text-slate-900 mb-3">By area</h3>
+            <ul className="space-y-2 text-slate-500">
+              {locations.map((l) => (
+                <li key={l.slug}>
+                  <Link href={`/rota-software/${l.slug}`} className="hover:text-slate-900">
+                    Rota software {l.city}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div>
+            <h3 className="font-semibold text-slate-900 mb-3">More</h3>
+            <ul className="space-y-2 text-slate-500">
+              <li><Link href="/blog" className="hover:text-slate-900">Blog</Link></li>
+              <li><Link href="/partners" className="hover:text-slate-900">Partner programme</Link></li>
+              <li><Link href="/try" className="hover:text-slate-900">Live demo</Link></li>
+              <li><Link href="/privacy" className="hover:text-slate-900">Privacy</Link></li>
+              <li><Link href="/terms" className="hover:text-slate-900">Terms</Link></li>
+            </ul>
+          </div>
+        </div>
+        <div className="max-w-6xl mx-auto px-6 pt-8 border-t border-slate-100 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-slate-400">
           <Image src="/logo-light.png" alt="Rotahr" width={80} height={26} className="object-contain" />
           <span>© 2026 Rotahr. All rights reserved.</span>
           <span>EUR, USD, GBP, CAD &amp; AUD supported — VAT/tax included in all prices</span>

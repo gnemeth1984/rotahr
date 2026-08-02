@@ -1,4 +1,14 @@
 import Link from "next/link";
+import { competitors } from "@/lib/seo/competitors";
+import { jsonLdProps, breadcrumbSchema } from "@/lib/seo/structured-data";
+
+export const metadata = {
+  title: "Rotahr vs Bizimply, RotaCloud, Deputy & More — Honest Comparison",
+  description:
+    "How Rotahr compares to Bizimply, RotaCloud, Deputy, Planday, 7shifts and Sling for pubs, cafes and restaurants. Includes where each competitor is the better choice.",
+  alternates: { canonical: "/compare" },
+};
+
 
 const YES = "yes";
 const NO = "no";
@@ -57,13 +67,17 @@ const rows: Row[] = [
   { feature: "AI assistant (scheduling + ops)", category: "Scale", rotahr: YES, deputy: PARTIAL, bizimply: NO, sevenShifts: PARTIAL, planday: NO, sling: NO },
 ];
 
+// Deliberately the pricing MODEL, not a headline number. Vendor list prices
+// move, several of these vendors don't publish one at all, and third-party
+// aggregators contradict each other. The model is verifiable and is the
+// difference that actually shows up on a venue's bill as it hires.
 const pricing: Record<string, string> = {
-  rotahr: "€59 Starter",
-  deputy: "€4–5/user/mo",
-  bizimply: "€4/user/mo",
-  sevenShifts: "$29.99 flat",
-  planday: "€2.50/user/mo",
-  sling: "Free / $1.70/user",
+  rotahr: "Flat monthly",
+  deputy: "Per user",
+  bizimply: "On request",
+  sevenShifts: "Per location",
+  planday: "Per user + fee",
+  sling: "Free tier / per user",
 };
 
 const cols = [
@@ -86,6 +100,14 @@ const categories = Array.from(new Set(rows.map((r) => r.category)));
 export default function ComparePage() {
   return (
     <main className="min-h-screen bg-gray-950 text-white px-4 py-16">
+      <script
+        {...jsonLdProps(
+          breadcrumbSchema([
+            { name: "Rotahr", path: "/landing" },
+            { name: "Compare", path: "/compare" },
+          ])
+        )}
+      />
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="text-center mb-12">
@@ -96,7 +118,7 @@ export default function ComparePage() {
             Rotahr vs the rest
           </h1>
           <p className="text-gray-400 text-lg max-w-2xl mx-auto">
-            The only hospitality platform that combines rota, HR, bookkeeping, and reservations — built specifically for Irish restaurants, bars and hotels.
+            One app for the rota, food safety records, bookings and the books — built for independent pubs, cafes and restaurants. Including, honestly, where each of these is the better choice for you.
           </p>
         </div>
 
@@ -189,16 +211,35 @@ export default function ComparePage() {
 
         {/* Bottom note */}
         <p className="text-center text-gray-500 text-xs mt-6">
-          Data based on publicly available feature lists as of June 2026. Partial (—) indicates the feature exists as a paid add-on or is limited in scope.
+          Based on each vendor's publicly marketed feature set, checked 2 August 2026. Partial (—) means the feature is a paid add-on or limited in scope. Pricing models are taken from each vendor's own pricing page — we don't quote aggregator sites because they're often years stale. Verify current pricing before you buy.
         </p>
+
+        {/* Deep links: each competitor gets a full page of its own, which is
+            what ranks for "<competitor> alternative" searches. */}
+        <div className="mt-14">
+          <h2 className="text-center text-lg font-semibold mb-5">
+            Read the detailed comparison
+          </h2>
+          <div className="flex flex-wrap gap-2 justify-center">
+            {competitors.map((c) => (
+              <Link
+                key={c.slug}
+                href={`/compare/${c.slug}`}
+                className="text-sm px-4 py-2 rounded-lg border border-white/10 bg-white/5 text-gray-300 hover:text-white hover:border-white/25 transition-colors"
+              >
+                Rotahr vs {c.name}
+              </Link>
+            ))}
+          </div>
+        </div>
 
         {/* CTA */}
         <div className="flex justify-center mt-12">
           <Link
-            href="/auth/signin"
+            href="/try"
             className="bg-emerald-500 hover:bg-emerald-400 text-white font-semibold px-8 py-3 rounded-xl transition-colors text-base"
           >
-            Get started with Rotahr →
+            Have a look yourself →
           </Link>
         </div>
       </div>
