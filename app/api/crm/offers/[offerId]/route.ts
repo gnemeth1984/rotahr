@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
-import { generateOfferQrDataUri, getRedeemUrl } from "@/lib/crm/qr";
+import { generateOfferQrDataUri, getOfferQrImageUrl, getRedeemUrl } from "@/lib/crm/qr";
 
 const patchSchema = z.object({
   redeemed: z.boolean().optional(),
@@ -20,7 +20,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ offe
   }
 
   const qrDataUri = await generateOfferQrDataUri(offer.code);
-  return NextResponse.json({ offer, qrDataUri, redeemUrl: getRedeemUrl(offer.code) });
+  return NextResponse.json({ offer, qrDataUri, qrImageUrl: getOfferQrImageUrl(offer.code), redeemUrl: getRedeemUrl(offer.code) });
 }
 
 // Any authenticated staff member can mark an offer redeemed — this is meant to

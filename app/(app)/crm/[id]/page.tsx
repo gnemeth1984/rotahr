@@ -150,6 +150,9 @@ export default function CustomerProfilePage() {
   const [sendingMessage, setSendingMessage] = useState(false);
   const [messages, setMessages] = useState<any[]>([]);
   const [pendingOfferQr, setPendingOfferQr] = useState<string | null>(null);
+  // Hosted QR URL for the outbound email. Gmail/Outlook strip data: URIs,
+  // so the email must reference a real image URL, not pendingOfferQr.
+  const [pendingOfferQrUrl, setPendingOfferQrUrl] = useState<string | null>(null);
   const [pendingOfferCode, setPendingOfferCode] = useState<string | null>(null);
 
   // GDPR
@@ -176,7 +179,7 @@ export default function CustomerProfilePage() {
         }),
       });
       if (res.ok) {
-        const { offer, qrDataUri } = await res.json();
+        const { offer, qrDataUri, qrImageUrl } = await res.json();
         setOffers((prev) => [offer, ...prev]);
         setShowOfferModal(false);
         setCustomTitle("");
@@ -185,6 +188,7 @@ export default function CustomerProfilePage() {
         setEmailSubject(offer.title);
         setEmailBody(`${offer.description}\n\nYour code: ${offer.code}`);
         setPendingOfferQr(qrDataUri);
+        setPendingOfferQrUrl(qrImageUrl);
         setPendingOfferCode(offer.code);
         setShowEmailModal(true);
       } else {
@@ -220,10 +224,11 @@ export default function CustomerProfilePage() {
   const insertOfferIntoEmail = async (offer: any) => {
     const res = await fetch(`/api/crm/offers/${offer.id}`);
     if (!res.ok) return;
-    const { qrDataUri } = await res.json();
+    const { qrDataUri, qrImageUrl } = await res.json();
     setEmailSubject(offer.title);
     setEmailBody(`${offer.description}\n\nYour code: ${offer.code}`);
     setPendingOfferQr(qrDataUri);
+    setPendingOfferQrUrl(qrImageUrl);
     setPendingOfferCode(offer.code);
     setShowEmailModal(true);
   };
@@ -337,8 +342,11 @@ export default function CustomerProfilePage() {
     if (!emailSubject || !emailBody) return;
     setSendingEmail(true);
     try {
-      const qrBlock = pendingOfferQr
-        ? `<div style="margin-top:16px;text-align:center;"><img src="${pendingOfferQr}" alt="Scan to redeem" width="180" height="180" /><p style="font-size:12px;color:#94a3b8;margin-top:4px;">Scan to redeem, or show code ${pendingOfferCode} in person</p></div>`
+      // Hosted image URL, never a data: URI — Gmail and Outlook.com drop those
+      // silently. The code is repeated as text so the offer still works for
+      // anyone who blocks images altogether.
+      const qrBlock = pendingOfferQrUrl
+        ? `<div style="margin-top:24px;text-align:center;padding:20px;background:#F7F8FA;border-radius:12px;"><img src="${pendingOfferQrUrl}" alt="Offer code ${pendingOfferCode}" width="180" height="180" style="display:block;margin:0 auto;border-radius:8px;" /><p style="font-size:13px;color:#5A6478;margin:12px 0 0;">Show this at the bar or till</p><p style="font-family:monospace;font-size:16px;font-weight:bold;color:#0F1C35;margin:6px 0 0;letter-spacing:1px;">${pendingOfferCode}</p></div>`
         : "";
       const res = await fetch(`/api/crm/customers/${id}/email`, {
         method: "POST",
@@ -351,6 +359,7 @@ export default function CustomerProfilePage() {
         setEmailSubject("");
         setEmailBody("");
         setPendingOfferQr(null);
+        setPendingOfferQrUrl(null);
         setPendingOfferCode(null);
         await fetchCustomer();
         if (data.simulated) {
