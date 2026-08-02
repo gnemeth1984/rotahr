@@ -11,6 +11,8 @@ const updateSchema = z.object({
   unit: z.string().optional(),
   category: z.string().optional(),
   lastPrice: z.number().optional().nullable(),
+  packSize: z.number().positive().optional().nullable(),
+  packUnit: z.string().optional().nullable(),
   reorderLevel: z.number().optional().nullable(),
   currentStock: z.number().optional().nullable(),
   notes: z.string().optional().nullable(),

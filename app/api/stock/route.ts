@@ -11,6 +11,8 @@ const stockSchema = z.object({
   unit: z.string().default("unit"),
   category: z.string().default("general"),
   lastPrice: z.number().optional().nullable(),
+  packSize: z.number().positive().optional().nullable(),
+  packUnit: z.string().optional().nullable(),
   reorderLevel: z.number().optional().nullable(),
   currentStock: z.number().optional().nullable(),
   notes: z.string().optional().nullable(),

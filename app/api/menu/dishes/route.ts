@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
     where: { businessId: session.user.businessId },
     include: {
       ingredients: {
-        include: { stockItem: { select: { id: true, name: true, unit: true, lastPrice: true } } },
+        include: { stockItem: { select: { id: true, name: true, unit: true, lastPrice: true, packSize: true, packUnit: true } } },
       },
     },
     orderBy: [{ category: "asc" }, { name: "asc" }],

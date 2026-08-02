@@ -861,15 +861,30 @@ export async function main(prisma: PrismaClient = new PrismaClient()) {
   const si4 = "demo-stock-chicken";
   const si5 = "demo-stock-salmon";
   const si6 = "demo-stock-chips";
+  const si7 = "demo-stock-potatoes";
+  const si8 = "demo-stock-peppercorn";
+  const si9 = "demo-stock-cream";
+  const si10 = "demo-stock-veg";
+  const si11 = "demo-stock-butter";
+  const si12 = "demo-stock-buns";
 
   await prisma.stockItem.createMany({
     data: [
-      { id: si1, businessId: BIZ, supplierId: sup2, name: "Guinness Keg 50L",  sku: "DIA-GNS-50", unit: "keg",    category: "beverage",  lastPrice: 165.00, reorderLevel: 3, currentStock: 4 },
-      { id: si2, businessId: BIZ, supplierId: sup2, name: "Heineken Keg 50L",  sku: "DIA-HNK-50", unit: "keg",    category: "beverage",  lastPrice: 145.00, reorderLevel: 2, currentStock: 2 },
-      { id: si3, businessId: BIZ, supplierId: sup1, name: "Ribeye Beef (5kg)", sku: "MUS-BEEF-5", unit: "pack",   category: "food",      lastPrice: 98.00,  reorderLevel: 2, currentStock: 3 },
-      { id: si4, businessId: BIZ, supplierId: sup1, name: "Chicken Breast (5kg)", sku: "MUS-CHK-5", unit: "pack", category: "food",      lastPrice: 42.00,  reorderLevel: 2, currentStock: 5 },
-      { id: si5, businessId: BIZ, supplierId: sup3, name: "Atlantic Salmon (whole, 3kg)", sku: "PAL-SALM-3", unit: "unit", category: "food", lastPrice: 35.00, reorderLevel: 3, currentStock: 1 },
-      { id: si6, businessId: BIZ, supplierId: sup1, name: "Frozen Chips 10kg", sku: "MUS-CHIP-10", unit: "bag",  category: "food",      lastPrice: 22.00,  reorderLevel: 4, currentStock: 6 },
+      // packSize / packUnit = what's actually inside one purchase unit. Recipe
+      // costing divides lastPrice by packSize, so a 5kg box at €98 costs
+      // €19.60/kg — not €98/kg.
+      { id: si1, businessId: BIZ, supplierId: sup2, name: "Guinness Keg 50L",  sku: "DIA-GNS-50", unit: "keg",    category: "beverage",  lastPrice: 165.00, packSize: 50, packUnit: "litre", reorderLevel: 3, currentStock: 4 },
+      { id: si2, businessId: BIZ, supplierId: sup2, name: "Heineken Keg 50L",  sku: "DIA-HNK-50", unit: "keg",    category: "beverage",  lastPrice: 145.00, packSize: 50, packUnit: "litre", reorderLevel: 2, currentStock: 2 },
+      { id: si3, businessId: BIZ, supplierId: sup1, name: "Ribeye Beef (5kg)", sku: "MUS-BEEF-5", unit: "pack",   category: "food",      lastPrice: 132.00, packSize: 5,  packUnit: "kg",    reorderLevel: 2, currentStock: 3 },
+      { id: si4, businessId: BIZ, supplierId: sup1, name: "Chicken Breast (5kg)", sku: "MUS-CHK-5", unit: "pack", category: "food",      lastPrice: 57.50,  packSize: 5,  packUnit: "kg",    reorderLevel: 2, currentStock: 5 },
+      { id: si5, businessId: BIZ, supplierId: sup3, name: "Atlantic Salmon (whole, 3kg)", sku: "PAL-SALM-3", unit: "unit", category: "food", lastPrice: 51.00, packSize: 3, packUnit: "kg", reorderLevel: 3, currentStock: 1 },
+      { id: si6, businessId: BIZ, supplierId: sup1, name: "Frozen Chips 10kg", sku: "MUS-CHIP-10", unit: "bag",  category: "food",      lastPrice: 22.00,  packSize: 10, packUnit: "kg",    reorderLevel: 4, currentStock: 6 },
+      { id: si7, businessId: BIZ, supplierId: sup1, name: "New Potatoes (20kg)", sku: "MUS-POT-20", unit: "bag", category: "food",      lastPrice: 18.50,  packSize: 20, packUnit: "kg",    reorderLevel: 2, currentStock: 3 },
+      { id: si8, businessId: BIZ, supplierId: sup1, name: "Peppercorn Sauce Base (2L)", sku: "MUS-PEP-2", unit: "bottle", category: "food", lastPrice: 12.40, packSize: 2, packUnit: "litre", reorderLevel: 2, currentStock: 4 },
+      { id: si9, businessId: BIZ, supplierId: sup1, name: "Fresh Cream (5L)", sku: "MUS-CRM-5", unit: "unit", category: "food",         lastPrice: 9.75,   packSize: 5,  packUnit: "litre", reorderLevel: 2, currentStock: 2 },
+      { id: si10, businessId: BIZ, supplierId: sup1, name: "Seasonal Veg Mix (10kg)", sku: "MUS-VEG-10", unit: "box", category: "food",   lastPrice: 24.90,  packSize: 10, packUnit: "kg",    reorderLevel: 2, currentStock: 3 },
+      { id: si11, businessId: BIZ, supplierId: sup1, name: "Irish Butter (5kg)", sku: "MUS-BUT-5", unit: "pack", category: "food",        lastPrice: 41.00,  packSize: 5,  packUnit: "kg",    reorderLevel: 1, currentStock: 2 },
+      { id: si12, businessId: BIZ, supplierId: sup1, name: "Brioche Buns (48)", sku: "MUS-BUN-48", unit: "case", category: "food",        lastPrice: 21.60,  packSize: 48, packUnit: "unit",  reorderLevel: 1, currentStock: 2 },
     ],
   });
   console.log("✅ Suppliers & stock created");
@@ -899,24 +914,34 @@ export async function main(prisma: PrismaClient = new PrismaClient()) {
   await prisma.dishIngredient.createMany({
     data: [
       // Ribeye
-      { dishId: dish1, stockItemId: si3, name: "Ribeye Beef",   qty: 0.3,  unit: "kg" },
-      { dishId: dish1, stockItemId: si6, name: "Frozen Chips",  qty: 0.2,  unit: "kg" },
-      { dishId: dish1, stockItemId: null, name: "Peppercorn Sauce", qty: 1, unit: "portion" },
+      { dishId: dish1, stockItemId: si3,  name: "Ribeye Beef",      qty: 0.3,  unit: "kg" },
+      { dishId: dish1, stockItemId: si6,  name: "Frozen Chips",     qty: 0.25, unit: "kg" },
+      { dishId: dish1, stockItemId: si8,  name: "Peppercorn Sauce", qty: 70,   unit: "ml" },
+      { dishId: dish1, stockItemId: si10, name: "Seasonal Veg",     qty: 0.14, unit: "kg" },
+      { dishId: dish1, stockItemId: si11, name: "Butter",           qty: 0.02, unit: "kg" },
       // Salmon
-      { dishId: dish2, stockItemId: si5, name: "Atlantic Salmon", qty: 0.2, unit: "kg" },
-      { dishId: dish2, stockItemId: null, name: "New Potatoes", qty: 0.15, unit: "kg" },
-      { dishId: dish2, stockItemId: null, name: "Dill Cream",   qty: 1,    unit: "portion" },
+      { dishId: dish2, stockItemId: si5,  name: "Atlantic Salmon",  qty: 0.24, unit: "kg" },
+      { dishId: dish2, stockItemId: si7,  name: "New Potatoes",     qty: 0.2,  unit: "kg" },
+      { dishId: dish2, stockItemId: si9,  name: "Dill Cream",       qty: 60,   unit: "ml" },
+      { dishId: dish2, stockItemId: si10, name: "Seasonal Veg",     qty: 0.14, unit: "kg" },
+      { dishId: dish2, stockItemId: si11, name: "Butter",           qty: 0.03, unit: "kg" },
       // Chicken
-      { dishId: dish3, stockItemId: si4, name: "Chicken Breast", qty: 0.2, unit: "kg" },
-      { dishId: dish3, stockItemId: si6, name: "Frozen Chips",  qty: 0.2,  unit: "kg" },
+      { dishId: dish3, stockItemId: si4,  name: "Chicken Breast",   qty: 0.22, unit: "kg" },
+      { dishId: dish3, stockItemId: si6,  name: "Frozen Chips",     qty: 0.25, unit: "kg" },
+      { dishId: dish3, stockItemId: si10, name: "House Slaw Veg",   qty: 0.1,  unit: "kg" },
       // Chips side
-      { dishId: dish4, stockItemId: si6, name: "Frozen Chips",  qty: 0.2,  unit: "kg" },
+      { dishId: dish4, stockItemId: si6,  name: "Frozen Chips",     qty: 0.25, unit: "kg" },
+      { dishId: dish4, stockItemId: si11, name: "Butter",           qty: 0.01, unit: "kg" },
       // Guinness Stew
-      { dishId: dish5, stockItemId: si3, name: "Ribeye Beef",   qty: 0.2,  unit: "kg" },
-      { dishId: dish5, stockItemId: si1, name: "Guinness",      qty: 0.5,  unit: "litre" },
+      { dishId: dish5, stockItemId: si3,  name: "Beef Shin",        qty: 0.24, unit: "kg" },
+      { dishId: dish5, stockItemId: si1,  name: "Guinness",         qty: 0.4,  unit: "litre" },
+      { dishId: dish5, stockItemId: si7,  name: "Potatoes (champ)", qty: 0.25, unit: "kg" },
+      { dishId: dish5, stockItemId: si10, name: "Root Veg",         qty: 0.18, unit: "kg" },
+      { dishId: dish5, stockItemId: si11, name: "Butter",           qty: 0.03, unit: "kg" },
       // Burger
-      { dishId: dish6, stockItemId: si3, name: "Beef Mince",    qty: 0.18, unit: "kg" },
-      { dishId: dish6, stockItemId: si6, name: "Frozen Chips",  qty: 0.15, unit: "kg" },
+      { dishId: dish6, stockItemId: si3,  name: "Beef Mince",       qty: 0.19, unit: "kg" },
+      { dishId: dish6, stockItemId: si6,  name: "Frozen Chips",     qty: 0.2,  unit: "kg" },
+      { dishId: dish6, stockItemId: si12, name: "Brioche Bun",      qty: 1,    unit: "unit" },
     ],
   });
   console.log("✅ Dishes / recipes created");
@@ -926,12 +951,12 @@ export async function main(prisma: PrismaClient = new PrismaClient()) {
 
   await prisma.wastageRecord.createMany({
     data: [
-      { businessId: BIZ, stockItemId: si5, itemName: "Atlantic Salmon (whole, 3kg)", quantity: 1,    unit: "unit",   unitCost: 35.00, totalCost: 35.00, reason: "expiry",    notes: "Missed Friday order window — past use-by",    recordedBy: USERS.marco, date: days(-2)  },
-      { businessId: BIZ, stockItemId: si3, itemName: "Ribeye Beef (5kg)",            quantity: 0.5,  unit: "kg",     unitCost: 19.60, totalCost: 9.80,  reason: "spoilage",  notes: "Freezer door left open overnight",            recordedBy: USERS.marco, date: days(-4)  },
+      { businessId: BIZ, stockItemId: si5, itemName: "Atlantic Salmon (whole, 3kg)", quantity: 1,    unit: "unit",   unitCost: 51.00, totalCost: 51.00, reason: "expiry",    notes: "Missed Friday order window — past use-by",    recordedBy: USERS.marco, date: days(-2)  },
+      { businessId: BIZ, stockItemId: si3, itemName: "Ribeye Beef (5kg)",            quantity: 0.5,  unit: "kg",     unitCost: 26.40, totalCost: 13.20,  reason: "spoilage",  notes: "Freezer door left open overnight",            recordedBy: USERS.marco, date: days(-4)  },
       { businessId: BIZ, stockItemId: si6, itemName: "Frozen Chips 10kg",            quantity: 2,    unit: "kg",     unitCost: 2.20,  totalCost: 4.40,  reason: "over-prep", notes: "Overcooked batch during Saturday rush",       recordedBy: USERS.caitlin, date: days(-6) },
       { businessId: BIZ, stockItemId: si2, itemName: "Heineken Keg 50L",             quantity: 0.25, unit: "keg",    unitCost: 145.00,totalCost: 36.25, reason: "spill",     notes: "Keg connector failure — partial loss",        recordedBy: USERS.fiona, date: days(-7)  },
-      { businessId: BIZ, stockItemId: si4, itemName: "Chicken Breast (5kg)",         quantity: 0.3,  unit: "kg",     unitCost: 8.40,  totalCost: 2.52,  reason: "expiry",    notes: "Small batch past use-by",                     recordedBy: USERS.marco, date: days(-10) },
-      { businessId: BIZ, stockItemId: si5, itemName: "Atlantic Salmon (whole, 3kg)", quantity: 0.5,  unit: "unit",   unitCost: 35.00, totalCost: 17.50, reason: "over-prep", notes: "Special removed from menu mid-service",       recordedBy: USERS.marco, date: days(-14) },
+      { businessId: BIZ, stockItemId: si4, itemName: "Chicken Breast (5kg)",         quantity: 0.3,  unit: "kg",     unitCost: 11.50, totalCost: 3.45,  reason: "expiry",    notes: "Small batch past use-by",                     recordedBy: USERS.marco, date: days(-10) },
+      { businessId: BIZ, stockItemId: si5, itemName: "Atlantic Salmon (whole, 3kg)", quantity: 0.5,  unit: "unit",   unitCost: 51.00, totalCost: 25.50, reason: "over-prep", notes: "Special removed from menu mid-service",       recordedBy: USERS.marco, date: days(-14) },
       { businessId: BIZ, stockItemId: null, itemName: "House Red Wine",              quantity: 1,    unit: "bottle", unitCost: 9.50,  totalCost: 9.50,  reason: "spill",     notes: "Dropped by floor staff — floor incident",     recordedBy: USERS.sarah, date: days(-15) },
     ],
   });
@@ -1526,13 +1551,62 @@ export async function seedOwnerDemos(prisma: PrismaClient) {
     { id: pDish2, businessId: P_BIZ, name: "Wild Garlic Risotto", description: "Arborio rice, wild garlic, parmesan, lemon zest", category: "main", sellPrice: 19.50, active: true },
     { id: pDish3, businessId: P_BIZ, name: "Bloom Brunch Board", description: "Sourdough, smashed avo, poached eggs, feta, chorizo", category: "main", sellPrice: 16.00, active: true, imageUrl: "https://efxjg5pqfqlyxu80.private.blob.vercel-storage.com/dish-photos/demo/brunch.jpg" },
   ]});
+  // Stock items behind the Pro recipes — without these, costing has no supplier
+  // price to work from and the Recipes page shows "no usable price" everywhere.
+  await prisma.stockItem.deleteMany({ where: { businessId: P_BIZ } });
+  const pSi1 = "demo-p-stock-mushrooms";
+  const pSi2 = "demo-p-stock-taleggio";
+  const pSi3 = "demo-p-stock-arborio";
+  const pSi4 = "demo-p-stock-parmesan";
+  const pSi5 = "demo-p-stock-sourdough";
+  const pSi6 = "demo-p-stock-eggs";
+  const pSi7 = "demo-p-stock-flatbread-base";
+  const pSi8 = "demo-p-stock-truffle-oil";
+  const pSi9 = "demo-p-stock-rocket";
+  const pSi10 = "demo-p-stock-butter";
+  const pSi11 = "demo-p-stock-veg-stock";
+  const pSi12 = "demo-p-stock-white-wine";
+  const pSi13 = "demo-p-stock-wild-garlic";
+  const pSi14 = "demo-p-stock-avocado";
+  const pSi15 = "demo-p-stock-feta";
+  const pSi16 = "demo-p-stock-chorizo";
+  await prisma.stockItem.createMany({ data: [
+    { id: pSi1, businessId: P_BIZ, name: "Mixed Wild Mushrooms (3kg)", sku: "BLM-MSH-3",  unit: "box",    category: "food", lastPrice: 27.60, packSize: 3,  packUnit: "kg",   reorderLevel: 1, currentStock: 2 },
+    { id: pSi2, businessId: P_BIZ, name: "Taleggio (2kg wheel)",       sku: "BLM-TAL-2",  unit: "unit",   category: "food", lastPrice: 31.00, packSize: 2,  packUnit: "kg",   reorderLevel: 1, currentStock: 1 },
+    { id: pSi3, businessId: P_BIZ, name: "Arborio Rice (5kg)",         sku: "BLM-ARB-5",  unit: "bag",    category: "food", lastPrice: 14.75, packSize: 5,  packUnit: "kg",   reorderLevel: 1, currentStock: 3 },
+    { id: pSi4, businessId: P_BIZ, name: "Parmigiano Reggiano (1kg)",  sku: "BLM-PAR-1",  unit: "unit",   category: "food", lastPrice: 21.40, packSize: 1,  packUnit: "kg",   reorderLevel: 1, currentStock: 2 },
+    { id: pSi5, businessId: P_BIZ, name: "Sourdough Loaves (10)",      sku: "BLM-SRD-10", unit: "case",   category: "food", lastPrice: 22.50, packSize: 8,  packUnit: "kg",   reorderLevel: 1, currentStock: 2 },
+    { id: pSi6, businessId: P_BIZ, name: "Free Range Eggs (180)",      sku: "BLM-EGG-180",unit: "case",   category: "food", lastPrice: 57.60, packSize: 180, packUnit: "unit", reorderLevel: 1, currentStock: 1 },
+    { id: pSi7,  businessId: P_BIZ, name: "Flatbread Bases (24)",     sku: "BLM-FLB-24", unit: "case",   category: "food", lastPrice: 18.00, packSize: 24,  packUnit: "unit", reorderLevel: 1, currentStock: 2 },
+    { id: pSi8,  businessId: P_BIZ, name: "Truffle Oil (500ml)",      sku: "BLM-TRF-05", unit: "bottle", category: "food", lastPrice: 14.50, packSize: 500, packUnit: "ml",   reorderLevel: 1, currentStock: 2 },
+    { id: pSi9,  businessId: P_BIZ, name: "Wild Rocket (1kg)",        sku: "BLM-RCK-1",  unit: "bag",    category: "food", lastPrice: 7.90,  packSize: 1,   packUnit: "kg",   reorderLevel: 1, currentStock: 2 },
+    { id: pSi10, businessId: P_BIZ, name: "Irish Butter (5kg)",       sku: "BLM-BUT-5",  unit: "pack",   category: "food", lastPrice: 41.00, packSize: 5,   packUnit: "kg",   reorderLevel: 1, currentStock: 2 },
+    { id: pSi11, businessId: P_BIZ, name: "Veg Stock Concentrate (10L)", sku: "BLM-STK-10", unit: "unit", category: "food", lastPrice: 22.00, packSize: 10, packUnit: "litre", reorderLevel: 1, currentStock: 1 },
+    { id: pSi12, businessId: P_BIZ, name: "House White Wine (750ml)", sku: "BLM-WHT-075",unit: "bottle", category: "beverage", lastPrice: 7.50, packSize: 750, packUnit: "ml", reorderLevel: 6, currentStock: 12 },
+    { id: pSi13, businessId: P_BIZ, name: "Wild Garlic (500g)",       sku: "BLM-WGR-05", unit: "bag",    category: "food", lastPrice: 6.20,  packSize: 500, packUnit: "g",    reorderLevel: 1, currentStock: 2 },
+    { id: pSi14, businessId: P_BIZ, name: "Avocados (20)",            sku: "BLM-AVO-20", unit: "case",   category: "food", lastPrice: 18.00, packSize: 20,  packUnit: "unit", reorderLevel: 1, currentStock: 2 },
+    { id: pSi15, businessId: P_BIZ, name: "Greek Feta (2kg)",         sku: "BLM-FET-2",  unit: "unit",   category: "food", lastPrice: 14.00, packSize: 2,   packUnit: "kg",   reorderLevel: 1, currentStock: 1 },
+    { id: pSi16, businessId: P_BIZ, name: "Chorizo (1kg)",            sku: "BLM-CHZ-1",  unit: "unit",   category: "food", lastPrice: 13.90, packSize: 1,   packUnit: "kg",   reorderLevel: 1, currentStock: 2 },
+  ]});
+
   await prisma.dishIngredient.createMany({ data: [
-    { dishId: pDish1, stockItemId: null, name: "Mixed Mushrooms", qty: 0.15, unit: "kg" },
-    { dishId: pDish1, stockItemId: null, name: "Taleggio Cheese", qty: 0.08, unit: "kg" },
-    { dishId: pDish2, stockItemId: null, name: "Arborio Rice",    qty: 0.12, unit: "kg" },
-    { dishId: pDish2, stockItemId: null, name: "Parmesan",        qty: 0.05, unit: "kg" },
-    { dishId: pDish3, stockItemId: null, name: "Sourdough Loaf",  qty: 0.1,  unit: "kg" },
-    { dishId: pDish3, stockItemId: null, name: "Eggs",            qty: 2,    unit: "unit" },
+    { dishId: pDish1, stockItemId: pSi7,  name: "Flatbread Base",  qty: 1,    unit: "unit" },
+    { dishId: pDish1, stockItemId: pSi1,  name: "Mixed Mushrooms", qty: 0.15, unit: "kg" },
+    { dishId: pDish1, stockItemId: pSi2,  name: "Taleggio Cheese", qty: 0.08, unit: "kg" },
+    { dishId: pDish1, stockItemId: pSi8,  name: "Truffle Oil",     qty: 5,    unit: "ml" },
+    { dishId: pDish1, stockItemId: pSi9,  name: "Wild Rocket",     qty: 0.03, unit: "kg" },
+    { dishId: pDish2, stockItemId: pSi3,  name: "Arborio Rice",    qty: 0.12, unit: "kg" },
+    { dishId: pDish2, stockItemId: pSi4,  name: "Parmesan",        qty: 0.05, unit: "kg" },
+    { dishId: pDish2, stockItemId: pSi13, name: "Wild Garlic",     qty: 30,   unit: "g" },
+    { dishId: pDish2, stockItemId: pSi11, name: "Veg Stock",       qty: 0.6,  unit: "litre" },
+    { dishId: pDish2, stockItemId: pSi12, name: "White Wine",      qty: 80,   unit: "ml" },
+    { dishId: pDish2, stockItemId: pSi10, name: "Butter",          qty: 0.04, unit: "kg" },
+    { dishId: pDish3, stockItemId: pSi5,  name: "Sourdough Loaf",  qty: 0.1,  unit: "kg" },
+    { dishId: pDish3, stockItemId: pSi6,  name: "Eggs",            qty: 2,    unit: "unit" },
+    { dishId: pDish3, stockItemId: pSi14, name: "Avocado",         qty: 1,    unit: "unit" },
+    { dishId: pDish3, stockItemId: pSi15, name: "Feta",            qty: 0.05, unit: "kg" },
+    { dishId: pDish3, stockItemId: pSi16, name: "Chorizo",         qty: 0.06, unit: "kg" },
+    { dishId: pDish3, stockItemId: pSi10, name: "Butter",          qty: 0.01, unit: "kg" },
   ]});
   console.log("✅ Pro recipes seeded");
 

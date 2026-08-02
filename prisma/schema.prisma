@@ -558,7 +558,9 @@ model StockItem {
   unit     String  @default("unit") // "unit", "kg", "litre", "case", "box", "bottle" etc
   category String  @default("general") // "food", "beverage", "cleaning", "packaging", "equipment", "other"
 
-  lastPrice    Float? // price from most recent receipt/invoice
+  lastPrice    Float? // price PER PACK from most recent receipt/invoice
+  packSize     Float? // how many packUnit are in one pack (e.g. 5 for a 5kg box). null = 1
+  packUnit     String? // the unit packSize is measured in (e.g. "kg"). null = falls back to `unit`
   lastOrdered  DateTime? // date of last order
   reorderLevel Float? // trigger reorder below this qty
   currentStock Float? // optional manual stock count

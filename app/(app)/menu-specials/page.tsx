@@ -23,12 +23,13 @@ import { UserRole as Role } from "@/types/roles";
 import { cn } from "@/lib/utils";
 import { SpecialsTab } from "./_specials-tab";
 import { FunctionMenusTab } from "./_function-menus-tab";
+import { costRecipe } from "@/lib/costing";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type DishCategory = "starter" | "main" | "dessert" | "drinks" | "sides" | "other";
 
-interface StockItem { id: string; name: string; unit: string; lastPrice?: number | null; }
+interface StockItem { id: string; name: string; unit: string; lastPrice?: number | null; packSize?: number | null; packUnit?: string | null; }
 
 interface DishIngredient {
   id?: string;
@@ -36,7 +37,7 @@ interface DishIngredient {
   stockItemId?: string | null;
   qty: number;
   unit: string;
-  stockItem?: { id: string; name: string; unit: string; lastPrice?: number | null } | null;
+  stockItem?: { id: string; name: string; unit: string; lastPrice?: number | null; packSize?: number | null; packUnit?: string | null } | null;
 }
 
 interface Dish {
@@ -612,12 +613,11 @@ function DishCard({ dish, canEdit, onEdit, onDelete }: {
   const margin = dish.sellPrice && dish.costPrice
     ? Math.round(((dish.sellPrice - dish.costPrice) / dish.sellPrice) * 100)
     : null;
-  const autoCost = dish.ingredients.length > 0
-    ? dish.ingredients.reduce((sum, ing) => {
-      const price = ing.stockItem?.lastPrice ?? 0;
-      return sum + price * ing.qty;
-    }, 0)
-    : null;
+  // Costing goes through lib/costing.ts so the supplier's pack price gets
+  // divided by the pack size. Null when any ingredient can't be costed —
+  // a half-costed margin on a special is worse than no margin.
+  const costed = dish.ingredients.length > 0 ? costRecipe(dish.ingredients) : null;
+  const autoCost = costed?.ok ? costed.total : null;
 
   return (
     <div className="bg-white border border-slate-200 rounded-xl p-4 space-y-3 hover:border-orange-200 transition-colors">
@@ -683,10 +683,14 @@ function DishFormModal({ dish, stockItems, onClose, onSaved }: {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  const autoCost = ingredients.reduce((sum, ing) => {
-    const si = stockItems.find((s) => s.id === ing.stockItemId);
-    return sum + (si?.lastPrice ?? 0) * ing.qty;
-  }, 0);
+  const autoCosted = costRecipe(
+    ingredients.map((ing) => ({
+      qty: ing.qty,
+      unit: ing.unit,
+      stockItem: stockItems.find((s) => s.id === ing.stockItemId) ?? null,
+    }))
+  );
+  const autoCost = autoCosted.total;
 
   function addIngredient() {
     setIngredients((prev) => [...prev, { name: "", qty: 1, unit: "unit", stockItemId: null }]);
@@ -790,17 +794,28 @@ function DishFormModal({ dish, stockItems, onClose, onSaved }: {
 
             {/* Food cost calculation */}
             {ingredients.length > 0 && (
-              <div className="bg-slate-50 rounded-lg px-3 py-2 flex items-center gap-4 text-sm">
-                <span className="text-slate-500">Auto food cost:</span>
-                <span className="font-semibold text-slate-800">€{autoCost.toFixed(2)}</span>
-                {sellPrice && parseFloat(sellPrice) > 0 && (
-                  <>
-                    <span className="text-slate-400">|</span>
-                    <span className="text-slate-500">Margin:</span>
-                    <span className={cn("font-semibold", ((parseFloat(sellPrice) - autoCost) / parseFloat(sellPrice)) * 100 >= 65 ? "text-emerald-600" : "text-amber-600")}>
-                      {Math.round(((parseFloat(sellPrice) - autoCost) / parseFloat(sellPrice)) * 100)}%
-                    </span>
-                  </>
+              <div className="bg-slate-50 rounded-lg px-3 py-2 space-y-1">
+                <div className="flex items-center gap-4 text-sm">
+                  <span className="text-slate-500">Auto food cost:</span>
+                  <span className="font-semibold text-slate-800">€{autoCost.toFixed(2)}</span>
+                  {autoCosted.ok && sellPrice && parseFloat(sellPrice) > 0 && (
+                    <>
+                      <span className="text-slate-400">|</span>
+                      <span className="text-slate-500">Margin:</span>
+                      <span className={cn("font-semibold", ((parseFloat(sellPrice) - autoCost) / parseFloat(sellPrice)) * 100 >= 65 ? "text-emerald-600" : "text-amber-600")}>
+                        {Math.round(((parseFloat(sellPrice) - autoCost) / parseFloat(sellPrice)) * 100)}%
+                      </span>
+                    </>
+                  )}
+                </div>
+                {!autoCosted.ok && (
+                  <p className="text-xs text-amber-600 flex items-start gap-1">
+                    <AlertCircle className="h-3 w-3 mt-0.5 shrink-0" />
+                    {autoCosted.issues.length === 1
+                      ? "1 ingredient has no usable price"
+                      : `${autoCosted.issues.length} ingredients have no usable price`}
+                    {" "}— set the pack size in Stock. Margin hidden until then.
+                  </p>
                 )}
               </div>
             )}

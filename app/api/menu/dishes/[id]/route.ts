@@ -48,7 +48,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
   const updated = await prisma.dish.findUnique({
     where: { id: params.id },
-    include: { ingredients: { include: { stockItem: { select: { id: true, name: true, unit: true, lastPrice: true } } } } },
+    include: { ingredients: { include: { stockItem: { select: { id: true, name: true, unit: true, lastPrice: true, packSize: true, packUnit: true } } } } },
   });
 
   return NextResponse.json({ dish: updated });

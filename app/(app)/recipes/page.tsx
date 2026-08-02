@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCurrency } from "@/components/shared/CurrencyProvider";
+import { costRecipe, grossProfitPct, COST_ISSUE_LABEL, type RecipeCost } from "@/lib/costing";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -15,6 +16,8 @@ interface StockItem {
   name: string;
   unit: string;
   lastPrice: number | null;
+  packSize?: number | null;
+  packUnit?: string | null;
 }
 
 interface Ingredient {
@@ -42,16 +45,15 @@ const CATEGORIES = ["starter", "main", "dessert", "drinks", "sides", "other"];
 const UNITS = ["unit", "kg", "g", "litre", "ml", "portion", "slice", "bunch", "case", "box", "bottle"];
 
 // ─── GP% calc ─────────────────────────────────────────────────────────────────
-function calcCost(ingredients: Ingredient[]): number {
-  return ingredients.reduce((sum, ing) => {
-    const price = ing.stockItem?.lastPrice ?? 0;
-    return sum + ing.qty * price;
-  }, 0);
-}
+// All the arithmetic lives in lib/costing.ts — it divides the supplier's pack
+// price by the pack size and converts units. Anything it can't cost cleanly
+// comes back flagged, and we show the flag instead of inventing a number.
+const calcCost = (ingredients: Ingredient[]): RecipeCost => costRecipe(ingredients);
 
-function gpPct(cost: number, sell: number | null | undefined): number | null {
-  if (!sell || sell === 0 || cost === 0) return null;
-  return ((sell - cost) / sell) * 100;
+/** Only trust GP% when every ingredient costed. A partial cost inflates GP%. */
+function reliableGp(cost: RecipeCost, sell: number | null | undefined): number | null {
+  if (!cost.ok) return null;
+  return grossProfitPct(cost.total, sell);
 }
 
 // Proxy private Vercel Blob dish photos through the server (store is private-access only)
@@ -75,13 +77,14 @@ function RecipeCard({
   onEdit: (d: Dish) => void;
   onDelete: (id: string) => void;
 }) {
-  const liveCost = calcCost(dish.ingredients);
-  const gp = gpPct(liveCost, dish.sellPrice);
+  const cost = calcCost(dish.ingredients);
+  const gp = reliableGp(cost, dish.sellPrice);
   const gpColor =
     gp === null ? "text-slate-400" :
     gp >= 65 ? "text-green-600" :
     gp >= 50 ? "text-amber-600" :
     "text-red-600";
+  const missing = cost.issues.length;
 
   return (
     <div className="bg-white border border-slate-200 rounded-xl p-5 hover:shadow-md transition-shadow">
@@ -120,7 +123,9 @@ function RecipeCard({
       <div className="grid grid-cols-3 gap-2 mb-3">
         <div className="bg-slate-50 rounded-lg p-2 text-center">
           <p className="text-xs text-slate-400 mb-0.5">Cost/portion</p>
-          <p className="text-sm font-bold text-slate-800">{fmt(liveCost)}</p>
+          <p className="text-sm font-bold text-slate-800">
+            {cost.ok ? fmt(cost.total) : <span className="text-slate-300">—</span>}
+          </p>
         </div>
         <div className="bg-slate-50 rounded-lg p-2 text-center">
           <p className="text-xs text-slate-400 mb-0.5">Sell price</p>
@@ -136,22 +141,40 @@ function RecipeCard({
         </div>
       </div>
 
+      {missing > 0 && (
+        <div className="flex items-start gap-1.5 mb-3 rounded-lg bg-amber-50 border border-amber-100 px-2.5 py-2">
+          <AlertTriangle className="h-3.5 w-3.5 text-amber-500 mt-px shrink-0" />
+          <p className="text-xs text-amber-700 leading-snug">
+            {missing === 1 ? "1 ingredient has no usable price" : `${missing} ingredients have no usable price`} —
+            cost and GP% are hidden until it&apos;s fixed.
+          </p>
+        </div>
+      )}
+
       {/* Ingredients */}
       {dish.ingredients.length > 0 && (
         <div className="space-y-1">
-          {dish.ingredients.map((ing) => (
-            <div key={ing.id} className="flex items-center justify-between text-xs text-slate-500">
-              <span className="flex items-center gap-1">
-                <Package className="h-3 w-3 text-slate-300" />
-                {ing.name} × {ing.qty} {ing.unit}
-              </span>
-              <span className="font-mono">
-                {ing.stockItem?.lastPrice
-                  ? fmt(ing.qty * ing.stockItem.lastPrice)
-                  : <span className="text-slate-300">no price</span>}
-              </span>
-            </div>
-          ))}
+          {dish.ingredients.map((ing, idx) => {
+            const line = cost.perIngredient[idx];
+            return (
+              <div key={ing.id} className="flex items-center justify-between gap-2 text-xs text-slate-500">
+                <span className="flex items-center gap-1 min-w-0">
+                  <Package className="h-3 w-3 text-slate-300 shrink-0" />
+                  <span className="truncate">{ing.name} × {ing.qty} {ing.unit}</span>
+                </span>
+                {line?.ok ? (
+                  <span className="font-mono shrink-0">{fmt(line.cost ?? 0)}</span>
+                ) : (
+                  <span
+                    className="text-amber-600 shrink-0 cursor-help border-b border-dotted border-amber-300"
+                    title={line?.issue ? COST_ISSUE_LABEL[line.issue] : "No price"}
+                  >
+                    {line?.issue === "no-pack-size" ? "pack size?" : "no price"}
+                  </span>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
       {dish.ingredients.length === 0 && (
@@ -222,7 +245,7 @@ function RecipeDialog({
 
   const liveCost = calcCost(ingredients);
   const sell = parseFloat(sellPrice) || null;
-  const gp = gpPct(liveCost, sell);
+  const gp = reliableGp(liveCost, sell);
   const gpColor = gp === null ? "text-slate-400" : gp >= 65 ? "text-green-600" : gp >= 50 ? "text-amber-600" : "text-red-600";
 
   function addIngredient() {
@@ -434,7 +457,9 @@ function RecipeDialog({
             <div className="bg-violet-50 border border-violet-100 rounded-xl p-4 flex gap-4">
               <div className="text-center flex-1">
                 <p className="text-xs text-violet-400 mb-0.5">Cost/portion</p>
-                <p className="font-bold text-violet-700">{fmt(liveCost)}</p>
+                <p className="font-bold text-violet-700">
+                  {liveCost.ok ? fmt(liveCost.total) : "—"}
+                </p>
               </div>
               <div className="text-center flex-1">
                 <p className="text-xs text-violet-400 mb-0.5">Sell price</p>
@@ -456,8 +481,21 @@ function RecipeDialog({
                   <div key={ing.id} className="flex items-center gap-2 text-sm bg-slate-50 rounded-lg px-3 py-2">
                     <span className="flex-1 text-slate-700">{ing.name}</span>
                     <span className="text-slate-500 text-xs">{ing.qty} {ing.unit}</span>
-                    {ing.stockItem?.lastPrice && (
-                      <span className="text-slate-400 text-xs font-mono">{fmt(ing.qty * ing.stockItem.lastPrice)}</span>
+                    {liveCost.perIngredient[idx]?.ok ? (
+                      <span className="text-slate-400 text-xs font-mono">
+                        {fmt(liveCost.perIngredient[idx].cost ?? 0)}
+                      </span>
+                    ) : (
+                      <span
+                        className="text-amber-600 text-xs cursor-help border-b border-dotted border-amber-300"
+                        title={
+                          liveCost.perIngredient[idx]?.issue
+                            ? COST_ISSUE_LABEL[liveCost.perIngredient[idx].issue!]
+                            : "No price"
+                        }
+                      >
+                        {liveCost.perIngredient[idx]?.issue === "no-pack-size" ? "pack size?" : "no price"}
+                      </span>
                     )}
                     <button onClick={() => removeIngredient(idx)} className="text-slate-300 hover:text-red-400">
                       <X className="h-3.5 w-3.5" />
@@ -607,12 +645,13 @@ export default function RecipesPage() {
   const totalRecipes = dishes.length;
   const avgGp = (() => {
     const withGp = dishes
-      .map((d) => gpPct(calcCost(d.ingredients), d.sellPrice))
+      .map((d) => reliableGp(calcCost(d.ingredients), d.sellPrice))
       .filter((g): g is number => g !== null);
     return withGp.length ? withGp.reduce((a, b) => a + b, 0) / withGp.length : null;
   })();
+  const incompleteCount = dishes.filter((d) => d.ingredients.length > 0 && !calcCost(d.ingredients).ok).length;
   const lowGpCount = dishes.filter((d) => {
-    const g = gpPct(calcCost(d.ingredients), d.sellPrice);
+    const g = reliableGp(calcCost(d.ingredients), d.sellPrice);
     return g !== null && g < 50;
   }).length;
 
@@ -644,7 +683,12 @@ export default function RecipesPage() {
           <p className="text-2xl font-bold text-slate-800">{totalRecipes}</p>
         </div>
         <div className="bg-white border border-slate-200 rounded-xl p-4">
-          <p className="text-xs text-slate-400 mb-1">Average GP%</p>
+          <p className="text-xs text-slate-400 mb-1">
+            Average GP%
+            {incompleteCount > 0 && (
+              <span className="text-slate-300"> · {incompleteCount} not costed</span>
+            )}
+          </p>
           <p className={cn("text-2xl font-bold", avgGp === null ? "text-slate-300" : avgGp >= 60 ? "text-green-600" : avgGp >= 50 ? "text-amber-600" : "text-red-600")}>
             {avgGp !== null ? `${avgGp.toFixed(1)}%` : "—"}
           </p>

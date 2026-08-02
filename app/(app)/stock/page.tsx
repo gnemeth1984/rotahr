@@ -51,6 +51,8 @@ interface StockItem {
   unit: string;
   category: string;
   lastPrice: number | null;
+  packSize: number | null;
+  packUnit: string | null;
   lastOrdered: string | null;
   reorderLevel: number | null;
   currentStock: number | null;
@@ -242,7 +244,7 @@ function StockItemFormDialog({
   const { symbol } = useCurrency();
   const [form, setForm] = useState({
     name: "", supplierId: "", sku: "", unit: "unit", category: "general",
-    lastPrice: "", reorderLevel: "", currentStock: "", notes: "",
+    lastPrice: "", packSize: "", packUnit: "", reorderLevel: "", currentStock: "", notes: "",
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -256,6 +258,8 @@ function StockItemFormDialog({
         unit: initial.unit,
         category: initial.category,
         lastPrice: initial.lastPrice != null ? String(initial.lastPrice) : "",
+        packSize: initial.packSize != null ? String(initial.packSize) : "",
+        packUnit: initial.packUnit ?? "",
         reorderLevel: initial.reorderLevel != null ? String(initial.reorderLevel) : "",
         currentStock: initial.currentStock != null ? String(initial.currentStock) : "",
         notes: initial.notes ?? "",
@@ -263,7 +267,7 @@ function StockItemFormDialog({
     } else {
       setForm({
         name: "", supplierId: defaultSupplierId ?? "", sku: "", unit: "unit", category: "general",
-        lastPrice: "", reorderLevel: "", currentStock: "", notes: "",
+        lastPrice: "", packSize: "", packUnit: "", reorderLevel: "", currentStock: "", notes: "",
       });
     }
     setError(null);
@@ -282,6 +286,8 @@ function StockItemFormDialog({
         unit: form.unit,
         category: form.category,
         lastPrice: form.lastPrice ? parseFloat(form.lastPrice) : null,
+        packSize: form.packSize ? parseFloat(form.packSize) : null,
+        packUnit: form.packUnit || null,
         reorderLevel: form.reorderLevel ? parseFloat(form.reorderLevel) : null,
         currentStock: form.currentStock ? parseFloat(form.currentStock) : null,
         notes: form.notes || null,
@@ -347,7 +353,7 @@ function StockItemFormDialog({
           </div>
           <div className="grid grid-cols-3 gap-3">
             <div className="space-y-1.5">
-              <Label>Last Price ({symbol})</Label>
+              <Label>Price per {form.unit || "unit"} ({symbol})</Label>
               <Input type="number" step="0.01" value={form.lastPrice} onChange={f("lastPrice")} placeholder="0.00" />
             </div>
             <div className="space-y-1.5">
@@ -358,6 +364,47 @@ function StockItemFormDialog({
               <Label>Reorder Level</Label>
               <Input type="number" step="0.1" value={form.reorderLevel} onChange={f("reorderLevel")} placeholder="min qty" />
             </div>
+          </div>
+          {/* Pack size — this is what makes recipe costing correct. Without it a
+              5kg box at €98 gets costed as €98 per kg. */}
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-2">
+            <div className="flex items-start gap-2">
+              <div className="flex-1">
+                <Label className="text-slate-700">What&apos;s inside one {form.unit || "unit"}?</Label>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Only needed if you buy in bulk and use it by weight or volume. A 5kg box of beef
+                  is <span className="font-medium">5</span> + <span className="font-medium">kg</span>.
+                  Leave blank if the price above is already per {form.unit || "unit"}.
+                </p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Amount per {form.unit || "unit"}</Label>
+                <Input type="number" step="0.001" value={form.packSize} onChange={f("packSize")} placeholder="e.g. 5" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Measured in</Label>
+                <Select
+                  value={form.packUnit || "none"}
+                  onValueChange={(v) => setForm((p) => ({ ...p, packUnit: v === "none" ? "" : v }))}
+                >
+                  <SelectTrigger className="text-sm"><SelectValue placeholder="Select" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">—</SelectItem>
+                    {["kg", "g", "litre", "ml", "cl"].map((u) => (
+                      <SelectItem key={u} value={u}>{u}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            {form.lastPrice && form.packSize && form.packUnit && parseFloat(form.packSize) > 0 && (
+              <p className="text-xs text-violet-700 font-medium">
+                Recipes will cost this at {symbol}
+                {(parseFloat(form.lastPrice) / parseFloat(form.packSize)).toFixed(2)} per {form.packUnit}
+              </p>
+            )}
           </div>
           <div className="space-y-1.5">
             <Label>Notes</Label>
