@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { EmailCampaignsTab } from "@/components/admin/email-campaigns-tab";
 import { ActivityTab } from "@/components/admin/activity-tab";
+import { SeoTab } from "@/components/admin/seo-tab";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
@@ -358,7 +359,7 @@ export default function AdminPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
 
-  const [activeTab, setActiveTab] = useState<"users" | "analytics" | "activity" | "email">("users");
+  const [activeTab, setActiveTab] = useState<"users" | "analytics" | "activity" | "email" | "seo">("users");
   const [data, setData] = useState<UserApiResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -424,6 +425,8 @@ export default function AdminPage() {
             ? "Landing page visitor analytics"
             : activeTab === "activity"
             ? "Live visitor and user activity across the platform"
+            : activeTab === "seo"
+            ? "Keyword research, automated publishing and ranking recovery"
             : "Email marketing campaigns & audiences"}
         </p>
       </div>
@@ -467,6 +470,18 @@ export default function AdminPage() {
           </span>
         </button>
         <button
+          onClick={() => setActiveTab("seo")}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === "seo"
+              ? "border-emerald-600 text-emerald-700"
+              : "border-transparent text-slate-500 hover:text-slate-700"
+          }`}
+        >
+          <span className="flex items-center gap-1.5">
+            <TrendingUp className="h-3.5 w-3.5" /> SEO Autopilot
+          </span>
+        </button>
+        <button
           onClick={() => setActiveTab("email")}
           className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
             activeTab === "email"
@@ -485,6 +500,9 @@ export default function AdminPage() {
 
       {/* Activity tab */}
       {activeTab === "activity" && <ActivityTab />}
+
+      {/* SEO Autopilot tab */}
+      {activeTab === "seo" && <SeoTab />}
 
       {/* Email Campaigns tab */}
       {activeTab === "email" && <EmailCampaignsTab />}

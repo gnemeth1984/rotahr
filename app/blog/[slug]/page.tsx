@@ -1,5 +1,5 @@
 import { Metadata } from 'next';
-import { articleSchema, breadcrumbSchema, jsonLdProps } from "@/lib/seo/structured-data";
+import { articleSchema, breadcrumbSchema, faqSchema, jsonLdProps } from "@/lib/seo/structured-data";
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
@@ -47,6 +47,18 @@ export default async function BlogPostPage({ params }: Props) {
   });
   if (!post) notFound();
 
+  // FAQ block written by the autopilot from real related searches. Stored as
+  // JSON so a bad row can never break the page.
+  let faq: { q: string; a: string }[] = [];
+  if (post.faq) {
+    try {
+      const parsed = JSON.parse(post.faq);
+      if (Array.isArray(parsed)) faq = parsed.filter((f) => f?.q && f?.a).slice(0, 8);
+    } catch {
+      faq = [];
+    }
+  }
+
   const related = await prisma.blogPost.findMany({
     where: { published: true, category: post.category, slug: { not: post.slug } },
     orderBy: { createdAt: 'desc' },
@@ -70,6 +82,7 @@ export default async function BlogPostPage({ params }: Props) {
             { name: "Blog", path: "/blog" },
             { name: post.title, path: `/blog/${post.slug}` },
           ]),
+          ...(faq.length ? [faqSchema(faq)] : []),
         ])}
       />
       {/* Nav */}
@@ -111,10 +124,28 @@ export default async function BlogPostPage({ params }: Props) {
           <ShareButtons title={post.title} slug={post.slug} />
         </div>
 
+        {/* FAQ — answers the related searches Google shows for this query */}
+        {faq.length > 0 && (
+          <section className="mt-12">
+            <h2 className="font-bold text-gray-900 text-xl mb-4">Frequently asked questions</h2>
+            <div className="divide-y divide-gray-100 border-t border-gray-100">
+              {faq.map((f, i) => (
+                <details key={i} className="group py-4" open={i === 0}>
+                  <summary className="cursor-pointer list-none font-semibold text-gray-900 text-[15px] flex items-start justify-between gap-3">
+                    <span>{f.q}</span>
+                    <span className="text-gray-300 group-open:rotate-45 transition-transform text-lg leading-none">+</span>
+                  </summary>
+                  <p className="mt-2 text-gray-700 text-sm leading-relaxed">{f.a}</p>
+                </details>
+              ))}
+            </div>
+          </section>
+        )}
+
         {/* CTA inline */}
         <div className="mt-12 bg-emerald-50 border border-emerald-200 rounded-2xl p-6">
           <h3 className="font-bold text-gray-900 text-lg mb-1">Try Rotahr free for a month</h3>
-          <p className="text-gray-600 text-sm mb-4">Built for Irish restaurants, bars and hotels. No credit card needed.</p>
+          <p className="text-gray-600 text-sm mb-4">Built for restaurants, bars and hotels. No credit card needed.</p>
           <Link
             href="/auth/register"
             className="inline-block bg-emerald-600 text-white font-semibold px-6 py-2.5 rounded-xl hover:bg-emerald-700 transition-colors text-sm"

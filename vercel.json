@@ -1,7 +1,23 @@
 {
   "functions": {
-    "app/api/stock/scan-receipt/route.ts": { "maxDuration": 60 },
-    "app/api/expenses/upload-receipt/route.ts": { "maxDuration": 60 }
+    "app/api/stock/scan-receipt/route.ts": {
+      "maxDuration": 60
+    },
+    "app/api/expenses/upload-receipt/route.ts": {
+      "maxDuration": 60
+    },
+    "app/api/cron/seo-keywords/route.ts": {
+      "maxDuration": 300
+    },
+    "app/api/cron/seo-refresh/route.ts": {
+      "maxDuration": 300
+    },
+    "app/api/cron/generate-blog/route.ts": {
+      "maxDuration": 300
+    },
+    "app/api/demo/prepare/route.ts": {
+      "maxDuration": 300
+    }
   },
   "crons": [
     {
@@ -39,6 +55,14 @@
     {
       "path": "/api/cron/haccp-reminder",
       "schedule": "*/30 * * * *"
+    },
+    {
+      "path": "/api/cron/seo-keywords",
+      "schedule": "30 4 * * 1"
+    },
+    {
+      "path": "/api/cron/seo-refresh",
+      "schedule": "45 4 * * 4"
     }
   ]
 }

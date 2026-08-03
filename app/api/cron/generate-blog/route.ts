@@ -2,8 +2,12 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import OpenAI from 'openai';
 import { generateCoverImage, slugify } from '@/lib/blog/cover-image';
+import { publishNextArticle, harvestKeywords } from '@/lib/seo/autopilot';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+export const runtime = 'nodejs';
+export const maxDuration = 300; // article + FAQ expansion + cover image
 
 // Legacy Ireland-specific topics (kept for slug/history continuity — not used for new selection)
 const IRISH_TOPICS: { title: string; category: string; tags: string; region?: string }[] = [
@@ -191,6 +195,37 @@ export async function GET(req: Request) {
   }
 
   try {
+    // Keyword-driven publishing (SEO autopilot). Every article is written for a
+    // specific query harvested from Google Suggest / Search Console rather than
+    // picked off a hand-written topic list. If the pipeline is empty we refill
+    // it once, then fall through to the legacy topic pool below so the blog
+    // never misses a day.
+    const auto = await publishNextArticle();
+    if (auto.published) {
+      return NextResponse.json({
+        success: true,
+        source: 'keyword-queue',
+        keyword: auto.keyword,
+        slug: auto.slug,
+        title: auto.title,
+      });
+    }
+
+    if (auto.reason.startsWith('Keyword queue is empty')) {
+      await harvestKeywords();
+      const retry = await publishNextArticle();
+      if (retry.published) {
+        return NextResponse.json({
+          success: true,
+          source: 'keyword-queue',
+          keyword: retry.keyword,
+          slug: retry.slug,
+          title: retry.title,
+        });
+      }
+    }
+    console.warn('[Blog] Autopilot did not publish (%s) — falling back to topic pool', auto.reason);
+
     const existingPosts = await prisma.blogPost.findMany({
       select: { slug: true, title: true },
       orderBy: { createdAt: 'desc' },

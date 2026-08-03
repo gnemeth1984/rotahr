@@ -1,0 +1,525 @@
+/**
+ * lib/seo/autopilot.ts — the three loops a paid SEO autopilot actually runs.
+ *
+ *   1. harvestKeywords()  — refill the keyword pipeline (free: Google Suggest +
+ *                           Search Console), score it, keep it deduped
+ *   2. publishNextArticle() — take the highest-scoring keyword and ship one
+ *                           article written specifically for that query
+ *   3. refreshDecaying()  — go back over articles that rank 4-20 or have lost
+ *                           clicks, and improve them
+ *
+ * Loop 3 is the one people skip and it's usually worth more than loop 2.
+ */
+
+import OpenAI from "openai";
+import { prisma } from "@/lib/prisma";
+import { generateCoverImage, slugify } from "@/lib/blog/cover-image";
+import { submitToIndexNow } from "@/lib/seo/indexnow";
+import { gscConfigured, queryPerformance, pagePerformance, strikingDistance } from "@/lib/seo/gsc";
+import {
+  harvestSuggestions,
+  questionsFor,
+  scoreKeyword,
+  classifyIntent,
+  isUsable,
+  similarity,
+  type Intent,
+} from "@/lib/seo/keywords";
+
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const SITE = "https://rotahr.com";
+
+async function log(task: string, ok: boolean, detail: string) {
+  await prisma.seoRun
+    .create({ data: { task, ok, detail: detail.slice(0, 4000) } })
+    .catch((e: unknown) => console.error("[seo] run log failed", e));
+}
+
+// ---------------------------------------------------------------------------
+// 1. Keyword pipeline
+// ---------------------------------------------------------------------------
+
+export async function harvestKeywords(): Promise<{
+  suggested: number;
+  fromGsc: number;
+  created: number;
+  rescored: number;
+}> {
+  const suggestions = await harvestSuggestions();
+
+  // One read + one write instead of a round trip per keyword. A harvest finds
+  // ~1,000 suggestions and Neon is not local, so this is the difference between
+  // seconds and timing out.
+  const existingRows = await prisma.seoKeyword.findMany({ select: { keyword: true } });
+  const known = new Set(existingRows.map((r: { keyword: string }) => r.keyword));
+
+  const fresh = suggestions
+    .filter((s) => !known.has(s.keyword))
+    .map((s) => ({
+      keyword: s.keyword,
+      cluster: s.cluster,
+      intent: s.intent,
+      source: "suggest",
+      priority: scoreKeyword({ keyword: s.keyword, intent: s.intent }),
+    }));
+
+  const { count: created } = await prisma.seoKeyword.createMany({
+    data: fresh,
+    skipDuplicates: true,
+  });
+
+  // Layer real performance data on top wherever we have it.
+  let fromGsc = 0;
+  let rescored = 0;
+  if (gscConfigured()) {
+    const rows = await queryPerformance(28);
+    for (const row of rows) {
+      if (!isUsable(row.keyword)) continue;
+      const intent: Intent = classifyIntent(row.keyword, "informational");
+      const priority = scoreKeyword({
+        keyword: row.keyword,
+        intent,
+        impressions: row.impressions,
+        clicks: row.clicks,
+        position: row.position,
+      });
+
+      const existing = await prisma.seoKeyword.findUnique({ where: { keyword: row.keyword } });
+      if (existing) {
+        await prisma.seoKeyword.update({
+          where: { keyword: row.keyword },
+          data: {
+            impressions: row.impressions,
+            clicks: row.clicks,
+            position: row.position,
+            // A written article can come back into the queue if it's stuck at
+            // 4-20 — that's what refreshDecaying picks up.
+            priority,
+          },
+        });
+        rescored++;
+      } else {
+        await prisma.seoKeyword.create({
+          data: {
+            keyword: row.keyword,
+            cluster: "search console",
+            intent,
+            source: "gsc",
+            impressions: row.impressions,
+            clicks: row.clicks,
+            position: row.position,
+            priority,
+          },
+        });
+        fromGsc++;
+      }
+    }
+
+    // Store a page-level snapshot so the dashboard can show trend without
+    // hitting the API on every page view.
+    const pages = await pagePerformance(28);
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+    for (const p of pages) {
+      await prisma.seoMetric
+        .upsert({
+          where: { date_page_query: { date: today, page: p.page, query: "" } },
+          create: {
+            date: today,
+            page: p.page,
+            query: "",
+            clicks: p.clicks,
+            impressions: p.impressions,
+            ctr: p.ctr,
+            position: p.position,
+          },
+          update: {
+            clicks: p.clicks,
+            impressions: p.impressions,
+            ctr: p.ctr,
+            position: p.position,
+          },
+        })
+        .catch(() => {});
+    }
+  }
+
+  await log(
+    "keywords",
+    true,
+    `suggest=${suggestions.length} created=${created} gscNew=${fromGsc} rescored=${rescored} gsc=${gscConfigured()}`
+  );
+
+  return { suggested: suggestions.length, fromGsc, created, rescored };
+}
+
+// ---------------------------------------------------------------------------
+// 2. Publish
+// ---------------------------------------------------------------------------
+
+type Article = {
+  title: string;
+  metaTitle: string;
+  metaDesc: string;
+  excerpt: string;
+  content: string;
+  category: string;
+  tags: string;
+  faq: { q: string; a: string }[];
+};
+
+const CATEGORIES = [
+  "scheduling",
+  "compliance",
+  "hr",
+  "finance",
+  "costs",
+  "payroll",
+  "management",
+  "technology",
+  "product",
+];
+
+/** Weave 2-3 contextual internal links plus one product link into the markdown. */
+function insertInternalLinks(content: string, related: { slug: string; title: string }[]): string {
+  if (related.length === 0) return content;
+
+  const paragraphs = content.split("\n\n");
+  const bodyIdxs = paragraphs
+    .map((p, i) => ({ p, i }))
+    .filter(({ p }) => p.trim() && !p.trim().startsWith("#"))
+    .map(({ i }) => i);
+
+  const links = related.slice(0, 3);
+  links.forEach((link, i) => {
+    const idx = bodyIdxs[Math.floor(((i + 1) / (links.length + 1)) * bodyIdxs.length)];
+    if (idx === undefined) return;
+    paragraphs[idx] = `${paragraphs[idx]}\n\n*Related: [${link.title}](/blog/${link.slug})*`;
+  });
+
+  paragraphs.push(
+    `Want to see how this works in practice? [Explore Rotahr](/landing) — scheduling, bookings, food safety and payroll for restaurants, bars and hotels.`
+  );
+
+  return paragraphs.join("\n\n");
+}
+
+/** Second, cheap call: FAQ only. Used when the article call omits it. */
+async function faqFor(
+  keyword: string,
+  content: string,
+  questions: string[]
+): Promise<{ q: string; a: string }[]> {
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "user",
+          content: `Write an FAQ for an article targeting the Google query "${keyword}".
+${questions.length ? `Use these real related searches as the questions where they fit:\n${questions.map((q) => `- ${q}`).join("\n")}` : ""}
+Answers must be consistent with the article below, 2-4 sentences, specific, no fluff.
+
+Article:
+${content.slice(0, 6000)}
+
+Return ONLY JSON: {"faq":[{"q":"...","a":"..."}]} with 3-6 entries.`,
+        },
+      ],
+      max_tokens: 1200,
+      temperature: 0.5,
+      response_format: { type: "json_object" },
+    });
+    const parsed = JSON.parse(completion.choices[0].message.content || "{}");
+    return Array.isArray(parsed.faq)
+      ? parsed.faq.filter((f: { q?: string; a?: string }) => f?.q && f?.a).slice(0, 6)
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+async function writeArticle(keyword: string, cluster: string, intent: string, questions: string[]): Promise<Article | null> {
+  const year = new Date().getFullYear();
+
+  const intentBrief =
+    intent === "commercial" || intent === "transactional"
+      ? `This is a buying-intent query. Compare real options honestly, including where alternatives are genuinely better than Rotahr. Give concrete price ranges and a clear "pick X if..." recommendation. A reader must be able to make a decision from this page.`
+      : `This is a research query. Answer the question completely in the first 60 words, then go deeper. Include at least one concrete number, worked example, or template the reader can copy.`;
+
+  const prompt = `You are writing for Rotahr — staff scheduling, bookings, food-safety (HACCP) and payroll software for restaurants, bars and hotels. It was founded by a former chef, so the voice is practical and unimpressed by fluff.
+
+Write ONE article that ranks for this exact Google query: "${keyword}"
+Topic cluster: ${cluster}
+${intentBrief}
+
+Hard rules:
+- The H1/title must read naturally but contain the query or a very close variant.
+- 900-1400 words. No padding, no "in today's fast-paced world".
+- Open by answering the query directly — no throat-clearing intro.
+- 4-6 "## " H2 sections. Use tables or numbered steps where they genuinely help.
+- Write for an international audience (US, UK, Ireland and beyond). Where something is legally region-specific, say that rules vary and to check local requirements rather than stating a figure that may be stale. It is currently ${year}.
+- Mention Rotahr once or twice, as a tool, in passing. Never a sales pitch.
+- Clean Markdown only, no HTML, no H1 inside the body (the title is the H1).
+- "faq" is required and must contain 3-6 real questions with 2-4 sentence answers. Never return it empty.
+${questions.length ? `- Answer these real related searches in the FAQ:\n${questions.map((q) => `  - ${q}`).join("\n")}` : ""}
+
+Return ONLY JSON, no code fences:
+{
+ "title": "...",
+ "metaTitle": "under 60 chars, ends with | Rotahr",
+ "metaDesc": "under 155 chars, includes the query, gives a reason to click",
+ "excerpt": "one or two sentences, under 200 chars",
+ "category": "one of: ${CATEGORIES.join("|")}",
+ "tags": "comma,separated,5,max",
+ "content": "the full markdown article",
+ "faq": [{"q":"question","a":"2-4 sentence answer"}]
+}`;
+
+  const completion = await openai.chat.completions.create({
+    model: "gpt-4o-mini",
+    messages: [{ role: "user", content: prompt }],
+    max_tokens: 4000,
+    temperature: 0.7,
+    response_format: { type: "json_object" },
+  });
+
+  const raw = completion.choices[0].message.content || "";
+  try {
+    const a = JSON.parse(raw) as Article;
+    if (!a.title || !a.content) return null;
+    if (!CATEGORIES.includes(a.category)) a.category = "management";
+    a.faq = Array.isArray(a.faq) ? a.faq.filter((f) => f?.q && f?.a).slice(0, 6) : [];
+
+    // The model drops the FAQ field often enough to matter, and the FAQ is what
+    // earns the FAQPage schema. Ask once more, for just that piece.
+    if (a.faq.length === 0) {
+      a.faq = await faqFor(keyword, a.content, questions);
+    }
+    return a;
+  } catch (err) {
+    console.error("[seo] article JSON parse failed", err, raw.slice(0, 300));
+    return null;
+  }
+}
+
+export async function publishNextArticle(): Promise<
+  { published: false; reason: string } | { published: true; slug: string; keyword: string; title: string }
+> {
+  // Highest-scoring keyword we haven't written yet — skipping anything we've
+  // effectively already covered. Autocomplete throws up whole families of
+  // near-identical queries ("food cost percentage pricing" /
+  // "...pricing method" / "...method for menu pricing"); writing all three
+  // splits their own ranking signals and reads as thin content, so the first
+  // one wins the article and the rest get marked as covered by it.
+  const covered = await prisma.blogPost.findMany({
+    where: { published: true, keyword: { not: null } },
+    select: { keyword: true, slug: true },
+  });
+
+  const shortlist = await prisma.seoKeyword.findMany({
+    where: { status: { in: ["new", "queued"] } },
+    orderBy: [{ priority: "desc" }, { createdAt: "asc" }],
+    take: 60,
+  });
+
+  let candidate: (typeof shortlist)[number] | null = null;
+  for (const row of shortlist) {
+    const dupe = covered.find(
+      (c: { keyword: string | null; slug: string }) =>
+        c.keyword && similarity(c.keyword, row.keyword) >= 0.7
+    );
+    if (dupe) {
+      await prisma.seoKeyword.update({
+        where: { id: row.id },
+        data: { status: "skipped", note: `covered by /blog/${dupe.slug}` },
+      });
+      continue;
+    }
+    candidate = row;
+    break;
+  }
+
+  if (!candidate) {
+    await log("publish", false, "keyword queue empty");
+    return { published: false, reason: "Keyword queue is empty — run the keyword harvest." };
+  }
+
+  const questions = await questionsFor(candidate.keyword).catch(() => []);
+  const article = await writeArticle(
+    candidate.keyword,
+    candidate.cluster,
+    candidate.intent,
+    questions
+  );
+
+  if (!article) {
+    await prisma.seoKeyword.update({
+      where: { id: candidate.id },
+      data: { status: "skipped", note: "generation failed" },
+    });
+    await log("publish", false, `generation failed for "${candidate.keyword}"`);
+    return { published: false, reason: "Article generation failed — keyword skipped." };
+  }
+
+  // Slug collisions happen when two queries produce the same title.
+  let slug = slugify(article.title);
+  if (await prisma.blogPost.findUnique({ where: { slug } })) {
+    slug = `${slug}-${Date.now().toString(36).slice(-4)}`;
+  }
+
+  const sameCategory = await prisma.blogPost.findMany({
+    where: { published: true, category: article.category },
+    orderBy: { createdAt: "desc" },
+    take: 5,
+    select: { slug: true, title: true },
+  });
+  const fallback =
+    sameCategory.length >= 2
+      ? []
+      : await prisma.blogPost.findMany({
+          where: { published: true },
+          orderBy: { createdAt: "desc" },
+          take: 5,
+          select: { slug: true, title: true },
+        });
+
+  const content = insertInternalLinks(article.content, [...sameCategory, ...fallback].slice(0, 3));
+  const coverImage = await generateCoverImage(article.title, article.category).catch(() => null);
+
+  const post = await prisma.blogPost.create({
+    data: {
+      slug,
+      title: article.title,
+      excerpt: article.excerpt.slice(0, 300),
+      content,
+      category: article.category,
+      tags: article.tags,
+      metaTitle: article.metaTitle.slice(0, 70),
+      metaDesc: article.metaDesc.slice(0, 165),
+      coverImage: coverImage ?? undefined,
+      published: true,
+      keyword: candidate.keyword,
+      faq: article.faq.length ? JSON.stringify(article.faq) : undefined,
+      wordCount: content.split(/\s+/).length,
+    },
+  });
+
+  await prisma.seoKeyword.update({
+    where: { id: candidate.id },
+    data: { status: "written", postId: post.id, writtenAt: new Date() },
+  });
+
+  const ping = await submitToIndexNow([`${SITE}/blog/${slug}`, `${SITE}/blog`]);
+  await log("publish", true, `"${candidate.keyword}" -> /blog/${slug} (${ping})`);
+
+  return { published: true, slug, keyword: candidate.keyword, title: post.title };
+}
+
+// ---------------------------------------------------------------------------
+// 3. Refresh what nearly ranks
+// ---------------------------------------------------------------------------
+
+export async function refreshDecaying(): Promise<
+  { refreshed: false; reason: string } | { refreshed: true; slug: string; addedFor: string[] }
+> {
+  if (!gscConfigured()) {
+    await log("refresh", false, "GSC not configured");
+    return {
+      refreshed: false,
+      reason: "Search Console isn't connected, so there's no ranking data to refresh against.",
+    };
+  }
+
+  const striking = await strikingDistance(28, 20);
+  if (striking.length === 0) {
+    await log("refresh", false, "nothing in striking distance");
+    return { refreshed: false, reason: "No queries in striking distance yet — keep publishing." };
+  }
+
+  // Group the opportunities by the page that owns them, biggest first.
+  const byPage = new Map<string, typeof striking>();
+  for (const row of striking) {
+    const list = byPage.get(row.page) ?? [];
+    list.push(row);
+    byPage.set(row.page, list);
+  }
+
+  const ranked = [...byPage.entries()]
+    .map(([page, rows]) => ({
+      page,
+      rows,
+      impressions: rows.reduce((n, r) => n + r.impressions, 0),
+    }))
+    .sort((a, b) => b.impressions - a.impressions);
+
+  for (const target of ranked) {
+    const slug = target.page.replace(/^https?:\/\/[^/]+/, "").replace(/^\/blog\//, "").replace(/\/$/, "");
+    const post = await prisma.blogPost.findUnique({ where: { slug } });
+    if (!post) continue;
+
+    // Don't churn the same page every week.
+    if (post.refreshedAt && Date.now() - post.refreshedAt.getTime() < 21 * 24 * 3600 * 1000) continue;
+
+    const queries = target.rows.slice(0, 6);
+    const prompt = `Below is a published article from Rotahr's blog. Search Console shows it already ranks at position 4-20 for these queries, meaning Google thinks it is nearly the right answer:
+
+${queries.map((q) => `- "${q.keyword}" — position ${q.position.toFixed(1)}, ${q.impressions} impressions, ${q.clicks} clicks`).join("\n")}
+
+Improve the article so it fully and obviously answers those queries. Rules:
+- Keep everything that already works. This is an expansion and sharpening pass, not a rewrite.
+- Add a dedicated "## " section for each query above that isn't properly covered, using the searcher's own wording in the heading.
+- Keep the existing internal links (*Related: [...]* lines) and the closing Rotahr link exactly as they are.
+- Add concrete specifics: numbers, worked examples, steps, a table. Vague text is why it isn't ranking first.
+- Clean Markdown only, no H1.
+
+Current title: ${post.title}
+
+Current article:
+${post.content}
+
+Return ONLY JSON, no fences:
+{"title":"keep or sharpen","metaDesc":"under 155 chars","content":"the full improved markdown","faq":[{"q":"...","a":"..."}]}`;
+
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [{ role: "user", content: prompt }],
+      max_tokens: 5000,
+      temperature: 0.6,
+      response_format: { type: "json_object" },
+    });
+
+    let parsed: { title?: string; metaDesc?: string; content?: string; faq?: { q: string; a: string }[] };
+    try {
+      parsed = JSON.parse(completion.choices[0].message.content || "");
+    } catch {
+      continue;
+    }
+    if (!parsed.content || parsed.content.length < post.content.length * 0.8) {
+      // Refusing a shorter "improvement" — that's a regression, not a refresh.
+      continue;
+    }
+
+    await prisma.blogPost.update({
+      where: { id: post.id },
+      data: {
+        title: parsed.title?.trim() || post.title,
+        content: parsed.content,
+        metaDesc: (parsed.metaDesc || post.metaDesc).slice(0, 165),
+        faq: parsed.faq?.length ? JSON.stringify(parsed.faq.slice(0, 6)) : post.faq,
+        wordCount: parsed.content.split(/\s+/).length,
+        refreshedAt: new Date(),
+        refreshCount: { increment: 1 },
+      },
+    });
+
+    const ping = await submitToIndexNow([`${SITE}/blog/${post.slug}`]);
+    const addedFor = queries.map((q) => q.keyword);
+    await log("refresh", true, `/blog/${post.slug} for [${addedFor.join(", ")}] (${ping})`);
+
+    return { refreshed: true, slug: post.slug, addedFor };
+  }
+
+  await log("refresh", false, "all striking-distance pages refreshed recently");
+  return { refreshed: false, reason: "Every striking-distance page was refreshed in the last 3 weeks." };
+}

@@ -1202,8 +1202,78 @@ model BlogPost {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
+  // SEO autopilot fields
+  keyword     String? // the target query this article was written for
+  faq         String? @db.Text // JSON array of {q,a} — renders as FAQ + FAQPage schema
+  wordCount   Int?
+  refreshedAt DateTime? // last time the autopilot rewrote/expanded it
+  refreshCount Int      @default(0)
+
   @@index([slug])
   @@index([published, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// SEO autopilot
+//
+// The paid tools (Soro, Outrank et al) are three loops bolted together:
+// harvest queries people actually type, publish one article per query, then
+// watch Search Console and go back over whatever nearly ranks. These three
+// models are the state those loops need. Everything here is free to run:
+// Google Suggest needs no key, Search Console's API is free, IndexNow is free.
+// ---------------------------------------------------------------------------
+
+model SeoKeyword {
+  id      String @id @default(cuid())
+  keyword String @unique
+  cluster String @default("general") // topical map bucket, e.g. "rota software"
+  intent  String @default("informational") // informational | commercial | transactional | local
+  region  String @default("general") // general | us | uk | ie
+  source  String @default("seed") // seed | suggest | paa | gsc | ai
+
+  // Live Search Console numbers, refreshed by the keyword cron. Real data, not
+  // a guessed "volume" — impressions ARE the volume we can actually reach.
+  impressions Int    @default(0)
+  clicks      Int    @default(0)
+  position    Float?
+
+  priority Int    @default(0) // computed score, higher wins the next article
+  status   String @default("new") // new | queued | written | skipped
+  postId   String? // BlogPost.id once written
+  note     String? // why it was skipped / how it was scored
+
+  writtenAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([status, priority])
+  @@index([cluster])
+}
+
+model SeoMetric {
+  id          String   @id @default(cuid())
+  date        DateTime @db.Date
+  page        String // full URL from Search Console
+  query       String   @default("") // "" = page-level row
+  clicks      Int      @default(0)
+  impressions Int      @default(0)
+  ctr         Float    @default(0)
+  position    Float    @default(0)
+  createdAt   DateTime @default(now())
+
+  @@unique([date, page, query])
+  @@index([page, date])
+  @@index([date])
+}
+
+model SeoRun {
+  id        String   @id @default(cuid())
+  task      String // keywords | publish | refresh | index | metrics
+  ok        Boolean  @default(true)
+  detail    String   @db.Text
+  createdAt DateTime @default(now())
+
+  @@index([task, createdAt])
 }
 
 model WastageRecord {

@@ -118,6 +118,23 @@ export function breadcrumbSchema(trail: { name: string; path: string }[]) {
   };
 }
 
+/**
+ * FAQPage schema. Worth adding wherever an article genuinely answers discrete
+ * questions: it makes the page eligible for the "People also ask" style
+ * treatment and gives AI answer engines something clean to quote.
+ */
+export function faqSchema(faq: { q: string; a: string }[]) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: faq.map((f) => ({
+      "@type": "Question",
+      name: f.q,
+      acceptedAnswer: { "@type": "Answer", text: f.a },
+    })),
+  };
+}
+
 /** Renders a JSON-LD block. Server-rendered so crawlers see it in the HTML. */
 export function jsonLdProps(schema: object | object[]) {
   return {
