@@ -6,7 +6,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import { prisma } from "@/lib/db";
 import { UserRole } from "@/types/roles";
 import bcrypt from "bcryptjs";
-import { isDemoEmail, triggerDemoReset } from "@/lib/demo/reset";
+import { isDemoEmail } from "@/lib/demo/reset";
 import { triggerWelcomeEmail } from "@/lib/email/marketing";
 import { isRateLimited } from "@/lib/auth/rate-limit";
 import { logActivity } from "@/lib/services/activity.service";
@@ -36,15 +36,10 @@ export const authOptions: NextAuthOptions = {
         const valid = await bcrypt.compare(credentials.password, user.password);
         if (!valid) return null;
 
-        // Demo accounts: reset the demo data so the next visitor starts clean.
-        // We await only the claim (a single fast DB write) — the ~2 minute seed
-        // runs in the background. Awaiting the claim matters: it guarantees
-        // /api/demo/status already reports "running" by the time this login
-        // returns, so the client can show the interstitial instead of a
-        // half-rebuilt dashboard.
-        if (isDemoEmail(credentials.email)) {
-          await triggerDemoReset();
-        }
+        // Demo data is reset by the interstitial (/demo/preparing calls
+        // POST /api/demo/prepare), NOT here. A login request cannot host the
+        // ~2 minute seed: Vercel freezes the function the moment it responds, so
+        // starting the seed here left the demo half wiped. See lib/demo/reset.ts.
 
         return { id: user.id, email: user.email, name: user.name };
       },

@@ -115,33 +115,45 @@ async function release() {
 }
 
 /**
- * Start a reset if one is warranted.
+ * Run a reset here and now, start to finish.
  *
- * Awaiting this resolves as soon as the slot is claimed (fast) — the seed itself
- * keeps running in the background. Callers should await it so that by the time a
- * login returns, /api/demo/status already reports the reset as running.
+ * This *awaits* the seed, and that is deliberate. An earlier version claimed the
+ * slot and let the seed run un-awaited in the background of the login request —
+ * which works locally and silently breaks on Vercel: the serverless function is
+ * frozen as soon as it sends its response, so the seed was being killed a few
+ * seconds in. The result was the exact failure this whole mechanism exists to
+ * prevent — a half-wiped demo (2 shifts instead of 10) and a DemoResetState row
+ * left saying `running: true` forever, because `release()` never got to run.
+ *
+ * So the only safe place to call this is a route whose whole job is to wait for
+ * it (see app/api/demo/prepare/route.ts, maxDuration 300), never a request that
+ * has something else to return.
+ *
+ * @returns "ran" if this call did the work, "skipped" if a reset is already in
+ * flight elsewhere or we're inside the cooldown.
  */
-export async function triggerDemoReset(force = false): Promise<boolean> {
+export async function runDemoReset(force = false): Promise<"ran" | "skipped"> {
   let claimed = false;
   try {
     claimed = await claim(force);
   } catch (err) {
     console.error("[demo-reset] claim failed:", err);
-    return false;
+    return "skipped";
   }
 
   if (!claimed) {
     console.log("[demo-reset] Skipped — already running or within cooldown");
-    return false;
+    return "skipped";
   }
 
   console.log("[demo-reset] In-process reset started");
-
-  // Deliberately not awaited: the interstitial polls /api/demo/status instead.
-  seedDemo()
-    .then(() => console.log("[demo-reset] Reset complete"))
-    .catch((err) => console.error("[demo-reset] Reset failed:", err))
-    .finally(release);
-
-  return true;
+  try {
+    await seedDemo();
+    console.log("[demo-reset] Reset complete");
+  } catch (err) {
+    console.error("[demo-reset] Reset failed:", err);
+  } finally {
+    await release();
+  }
+  return "ran";
 }

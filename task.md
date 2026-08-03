@@ -1,53 +1,28 @@
-# Public Venue Pages — build plan
+# Current thread
 
-Goal: auto-generated public page per business at rotahr.com/v/<slug>, built from data
-venues already maintain (dishes, specials, hours, contact). SEO for them, SEO for us.
+## Fixed this turn
+- Vercel build was FAILING (that's why /demo/preparing + /api/demo/status 404'd for hours):
+  `useSearchParams()` not wrapped in Suspense on /demo/preparing. Fixed in 6ccbe25 — page.tsx is now a
+  server wrapper with Suspense + force-dynamic, client moved to DemoPreparingClient.tsx. Deployed, both routes 200.
 
-## Key facts established
-- Dish, MenuSpecial are **businessId**-scoped (NOT venue) -> page is per Business,
-  contact details pulled from the default Venue.
-- Prisma client import path is `@/lib/prisma` (there is no lib/db.ts).
-- Blob store is private-access only -> public image proxy needed (pattern:
-  app/api/blog/cover-image/route.ts, which is already public/no-auth).
-- MUST NOT LEAK: Dish.costPrice, Venue.notes, Venue.equipment, staff names,
-  supplier prices, internal MenuSpecial categories ("86'd" = out of stock, internal).
+## New bug found on prod
+Demo reset was started un-awaited inside the NextAuth credentials callback. On Vercel the function is
+frozen once the response is sent, so the ~127s seed gets killed partway → half-wiped demo dashboard
+(prod showed "Shifts Today 2" instead of 10) and `release()` never runs so DemoResetState stays
+`running:true` until STUCK_MS.
 
-## Steps
-- [x] 1. Schema: public page fields on Business
-- [x] 2. lib/public-page/: types, slug helper, opening hours, safe selectors
-- [x] 3. app/v/[slug]/page.tsx public page + JSON-LD + noindex control
-- [x] 4. app/api/public/venue-image proxy (no auth)
-- [x] 5. app/api/public/booking booking request endpoint
-- [x] 6. Settings UI + save API
-- [x] 7. sitemap: add venue pages + FIX rotahr.vercel.app -> rotahr.com
-- [x] 8. verify: typecheck, deploy, curl live
+Fix in progress:
+- auth callback no longer runs the seed
+- demo login always routes to /demo/preparing
+- interstitial POSTs /api/demo/prepare, which claims the slot and AWAITS seedDemo (maxDuration 300)
+- interstitial still polls /api/demo/status so a second visitor waits on someone else's run
 
-## Deploy loop
-npx tsc --noEmit -p .  -> git push -> poll GitHub commit status -> curl rotahr.com
+Open risk: if the Vercel plan is Hobby, maxDuration caps at 60s and the seed dies again.
+Test on prod by timing POST /api/demo/prepare. If capped, chunk the seed into stages.
 
-## DONE — shipped & verified live (2026-08-01)
-Commits: 41068a8 (feature), b81e988 (rate-limit fix), 7dea574 (leak fix)
-Live: https://rotahr.com/v/the-anchor-tap (demo, noindex ON)
-
-Verified on production:
-- 200, JSON-LD Restaurant + PostalAddress + GeoCoordinates + OpeningHoursSpecification
-- canonical rotahr.com, robots noindex honoured
-- leak scan clean: costPrice / supplier / businessId / internal ids / staff emails = 0
-- unknown slug -> 404; disabled page -> 404
-- image proxy rejects non-blob host, http://, substring-spoof, malformed = all 400
-- booking: honeypot silently no-ops (0 rows), validation errors correct,
-  valid request -> status "pending", createdByName "Public page", no table assigned
-- sitemap: 0 rotahr.vercel.app refs, noindex venues excluded
-
-### Bug caught during visual review (IMPORTANT)
-Staff announcement was rendering publicly ("All staff must read updated allergen
-sheet... See Marco for briefing"). Root cause: "announcement" was in the public
-category allowlist, but that category is staff-facing in Rotahr. Fixed to
-"special" only + added MenuSpecial.hideFromPublic per-item override.
-
-## Remaining / next
-- Hero image upload UI (field exists in DB + renders; no uploader in settings yet)
-- Per-special "hide from public page" toggle in the Menu Specials UI (API accepts
-  hideFromPublic already; no checkbox rendered yet)
-- Review-request automation (next highest ROI feature — data already present)
-- POS tip sync
+## Still to do
+- Screenshot /tmp/email-preview.html (5 outreach emails) — never visually checked
+- Tell Gabor: Railway email service is GONE (404 on every route), 1,625 leads stalled, server.js 087df4f
+  can't deploy until he redeploys. Ask whether to move the sender into the main Next app.
+- Deliver directory-listings.md + screenshots/ + logo-square-512.png + rotahr-brochure.pdf
+- Env vars Gabor must set by hand (Vercel token dead): CRON_SECRET, 3 VAPID keys, POS keys, UNSUBSCRIBE_SECRET

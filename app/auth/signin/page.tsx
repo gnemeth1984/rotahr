@@ -188,19 +188,10 @@ function SignInForm() {
       } else if (result?.url) {
         // Demo accounts typed in by hand get the same treatment as the one-click panel.
         if (email.trim().toLowerCase().endsWith("@rotahr.demo")) {
-          let ready = true;
-          try {
-            const s = await fetch("/api/demo/status", { cache: "no-store" });
-            if (s.ok) ready = (await s.json()).ready !== false;
-          } catch {
-            /* never block a login on this */
-          }
-          if (!ready) {
-            window.location.href = `/demo/preparing?next=${encodeURIComponent(
-              new URL(result.url, window.location.origin).pathname
-            )}`;
-            return;
-          }
+          window.location.href = `/demo/preparing?next=${encodeURIComponent(
+            new URL(result.url, window.location.origin).pathname
+          )}`;
+          return;
         }
         window.location.href = result.url;
       }
@@ -231,18 +222,12 @@ function SignInForm() {
       if (result?.error) {
         setError("Demo login failed — please try again.");
       } else if (result?.url) {
-        // Logging in may have kicked off a full data reset. Wait it out on the
-        // interstitial instead of landing on a half-rebuilt dashboard.
-        let ready = true;
-        try {
-          const s = await fetch("/api/demo/status", { cache: "no-store" });
-          if (s.ok) ready = (await s.json()).ready !== false;
-        } catch {
-          // If the check fails, just continue — never block a login on it.
-        }
-        window.location.href = ready
-          ? result.url
-          : `/demo/preparing?next=${encodeURIComponent(new URL(result.url, window.location.origin).pathname)}`;
+        // Always go via the interstitial: it decides whether a reset is due, runs
+        // it, and only then forwards on. It exits straight away when the data is
+        // already fresh, so this costs a fast redirect, not a wait.
+        window.location.href = `/demo/preparing?next=${encodeURIComponent(
+          new URL(result.url, window.location.origin).pathname
+        )}`;
       }
     } catch {
       setError("Something went wrong. Please try again.");
