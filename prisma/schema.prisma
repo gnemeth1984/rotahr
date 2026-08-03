@@ -1556,3 +1556,18 @@ model EmailSuppression {
 
   @@index([email])
 }
+
+/// Single-row lock + status for the demo data reset.
+///
+/// The reset is destructive and takes ~2 minutes, so both the cooldown and the
+/// "setting up your demo" interstitial need to agree on whether one is running.
+/// In-memory state can't do that: on Vercel each request may hit a different
+/// instance, and even in dev Next bundles the auth callback and the status route
+/// separately. So the state lives in the database.
+model DemoResetState {
+  id         String    @id
+  running    Boolean   @default(false)
+  startedAt  DateTime?
+  finishedAt DateTime?
+  updatedAt  DateTime  @updatedAt
+}

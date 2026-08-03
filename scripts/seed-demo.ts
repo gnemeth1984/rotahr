@@ -15,6 +15,48 @@
 
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { demoDayData } from "../lib/pos/demo";
+
+/**
+ * Attach a generated till feed to a demo business and backfill the last 14 days
+ * of snapshots, so the revenue widget and any trend view have history to show.
+ * `scale` sizes the numbers to the venue (café < gastropub < 3-venue group).
+ */
+async function seedDemoPos(prisma: PrismaClient, businessId: string, scale: number) {
+  await prisma.posSnapshot.deleteMany({ where: { businessId } });
+  await prisma.posConnection.deleteMany({ where: { businessId } });
+
+  await prisma.posConnection.create({
+    data: {
+      businessId,
+      provider: "demo",
+      accessToken: "demo",          // never used — the demo provider makes no API call
+      locationId: String(scale),    // reused to size the generated numbers
+      connectedAt: new Date(Date.now() - 30 * 86_400_000),
+      lastSyncAt: new Date(),
+    },
+  });
+
+  const snapshots = [];
+  for (let i = 0; i < 14; i++) {
+    const date = new Date();
+    date.setUTCHours(0, 0, 0, 0);
+    date.setUTCDate(date.getUTCDate() - i);
+    const d = demoDayData(date, scale);
+    snapshots.push({
+      businessId,
+      date,
+      provider: "demo",
+      totalRevenue: d.totalRevenue,
+      totalCovers: d.totalCovers,
+      totalTransactions: d.totalTransactions,
+      hourlyData: d.hourlyData,
+      topItems: d.topItems,
+      rawMeta: { provider: "demo", sample: true },
+    });
+  }
+  await prisma.posSnapshot.createMany({ data: snapshots });
+}
 
 // NOTE: No top-level PrismaClient instantiation here — each caller creates its own instance.
 // This prevents Next.js from running DB connections at build time when this file is imported.
@@ -371,6 +413,32 @@ export async function main(prisma: PrismaClient = new PrismaClient()) {
     [EMPS.tony,    1, 6, 11, 21, "Operations Mgr",   false],
   ];
 
+  // ── Guarantee a full roster for TODAY, whatever weekday the demo is opened on.
+  // Without this the dashboard reads "Shifts Today: 0" on any weekday the fixed
+  // rows above happen not to cover (e.g. Sundays), which makes a live demo look dead.
+  {
+    const jsDow = new Date().getDay();          // 0=Sun … 6=Sat
+    const todayDow = jsDow === 0 ? 7 : jsDow;   // 1=Mon … 7=Sun
+    const defaultToday: Array<[string, number, number, string]> = [
+      [EMPS.marco,   8,  19, "Head Chef"],
+      [EMPS.caitlin, 9,  19, "Sous Chef"],
+      [EMPS.declan,  10, 18, "Kitchen Porter"],
+      [EMPS.fiona,   12, 23, "Bar Manager"],
+      [EMPS.tommy,   15, 23, "Bartender"],
+      [EMPS.liam,    17, 23, "Bartender"],
+      [EMPS.aoife,   12, 20, "Waitress"],
+      [EMPS.roisin,  17, 23, "Floor Staff"],
+      [EMPS.sarah,   9,  17, "General Manager"],
+      [EMPS.tony,    11, 19, "Operations Mgr"],
+    ];
+    for (const [empId, sh, eh, role] of defaultToday) {
+      const already = shiftRows.some(
+        ([e, wo, dow]) => e === empId && wo === 0 && dow === todayDow
+      );
+      if (!already) shiftRows.push([empId, 0, todayDow, sh, eh, role, true]);
+    }
+  }
+
   for (const [empId, wo, dow, sh, eh, role, pub] of shiftRows) {
     const start = shiftDate(wo, dow, sh);
     const end   = shiftDate(wo, dow, eh);
@@ -397,6 +465,16 @@ export async function main(prisma: PrismaClient = new PrismaClient()) {
     { name: "O'Sullivan Family",   email: "osullivan@example.ie",  phone: "0871234561", size: 6, dayOff: 0,  time: "13:00", tableId: TABLES.t4, status: "confirmed", notes: "Anniversary dinner", occasion: "anniversary", dietary: "1 vegetarian" },
     { name: "Murphy, James",       email: "jmurphy@example.ie",    phone: "0872345672", size: 2, dayOff: 0,  time: "19:30", tableId: TABLES.t1, status: "confirmed", notes: null, occasion: null, dietary: null },
     { name: "Byrne Party x4",      email: "byrne4@example.ie",     phone: "0873456783", size: 4, dayOff: 0,  time: "20:00", tableId: TABLES.t2, status: "confirmed", notes: "Birthday cake ordered", occasion: "birthday", dietary: null },
+    // A realistic book for today — three reservations next to a full 10-person rota
+    // made the demo look like a dead venue.
+    { name: "Nolan, Deirdre",      email: "dnolan@example.ie",     phone: "0871112221", size: 2, dayOff: 0,  time: "12:00", tableId: TABLES.t1, status: "completed", notes: null, occasion: null, dietary: null },
+    { name: "Lynch Lunch x5",      email: "lynch@example.ie",      phone: "0871112222", size: 5, dayOff: 0,  time: "12:30", tableId: TABLES.t5, status: "completed", notes: "Retirement lunch", occasion: "other", dietary: "1 coeliac" },
+    { name: "Kavanagh, Tom",       email: null,                    phone: "0871112223", size: 3, dayOff: 0,  time: "13:30", tableId: TABLES.t3, status: "completed", notes: null, occasion: null, dietary: null },
+    { name: "Doherty, Maeve",      email: "mdoherty@example.ie",   phone: "0871112224", size: 2, dayOff: 0,  time: "17:30", tableId: TABLES.t7, status: "confirmed", notes: "Pre-match — quick turnaround", occasion: null, dietary: null },
+    { name: "Sheridan Party x6",   email: "sheridan@example.ie",   phone: "0871112225", size: 6, dayOff: 0,  time: "18:00", tableId: TABLES.t6, status: "confirmed", notes: null, occasion: null, dietary: "2 vegetarian" },
+    { name: "Whelan, Cormac",      email: "cwhelan@example.ie",    phone: "0871112226", size: 4, dayOff: 0,  time: "19:00", tableId: TABLES.t3, status: "confirmed", notes: null, occasion: null, dietary: null },
+    { name: "Mulligan, Áine",      email: null,                    phone: "0871112227", size: 2, dayOff: 0,  time: "20:30", tableId: TABLES.t8, status: "confirmed", notes: null, occasion: "birthday", dietary: null },
+    { name: "Redmond x4",          email: "redmond@example.ie",    phone: "0871112228", size: 4, dayOff: 0,  time: "21:00", tableId: TABLES.t4, status: "confirmed", notes: "Late booking — kitchen notified", occasion: null, dietary: null },
     { name: "Keane, Siobhán",      email: "skeane@example.ie",     phone: "0874567894", size: 2, dayOff: 1,  time: "12:30", tableId: TABLES.t1, status: "confirmed", notes: "Business lunch", occasion: null, dietary: "gluten free" },
     { name: "Corporate — Accenture",email: "events@accenture.com", phone: "0875678905", size: 8, dayOff: 1,  time: "19:00", tableId: TABLES.t6, status: "confirmed", notes: "Team dinner. Pre-order: 4 beef, 3 chicken, 1 vegan", occasion: null, dietary: "1 vegan" },
     { name: "Walsh, Padraig",      email: null,                    phone: "0876789016", size: 3, dayOff: 2,  time: "13:00", tableId: TABLES.t8, status: "confirmed", notes: null, occasion: null, dietary: null },
@@ -482,6 +560,62 @@ export async function main(prisma: PrismaClient = new PrismaClient()) {
         createdById: USERS.sarah,
       },
     });
+  }
+
+  // Bookkeeping defaults to the current calendar month. Early in a month the
+  // rolling day(-N) rows above nearly all fall into last month, so the P&L,
+  // VAT and category charts render empty. Backfill the month-to-date explicitly.
+  {
+    const now = new Date();
+    const dayOfMonth = now.getDate();
+    const monthPattern = [
+      { amt: 1180.00, vat: 220.65, vendor: "Musgrave MarketPlace",  cat: "food_supplies", desc: "Weekly food delivery — meat, veg, dairy", method: "invoice" },
+      { amt: 742.00,  vat: 138.73, vendor: "Diageo Ireland",        cat: "beverages",     desc: "Keg order — Guinness x4, Heineken x3",    method: "invoice" },
+      { amt: 268.40,  vat: 50.19,  vendor: "Pallas Foods",          cat: "food_supplies", desc: "Fish & seafood order",                    method: "invoice" },
+      { amt: 132.75,  vat: 24.82,  vendor: "Bunzl Ireland",         cat: "cleaning",      desc: "Cleaning & hygiene supplies",             method: "card" },
+      { amt: 415.00,  vat: 77.60,  vendor: "Coca-Cola HBC Ireland", cat: "beverages",     desc: "Soft drink & mixer delivery",             method: "invoice" },
+      { amt: 96.50,   vat: 18.05,  vendor: "Centra Wholesale",      cat: "food_supplies", desc: "Midweek top-up run",                      method: "cash" },
+      { amt: 450.00,  vat: 84.15,  vendor: "Ashtree Linen",         cat: "laundry",       desc: "Linen rental & laundry service",          method: "invoice" },
+    ];
+    let i = 0;
+    for (let d = 1; d <= dayOfMonth; d += 2) {
+      const ex = monthPattern[i % monthPattern.length];
+      i++;
+      const date = new Date(now.getFullYear(), now.getMonth(), d, 11, 0, 0, 0);
+      if (date > now) break;
+      await prisma.expense.create({
+        data: {
+          businessId: BIZ,
+          amount: ex.amt,
+          vatAmount: ex.vat,
+          currency: "EUR",
+          vendor: ex.vendor,
+          category: ex.cat,
+          date,
+          description: ex.desc,
+          paymentMethod: ex.method,
+          status: "confirmed",
+          createdById: USERS.sarah,
+        },
+      });
+    }
+    // Fixed monthly overheads, dated the 1st, so the P&L has rent/utilities too.
+    const first = new Date(now.getFullYear(), now.getMonth(), 1, 9, 0, 0, 0);
+    for (const ex of [
+      { amt: 2800.00, vat: 0,     vendor: "AIB Business Rent", cat: "rent",      desc: "Monthly rent — premises",   method: "bank_transfer" },
+      { amt: 2050.00, vat: 0,     vendor: "ESB Energy",        cat: "utilities", desc: "Monthly electricity",       method: "direct_debit" },
+      { amt: 565.00,  vat: 0,     vendor: "Bord Gáis Networks",cat: "utilities", desc: "Monthly gas",               method: "direct_debit" },
+      { amt: 99.00,   vat: 18.51, vendor: "Eir Business",      cat: "telecoms",  desc: "Broadband & phone",         method: "direct_debit" },
+      { amt: 95.00,   vat: 17.77, vendor: "CHUBB Security",    cat: "security",  desc: "Alarm monitoring",          method: "direct_debit" },
+    ]) {
+      await prisma.expense.create({
+        data: {
+          businessId: BIZ, amount: ex.amt, vatAmount: ex.vat, currency: "EUR",
+          vendor: ex.vendor, category: ex.cat, date: first, description: ex.desc,
+          paymentMethod: ex.method, status: "confirmed", createdById: USERS.sarah,
+        },
+      });
+    }
   }
 
   // One expense with full AI line items so the "Push to Stock" flow is demoable
@@ -1134,6 +1268,13 @@ export async function main(prisma: PrismaClient = new PrismaClient()) {
   });
   console.log("✅ HACCP records + reminder schedules seeded");
 
+  // ─── Demo POS feed ─────────────────────────────────────────────────────────
+  // Without this the dashboard's biggest panel is an empty "No POS connected"
+  // box. Provider is literally "demo" and the widget badges it "Sample data",
+  // so nobody mistakes it for a real Square/Lightspeed sync.
+  await seedDemoPos(prisma, BIZ, 1);
+  console.log("✅ Demo POS feed seeded");
+
   console.log("\n✅ Demo seed complete!");
   console.log("\n📋 Demo Login Accounts:");
   console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
@@ -1282,6 +1423,7 @@ export async function seedOwnerDemos(prisma: PrismaClient) {
     update: {},
   });
 
+  await seedDemoPos(prisma, S_BIZ, 0.35);
   console.log("✅ Starter owner demo created");
 
   // ── PRO ──────────────────────────────────────────────────────────────────────
@@ -1508,6 +1650,7 @@ export async function seedOwnerDemos(prisma: PrismaClient) {
     { poolId: pPool, employeeId: "demo-p-emp-4",  hoursWorked: 16, shareAmount: 146.67 },
   ]});
 
+  await seedDemoPos(prisma, P_BIZ, 1.4);
   console.log("✅ Pro owner demo created");
 
   // HACCP for Pro — equipment, check history, and a reminder schedule so the page is never empty
@@ -1865,6 +2008,7 @@ export async function seedOwnerDemos(prisma: PrismaClient) {
     { businessId: E_BIZ, employeeId: "demo-e-emp-15", title: "First Aid Responder",    issuer: "Irish Red Cross", category: "FIRST_AID", issuedDate: days(-60),  expiryDate: days(1040) },
   ]});
 
+  await seedDemoPos(prisma, E_BIZ, 4.2);
   console.log("✅ Enterprise owner demo created");
 }
 

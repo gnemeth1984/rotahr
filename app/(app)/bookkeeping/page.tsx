@@ -101,11 +101,23 @@ interface StockFromReceiptResult {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const CATEGORIES = [
-  { value: "wages", label: "Staff Wages & Overtime", color: "bg-blue-100 text-blue-700" },
-  { value: "supplier", label: "Supplier Invoices", color: "bg-purple-100 text-purple-700" },
+  { value: "food_supplies", label: "Food Supplies", color: "bg-amber-100 text-amber-700" },
+  { value: "beverages", label: "Beverages & Bar Stock", color: "bg-rose-100 text-rose-700" },
   { value: "food_beverage", label: "Food & Beverage", color: "bg-amber-100 text-amber-700" },
+  { value: "supplier", label: "Supplier Invoices", color: "bg-purple-100 text-purple-700" },
+  { value: "wages", label: "Staff Wages & Overtime", color: "bg-blue-100 text-blue-700" },
+  { value: "rent", label: "Rent & Rates", color: "bg-indigo-100 text-indigo-700" },
   { value: "utilities", label: "Utilities", color: "bg-cyan-100 text-cyan-700" },
+  { value: "telecoms", label: "Telecoms & Internet", color: "bg-sky-100 text-sky-700" },
+  { value: "cleaning", label: "Cleaning & Hygiene", color: "bg-teal-100 text-teal-700" },
+  { value: "laundry", label: "Laundry & Linen", color: "bg-emerald-100 text-emerald-700" },
+  { value: "maintenance", label: "Repairs & Maintenance", color: "bg-orange-100 text-orange-700" },
   { value: "equipment", label: "Equipment & Maintenance", color: "bg-orange-100 text-orange-700" },
+  { value: "security", label: "Security", color: "bg-slate-200 text-slate-700" },
+  { value: "marketing", label: "Marketing & Advertising", color: "bg-fuchsia-100 text-fuchsia-700" },
+  { value: "insurance", label: "Insurance", color: "bg-violet-100 text-violet-700" },
+  { value: "licences", label: "Licences & Subscriptions", color: "bg-blue-100 text-blue-700" },
+  { value: "tax", label: "Tax & Revenue", color: "bg-red-100 text-red-700" },
   { value: "general", label: "General Business", color: "bg-slate-100 text-slate-700" },
 ];
 
@@ -114,6 +126,7 @@ const PAYMENT_METHODS = [
   { value: "card", label: "Card" },
   { value: "bank_transfer", label: "Bank Transfer" },
   { value: "direct_debit", label: "Direct Debit" },
+  { value: "invoice", label: "Supplier Invoice (credit)" },
 ];
 
 const EMPTY_FORM = {

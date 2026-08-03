@@ -36,10 +36,14 @@ export const authOptions: NextAuthOptions = {
         const valid = await bcrypt.compare(credentials.password, user.password);
         if (!valid) return null;
 
-        // Demo accounts: fire-and-forget reset in background so next visitor
-        // starts with clean data. Login is NOT blocked — reset runs async.
+        // Demo accounts: reset the demo data so the next visitor starts clean.
+        // We await only the claim (a single fast DB write) — the ~2 minute seed
+        // runs in the background. Awaiting the claim matters: it guarantees
+        // /api/demo/status already reports "running" by the time this login
+        // returns, so the client can show the interstitial instead of a
+        // half-rebuilt dashboard.
         if (isDemoEmail(credentials.email)) {
-          triggerDemoReset();
+          await triggerDemoReset();
         }
 
         return { id: user.id, email: user.email, name: user.name };

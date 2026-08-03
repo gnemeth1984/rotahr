@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
   "date": "YYYY-MM-DD format",
   "amount": total amount as number (including VAT if shown),
   "vatAmount": VAT amount as number (0 if not shown),
-  "category": one of: wages, supplier, food_beverage, utilities, equipment, general,
+  "category": one of: food_supplies, beverages, supplier, wages, rent, utilities, telecoms, cleaning, laundry, maintenance, equipment, security, marketing, insurance, licences, tax, general,
   "description": short description of what was purchased,
   "paymentMethod": one of: cash, card, bank_transfer, direct_debit (or null if unclear),
   "rawText": all text you can read from the receipt,

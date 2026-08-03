@@ -2,6 +2,20 @@
 import { prisma } from "@/lib/db";
 import { z } from "zod";
 
+/** Start of the given calendar day, in UTC. */
+function startOfDay(v: string) {
+  const d = new Date(v);
+  d.setUTCHours(0, 0, 0, 0);
+  return d;
+}
+
+/** End of the given calendar day, in UTC — makes `to` filters inclusive. */
+function endOfDay(v: string) {
+  const d = new Date(v);
+  d.setUTCHours(23, 59, 59, 999);
+  return d;
+}
+
 export const createShiftSchema = z.object({
   employeeId: z.string().optional(),
   date: z.string().refine((v) => !isNaN(Date.parse(v)), "Invalid date"),
@@ -59,8 +73,10 @@ export const shiftService = {
         ...(filters?.from || filters?.to
           ? {
               date: {
-                ...(filters.from ? { gte: new Date(filters.from) } : {}),
-                ...(filters.to ? { lte: new Date(filters.to) } : {}),
+                ...(filters.from ? { gte: startOfDay(filters.from) } : {}),
+                // `to` is an inclusive calendar day. Without this the range ends
+                // at 00:00 on that day and every shift on it is silently dropped.
+                ...(filters.to ? { lte: endOfDay(filters.to) } : {}),
               },
             }
           : {}),

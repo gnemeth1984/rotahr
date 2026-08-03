@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { decryptToken, encryptToken } from "@/lib/pos/encrypt";
 import { fetchLightspeedDayData, refreshLightspeedToken } from "@/lib/pos/lightspeed";
 import { fetchSquareDayData, refreshSquareToken } from "@/lib/pos/square";
+import { demoDayData } from "@/lib/pos/demo";
 
 async function ensureFreshAccessToken(
   conn: {
@@ -67,6 +68,36 @@ export async function POST() {
   today.setUTCHours(0, 0, 0, 0);
 
   try {
+    // Demo businesses run on a generated till feed — no tokens, no external call.
+    if (conn.provider === "demo") {
+      const snapshot = demoDayData(today, Number(conn.locationId) || 1);
+      await prisma.posSnapshot.upsert({
+        where: { businessId_date: { businessId, date: today } },
+        create: {
+          businessId, date: today, provider: "demo",
+          totalRevenue: snapshot.totalRevenue,
+          totalCovers: snapshot.totalCovers,
+          totalTransactions: snapshot.totalTransactions,
+          hourlyData: snapshot.hourlyData,
+          topItems: snapshot.topItems,
+          rawMeta: { syncedAt: new Date().toISOString(), provider: "demo", sample: true },
+        },
+        update: {
+          totalRevenue: snapshot.totalRevenue,
+          totalCovers: snapshot.totalCovers,
+          totalTransactions: snapshot.totalTransactions,
+          hourlyData: snapshot.hourlyData,
+          topItems: snapshot.topItems,
+          rawMeta: { syncedAt: new Date().toISOString(), provider: "demo", sample: true },
+        },
+      });
+      await prisma.posConnection.update({
+        where: { businessId },
+        data: { lastSyncAt: new Date() },
+      });
+      return NextResponse.json({ synced: true, snapshot });
+    }
+
     const accessToken = await ensureFreshAccessToken(conn, businessId);
 
     let snapshot;

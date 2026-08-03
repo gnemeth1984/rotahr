@@ -3,11 +3,23 @@ import { prisma } from "@/lib/db";
 import { z } from "zod";
 
 export const EXPENSE_CATEGORIES = [
-  { value: "wages", label: "Staff Wages & Overtime" },
-  { value: "supplier", label: "Supplier Invoices" },
+  { value: "food_supplies", label: "Food Supplies" },
+  { value: "beverages", label: "Beverages & Bar Stock" },
   { value: "food_beverage", label: "Food & Beverage Stock" },
+  { value: "supplier", label: "Supplier Invoices" },
+  { value: "wages", label: "Staff Wages & Overtime" },
+  { value: "rent", label: "Rent & Rates" },
   { value: "utilities", label: "Utilities" },
+  { value: "telecoms", label: "Telecoms & Internet" },
+  { value: "cleaning", label: "Cleaning & Hygiene" },
+  { value: "laundry", label: "Laundry & Linen" },
+  { value: "maintenance", label: "Repairs & Maintenance" },
   { value: "equipment", label: "Equipment & Maintenance" },
+  { value: "security", label: "Security" },
+  { value: "marketing", label: "Marketing & Advertising" },
+  { value: "insurance", label: "Insurance" },
+  { value: "licences", label: "Licences & Subscriptions" },
+  { value: "tax", label: "Tax & Revenue" },
   { value: "general", label: "General Business" },
 ] as const;
 
@@ -16,6 +28,7 @@ export const PAYMENT_METHODS = [
   { value: "card", label: "Card" },
   { value: "bank_transfer", label: "Bank Transfer" },
   { value: "direct_debit", label: "Direct Debit" },
+  { value: "invoice", label: "Supplier Invoice (credit)" },
 ] as const;
 
 export const createExpenseSchema = z.object({

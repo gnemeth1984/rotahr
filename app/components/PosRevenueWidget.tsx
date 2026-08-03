@@ -160,8 +160,11 @@ export default function PosRevenueWidget() {
           <CardTitle className="text-base flex items-center gap-2">
             <TrendingUp className="h-4 w-4" />
             Today&apos;s Revenue
-            <Badge variant="outline" className="text-xs capitalize">
-              {status.provider}
+            <Badge
+              variant="outline"
+              className={`text-xs capitalize ${status.provider === "demo" ? "border-amber-300 bg-amber-50 text-amber-700" : ""}`}
+            >
+              {status.provider === "demo" ? "Sample data" : status.provider}
             </Badge>
           </CardTitle>
           <Button
