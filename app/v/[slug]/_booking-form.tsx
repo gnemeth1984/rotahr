@@ -9,7 +9,15 @@ export function BookingForm({ slug, accent }: { slug: string; accent: string }) 
   const [state, setState] = useState<"idle" | "sending" | "done" | "error">("idle");
   const [error, setError] = useState("");
 
-  const today = new Date().toISOString().slice(0, 10);
+  // Must be the guest's LOCAL date. toISOString() converts to UTC first, so
+  // between midnight and 01:00 Irish summer time (UTC+1) it returned
+  // yesterday — the picker then pre-filled and floored to the wrong day, and
+  // "today" was unselectable. Same class of bug anywhere east of UTC.
+  const today = (() => {
+    const d = new Date();
+    const p = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+  })();
 
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
