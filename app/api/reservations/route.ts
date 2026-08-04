@@ -21,10 +21,12 @@ export async function GET(req: NextRequest) {
     const date = searchParams.get("date");
     const all = searchParams.get("all") === "true";
     const from = searchParams.get("from");
+    const status = searchParams.get("status");
 
     const reservations = await prisma.reservation.findMany({
       where: {
         businessId,
+        ...(status ? { status } : {}),
         ...(!all && date
           ? {
               date: {

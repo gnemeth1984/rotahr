@@ -31,7 +31,10 @@ export function BookingForm({ slug, accent }: { slug: string; accent: string }) 
           notes: fd.get("notes"),
           marketingConsent: fd.get("marketingConsent") === "on",
           // Honeypot — bots fill hidden fields, humans never see this.
-          company: fd.get("company"),
+          // Deliberately meaningless name: anything resembling a real field
+          // ("company", "organization", "address") gets filled by browser
+          // autofill, which silently killed genuine bookings.
+          hp_ref: fd.get("hp_ref"),
         }),
       });
       const json = await res.json();
@@ -65,10 +68,18 @@ export function BookingForm({ slug, accent }: { slug: string; accent: string }) 
 
   return (
     <form onSubmit={submit} className="space-y-4">
-      {/* honeypot */}
-      <div className="absolute left-[-9999px]" aria-hidden="true">
-        <label htmlFor="company">Company</label>
-        <input id="company" name="company" type="text" tabIndex={-1} autoComplete="off" />
+      {/* Honeypot. No label, no autofill-recognisable name, and marked
+          off-limits to autofill so real guests can never trip it. */}
+      <div className="absolute left-[-9999px] top-[-9999px]" aria-hidden="true">
+        <input
+          id="hp_ref"
+          name="hp_ref"
+          type="text"
+          tabIndex={-1}
+          autoComplete="off"
+          data-form-type="other"
+          aria-hidden="true"
+        />
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { notifyUsers } from "@/lib/services/appNotification.service";
+import { sendEmailQuiet } from "@/lib/email/send";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -44,6 +46,81 @@ function str(v: unknown, max: number): string {
   return typeof v === "string" ? v.trim().slice(0, max) : "";
 }
 
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+/**
+ * Alert the venue's managers and admins about a new pending table request —
+ * in-app notification, push, and email. Fire-and-forget: a notification
+ * failure must never affect what the guest sees.
+ */
+async function notifyVenue(
+  businessId: string,
+  businessName: string,
+  reservationId: string,
+  b: {
+    name: string;
+    phone: string;
+    email: string;
+    partySize: number;
+    dateStr: string;
+    time: string;
+    notes: string;
+  }
+) {
+  const staff = await prisma.user.findMany({
+    where: { businessId, role: { in: ["MANAGER", "ADMIN"] } },
+    select: { id: true, email: true },
+  });
+  if (staff.length === 0) return;
+
+  const title = "New table request";
+  const summary = `${b.name} — ${b.partySize} ${b.partySize === 1 ? "guest" : "guests"} on ${b.dateStr} at ${b.time}`;
+  const link = `/bookings?id=${reservationId}`;
+
+  await notifyUsers(
+    staff.map((s) => s.id),
+    { type: "booking", title, body: `${summary}. Awaiting confirmation.`, link }
+  );
+
+  const base = process.env.NEXT_PUBLIC_APP_URL ?? "https://rotahr.com";
+  const rows: [string, string][] = [
+    ["Name", b.name],
+    ["Party size", String(b.partySize)],
+    ["Date", b.dateStr],
+    ["Time", b.time],
+    ["Phone", b.phone],
+    ["Email", b.email || "—"],
+    ["Notes", b.notes || "—"],
+  ];
+
+  await sendEmailQuiet({
+    to: staff.map((s) => s.email).filter(Boolean),
+    subject: `New table request — ${summary}`,
+    context: "public-booking-alert",
+    html: `<div style="font-family:system-ui,-apple-system,sans-serif;max-width:520px">
+  <h2 style="margin:0 0 4px">New table request</h2>
+  <p style="margin:0 0 16px;color:#475569">Someone requested a table through your public page for ${escapeHtml(businessName)}. It is <strong>pending</strong> until you confirm it.</p>
+  <table style="border-collapse:collapse;width:100%">
+    ${rows
+      .map(
+        ([k, v]) =>
+          `<tr><td style="padding:6px 12px 6px 0;color:#64748b">${k}</td><td style="padding:6px 0;color:#0f172a"><strong>${escapeHtml(v)}</strong></td></tr>`
+      )
+      .join("")}
+  </table>
+  <p style="margin:20px 0 0"><a href="${base}${link}" style="background:#0f1c35;color:#fff;padding:11px 18px;border-radius:8px;text-decoration:none;font-weight:600">Open in Rotahr</a></p>
+  <p style="margin:16px 0 0;color:#94a3b8;font-size:12px">Contact the guest to confirm — they have been told this is a request, not a confirmed booking.</p>
+</div>`,
+  });
+}
+
 export async function POST(req: NextRequest) {
   let body: Record<string, unknown>;
   try {
@@ -53,7 +130,16 @@ export async function POST(req: NextRequest) {
   }
 
   // Honeypot: hidden field, only bots fill it. Return success so they don't retry.
-  if (str(body.company, 100)) {
+  //
+  // The field used to be called "company" with a visible <label>Company</label>,
+  // which browser autofill happily populated — genuine guests saw "Request
+  // received" while the reservation was silently discarded. The field is now
+  // named `hp_ref` (meaningless to autofill heuristics) and every trip is
+  // logged, so a silent drop can never again be invisible.
+  if (str(body.hp_ref, 100)) {
+    console.warn(
+      `[public-booking] honeypot tripped, request discarded — slug=${str(body.slug, 60)} name=${str(body.name, 100)}`
+    );
     return NextResponse.json({ ok: true });
   }
 
@@ -119,7 +205,7 @@ export async function POST(req: NextRequest) {
 
   const business = await prisma.business.findUnique({
     where: { publicSlug: slug },
-    select: { id: true, publicPageEnabled: true, publicShowBooking: true },
+    select: { id: true, name: true, publicPageEnabled: true, publicShowBooking: true },
   });
   if (!business || !business.publicPageEnabled || !business.publicShowBooking) {
     return NextResponse.json({ error: "Bookings aren't available here." }, { status: 404 });
@@ -137,7 +223,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  await prisma.reservation.create({
+  const reservation = await prisma.reservation.create({
     data: {
       businessId: business.id,
       customerName: name,
@@ -155,6 +241,19 @@ export async function POST(req: NextRequest) {
 
   // Only a real booking counts toward the tighter per-IP allowance.
   tooMany(bookingHits, ip, MAX_BOOKINGS_PER_IP_PER_HOUR, true);
+
+  // Tell the venue. A request nobody sees is the same as no request at all —
+  // the Bookings page defaults to today, so a booking for a future date was
+  // easy to miss entirely. Never allowed to break the guest's response.
+  notifyVenue(business.id, business.name, reservation.id, {
+    name,
+    phone,
+    email,
+    partySize,
+    dateStr,
+    time,
+    notes,
+  }).catch((err) => console.error("[public-booking] notify failed", err));
 
   return NextResponse.json({ ok: true });
 }

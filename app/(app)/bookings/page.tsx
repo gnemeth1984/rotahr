@@ -163,6 +163,7 @@ function BookingsInner() {
   }, []);
 
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [pending, setPending] = useState<Booking[]>([]);
   const [view, setView] = useState<"list" | "floorplan">("list");
   const [tablesForSelect, setTablesForSelect] = useState<{ id: string; name: string; capacity: number }[]>([]);
   const [loading, setLoading] = useState(true);
@@ -242,8 +243,23 @@ function BookingsInner() {
     }
   }, [deepLinkId, bookings, loading]);
 
+  // Pending requests (mostly from the public page) are fetched independently of
+  // the date filter. The page defaults to today, so a request for next Friday
+  // was invisible unless you happened to switch the filter to that day.
+  async function fetchPending() {
+    try {
+      const res = await fetch("/api/reservations?all=true&status=pending");
+      if (!res.ok) return;
+      const data = await res.json();
+      setPending(Array.isArray(data.reservations) ? data.reservations : []);
+    } catch {
+      /* non-critical */
+    }
+  }
+
   async function fetchBookings() {
     setLoading(true);
+    fetchPending();
     try {
       const url = filterDate ? `/api/reservations?date=${filterDate}` : `/api/reservations?all=true&from=${getTodayStr()}`;
       const res = await fetch(url);
@@ -540,6 +556,42 @@ function BookingsInner() {
           <CalendarDays className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
         </div>
       </div>
+
+      {/* ── Pending requests banner ─────────────────────────────────────────
+          Shown regardless of the date filter. Requests come in for future
+          dates, so they must be visible from the moment you open the page. */}
+      {pending.length > 0 && (
+        <div className="mx-4 mb-3 rounded-xl border border-amber-200 bg-amber-50 p-3">
+          <p className="text-sm font-semibold text-amber-900">
+            {pending.length} booking {pending.length === 1 ? "request" : "requests"} awaiting confirmation
+          </p>
+          <ul className="mt-2 space-y-1.5">
+            {pending.slice(0, 5).map((p) => (
+              <li key={p.id} className="flex items-center justify-between gap-3 text-sm">
+                <span className="truncate text-amber-900">
+                  <strong>{p.customerName}</strong> · {p.partySize}{" "}
+                  {p.partySize === 1 ? "guest" : "guests"} ·{" "}
+                  {new Date(p.date).toLocaleDateString("en-IE", { day: "numeric", month: "short" })} at {p.time}
+                </span>
+                <button
+                  onClick={() => {
+                    setFilterDate(String(p.date).split("T")[0]);
+                    openActions(p);
+                  }}
+                  className="flex-shrink-0 rounded-full bg-amber-900 px-3 py-1 text-xs font-semibold text-white hover:bg-amber-800"
+                >
+                  Review
+                </button>
+              </li>
+            ))}
+          </ul>
+          {pending.length > 5 && (
+            <p className="mt-2 text-xs text-amber-800">
+              + {pending.length - 5} more — switch the filter to “All” to see them.
+            </p>
+          )}
+        </div>
+      )}
 
       {/* ── Floor Plan view ────────────────────────────────────────────────── */}
       {view === "floorplan" && (
