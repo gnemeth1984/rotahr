@@ -162,6 +162,25 @@ export async function pagePerformance(days = 28) {
 }
 
 /**
+ * Day-by-day site totals — the series behind the trend chart.
+ *
+ * Search Console keeps 16 months, so the first run can backfill real history
+ * instead of the dashboard staying empty for weeks. `dataState: "final"` plus
+ * the 2-day lag in searchAnalytics() means every row returned is settled and
+ * won't change underneath us.
+ */
+export async function dailyPerformance(days = 90) {
+  const rows = await searchAnalytics(["date"], days, Math.max(days + 5, 100));
+  return rows.map((r) => ({
+    date: r.keys[0], // "YYYY-MM-DD"
+    clicks: r.clicks,
+    impressions: r.impressions,
+    ctr: r.ctr,
+    position: r.position,
+  }));
+}
+
+/**
  * Queries sitting at position 4-20: ranking, but below the clicks. Rewriting an
  * existing article to properly answer one of these is the highest-return work
  * available, and it's the thing DIY SEO almost always skips.

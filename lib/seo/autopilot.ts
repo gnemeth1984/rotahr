@@ -15,7 +15,13 @@ import OpenAI from "openai";
 import { prisma } from "@/lib/prisma";
 import { generateCoverImage, slugify } from "@/lib/blog/cover-image";
 import { submitToIndexNow } from "@/lib/seo/indexnow";
-import { gscConfigured, queryPerformance, pagePerformance, strikingDistance } from "@/lib/seo/gsc";
+import {
+  gscConfigured,
+  queryPerformance,
+  pagePerformance,
+  strikingDistance,
+  dailyPerformance,
+} from "@/lib/seo/gsc";
 import {
   harvestSuggestions,
   questionsFor,
@@ -522,4 +528,77 @@ Return ONLY JSON, no fences:
 
   await log("refresh", false, "all striking-distance pages refreshed recently");
   return { refreshed: false, reason: "Every striking-distance page was refreshed in the last 3 weeks." };
+}
+
+// ---------------------------------------------------------------------------
+// 4. Daily metrics snapshot — the history behind the trend chart
+// ---------------------------------------------------------------------------
+
+/**
+ * Pull day-by-day site totals from Search Console into SeoMetric.
+ *
+ * Why store a copy of data Google already has: Search Console's UI can't show
+ * "how did we do since the autopilot started", it rolls off after 16 months,
+ * and hitting the API on every dashboard load would be slow and rate-limited.
+ * A local copy makes the trend instant and permanent.
+ *
+ * Rows are keyed [date, page, query] and written with page="" / query="" to
+ * mean "whole site". Re-running is safe — it upserts, so a backfill and the
+ * daily top-up use exactly the same path.
+ *
+ * @param days lookback. Defaults to 90 so the very first run has real history
+ *             instead of a chart with one dot on it.
+ */
+export async function snapshotMetrics(days = 90): Promise<{
+  ok: boolean;
+  days?: number;
+  clicks?: number;
+  impressions?: number;
+  reason?: string;
+}> {
+  if (!gscConfigured()) {
+    await log("metrics", false, "Search Console not configured");
+    return { ok: false, reason: "Search Console isn't connected, so there's nothing to snapshot." };
+  }
+
+  let rows;
+  try {
+    rows = await dailyPerformance(days);
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    await log("metrics", false, msg);
+    return { ok: false, reason: msg };
+  }
+
+  if (!rows.length) {
+    await log("metrics", true, "no rows returned (site may have no impressions yet)");
+    return { ok: true, days: 0, clicks: 0, impressions: 0 };
+  }
+
+  // Sequential on purpose: ~90 upserts is fine, and firing them all at once
+  // exhausts the Neon connection pool on a serverless function.
+  for (const r of rows) {
+    const date = new Date(`${r.date}T00:00:00.000Z`);
+    const data = {
+      clicks: r.clicks,
+      impressions: r.impressions,
+      ctr: r.ctr,
+      position: r.position,
+    };
+    await prisma.seoMetric.upsert({
+      where: { date_page_query: { date, page: "", query: "" } },
+      create: { date, page: "", query: "", ...data },
+      update: data,
+    });
+  }
+
+  const clicks = rows.reduce((s, r) => s + r.clicks, 0);
+  const impressions = rows.reduce((s, r) => s + r.impressions, 0);
+  await log(
+    "metrics",
+    true,
+    `${rows.length} days snapshotted — ${clicks} clicks, ${impressions} impressions`
+  );
+
+  return { ok: true, days: rows.length, clicks, impressions };
 }

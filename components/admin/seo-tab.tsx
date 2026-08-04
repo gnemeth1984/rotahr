@@ -23,8 +23,10 @@ import {
   CheckCircle2,
   AlertTriangle,
   ExternalLink,
+  LineChart,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { SeoTrendChart, type TrendPoint, type Delta } from "@/components/admin/seo-trend-chart";
 
 type QueueRow = {
   id: string;
@@ -72,7 +74,8 @@ type SeoData = {
     refreshCount: number;
     createdAt: string;
   }[];
-  trend: { date: string; clicks: number; impressions: number }[];
+  trend: TrendPoint[];
+  deltas: { week: Delta; month: Delta };
 };
 
 const INTENT_STYLE: Record<string, string> = {
@@ -102,12 +105,14 @@ export function SeoTab() {
     load();
   }, [load]);
 
-  async function run(task: "keywords" | "publish" | "refresh") {
+  async function run(task: "keywords" | "publish" | "refresh" | "metrics") {
     const endpoint =
       task === "keywords"
         ? "/api/cron/seo-keywords"
         : task === "publish"
         ? "/api/cron/generate-blog"
+        : task === "metrics"
+        ? "/api/cron/seo-metrics"
         : "/api/cron/seo-refresh";
 
     setRunning(task);
@@ -126,6 +131,12 @@ export function SeoTab() {
           json.slug
             ? `Published "${json.title}" for "${json.keyword ?? "topic pool"}".`
             : json.message || "Nothing published."
+        );
+      } else if (task === "metrics") {
+        setMessage(
+          json.ok
+            ? `Synced ${json.days ?? 0} days from Search Console — ${(json.clicks ?? 0).toLocaleString()} clicks, ${(json.impressions ?? 0).toLocaleString()} impressions.`
+            : json.reason || "Couldn't sync Search Console."
         );
       } else {
         setMessage(
@@ -158,7 +169,7 @@ export function SeoTab() {
   return (
     <div className="space-y-6">
       {/* Setup state — be honest about what is and isn't wired up */}
-      <div className="grid gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
         {[
           { label: "OpenAI (writing)", ok: config.openai, hint: "OPENAI_API_KEY" },
           { label: "Search Console (rankings)", ok: config.searchConsole, hint: "GSC_CLIENT_EMAIL / GSC_PRIVATE_KEY / GSC_SITE_URL" },
@@ -210,8 +221,16 @@ export function SeoTab() {
           )}
           Refresh a near-ranking page
         </Button>
-        <span className="text-xs text-slate-400">
-          Runs automatically: keywords weekly, one article daily, one refresh weekly.
+        <Button size="sm" variant="outline" onClick={() => run("metrics")} disabled={!!running}>
+          {running === "metrics" ? (
+            <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <LineChart className="mr-1.5 h-3.5 w-3.5" />
+          )}
+          Sync Search Console
+        </Button>
+        <span className="w-full text-xs text-slate-400 sm:w-auto">
+          Runs automatically: metrics daily, one article daily, keywords weekly, one refresh weekly.
         </span>
       </div>
 
@@ -221,8 +240,11 @@ export function SeoTab() {
         </div>
       )}
 
+      {/* Trend — the whole point: is this working */}
+      <SeoTrendChart trend={data.trend} deltas={data.deltas} connected={config.searchConsole} />
+
       {/* Numbers */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-5">
         {[
           { label: "Keywords found", value: counts.totalKeywords },
           { label: "In queue", value: counts.queued },
@@ -230,7 +252,7 @@ export function SeoTab() {
           { label: "Clicks (28d)", value: config.searchConsole ? clicks30 : "—" },
           { label: "Impressions (28d)", value: config.searchConsole ? impressions30 : "—" },
         ].map((s) => (
-          <div key={s.label} className="rounded-xl border border-slate-200 bg-white p-4">
+          <div key={s.label} className="rounded-xl border border-slate-200 bg-white p-3 sm:p-4">
             <p className="mb-1 text-xs uppercase tracking-wide text-slate-500">{s.label}</p>
             <p className="text-2xl font-bold text-slate-900">{s.value}</p>
           </div>
@@ -242,7 +264,10 @@ export function SeoTab() {
         <div className="flex items-center gap-2 border-b border-slate-100 px-4 py-3">
           <TrendingUp className="h-4 w-4 text-emerald-600" />
           <h3 className="text-sm font-semibold text-slate-900">
-            Striking distance — ranking 4-20, one improvement from page-one traffic
+            <span className="sm:hidden">Striking distance (4-20)</span>
+            <span className="hidden sm:inline">
+              Striking distance — ranking 4-20, one improvement from page-one traffic
+            </span>
           </h3>
         </div>
         {!config.searchConsole ? (
@@ -254,7 +279,8 @@ export function SeoTab() {
             Nothing here yet — keep publishing, this fills up once pages start ranking.
           </p>
         ) : (
-          <table className="w-full text-sm">
+          <div className="-mx-px overflow-x-auto">
+          <table className="w-full min-w-[520px] text-sm">
             <thead>
               <tr className="text-left text-xs uppercase tracking-wide text-slate-500">
                 <th className="px-4 py-2 font-medium">Query</th>
@@ -276,6 +302,7 @@ export function SeoTab() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
 
@@ -294,7 +321,8 @@ export function SeoTab() {
             Queue is empty — hit &ldquo;Harvest keywords&rdquo;.
           </p>
         ) : (
-          <table className="w-full text-sm">
+          <div className="-mx-px overflow-x-auto">
+          <table className="w-full min-w-[520px] text-sm">
             <thead>
               <tr className="text-left text-xs uppercase tracking-wide text-slate-500">
                 <th className="px-4 py-2 font-medium">Query</th>
@@ -322,6 +350,7 @@ export function SeoTab() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
 
@@ -332,7 +361,7 @@ export function SeoTab() {
           <div className="space-y-2">
             {data.clusters.map((c) => (
               <div key={c.cluster} className="flex items-center gap-2">
-                <span className="w-44 shrink-0 truncate text-xs text-slate-600">{c.cluster}</span>
+                <span className="w-24 shrink-0 truncate text-xs text-slate-600 sm:w-44">{c.cluster}</span>
                 <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100">
                   <div
                     className="h-full rounded-full"
@@ -391,16 +420,16 @@ export function SeoTab() {
         ) : (
           <div className="divide-y divide-slate-100">
             {data.runs.map((r) => (
-              <div key={r.id} className="flex items-start gap-3 px-4 py-2 text-xs">
+              <div key={r.id} className="flex flex-col gap-1 px-4 py-2 text-xs sm:flex-row sm:items-start sm:gap-3">
                 <span
-                  className={`mt-0.5 rounded px-1.5 py-0.5 font-medium ${
+                  className={`mt-0.5 w-fit rounded px-1.5 py-0.5 font-medium ${
                     r.ok ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"
                   }`}
                 >
                   {r.task}
                 </span>
-                <span className="flex-1 break-all text-slate-600">{r.detail}</span>
-                <span className="shrink-0 text-slate-400">
+                <span className="flex-1 break-words text-slate-600">{r.detail}</span>
+                <span className="shrink-0 text-slate-400 sm:text-right">
                   {new Date(r.createdAt).toLocaleString("en-IE", {
                     day: "numeric",
                     month: "short",

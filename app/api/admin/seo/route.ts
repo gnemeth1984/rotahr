@@ -92,13 +92,61 @@ export async function GET() {
     }),
   ]);
 
-  // Traffic trend from the stored Search Console snapshots.
-  const metrics = await prisma.seoMetric.groupBy({
-    by: ["date"],
-    _sum: { clicks: true, impressions: true },
+  // Traffic trend from the stored Search Console snapshots. Site-level rows
+  // only (page="" / query=""), so per-page rows can't double-count the totals.
+  const metrics = await prisma.seoMetric.findMany({
+    where: { page: "", query: "" },
     orderBy: { date: "asc" },
-    take: 60,
+    select: { date: true, clicks: true, impressions: true, position: true, ctr: true },
   });
+
+  const trend = metrics.map((m) => ({
+    date: m.date.toISOString().slice(0, 10),
+    clicks: m.clicks,
+    impressions: m.impressions,
+    position: m.position,
+    ctr: m.ctr,
+  }));
+
+  /**
+   * Compare the last N days against the N before them. This is the number that
+   * answers "is this actually working" — a total on its own can't.
+   */
+  function delta(windowDays: number) {
+    const recent = trend.slice(-windowDays);
+    const prior = trend.slice(-windowDays * 2, -windowDays);
+    if (!recent.length || !prior.length) return null;
+
+    const sum = (rows: typeof trend, k: "clicks" | "impressions") =>
+      rows.reduce((s, r) => s + r[k], 0);
+    // Position is an average, not a total — and lower is better, so the sign
+    // is flipped to keep "positive change = good" true across every metric.
+    const avgPos = (rows: typeof trend) => {
+      const seen = rows.filter((r) => r.impressions > 0);
+      if (!seen.length) return null;
+      return seen.reduce((s, r) => s + r.position, 0) / seen.length;
+    };
+
+    const pct = (now: number, before: number) =>
+      before === 0 ? (now > 0 ? 100 : 0) : ((now - before) / before) * 100;
+
+    const rc = sum(recent, "clicks");
+    const pc = sum(prior, "clicks");
+    const ri = sum(recent, "impressions");
+    const pi = sum(prior, "impressions");
+    const rp = avgPos(recent);
+    const pp = avgPos(prior);
+
+    return {
+      days: windowDays,
+      clicks: { now: rc, before: pc, changePct: pct(rc, pc) },
+      impressions: { now: ri, before: pi, changePct: pct(ri, pi) },
+      position:
+        rp !== null && pp !== null
+          ? { now: rp, before: pp, change: pp - rp } // positive = moved up
+          : null,
+    };
+  }
 
   return NextResponse.json({
     config: {
@@ -113,10 +161,7 @@ export async function GET() {
     clusters: clusters.map((c) => ({ cluster: c.cluster, count: c._count._all })),
     runs,
     recentPosts,
-    trend: metrics.map((m) => ({
-      date: m.date,
-      clicks: m._sum.clicks ?? 0,
-      impressions: m._sum.impressions ?? 0,
-    })),
+    trend,
+    deltas: { week: delta(7), month: delta(28) },
   });
 }

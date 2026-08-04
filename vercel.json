@@ -17,6 +17,9 @@
     },
     "app/api/demo/prepare/route.ts": {
       "maxDuration": 300
+    },
+    "app/api/cron/seo-metrics/route.ts": {
+      "maxDuration": 300
     }
   },
   "crons": [
@@ -63,6 +66,10 @@
     {
       "path": "/api/cron/seo-refresh",
       "schedule": "45 4 * * 4"
+    },
+    {
+      "path": "/api/cron/seo-metrics",
+      "schedule": "6 5 * * *"
     }
   ]
 }

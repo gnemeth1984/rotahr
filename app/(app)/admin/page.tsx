@@ -192,7 +192,7 @@ function AnalyticsTab() {
   return (
     <div className="space-y-6">
       {/* Stat cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <div className="bg-white border border-slate-200 rounded-xl p-4">
           <p className="text-xs text-slate-500 uppercase tracking-wide mb-1">Today</p>
           <p className="text-2xl font-bold text-slate-900">{stats.today}</p>
@@ -254,7 +254,7 @@ function AnalyticsTab() {
       )}
 
       {/* Top pages + countries + referrers */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
         {/* Top pages */}
         <div className="bg-white border border-slate-200 rounded-xl p-4">
           <p className="font-semibold text-slate-800 mb-3 flex items-center gap-2 text-sm">
@@ -414,8 +414,8 @@ export default function AdminPage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-          <ShieldCheck className="h-6 w-6 text-red-600" />
+        <h1 className="text-xl sm:text-2xl font-bold text-slate-900 flex items-center gap-2">
+          <ShieldCheck className="h-5 w-5 sm:h-6 sm:w-6 shrink-0 text-red-600" />
           Platform Admin
         </h1>
         <p className="text-slate-500 text-sm mt-1">
@@ -432,10 +432,10 @@ export default function AdminPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 border-b border-slate-200">
+      <div className="-mx-4 flex gap-1 overflow-x-auto border-b border-slate-200 px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:mx-0 sm:px-0">
         <button
           onClick={() => setActiveTab("users")}
-          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+          className={`shrink-0 whitespace-nowrap px-3 py-2.5 text-sm font-medium border-b-2 transition-colors sm:px-4 sm:py-2 ${
             activeTab === "users"
               ? "border-emerald-600 text-emerald-700"
               : "border-transparent text-slate-500 hover:text-slate-700"
@@ -447,7 +447,7 @@ export default function AdminPage() {
         </button>
         <button
           onClick={() => setActiveTab("analytics")}
-          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+          className={`shrink-0 whitespace-nowrap px-3 py-2.5 text-sm font-medium border-b-2 transition-colors sm:px-4 sm:py-2 ${
             activeTab === "analytics"
               ? "border-emerald-600 text-emerald-700"
               : "border-transparent text-slate-500 hover:text-slate-700"
@@ -459,7 +459,7 @@ export default function AdminPage() {
         </button>
         <button
           onClick={() => setActiveTab("activity")}
-          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+          className={`shrink-0 whitespace-nowrap px-3 py-2.5 text-sm font-medium border-b-2 transition-colors sm:px-4 sm:py-2 ${
             activeTab === "activity"
               ? "border-emerald-600 text-emerald-700"
               : "border-transparent text-slate-500 hover:text-slate-700"
@@ -471,7 +471,7 @@ export default function AdminPage() {
         </button>
         <button
           onClick={() => setActiveTab("seo")}
-          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+          className={`shrink-0 whitespace-nowrap px-3 py-2.5 text-sm font-medium border-b-2 transition-colors sm:px-4 sm:py-2 ${
             activeTab === "seo"
               ? "border-emerald-600 text-emerald-700"
               : "border-transparent text-slate-500 hover:text-slate-700"
@@ -483,7 +483,7 @@ export default function AdminPage() {
         </button>
         <button
           onClick={() => setActiveTab("email")}
-          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+          className={`shrink-0 whitespace-nowrap px-3 py-2.5 text-sm font-medium border-b-2 transition-colors sm:px-4 sm:py-2 ${
             activeTab === "email"
               ? "border-emerald-600 text-emerald-700"
               : "border-transparent text-slate-500 hover:text-slate-700"
@@ -511,7 +511,7 @@ export default function AdminPage() {
       {activeTab === "users" && (
         <>
           {/* Stats */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             <div className="bg-white border border-slate-200 rounded-xl p-4">
               <p className="text-xs text-slate-500 uppercase tracking-wide mb-1">Total Users</p>
               <p className="text-2xl font-bold text-slate-900">{stats?.totalUsers ?? "—"}</p>
