@@ -1,9 +1,5 @@
 // @ts-nocheck
-import { Resend } from "resend";
-
-function getResend() {
-  return new Resend(process.env.RESEND_API_KEY ?? "re_placeholder");
-}
+import { sendEmailQuiet } from "./send";
 
 export async function sendShiftReminderEmail({
   to,
@@ -20,8 +16,6 @@ export async function sendShiftReminderEmail({
   endTime: Date;
   role?: string | null;
 }) {
-  const resend = getResend();
-
   const dateStr = shiftDate.toLocaleDateString("en-IE", {
     weekday: "long",
     year: "numeric",
@@ -39,8 +33,8 @@ export async function sendShiftReminderEmail({
     minute: "2-digit",
   });
 
-  await resend.emails.send({
-    from: process.env.EMAIL_FROM ?? "sales@rotahr.com",
+  return sendEmailQuiet({
+    context: "shift-reminder",
     to,
     subject: `Shift Reminder for Tomorrow — ${dateStr}`,
     html: `

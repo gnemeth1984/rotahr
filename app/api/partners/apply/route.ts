@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { Resend } from "resend";
-
-const resend = new Resend(process.env.RESEND_API_KEY);
+import { sendEmail, sendEmailQuiet } from "@/lib/email/send";
 
 function generateCode(name: string): string {
   const slug = name.toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 10);
@@ -31,8 +29,9 @@ export async function POST(req: Request) {
     });
 
     // Notify Gabor
-    await resend.emails.send({
-      from: "Rotahr <hello@rotahr.com>",
+    await sendEmailQuiet({
+      context: "partner-apply-notify",
+      from: "Rotahr <noreply@rotahr.com>",
       to: "gnemeth1984@gmail.com",
       subject: `New Partner Application: ${name}`,
       html: `
@@ -47,8 +46,9 @@ export async function POST(req: Request) {
     });
 
     // Confirm to applicant
-    await resend.emails.send({
-      from: "Rotahr <hello@rotahr.com>",
+    const confirmation = await sendEmail({
+      context: "partner-apply-confirm",
+      from: "Rotahr <noreply@rotahr.com>",
       to: email,
       subject: "Partner application received — Rotahr",
       html: `
@@ -73,7 +73,9 @@ export async function POST(req: Request) {
       `,
     });
 
-    return NextResponse.json({ success: true });
+    // The application is already saved, so this is still a success for the
+    // applicant — but surface the mail failure so it can be chased manually.
+    return NextResponse.json({ success: true, emailSent: confirmation.ok });
   } catch (err: any) {
     console.error("Partner apply error:", err);
     return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });

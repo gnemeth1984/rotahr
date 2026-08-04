@@ -1,9 +1,5 @@
 // @ts-nocheck
-import { Resend } from "resend";
-
-function getResend() {
-  return new Resend(process.env.RESEND_API_KEY ?? "re_placeholder");
-}
+import { sendEmailQuiet } from "./send";
 
 export async function sendTimeOffStatusEmail({
   to,
@@ -18,12 +14,11 @@ export async function sendTimeOffStatusEmail({
   startDate: Date;
   endDate: Date;
 }) {
-  const resend = getResend();
   const statusColor = status === "APPROVED" ? "#22c55e" : "#ef4444";
   const statusText = status === "APPROVED" ? "Approved ✅" : "Rejected ❌";
 
-  await resend.emails.send({
-    from: process.env.EMAIL_FROM ?? "sales@rotahr.com",
+  return sendEmailQuiet({
+    context: "time-off-status",
     to,
     subject: `Time Off Request ${statusText} — Rotahr`,
     html: `
@@ -58,9 +53,8 @@ export async function sendNewTimeOffRequestEmail({
   endDate: Date;
   reason?: string;
 }) {
-  const resend = getResend();
-  await resend.emails.send({
-    from: process.env.EMAIL_FROM ?? "sales@rotahr.com",
+  return sendEmailQuiet({
+    context: "time-off-request",
     to,
     subject: `New Time Off Request — ${employeeName}`,
     html: `

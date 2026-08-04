@@ -3,10 +3,8 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { randomBytes } from "crypto";
-import { Resend } from "resend";
+import { sendEmail } from "@/lib/email/send";
 import { isRateLimited } from "@/lib/auth/rate-limit";
-
-const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function POST(req: NextRequest) {
   try {
@@ -42,8 +40,9 @@ export async function POST(req: NextRequest) {
       : process.env.NEXTAUTH_URL ?? "https://rotahr.com";
     const resetUrl = `${baseUrl}/auth/reset-password?token=${token}`;
 
-    await resend.emails.send({
-      from: "Rotahr <sales@rotahr.com>",
+    const sent = await sendEmail({
+      context: "password-reset",
+      from: "Rotahr <noreply@rotahr.com>",
       to: email,
       subject: "Reset your Rotahr password",
       html: `
@@ -56,8 +55,21 @@ export async function POST(req: NextRequest) {
       `,
     });
 
+    // If the mail never left, don't tell the user to check their inbox — they
+    // would wait forever on a reset that does not exist. Bin the token so a
+    // retry issues a fresh one.
+    if (!sent.ok) {
+      await prisma.passwordResetToken.deleteMany({ where: { userId: user.id } });
+      console.error("[forgot-password] reset email failed for", email, "-", sent.error);
+      return NextResponse.json(
+        { error: "We couldn't send the reset email. Please try again shortly." },
+        { status: 502 },
+      );
+    }
+
     return NextResponse.json({ ok: true });
   } catch (err: any) {
+    console.error("[forgot-password]", err);
     return NextResponse.json({ error: err.message ?? "Failed" }, { status: 500 });
   }
 }
