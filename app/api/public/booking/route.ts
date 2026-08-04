@@ -129,18 +129,24 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
 
-  // Honeypot: hidden field, only bots fill it. Return success so they don't retry.
+  // Honeypot. A trip is now a FLAG, never a discard.
   //
-  // The field used to be called "company" with a visible <label>Company</label>,
-  // which browser autofill happily populated — genuine guests saw "Request
-  // received" while the reservation was silently discarded. The field is now
-  // named `hp_ref` (meaningless to autofill heuristics) and every trip is
-  // logged, so a silent drop can never again be invisible.
-  if (str(body.hp_ref, 100)) {
+  // History: the field was called "company" with a visible <label>Company</label>,
+  // so browser autofill populated it and genuine guests were silently dropped
+  // while being shown "Request received". Renaming it to `hp_ref` was not
+  // enough — password managers fill unlabelled inputs too, and real bookings
+  // were still lost.
+  //
+  // Discarding a request on a heuristic is never worth it: a lost booking is
+  // lost revenue and the guest believes they have a table. Spam is contained by
+  // the per-IP rate limits and the per-venue daily cap below. So the booking is
+  // always created; a suspected-automation trip only prefixes the notes so the
+  // venue can judge it.
+  const honeypotTripped = Boolean(str(body.hp_ref, 100));
+  if (honeypotTripped) {
     console.warn(
-      `[public-booking] honeypot tripped, request discarded — slug=${str(body.slug, 60)} name=${str(body.name, 100)}`
+      `[public-booking] honeypot tripped — flagging, NOT discarding — slug=${str(body.slug, 60)} name=${str(body.name, 100)}`
     );
-    return NextResponse.json({ ok: true });
   }
 
   const ip =
@@ -233,7 +239,9 @@ export async function POST(req: NextRequest) {
       date,
       time,
       status: "pending", // must be confirmed by a human
-      notes: notes || null,
+      notes: honeypotTripped
+        ? `[Flagged: possible automated submission — verify before confirming]${notes ? `\n${notes}` : ""}`
+        : notes || null,
       marketingConsent,
       createdByName: "Public page",
     },

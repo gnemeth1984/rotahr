@@ -76,9 +76,12 @@ export function BookingForm({ slug, accent }: { slug: string; accent: string }) 
 
   return (
     <form onSubmit={submit} className="space-y-4">
-      {/* Honeypot. No label, no autofill-recognisable name, and marked
-          off-limits to autofill so real guests can never trip it. */}
-      <div className="absolute left-[-9999px] top-[-9999px]" aria-hidden="true">
+      {/* Honeypot. `display:none` rather than off-screen positioning —
+          password managers fill off-screen inputs but skip undisplayed ones —
+          plus every vendor opt-out attribute we know of. A trip no longer
+          discards the booking (see the API route), so worst case a real
+          guest's request is flagged, never lost. */}
+      <div style={{ display: "none" }} aria-hidden="true">
         <input
           id="hp_ref"
           name="hp_ref"
@@ -86,6 +89,10 @@ export function BookingForm({ slug, accent }: { slug: string; accent: string }) 
           tabIndex={-1}
           autoComplete="off"
           data-form-type="other"
+          data-lpignore="true"
+          data-1p-ignore="true"
+          data-bwignore="true"
+          data-protonpass-ignore="true"
           aria-hidden="true"
         />
       </div>
