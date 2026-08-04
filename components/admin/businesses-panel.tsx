@@ -22,6 +22,10 @@ interface BizRow {
   reservations: number;
   actions30: number;
   lastLoginAt: string | null;
+  isProspect: boolean;
+  publicSlug: string | null;
+  claimable: boolean | null;
+  indexable: boolean | null;
 }
 
 interface BizUser {
@@ -89,7 +93,10 @@ export function BusinessesPanel({
   onFilter?: (businessId: string) => void;
 }) {
   const [rows, setRows] = useState<BizRow[] | null>(null);
-  const [summary, setSummary] = useState<{ total: number; paying: number; empty: number } | null>(null);
+  const [summary, setSummary] = useState<{
+    total: number; realTotal: number; prospects: number;
+    paying: number; empty: number; unclaimable: number;
+  } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [q, setQ] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
@@ -104,7 +111,14 @@ export function BusinessesPanel({
         if (json.error) setError(json.error);
         else {
           setRows(json.businesses);
-          setSummary({ total: json.total, paying: json.paying, empty: json.empty });
+          setSummary({
+            total: json.total,
+            realTotal: json.realTotal ?? json.total,
+            prospects: json.prospects ?? 0,
+            paying: json.paying,
+            empty: json.empty,
+            unclaimable: json.unclaimable ?? 0,
+          });
         }
       } catch {
         setError("Failed to load businesses");
@@ -156,9 +170,19 @@ export function BusinessesPanel({
           {summary && summary.paying > 0 && (
             <span className="text-xs text-emerald-600 font-medium">{summary.paying} paying</span>
           )}
+          {summary && summary.prospects > 0 && (
+            <span className="text-xs text-sky-600 font-medium">
+              {summary.prospects} prospect {summary.prospects === 1 ? "page" : "pages"}
+            </span>
+          )}
           {summary && summary.empty > 0 && (
             <span className="text-xs text-amber-600 font-medium flex items-center gap-1">
               <AlertTriangle className="h-3 w-3" /> {summary.empty} with no users
+            </span>
+          )}
+          {summary && summary.unclaimable > 0 && (
+            <span className="text-xs text-amber-600 font-medium flex items-center gap-1">
+              <AlertTriangle className="h-3 w-3" /> {summary.unclaimable} unclaimable
             </span>
           )}
           <div className="relative">
@@ -204,15 +228,39 @@ export function BusinessesPanel({
                         <div className="min-w-0">
                           <p className="font-medium text-slate-800 truncate flex items-center gap-1.5">
                             {b.name}
-                            {b.users === 0 && (
-                              <span title="No user account attached" className="text-amber-500">
+                            {b.isProspect && (
+                              <span
+                                title="Marketing page for a venue we don't run — no user account by design"
+                                className="bg-sky-100 text-sky-700 text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wide shrink-0"
+                              >
+                                Prospect
+                              </span>
+                            )}
+                            {!b.isProspect && b.users === 0 && (
+                              <span title="No user account attached — nobody can log in" className="text-amber-500">
+                                <AlertTriangle className="h-3.5 w-3.5" />
+                              </span>
+                            )}
+                            {b.isProspect && b.claimable === false && (
+                              <span title="No claim token — this page can never be claimed by the owner" className="text-amber-500">
                                 <AlertTriangle className="h-3.5 w-3.5" />
                               </span>
                             )}
                           </p>
                           <p className="text-xs text-slate-400">
-                            Joined {fmtDate(b.createdAt)} · {b.country} · {b.currency}
-                            {!b.onboardingComplete && " · onboarding incomplete"}
+                            {b.isProspect ? (
+                              <>
+                                Created {fmtDate(b.createdAt)}
+                                {b.publicSlug && ` · /v/${b.publicSlug}`}
+                                {b.claimable === false && " · not claimable"}
+                                {b.indexable ? " · indexable" : " · noindex"}
+                              </>
+                            ) : (
+                              <>
+                                Joined {fmtDate(b.createdAt)} · {b.country} · {b.currency}
+                                {!b.onboardingComplete && " · onboarding incomplete"}
+                              </>
+                            )}
                           </p>
                         </div>
                       </div>

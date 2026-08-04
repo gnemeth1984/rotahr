@@ -88,6 +88,10 @@ export async function GET(req: NextRequest) {
           country: true,
           lsPlan: true,
           lsStatus: true,
+          publicProspect: true,
+          publicSlug: true,
+          publicClaimToken: true,
+          publicNoIndex: true,
           _count: {
             select: { users: true, employees: true, venues: true, reservations: true },
           },
@@ -130,12 +134,25 @@ export async function GET(req: NextRequest) {
       reservations: b._count.reservations,
       actions30: actionMap.get(b.id) ?? 0,
       lastLoginAt: lastLoginMap.get(b.id) ?? null,
+      // Prospect pages are marketing pages for venues we don't run. They have no
+      // users by design, so they must never be counted as broken signups.
+      isProspect: b.publicProspect === true,
+      publicSlug: b.publicSlug ?? null,
+      claimable: b.publicProspect === true ? Boolean(b.publicClaimToken) : null,
+      indexable: b.publicProspect === true ? b.publicNoIndex !== true : null,
     }));
+
+    const realBusinesses = rows.filter((r) => !r.isProspect);
 
     return NextResponse.json({
       total: rows.length,
+      realTotal: realBusinesses.length,
+      prospects: rows.filter((r) => r.isProspect).length,
       paying: rows.filter((r) => r.lsStatus === "active").length,
-      empty: rows.filter((r) => r.users === 0).length,
+      // Only real businesses with no user are a problem worth flagging.
+      empty: realBusinesses.filter((r) => r.users === 0).length,
+      // Prospect pages that can never be claimed — no token was generated.
+      unclaimable: rows.filter((r) => r.isProspect && !r.claimable).length,
       businesses: rows,
     });
   } catch (e: unknown) {
