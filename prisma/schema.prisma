@@ -1684,3 +1684,39 @@ model DemoResetState {
   finishedAt DateTime?
   updatedAt  DateTime  @updatedAt
 }
+
+/// A stored site audit run, for any domain.
+///
+/// Domain-agnostic on purpose: the same engine audits rotahr.com and any
+/// prospect's site, so this table is keyed by hostname rather than businessId.
+/// The full report is kept as JSON because the shape is presentational and
+/// evolves with the auditor; the extracted columns exist only so the history
+/// list can be sorted and filtered without parsing every blob.
+model SiteAudit {
+  id     String @id @default(cuid())
+  domain String
+  origin String
+
+  score          Int
+  pagesCrawled   Int
+  issueCount     Int
+  criticalCount  Int
+  warningCount   Int
+
+  /// Lighthouse performance score, null when PSI was skipped or rate limited.
+  performance Int?
+  lcp         Float?
+  cls         Float?
+
+  /// Full AuditReport, including every page and issue.
+  report Json
+
+  durationMs Int
+  /// Platform admin who triggered the run.
+  runById String?
+
+  createdAt DateTime @default(now())
+
+  @@index([domain, createdAt])
+  @@index([createdAt])
+}
