@@ -244,16 +244,29 @@ export async function POST(req: NextRequest) {
 
   // Tell the venue. A request nobody sees is the same as no request at all —
   // the Bookings page defaults to today, so a booking for a future date was
-  // easy to miss entirely. Never allowed to break the guest's response.
-  notifyVenue(business.id, business.name, reservation.id, {
-    name,
-    phone,
-    email,
-    partySize,
-    dateStr,
-    time,
-    notes,
-  }).catch((err) => console.error("[public-booking] notify failed", err));
+  // easy to miss entirely.
+  //
+  // This MUST be awaited. Fire-and-forget work does not survive here: the
+  // serverless function is frozen the moment the response is returned, so the
+  // notification and email were silently dropped in production while working
+  // fine against a long-lived local dev server. Verified: the live test
+  // reservation was created but produced no AppNotification row.
+  //
+  // Failures are caught, never propagated — the reservation is already saved
+  // and the guest must not see an error because an email bounced.
+  try {
+    await notifyVenue(business.id, business.name, reservation.id, {
+      name,
+      phone,
+      email,
+      partySize,
+      dateStr,
+      time,
+      notes,
+    });
+  } catch (err) {
+    console.error("[public-booking] notify failed", err);
+  }
 
   return NextResponse.json({ ok: true });
 }
