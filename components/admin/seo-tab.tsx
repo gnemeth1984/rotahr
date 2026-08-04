@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SeoTrendChart, type TrendPoint, type Delta } from "@/components/admin/seo-trend-chart";
+import { AiVisibilityPanel } from "@/components/admin/ai-visibility-panel";
 
 type QueueRow = {
   id: string;
@@ -242,6 +243,9 @@ export function SeoTab() {
 
       {/* Trend — the whole point: is this working */}
       <SeoTrendChart trend={data.trend} deltas={data.deltas} connected={config.searchConsole} />
+
+      {/* AI search visibility — the half of SEO that's newly up for grabs */}
+      <AiVisibilityPanel />
 
       {/* Numbers */}
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-5">

@@ -478,18 +478,18 @@ model MenuSpecial {
   createdById String
   createdBy   User     @relation("MenuSpecialAuthor", fields: [createdById], references: [id])
 
-  title        String
-  description  String?   @db.Text
-  category     String    @default("special") // "special" | "change" | "announcement" | "86'd"
-  date         DateTime // primary date / start of range
-  endDate      DateTime? // optional end date for multi-day
-  pinned       Boolean   @default(false)
+  title          String
+  description    String?   @db.Text
+  category       String    @default("special") // "special" | "change" | "announcement" | "86'd"
+  date           DateTime // primary date / start of range
+  endDate        DateTime? // optional end date for multi-day
+  pinned         Boolean   @default(false)
   // Lets a manager keep an individual special off the public venue page even
   // though its category is guest-facing. Only "special" is ever public.
-  hideFromPublic Boolean @default(false)
-  imageUrl     String? // optional photo of the dish
-  imageDataUri String?   @db.Text
-  archived     Boolean   @default(false)
+  hideFromPublic Boolean   @default(false)
+  imageUrl       String? // optional photo of the dish
+  imageDataUri   String?   @db.Text
+  archived       Boolean   @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1203,11 +1203,11 @@ model BlogPost {
   updatedAt  DateTime @updatedAt
 
   // SEO autopilot fields
-  keyword     String? // the target query this article was written for
-  faq         String? @db.Text // JSON array of {q,a} — renders as FAQ + FAQPage schema
-  wordCount   Int?
-  refreshedAt DateTime? // last time the autopilot rewrote/expanded it
-  refreshCount Int      @default(0)
+  keyword      String? // the target query this article was written for
+  faq          String?   @db.Text // JSON array of {q,a} — renders as FAQ + FAQPage schema
+  wordCount    Int?
+  refreshedAt  DateTime? // last time the autopilot rewrote/expanded it
+  refreshCount Int       @default(0)
 
   @@index([slug])
   @@index([published, createdAt])
@@ -1237,8 +1237,8 @@ model SeoKeyword {
   clicks      Int    @default(0)
   position    Float?
 
-  priority Int    @default(0) // computed score, higher wins the next article
-  status   String @default("new") // new | queued | written | skipped
+  priority Int     @default(0) // computed score, higher wins the next article
+  status   String  @default("new") // new | queued | written | skipped
   postId   String? // BlogPost.id once written
   note     String? // why it was skipped / how it was scored
 
@@ -1248,6 +1248,49 @@ model SeoKeyword {
 
   @@index([status, priority])
   @@index([cluster])
+}
+
+// AiPrompt — a buying question we want an AI assistant to name Rotahr in.
+//
+// This is the "generative engine optimisation" half of SEO: an owner asking
+// ChatGPT "best rota app for a small pub" is a warmer lead than a Google
+// searcher, and almost nobody is measuring whether they get named.
+model AiPrompt {
+  id      String  @id @default(cuid())
+  prompt  String  @unique
+  cluster String  @default("general")
+  intent  String  @default("commercial")
+  region  String  @default("general")
+  active  Boolean @default(true)
+
+  createdAt DateTime       @default(now())
+  checks    AiVisibility[]
+
+  @@index([active])
+}
+
+// AiVisibility — one answer from one model at one point in time.
+//
+// The full answer is stored on purpose: a score with no evidence is
+// unfalsifiable, and reading the actual wording is how you learn what to
+// write next.
+model AiVisibility {
+  id       String   @id @default(cuid())
+  promptId String
+  prompt   AiPrompt @relation(fields: [promptId], references: [id], onDelete: Cascade)
+
+  model  String // gpt-4o-mini | sonar | ...
+  answer String @db.Text
+
+  mentioned   Boolean @default(false)
+  rank        Int? // 1-based place in the answer where Rotahr appears; null when absent
+  cited       Boolean @default(false) // did it name/link rotahr.com
+  competitors String  @default("") // competitor names found, comma separated
+
+  createdAt DateTime @default(now())
+
+  @@index([promptId, createdAt])
+  @@index([createdAt])
 }
 
 model SeoMetric {
@@ -1615,12 +1658,12 @@ model PromoOffer {
 /// GDPR problem. The outreach service is told best-effort and is not trusted
 /// as the source of truth.
 model EmailSuppression {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  source    String   @default("unsubscribe_link") // unsubscribe_link | complaint | manual | bounce
+  id        String    @id @default(cuid())
+  email     String    @unique
+  source    String    @default("unsubscribe_link") // unsubscribe_link | complaint | manual | bounce
   reason    String?
   userAgent String?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
   /// Set when someone undoes an opt-out (e.g. a mail scanner prefetched the link).
   revokedAt DateTime?
 

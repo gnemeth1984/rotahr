@@ -245,6 +245,16 @@ Return ONLY JSON: {"faq":[{"q":"...","a":"..."}]} with 3-6 entries.`,
   }
 }
 
+/**
+ * Write one article for one query.
+ *
+ * The structure here is aimed at two readers at once: a person, and the answer
+ * engines (ChatGPT, Perplexity, Google AI Overviews) that increasingly stand
+ * between us and that person. Those engines lift self-contained blocks — a bold
+ * direct answer, a question-shaped heading answered in its first sentence, a
+ * table, a figure with its qualifier attached. Flowing prose that builds to a
+ * conclusion reads well and gets quoted by nobody.
+ */
 async function writeArticle(keyword: string, cluster: string, intent: string, questions: string[]): Promise<Article | null> {
   const year = new Date().getFullYear();
 
@@ -261,9 +271,18 @@ ${intentBrief}
 
 Hard rules:
 - The H1/title must read naturally but contain the query or a very close variant.
-- 900-1400 words. No padding, no "in today's fast-paced world".
-- Open by answering the query directly — no throat-clearing intro.
-- 4-6 "## " H2 sections. Use tables or numbered steps where they genuinely help.
+- 1100-1600 words. No padding, no "in today's fast-paced world".
+- Open with a 2-3 sentence direct answer to the query, in bold, before any heading.
+  Write it so it stands alone if someone quotes only that paragraph.
+- 4-6 "## " H2 sections. Include at least one markdown table.
+- Each H2 must be a question or a specific claim a person would search, and the
+  first sentence under it must answer that heading outright. Do not build up to
+  the answer; lead with it, then justify it.
+- Include at least two concrete, self-contained facts — a number, a threshold, a
+  worked example with real figures, or a named legal requirement. Facts that
+  survive being lifted out of context are what get quoted; vague advice is not.
+- Where you state a figure, name what it applies to (venue size, country, year)
+  in the same sentence, so the sentence cannot be misread on its own.
 - Write for an international audience (US, UK, Ireland and beyond). Where something is legally region-specific, say that rules vary and to check local requirements rather than stating a figure that may be stale. It is currently ${year}.
 - Mention Rotahr once or twice, as a tool, in passing. Never a sales pitch.
 - Clean Markdown only, no HTML, no H1 inside the body (the title is the H1).
@@ -285,7 +304,7 @@ Return ONLY JSON, no code fences:
   const completion = await openai.chat.completions.create({
     model: "gpt-4o-mini",
     messages: [{ role: "user", content: prompt }],
-    max_tokens: 4000,
+    max_tokens: 5000,
     temperature: 0.7,
     response_format: { type: "json_object" },
   });

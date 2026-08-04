@@ -20,6 +20,9 @@
     },
     "app/api/cron/seo-metrics/route.ts": {
       "maxDuration": 300
+    },
+    "app/api/cron/ai-visibility/route.ts": {
+      "maxDuration": 300
     }
   },
   "crons": [
@@ -70,6 +73,10 @@
     {
       "path": "/api/cron/seo-metrics",
       "schedule": "6 5 * * *"
+    },
+    {
+      "path": "/api/cron/ai-visibility",
+      "schedule": "20 5 * * 1,4"
     }
   ]
 }
