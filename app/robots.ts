@@ -32,6 +32,27 @@ export default function robots(): MetadataRoute.Robots {
           "/linkedin-assistant",
         ],
       },
+    // Answer-engine crawlers, named explicitly. The wildcard rule above already
+    // permits them, but being explicit means a future tightening of the
+    // wildcard can't silently cut off AI search visibility — and these are the
+    // agents that build the shortlists buyers now ask for by name.
+    ...[
+      "GPTBot", // OpenAI training
+      "OAI-SearchBot", // ChatGPT browsing/search
+      "ChatGPT-User", // ChatGPT acting on a user request
+      "PerplexityBot",
+      "Perplexity-User",
+      "ClaudeBot",
+      "Claude-User",
+      "Google-Extended", // Gemini / AI Overviews grounding
+      "Applebot-Extended",
+      "cohere-ai",
+      "meta-externalagent",
+    ].map((userAgent) => ({
+      userAgent,
+      allow: ["/", "/llms.txt"],
+      disallow: ["/api/", "/admin", "/auth/", "/settings", "/crm", "/messages"],
+    })),
     ],
     sitemap: `${baseUrl}/sitemap.xml`,
     host: baseUrl,
