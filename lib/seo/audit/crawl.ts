@@ -192,8 +192,16 @@ export async function fetchPage(url: string, timeoutMs = 15000): Promise<PageRes
 
   for (const m of bodyHtml.matchAll(/<img\s+[^>]*>/gi)) {
     base.images++;
+    // An explicit alt="" is the correct markup for a purely decorative image,
+    // so only a genuinely absent alt attribute counts as a fault. Also skip
+    // images the page has marked as presentational.
     const alt = attr(m[0], "alt");
-    if (alt === null || alt.trim() === "") base.imagesMissingAlt++;
+    const role = attr(m[0], "role");
+    const decorative =
+      role === "presentation" ||
+      role === "none" ||
+      attr(m[0], "aria-hidden") === "true";
+    if (alt === null && !decorative) base.imagesMissingAlt++;
   }
 
   const origin = new URL(url).origin;

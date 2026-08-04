@@ -3,7 +3,7 @@ import { competitors } from "@/lib/seo/competitors";
 import { jsonLdProps, breadcrumbSchema } from "@/lib/seo/structured-data";
 
 export const metadata = {
-  title: "Rotahr vs Bizimply, RotaCloud, Deputy & More — Honest Comparison",
+  title: "Rotahr vs Bizimply, RotaCloud, Deputy & More",
   description:
     "How Rotahr compares to Bizimply, RotaCloud, Deputy, Planday, 7shifts and Sling for pubs, cafes and restaurants. Includes where each competitor is the better choice.",
   alternates: { canonical: "/compare" },

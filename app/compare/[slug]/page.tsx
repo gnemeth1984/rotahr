@@ -22,7 +22,9 @@ export async function generateMetadata({
   // Title targets the two phrases people actually type: "X alternative" and
   // "Rotahr vs X".
   return {
-    title: `Rotahr vs ${c.name} — Honest Comparison & ${c.name} Alternative (2026)`,
+    // Kept under 60 characters so it isn't truncated in the SERP, while still
+    // carrying both phrases people search: "X alternative" and "Rotahr vs X".
+    title: `${c.name} Alternative: Rotahr vs ${c.name} (2026)`,
     description: `An honest comparison of Rotahr and ${c.name} for pubs, cafés and restaurants: pricing model, what each does well, and where ${c.name} is the better choice.`,
     alternates: { canonical: `/compare/${c.slug}` },
     openGraph: {

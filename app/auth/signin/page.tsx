@@ -339,7 +339,7 @@ export default function SignInPage() {
             <Briefcase className="h-8 w-8 text-blue-400" />
             <span className="text-2xl font-bold text-white">Rotahr</span>
           </Link>
-          <p className="text-slate-400 mt-2 text-sm">Sign in to your workspace</p>
+          <h1 className="text-slate-400 mt-2 text-sm font-normal">Sign in to your workspace</h1>
         </div>
         <Suspense
           fallback={

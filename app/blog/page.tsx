@@ -1,10 +1,13 @@
 import { Metadata } from 'next';
 import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
+import { jsonLdProps, breadcrumbSchema, SITE_URL } from '@/lib/seo/structured-data';
 
 export const metadata: Metadata = {
-  title: 'Blog | Rotahr — Irish Hospitality Insights',
-  description: 'Practical advice for Irish restaurant, bar and hotel owners. Staff scheduling, employment law, rota tips, and more.',
+  title: 'Hospitality Management Blog | Rotahr',
+  description:
+    'Practical advice for restaurant, bar, cafe and hotel operators: staff scheduling, labour cost control, food safety compliance, payroll and rota tips.',
+  alternates: { canonical: '/blog' },
 };
 
 export const revalidate = 3600;
@@ -45,17 +48,62 @@ export default async function BlogPage() {
     select: { slug: true, title: true, excerpt: true, category: true, createdAt: true, coverImage: true },
   });
 
+  // Blog + ItemList so crawlers and answer engines can see this is an article
+  // index and enumerate the posts without parsing the markup.
+  const blogSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'Blog',
+    '@id': `${SITE_URL}/blog#blog`,
+    name: 'Rotahr Hospitality Management Blog',
+    description:
+      'Practical advice for restaurant, bar, cafe and hotel operators: scheduling, labour costs, compliance, payroll and people management.',
+    url: `${SITE_URL}/blog`,
+    inLanguage: 'en',
+    publisher: { '@id': `${SITE_URL}/#organization` },
+    blogPost: posts.map((post) => ({
+      '@type': 'BlogPosting',
+      headline: post.title,
+      description: post.excerpt,
+      url: `${SITE_URL}/blog/${post.slug}`,
+      datePublished: post.createdAt.toISOString(),
+      ...(post.coverImage ? { image: post.coverImage } : {}),
+      author: { '@type': 'Organization', name: 'Rotahr', url: SITE_URL },
+    })),
+  };
+
+  const itemListSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    itemListElement: posts.map((post, i) => ({
+      '@type': 'ListItem',
+      position: i + 1,
+      url: `${SITE_URL}/blog/${post.slug}`,
+      name: post.title,
+    })),
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
+      <script
+        {...jsonLdProps([
+          blogSchema,
+          itemListSchema,
+          breadcrumbSchema([
+            { name: 'Home', path: '/' },
+            { name: 'Blog', path: '/blog' },
+          ]),
+        ])}
+      />
       {/* Header */}
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-5xl mx-auto px-4 py-16 text-center">
           <Link href="/landing" className="inline-flex items-center gap-2 text-emerald-600 font-bold text-xl mb-8 hover:text-emerald-700">
             ← Rotahr
           </Link>
-          <h1 className="text-4xl font-bold text-gray-900 mt-4 mb-3">Rotahr Blog</h1>
+          <h1 className="text-4xl font-bold text-gray-900 mt-4 mb-3">Hospitality Management Blog</h1>
           <p className="text-lg text-gray-500 max-w-xl mx-auto">
-            Practical advice for Irish restaurant, bar and hotel owners. Scheduling, compliance, people management and more.
+            Practical advice for restaurant, bar, cafe and hotel operators — scheduling,
+            labour costs, compliance and people management, written for real service weeks.
           </p>
         </div>
       </div>
@@ -100,7 +148,7 @@ export default async function BlogPage() {
         {/* CTA */}
         <div className="mt-16 bg-emerald-600 rounded-2xl p-8 text-center text-white">
           <h3 className="text-2xl font-bold mb-2">Ready to simplify your rota?</h3>
-          <p className="text-emerald-100 mb-6">Join Irish restaurants and bars already using Rotahr. First month free.</p>
+          <p className="text-emerald-100 mb-6">Join the restaurants, bars and cafes already using Rotahr. First month free.</p>
           <Link
             href="/auth/register"
             className="inline-block bg-white text-emerald-700 font-semibold px-8 py-3 rounded-xl hover:bg-emerald-50 transition-colors"

@@ -83,7 +83,7 @@ export default function RegisterPage() {
             <Briefcase className="h-8 w-8 text-blue-400" />
             <span className="text-2xl font-bold text-white">Rotahr</span>
           </Link>
-          <p className="text-slate-400 mt-2 text-sm">Create your free account</p>
+          <h1 className="text-slate-400 mt-2 text-sm font-normal">Create your free account</h1>
         </div>
 
         <div className="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-8 backdrop-blur-sm">
