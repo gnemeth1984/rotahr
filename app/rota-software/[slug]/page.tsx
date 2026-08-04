@@ -92,11 +92,14 @@ export default async function LocationPage({
         <h1 className="text-4xl md:text-5xl font-bold mb-5 leading-tight">
           Rota software for {l.city} pubs, cafés and restaurants
         </h1>
-        <p className="text-lg text-slate-300 mb-6 max-w-2xl">{l.intro}</p>
-        <p className="text-lg text-slate-300 mb-10 max-w-2xl">
-          Rotahr handles the rota, the clock-in, the food safety records, the
-          bookings and the receipts in one app — flat €59 a month, VAT included.
+        {/* Answer first: state what the page is about in a sentence that can be
+            quoted on its own, then the local colour. */}
+        <p className="text-lg text-slate-200 mb-6 max-w-2xl">
+          Rotahr is rota software for {l.city} pubs, cafés and restaurants that
+          handles the rota, clock-in, food safety records, bookings and receipts
+          in one app — flat €59 a month, VAT included, no per-staff pricing.
         </p>
+        <p className="text-base text-slate-400 mb-10 max-w-2xl">{l.intro}</p>
 
         <div className="flex flex-wrap gap-3 mb-14">
           <Link

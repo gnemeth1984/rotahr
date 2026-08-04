@@ -215,7 +215,12 @@ export function analyse(input: {
     });
   }
 
-  const noCanonical = ok.filter((p) => !p.canonical);
+  // Search-relevant checks should only judge pages that can actually rank. A
+  // URL that redirects is really its target, and a deliberately noindexed
+  // utility page (sign-in, reset password) is not a content failure.
+  const indexable = ok.filter((p) => !p.redirectedTo && !p.noindex);
+
+  const noCanonical = indexable.filter((p) => !p.canonical);
   if (noCanonical.length) {
     add({
       code: "missing-canonical",
@@ -230,7 +235,7 @@ export function analyse(input: {
   }
 
   // ── On-page ──────────────────────────────────────────────────────────────
-  const noTitle = ok.filter((p) => !p.title);
+  const noTitle = indexable.filter((p) => !p.title);
   if (noTitle.length) {
     add({
       code: "missing-title",
@@ -245,7 +250,7 @@ export function analyse(input: {
   }
 
   const titleGroups = new Map<string, string[]>();
-  for (const p of ok) {
+  for (const p of indexable) {
     if (!p.title) continue;
     const k = p.title.trim().toLowerCase();
     titleGroups.set(k, [...(titleGroups.get(k) ?? []), p.url]);
@@ -264,7 +269,7 @@ export function analyse(input: {
     });
   }
 
-  const badLenTitles = ok.filter((p) => p.title && (p.titleLength < 25 || p.titleLength > 65));
+  const badLenTitles = indexable.filter((p) => p.title && (p.titleLength < 25 || p.titleLength > 65));
   if (badLenTitles.length) {
     add({
       code: "title-length",
@@ -278,7 +283,7 @@ export function analyse(input: {
     });
   }
 
-  const noDesc = ok.filter((p) => !p.metaDescription);
+  const noDesc = indexable.filter((p) => !p.metaDescription);
   if (noDesc.length) {
     add({
       code: "missing-meta-description",
@@ -292,7 +297,7 @@ export function analyse(input: {
     });
   }
 
-  const noH1 = ok.filter((p) => p.h1.length === 0);
+  const noH1 = indexable.filter((p) => p.h1.length === 0);
   if (noH1.length) {
     add({
       code: "missing-h1",
@@ -306,7 +311,7 @@ export function analyse(input: {
     });
   }
 
-  const multiH1 = ok.filter((p) => p.h1.length > 1);
+  const multiH1 = indexable.filter((p) => p.h1.length > 1);
   if (multiH1.length) {
     add({
       code: "multiple-h1",
@@ -320,12 +325,12 @@ export function analyse(input: {
     });
   }
 
-  const thin = ok.filter((p) => p.wordCount < 300);
+  const thin = indexable.filter((p) => p.wordCount < 300);
   if (thin.length) {
     add({
       code: "thin-content",
       category: "onpage",
-      severity: thin.length > ok.length / 2 ? "warning" : "notice",
+      severity: thin.length > indexable.length / 2 ? "warning" : "notice",
       title: `${thin.length} page${thin.length > 1 ? "s" : ""} under 300 words`,
       detail: "Thin pages rarely rank for competitive terms and are seldom cited by AI assistants.",
       urls: thin.map((p) => `${p.url} (${p.wordCount}w)`).slice(0, 20),
@@ -446,14 +451,17 @@ export function analyse(input: {
     });
   }
 
-  if (ok.length >= 3) {
-    const ratio = ai.answerShapedPages / ok.length;
+  if (indexable.length >= 3) {
+    // Measured over indexable pages only — redirects and noindexed utility
+    // screens aren't meant to answer anything.
+    const shaped = indexable.filter(answersDirectly).length;
+    const ratio = shaped / indexable.length;
     if (ratio < 0.3) {
       add({
         code: "not-answer-shaped",
         category: "ai-readiness",
         severity: "warning",
-        title: `Only ${ai.answerShapedPages} of ${ok.length} pages open with a direct answer`,
+        title: `Only ${shaped} of ${indexable.length} pages open with a direct answer`,
         detail:
           "AI assistants quote the first passage that answers the heading. Pages that open with preamble get skipped in favour of competitors that lead with the answer.",
         urls: [],

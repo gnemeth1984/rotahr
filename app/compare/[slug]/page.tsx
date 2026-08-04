@@ -96,7 +96,18 @@ export default async function ComparePage({
         <h1 className="text-4xl md:text-5xl font-bold mb-5 leading-tight">
           Rotahr vs {c.name}
         </h1>
-        <p className="text-lg text-slate-300 mb-4 max-w-2xl">
+        {/* Lead with the answer. AI assistants quote the first passage that
+            resolves the heading, so the opening paragraph states the Rotahr vs
+            {c.name} difference outright instead of describing the competitor
+            first. */}
+        <p className="text-lg text-slate-200 mb-4 max-w-2xl">
+          Rotahr and {c.name} both handle staff scheduling, but they solve
+          different problems: Rotahr is one flat-priced app that also covers
+          bookings, food safety records, stock and payroll for a single venue,
+          while {c.name} is a dedicated workforce platform priced per user and
+          bolted to other tools for the rest.
+        </p>
+        <p className="text-base text-slate-400 mb-4 max-w-2xl">
           {c.positioning}
         </p>
         <p className="text-lg text-slate-300 mb-10 max-w-2xl">
