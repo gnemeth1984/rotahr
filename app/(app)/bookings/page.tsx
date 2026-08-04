@@ -352,6 +352,19 @@ function BookingsInner() {
     }
   }
 
+  // Public-page requests arrive as "pending" and need a human to accept them.
+  // There was no way to do that from the UI — only cancel or delete — so a
+  // genuine request could never be turned into a booking.
+  async function handleConfirm(id: string) {
+    setActionSheetOpen(false);
+    await fetch(`/api/reservations/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "confirmed" }),
+    });
+    fetchBookings();
+  }
+
   async function handleCancel(id: string) {
     setActionSheetOpen(false);
     await fetch(`/api/reservations/${id}`, {
@@ -762,6 +775,19 @@ function BookingsInner() {
           {!showFlags ? (
             /* ── Main action buttons ── */
             <div className="px-4 pt-4 space-y-2">
+              {/* Confirm — only meaningful while the booking is still pending.
+                  Shown first because accepting a request is the whole point of
+                  opening a pending booking. */}
+              {isManager && activeBooking?.status === "pending" && (
+                <ActionRow
+                  icon={<CheckCircle2 className="h-4 w-4" />}
+                  label="Confirm Booking"
+                  color="text-emerald-700"
+                  bg="bg-emerald-50"
+                  onClick={() => activeBooking && handleConfirm(activeBooking.id)}
+                />
+              )}
+
               {/* Edit */}
               <ActionRow
                 icon={<Pencil className="h-4 w-4" />}

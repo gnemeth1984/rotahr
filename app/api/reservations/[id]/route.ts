@@ -52,6 +52,22 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       }
     }
 
+    // Scope to the caller's business before writing. `update({ where: { id } })`
+    // trusted a raw ID from the client, so any signed-in manager could edit or
+    // cancel a reservation belonging to a different business by guessing an ID.
+    // GET already scoped correctly; PATCH and DELETE did not.
+    const businessId = (session.user as any).businessId as string | undefined;
+    if (!businessId) {
+      return NextResponse.json({ error: "No business associated" }, { status: 400 });
+    }
+    const existing = await prisma.reservation.findFirst({
+      where: { id: params.id, businessId },
+      select: { id: true },
+    });
+    if (!existing) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
     const reservation = await prisma.reservation.update({
       where: { id: params.id },
       data: {
@@ -93,6 +109,20 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
     const isManager = userRole === Role.MANAGER || userRole === Role.ADMIN;
     if (!isManager) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    // Same tenant-isolation fix as PATCH — never write on a client-supplied ID
+    // without confirming it belongs to the caller's business first.
+    const businessId = (session.user as any).businessId as string | undefined;
+    if (!businessId) {
+      return NextResponse.json({ error: "No business associated" }, { status: 400 });
+    }
+    const existing = await prisma.reservation.findFirst({
+      where: { id: params.id, businessId },
+      select: { id: true },
+    });
+    if (!existing) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
     await prisma.reservation.update({
