@@ -2,11 +2,12 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import {
-  Loader2, Radio, Eye, Users, Building2, LogIn, Filter,
-  ChevronLeft, ChevronRight, Globe, MapPin,
+  Loader2, Radio, Eye, LogIn, Filter,
+  ChevronLeft, ChevronRight, Globe,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { BusinessesPanel } from "@/components/admin/businesses-panel";
 
 interface OnlineUser {
   userId: string;
@@ -247,31 +248,6 @@ export function ActivityTab() {
 
         {/* Sidebar: by business + login history */}
         <div className="space-y-6">
-          <div className="bg-white border border-slate-200 rounded-xl p-4">
-            <p className="font-semibold text-slate-800 mb-3 flex items-center gap-2 text-sm">
-              <Building2 className="h-4 w-4 text-slate-400" /> Most Active Businesses (30d)
-            </p>
-            {data.byBusiness.length === 0 ? (
-              <p className="text-xs text-slate-400">No activity yet</p>
-            ) : (
-              <div className="space-y-2">
-                {data.byBusiness.map((b) => (
-                  <button
-                    key={b.businessId}
-                    onClick={() => { setBusinessFilter(b.businessId ?? ""); setPage(1); }}
-                    className={cn(
-                      "w-full flex items-center justify-between text-xs px-2 py-1.5 rounded-lg transition-colors",
-                      businessFilter === b.businessId ? "bg-emerald-50 text-emerald-700" : "hover:bg-slate-50 text-slate-600"
-                    )}
-                  >
-                    <span className="truncate">{b.businessName}</span>
-                    <span className="font-semibold flex-shrink-0 ml-2">{b.count}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
           <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
             <div className="px-4 py-3 border-b border-slate-100">
               <p className="font-semibold text-slate-800 flex items-center gap-2 text-sm">
@@ -298,6 +274,11 @@ export function ActivityTab() {
           </div>
         </div>
       </div>
+
+      <BusinessesPanel
+        activeFilter={businessFilter}
+        onFilter={(id) => { setBusinessFilter(businessFilter === id ? "" : id); setPage(1); }}
+      />
     </div>
   );
 }
