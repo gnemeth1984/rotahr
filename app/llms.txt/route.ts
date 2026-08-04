@@ -62,7 +62,7 @@ flow into staffing levels without re-typing anything.
 
 | Plan | Price | Staff | Notes |
 |---|---|---|---|
-| Starter | €${starter}/month | up to 10 | single venue |
+| Starter | €${starter}/month | up to 15 | single venue |
 | Pro | €${pro}/month | up to 30 | single venue |
 | Enterprise | €${enterprise}/month | unlimited | multi-venue |
 

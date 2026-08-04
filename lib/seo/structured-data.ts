@@ -56,7 +56,7 @@ export function softwareApplicationSchema() {
       "Venue management software for pubs, cafés, restaurants and hotels: rota scheduling, clock in/out, table reservations, HACCP compliance, stock, bookkeeping and payroll.",
     publisher: { "@id": `${SITE_URL}/#organization` },
     offers: [
-      { name: "Starter", price: "59", description: "Up to 10 staff" },
+      { name: "Starter", price: "59", description: "Up to 15 staff" },
       { name: "Pro", price: "119", description: "Up to 30 staff" },
       { name: "Enterprise", price: "215", description: "Unlimited staff, multi-venue" },
     ].map((o) => ({

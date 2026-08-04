@@ -1,28 +1,27 @@
-# Current thread
+# "Get better" pass — Aug 4 2026
 
-## Fixed this turn
-- Vercel build was FAILING (that's why /demo/preparing + /api/demo/status 404'd for hours):
-  `useSearchParams()` not wrapped in Suspense on /demo/preparing. Fixed in 6ccbe25 — page.tsx is now a
-  server wrapper with Suspense + force-dynamic, client moved to DemoPreparingClient.tsx. Deployed, both routes 200.
+Audit baseline after PSI key: rotahr.com 98/100. Lighthouse a11y 85, best-practices 92.
 
-## New bug found on prod
-Demo reset was started un-awaited inside the NextAuth credentials callback. On Vercel the function is
-frozen once the response is sent, so the ~127s seed gets killed partway → half-wiped demo dashboard
-(prod showed "Shifts Today 2" instead of 10) and `release()` never runs so DemoResetState stays
-`running:true` until STUCK_MS.
+## Done
+- [x] CSP: allow app.lemonsqueezy.com + assets.lemonsqueezy.com in script-src, connect-src, frame-src
+      (lemon.js was BLOCKED in prod — overlay checkout dead)
+- [x] viewport: removed maximumScale:1 (was failing meta-viewport a11y audit, blocked pinch-zoom)
+- [x] contrast: landing slate-400 -> slate-600 on light bgs; badge/price #F97316 -> #C2410C;
+      text-red-500 -> red-700; orange link -> orange-700 + permanent underline
+      (left slate-400 inside dark CTA + dark /compare pages alone — passes there)
+- [x] landmark-one-main: <main> added to /landing, /blog, /blog/[slug]
+- [x] privacy/terms "Last updated" slate-400 -> slate-600
 
-Fix in progress:
-- auth callback no longer runs the seed
-- demo login always routes to /demo/preparing
-- interstitial POSTs /api/demo/prepare, which claims the slot and AWAITS seedDemo (maxDuration 300)
-- interstitial still polls /api/demo/status so a second visitor waits on someone else's run
+## In progress
+- [ ] Verify whether checkout CTA depends on lemon.js (dead buttons?) or plain hrefs
+- [ ] Content volume gap: 7shifts 1008 sitemap URLs vs our 79
+      NOTE: lib/seo/locations.ts warns against doorway pages — do NOT mass-generate city pages.
+      Plan: real /features/[slug] module pages (HACCP, rota, bookings, payroll, bookkeeping, CRM)
+      + expand landing (574w) with an answer-shaped FAQ
+- [ ] publicClaimToken for Christy's Bar "The Well" (cmsap83160000vavrlksnx272)
+- [ ] tsc + build, commit, push, re-audit
 
-Open risk: if the Vercel plan is Hobby, maxDuration caps at 60s and the seed dies again.
-Test on prod by timing POST /api/demo/prepare. If capped, chunk the seed into stages.
-
-## Still to do
-- Screenshot /tmp/email-preview.html (5 outreach emails) — never visually checked
-- Tell Gabor: Railway email service is GONE (404 on every route), 1,625 leads stalled, server.js 087df4f
-  can't deploy until he redeploys. Ask whether to move the sender into the main Next app.
-- Deliver directory-listings.md + screenshots/ + logo-square-512.png + rotahr-brochure.pdf
-- Env vars Gabor must set by hand (Vercel token dead): CRON_SECRET, 3 VAPID keys, POS keys, UNSUBSCRIBE_SECRET
+## Blocked on Gabor
+- PAGESPEED_API_KEY must be added to Vercel env vars (only in local .env.local)
+- Search Console: add service account as Full user (403)
+- PrivateEmail mailbox + SPF/DKIM

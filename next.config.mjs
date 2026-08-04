@@ -12,11 +12,15 @@ const securityHeaders = [
     key: "Content-Security-Policy",
     value: [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval'", // unsafe-eval needed by Next.js dev
+      // app.lemonsqueezy.com serves lemon.js, which powers the overlay checkout.
+      // Without it the "Start Free Trial" buttons are dead on the live site.
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://app.lemonsqueezy.com https://assets.lemonsqueezy.com",
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob: https://*.googleusercontent.com https://*.vercel-storage.com https://*.public.blob.vercel-storage.com",
       "font-src 'self'",
-      "connect-src 'self' https://*.vercel-storage.com https://api.openai.com https://api.lemonsqueezy.com",
+      "connect-src 'self' https://*.vercel-storage.com https://api.openai.com https://api.lemonsqueezy.com https://app.lemonsqueezy.com",
+      // The Lemon Squeezy overlay checkout renders inside an iframe it injects.
+      "frame-src 'self' https://app.lemonsqueezy.com https://*.lemonsqueezy.com",
       "frame-ancestors 'none'",
       "form-action 'self'",
       "base-uri 'self'",

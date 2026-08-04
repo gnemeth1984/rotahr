@@ -109,7 +109,7 @@ export default async function BlogPage() {
       </div>
 
       {/* Posts */}
-      <div className="max-w-5xl mx-auto px-4 py-12">
+      <main className="max-w-5xl mx-auto px-4 py-12">
         {posts.length === 0 ? (
           <div className="text-center py-20 text-gray-400">
             <p className="text-xl">Articles coming soon — check back tomorrow.</p>
@@ -156,7 +156,7 @@ export default async function BlogPage() {
             Start Free Trial
           </Link>
         </div>
-      </div>
+      </main>
     </div>
   );
 }

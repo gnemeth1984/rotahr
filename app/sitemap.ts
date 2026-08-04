@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { listPublicVenueSlugs } from '@/lib/public-page/data';
 import { competitors } from '@/lib/seo/competitors';
 import { locations } from '@/lib/seo/locations';
+import { features } from '@/lib/seo/features';
 
 // Canonical production domain. Must stay rotahr.com — the Vercel subdomain
 // would split ranking signals across two hostnames.
@@ -48,6 +49,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${baseUrl}/pitch`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.5 },
     { url: `${baseUrl}/partners`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.6 },
     { url: `${baseUrl}/compare`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.7 },
+    { url: `${baseUrl}/features`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.8 },
+    // Module pages: match how people actually search ("restaurant HACCP app"),
+    // which the landing page's two-line summaries can never rank for.
+    ...features.map(f => ({
+      url: `${baseUrl}/features/${f.slug}`,
+      lastModified: new Date(),
+      changeFrequency: 'monthly' as const,
+      priority: 0.85,
+    })),
     // Comparison + location pages: highest commercial intent on the site, so
     // they carry a priority just under the landing page.
     ...competitors.map(c => ({

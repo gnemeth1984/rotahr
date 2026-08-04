@@ -1,0 +1,90 @@
+import { NextRequest, NextResponse } from "next/server";
+import bcrypt from "bcryptjs";
+import { prisma } from "@/lib/prisma";
+import { isRateLimited } from "@/lib/auth/rate-limit";
+import { findClaimable } from "@/lib/public-page/claim";
+
+/**
+ * Complete a claim: turn a prospect page into a real account owned by the
+ * person who proved control of the venue's mailbox.
+ *
+ * The business already exists with its slug, page content and default venue, so
+ * we attach an owner to it rather than creating anything new. Everything happens
+ * in one transaction — a half-claimed business with no user would be
+ * unrecoverable through the UI.
+ */
+export async function POST(req: NextRequest) {
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+  if (isRateLimited(`claim-complete:${ip}`, 10, 15 * 60 * 1000)) {
+    return NextResponse.json({ error: "Too many requests. Try again shortly." }, { status: 429 });
+  }
+
+  let body: { token?: string; name?: string; email?: string; password?: string };
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid request." }, { status: 400 });
+  }
+
+  const { token, name, email, password } = body;
+  if (!token || !name?.trim() || !email?.trim() || !password) {
+    return NextResponse.json({ error: "All fields are required." }, { status: 400 });
+  }
+  if (password.length < 8) {
+    return NextResponse.json({ error: "Password must be at least 8 characters." }, { status: 400 });
+  }
+
+  const business = await findClaimable({ token });
+  if (!business) {
+    return NextResponse.json(
+      { error: "That claim link is no longer valid. Request a new one from the page." },
+      { status: 410 }
+    );
+  }
+
+  const normalisedEmail = email.trim().toLowerCase();
+  const existing = await prisma.user.findUnique({ where: { email: normalisedEmail } });
+  if (existing) {
+    return NextResponse.json(
+      { error: "An account with that email already exists. Sign in instead." },
+      { status: 409 }
+    );
+  }
+
+  const hashed = await bcrypt.hash(password, 12);
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.user.create({
+        data: {
+          name: name.trim(),
+          email: normalisedEmail,
+          password: hashed,
+          // The claimer is the owner of their own business — same role a normal
+          // signup gets. This is NOT platform admin.
+          role: "MANAGER",
+          businessId: business.id,
+        },
+      });
+
+      await tx.business.update({
+        where: { id: business.id },
+        data: {
+          // No longer a page we maintain on someone's behalf.
+          publicProspect: false,
+          // Burn the token so the link in the inbox is single-use.
+          publicClaimToken: null,
+          // We suppressed indexing while it was unverified; the owner controls
+          // it from Settings now.
+          publicNoIndex: false,
+          onboardingComplete: false,
+        },
+      });
+    });
+  } catch (err) {
+    console.error("[claim:complete]", err);
+    return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });
+  }
+
+  return NextResponse.json({ ok: true, slug: business.slug, email: normalisedEmail });
+}

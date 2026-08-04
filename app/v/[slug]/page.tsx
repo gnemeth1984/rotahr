@@ -10,6 +10,7 @@ import {
   formatPrice,
 } from "@/lib/public-page/types";
 import { BookingForm } from "./_booking-form";
+import { ClaimBanner } from "./_claim-banner";
 
 export const revalidate = 300; // 5 min — venue edits appear quickly, DB stays quiet
 
@@ -348,6 +349,11 @@ export default async function PublicVenuePage({ params }: { params: { slug: stri
           </div>
         </section>
       )}
+
+      {/* ── Claim ────────────────────────────────────────────────────── */}
+      {/* Prospect pages only: gives the real owner a route to take the page
+          over, which previously did not exist anywhere in the product. */}
+      {venue.isProspect && <ClaimBanner slug={venue.slug} venueName={venue.name} />}
 
       {/* ── Footer ───────────────────────────────────────────────────── */}
       <footer className="border-t border-slate-200 py-10 text-center">

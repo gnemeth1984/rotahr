@@ -6,11 +6,13 @@ import { Check, Zap, ArrowRight } from "lucide-react"
 // "what you'd pay for separate tools" list), which would otherwise collide.
 import { competitors as competitorPages } from "@/lib/seo/competitors"
 import { locations } from "@/lib/seo/locations"
+import { features as featurePages } from "@/lib/seo/features"
 import {
   organizationSchema,
   softwareApplicationSchema,
   websiteSchema,
   jsonLdProps,
+  faqSchema,
 } from "@/lib/seo/structured-data"
 
 // Canonical is explicit because `/` redirects here — without it Google has to
@@ -155,18 +157,57 @@ const competitors = [
   { name: "Total", price: "€265–390+/mo", bold: true },
 ]
 
+// Answer-shaped FAQ. Two jobs: it is the section answer engines quote when
+// someone asks "how much is Rotahr" or "does it replace my POS", and it gives
+// the landing page real substance beyond feature bullets.
+const landingFaq = [
+  {
+    q: "What does Rotahr actually replace?",
+    a: "For most venues it replaces four things: the rota spreadsheet plus the staff WhatsApp group, the paper HACCP diary, the booking diary, and the carrier bag of receipts. It does not replace your POS or your payroll bureau — it feeds them.",
+  },
+  {
+    q: "How much does Rotahr cost?",
+    a: "Starter is €59 a month for up to 15 staff, Pro is €119 for up to 30, and Enterprise is €215 for unlimited staff across multiple venues. Tax is included in those prices, there are no setup fees, and the first month is free.",
+  },
+  {
+    q: "Is it priced per member of staff?",
+    a: "No. Pricing is a flat monthly fee per band, so hiring four people for the summer does not change your bill. Per-user pricing punishes exactly the churn hospitality runs on.",
+  },
+  {
+    q: "Do my staff need to be technical?",
+    a: "Staff only ever see their own shifts, their hours, their swap requests and the checks they need to log. In practice the training is showing someone the clock-in button once.",
+  },
+  {
+    q: "Can I use Rotahr outside Ireland?",
+    a: "Yes. EUR, USD, GBP, CAD and AUD are supported, and the tax wording follows the jurisdiction — VAT in Ireland and the UK, sales tax in the US, GST/HST in Canada, GST in Australia. Statutory break thresholds are currently modelled on Irish rules, so operators elsewhere should sanity-check those against local law.",
+  },
+  {
+    q: "What happens to my data if I leave?",
+    a: "You can export your expenses, guest records and HACCP history as CSV or PDF before you go. Nothing is held hostage, and there is no annual lock-in — the plans are monthly.",
+  },
+  {
+    q: "Does it integrate with my POS?",
+    a: "There is POS integration for Lightspeed and Square. It is worth having for sales-driven stock depletion and demand-aware staffing, but everything else in Rotahr works fully without a POS connected.",
+  },
+]
+
 export default function LandingPage() {
   return (
     <div className="min-h-screen bg-white text-slate-900">
       <script
-        {...jsonLdProps([organizationSchema(), websiteSchema(), softwareApplicationSchema()])}
+        {...jsonLdProps([
+          organizationSchema(),
+          websiteSchema(),
+          softwareApplicationSchema(),
+          faqSchema(landingFaq),
+        ])}
       />
       {/* Nav */}
       <header className="border-b border-slate-100 sticky top-0 bg-white/95 backdrop-blur z-50">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
           <Image src="/logo-light.png" alt="Rotahr" width={110} height={36} className="object-contain" priority />
           <nav className="hidden md:flex items-center gap-8 text-sm text-slate-600">
-            <a href="#features" className="hover:text-slate-900 transition-colors">Features</a>
+            <Link href="/features" className="hover:text-slate-900 transition-colors">Features</Link>
             <a href="#pricing" className="hover:text-slate-900 transition-colors">Pricing</a>
             <Link href="/compare" className="hover:text-slate-900 transition-colors">Compare</Link>
             <Link href="/blog" className="hover:text-slate-900 transition-colors">Blog</Link>
@@ -186,6 +227,7 @@ export default function LandingPage() {
         </div>
       </header>
 
+      <main>
       {/* Hero */}
       <section className="relative overflow-hidden max-w-6xl mx-auto px-6 pt-24 pb-20 text-center">
         <div className="pointer-events-none absolute inset-0 -z-10">
@@ -194,7 +236,7 @@ export default function LandingPage() {
         </div>
 
         <div className="inline-flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-full mb-6 border"
-          style={{ borderColor: "#F9731640", color: "#F97316", background: "#FFF7F0" }}>
+          style={{ borderColor: "#F9731640", color: "#C2410C", background: "#FFF7F0" }}>
           <Zap className="w-3 h-3" />
           Built for hospitality teams
         </div>
@@ -209,7 +251,7 @@ export default function LandingPage() {
         <p className="text-xl text-slate-500 max-w-2xl mx-auto mb-4">
           Rotas, clock-in, reservations, bookkeeping, payroll, team messaging and more — all in one place.
         </p>
-        <p className="text-base text-slate-400 max-w-xl mx-auto mb-10">
+        <p className="text-base text-slate-600 max-w-xl mx-auto mb-10">
           Replace 4 separate tools with one. Starting at <strong className="text-slate-600">€59/month</strong> incl. VAT.
         </p>
 
@@ -234,7 +276,7 @@ export default function LandingPage() {
       <section className="py-12" style={{ background: "#FFF7F0" }}>
         <div className="max-w-3xl mx-auto px-6">
           <p className="text-center text-sm font-semibold text-slate-600 mb-2">What you'd pay using separate tools</p>
-          <p className="text-center text-xs text-slate-400 mb-6">Most venues are paying for 3–4 tools that don't talk to each other</p>
+          <p className="text-center text-xs text-slate-600 mb-6">Most venues are paying for 3–4 tools that don't talk to each other</p>
           <div className="bg-white rounded-2xl border border-orange-100 overflow-hidden shadow-sm">
             {competitors.map((c) => (
               <div
@@ -242,7 +284,7 @@ export default function LandingPage() {
                 className={`flex justify-between items-center px-6 py-4 border-b border-slate-100 last:border-0 ${c.bold ? "bg-red-50" : ""}`}
               >
                 <span className={`text-sm ${c.bold ? "font-bold text-slate-900" : "text-slate-600"}`}>{c.name}</span>
-                <span className={`text-sm ${c.bold ? "font-bold text-red-500" : "text-slate-500"}`}>{c.price}</span>
+                <span className={`text-sm ${c.bold ? "font-bold text-red-700" : "text-slate-500"}`}>{c.price}</span>
               </div>
             ))}
             <div className="flex justify-between items-center px-6 py-4" style={{ background: "linear-gradient(135deg, #FFF7F0, #FFF0F8)" }}>
@@ -250,7 +292,7 @@ export default function LandingPage() {
                 <Image src="/logo-icon.png" alt="" width={20} height={20} className="object-contain" />
                 Rotahr — everything included
               </span>
-              <span className="text-sm font-bold" style={{ color: "#F97316" }}>from €59/mo</span>
+              <span className="text-sm font-bold" style={{ color: "#C2410C" }}>from €59/mo</span>
             </div>
           </div>
         </div>
@@ -308,7 +350,7 @@ export default function LandingPage() {
                   <span className="text-4xl font-extrabold">{plan.price}</span>
                   <span className="text-slate-500 text-sm ml-1">{plan.period}</span>
                 </div>
-                <div className="text-sm text-slate-400 mb-6">{plan.staff}</div>
+                <div className="text-sm text-slate-600 mb-6">{plan.staff}</div>
                 <Link
                   href={plan.name === "Enterprise" ? "/auth/signin" : "/auth/register"}
                   className={`block text-center py-3 rounded-xl text-sm font-semibold transition-all mb-8 ${
@@ -332,9 +374,27 @@ export default function LandingPage() {
             ))}
           </div>
 
-          <p className="text-center text-sm text-slate-400 mt-8">
-            Enterprise pricing is custom — <Link href="/auth/signin" className="text-orange-500 hover:underline">contact us</Link> to get started.
+          <p className="text-center text-sm text-slate-600 mt-8">
+            Enterprise pricing is custom — <Link href="/auth/signin" className="text-orange-700 underline">contact us</Link> to get started.
           </p>
+        </div>
+      </section>
+
+      {/* FAQ */}
+      <section id="faq" className="py-24 bg-slate-50">
+        <div className="max-w-3xl mx-auto px-6">
+          <h2 className="text-3xl font-extrabold mb-4 text-center">Questions people actually ask</h2>
+          <p className="text-slate-600 text-center mb-12">
+            Straight answers, including the ones where the answer is no.
+          </p>
+          <div className="space-y-6">
+            {landingFaq.map((item) => (
+              <div key={item.q} className="bg-white rounded-2xl border border-slate-200 p-6">
+                <h3 className="font-bold mb-2">{item.q}</h3>
+                <p className="text-slate-600 text-sm leading-relaxed">{item.a}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
@@ -358,13 +418,31 @@ export default function LandingPage() {
           </Link>
         </div>
       </section>
+      </main>
 
       {/* Footer */}
       <footer className="border-t border-slate-100 py-10">
         {/* Internal links. Without these the comparison and location pages are
             orphaned — reachable only via the sitemap, which crawls far slower
             and passes no internal link equity. */}
-        <div className="max-w-6xl mx-auto px-6 grid sm:grid-cols-3 gap-8 mb-10 text-sm">
+        <div className="max-w-6xl mx-auto px-6 grid sm:grid-cols-2 lg:grid-cols-4 gap-8 mb-10 text-sm">
+          <div>
+            <h3 className="font-semibold text-slate-900 mb-3">Features</h3>
+            <ul className="space-y-2 text-slate-500">
+              {featurePages.map((f) => (
+                <li key={f.slug}>
+                  <Link href={`/features/${f.slug}`} className="hover:text-slate-900">
+                    {f.name}
+                  </Link>
+                </li>
+              ))}
+              <li>
+                <Link href="/features" className="hover:text-slate-900">
+                  All features
+                </Link>
+              </li>
+            </ul>
+          </div>
           <div>
             <h3 className="font-semibold text-slate-900 mb-3">Compare</h3>
             <ul className="space-y-2 text-slate-500">
@@ -405,7 +483,7 @@ export default function LandingPage() {
             </ul>
           </div>
         </div>
-        <div className="max-w-6xl mx-auto px-6 pt-8 border-t border-slate-100 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-slate-400">
+        <div className="max-w-6xl mx-auto px-6 pt-8 border-t border-slate-100 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-slate-600">
           <Image src="/logo-light.png" alt="Rotahr" width={80} height={26} className="object-contain" />
           <span>© 2026 Rotahr. All rights reserved.</span>
           <span>EUR, USD, GBP, CAD &amp; AUD supported — VAT/tax included in all prices</span>

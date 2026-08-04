@@ -93,6 +93,7 @@ export default async function BlogPostPage({ params }: Props) {
         </div>
       </div>
 
+      <main>
       <article className="max-w-3xl mx-auto px-4 py-12">
         {/* Meta */}
         <div className="mb-6">
@@ -165,6 +166,7 @@ export default async function BlogPostPage({ params }: Props) {
           </Link>
         </div>
       </article>
+      </main>
 
       {/* Related posts */}
       {related.length > 0 && (

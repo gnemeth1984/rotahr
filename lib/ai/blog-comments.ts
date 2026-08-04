@@ -22,7 +22,7 @@ About Rotahr:
   - Multi-currency support (EUR, USD, GBP, CAD, AUD) for international hospitality businesses
   - Public holiday detection, multi-venue support for growing groups
 - Expanding from Ireland into the US and UK markets.
-- Pricing (incl. Irish VAT where relevant): Starter EUR 59/mo (up to 10 staff), Pro EUR 119/mo (up to 30 staff), Enterprise EUR 215/mo (unlimited staff, multi-venue).
+- Pricing (incl. Irish VAT where relevant): Starter EUR 59/mo (up to 15 staff), Pro EUR 119/mo (up to 30 staff), Enterprise EUR 215/mo (unlimited staff, multi-venue).
 - Site: https://rotahr.com
 
 Known direct competitors (mention only if genuinely relevant to what the commenter is discussing, never trash-talk by name): 7shifts, Bizimply, Nory, BrightHR, Deputy, When I Work, Planday, Rotaready, Homebase, HotSchedules, Fourth, Harri, Sling, Connecteam, Restaurant365.

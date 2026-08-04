@@ -5,7 +5,7 @@ export default function PrivacyPage() {
     <div className="min-h-screen bg-white">
       <div className="max-w-3xl mx-auto px-6 py-16">
         <h1 className="text-3xl font-bold text-slate-900 mb-2">Privacy Policy</h1>
-        <p className="text-sm text-slate-400 mb-10">Last updated: June 2026</p>
+        <p className="text-sm text-slate-600 mb-10">Last updated: June 2026</p>
 
         <div className="prose prose-slate max-w-none space-y-8 text-sm leading-relaxed text-slate-700">
 

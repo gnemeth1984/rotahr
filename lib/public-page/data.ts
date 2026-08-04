@@ -30,6 +30,12 @@ export interface PublicVenueData {
   geoLng: number | null;
   openingHours: OpeningHoursEntry[];
   noIndex: boolean;
+  /**
+   * True when this page was created by us for a venue we don't run, so the page
+   * can offer the real owner a way to claim it. Never exposes the claim token
+   * itself — claiming goes through email verification.
+   */
+  isProspect: boolean;
   showBooking: boolean;
   showPrices: boolean;
   dishes: {
@@ -82,6 +88,7 @@ export async function getPublicVenue(slug: string): Promise<PublicVenueData | nu
       publicShowPrices: true,
       publicShowBooking: true,
       publicNoIndex: true,
+      publicProspect: true,
       // Default venue supplies contact/location fallbacks. NOTE: `notes` and
       // `equipment` are internal and must never be selected here.
       venues: {
@@ -173,6 +180,7 @@ export async function getPublicVenue(slug: string): Promise<PublicVenueData | nu
     geoLng: venue?.geoLng ?? null,
     openingHours: normaliseOpeningHours(business.publicOpeningHours),
     noIndex: business.publicNoIndex,
+    isProspect: business.publicProspect === true,
     showBooking: business.publicShowBooking,
     showPrices: business.publicShowPrices,
     dishes: dishes.map((d) => ({

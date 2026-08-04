@@ -134,7 +134,7 @@ export default async function ComparePage({
               <span className="text-base font-normal text-slate-400">/mo</span>
             </p>
             <p className="text-sm text-slate-300">
-              Flat monthly, VAT included. Up to 10 staff; €{ROTAHR_PRICING.pro} up
+              Flat monthly, VAT included. Up to 15 staff; €{ROTAHR_PRICING.pro} up
               to 30. Hiring doesn&apos;t change the bill.
             </p>
           </div>
