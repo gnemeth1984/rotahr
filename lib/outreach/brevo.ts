@@ -14,7 +14,11 @@ const BREVO_ENDPOINT = "https://api.brevo.com/v3/smtp/email";
 
 const FROM_EMAIL = process.env.OUTREACH_FROM_EMAIL || "sales@rotahr.com";
 const FROM_NAME = process.env.OUTREACH_FROM_NAME || "Gabor at Rotahr";
-const UNSUB_MAILBOX = process.env.UNSUB_MAILBOX || "privacy@rotahr.com";
+// Deliberately the same mailbox we send from. The Launch Email plan provisions a
+// single mailbox (sales@), and an unsubscribe address that bounces is worse than
+// no mailto at all — a stranger replying "remove me" must reach a real inbox.
+// Override only once a dedicated mailbox genuinely exists and accepts mail.
+const UNSUB_MAILBOX = process.env.UNSUB_MAILBOX || "sales@rotahr.com";
 
 export type SendResult =
   | { ok: true; messageId: string | null }

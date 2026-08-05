@@ -19,7 +19,7 @@ export default function PrivacyPage() {
               Rotahr acts as a <strong>data processor</strong> on their behalf in relation to that data.
             </p>
             <p className="mt-2">
-              Contact: <a href="mailto:privacy@rotahr.com" className="text-blue-600 hover:underline">privacy@rotahr.com</a>
+              Contact: <a href="mailto:sales@rotahr.com" className="text-blue-600 hover:underline">sales@rotahr.com</a>
             </p>
           </section>
 
@@ -123,7 +123,7 @@ export default function PrivacyPage() {
             </p>
             <p className="mt-2">
               To request access to, correction of, or deletion of your data, contact your employer directly
-              or email <a href="mailto:privacy@rotahr.com" className="text-blue-600 hover:underline">privacy@rotahr.com</a>.
+              or email <a href="mailto:sales@rotahr.com" className="text-blue-600 hover:underline">sales@rotahr.com</a>.
             </p>
           </section>
 
@@ -144,7 +144,7 @@ export default function PrivacyPage() {
               employment law obligations.
             </p>
             <p className="mt-2">
-              To exercise your rights, email <a href="mailto:privacy@rotahr.com" className="text-blue-600 hover:underline">privacy@rotahr.com</a>.
+              To exercise your rights, email <a href="mailto:sales@rotahr.com" className="text-blue-600 hover:underline">sales@rotahr.com</a>.
               You also have the right to lodge a complaint with the <strong>Data Protection Commission (DPC)</strong> at{" "}
               <a href="https://www.dataprotection.ie" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">dataprotection.ie</a>.
               UK residents may contact the <strong>ICO</strong> at{" "}
@@ -186,7 +186,7 @@ export default function PrivacyPage() {
               </li>
             </ul>
             <p className="mt-2">
-              To exercise any of these rights, email <a href="mailto:privacy@rotahr.com" className="text-blue-600 hover:underline">privacy@rotahr.com</a>.
+              To exercise any of these rights, email <a href="mailto:sales@rotahr.com" className="text-blue-600 hover:underline">sales@rotahr.com</a>.
               As with all users, rights to deletion do not override legal retention obligations that apply to
               financial, payroll, or tax-related records in your jurisdiction.
             </p>

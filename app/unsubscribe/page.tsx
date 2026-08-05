@@ -65,8 +65,8 @@ export default async function UnsubscribePage({
               <p className="text-sm text-white/60 leading-relaxed">
                 The link didn&apos;t include a valid email address, so there&apos;s nothing for us to
                 remove. Forward the email you received to{" "}
-                <a href="mailto:privacy@rotahr.com" className="text-[#FF6B35] hover:underline">
-                  privacy@rotahr.com
+                <a href="mailto:sales@rotahr.com" className="text-[#FF6B35] hover:underline">
+                  sales@rotahr.com
                 </a>{" "}
                 and we&apos;ll take you off the list by hand.
               </p>
@@ -100,8 +100,8 @@ export default async function UnsubscribePage({
             Privacy
           </Link>{" "}
           ·{" "}
-          <a href="mailto:privacy@rotahr.com" className="hover:text-white/60 underline">
-            privacy@rotahr.com
+          <a href="mailto:sales@rotahr.com" className="hover:text-white/60 underline">
+            sales@rotahr.com
           </a>
         </p>
         <p className="text-xs text-white/25 text-center mt-2">

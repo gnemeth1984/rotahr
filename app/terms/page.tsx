@@ -64,7 +64,7 @@ export default function TermsPage() {
               <strong>Waiver of cooling-off period:</strong> By starting to use Rotahr during the 14-day cooling-off period, you expressly request that the service begins immediately and you acknowledge that you lose your right of withdrawal once the service has been fully performed. Where the service has not been fully performed, you remain entitled to a pro-rata refund for the unused portion.
             </p>
             <p className="mt-2">
-              To exercise your right of withdrawal, notify us within 14 days at <a href="mailto:legal@rotahr.com" className="text-blue-600 hover:underline">legal@rotahr.com</a> with your account name and the statement that you wish to withdraw. We will process any refund due within 14 days of receiving your notice.
+              To exercise your right of withdrawal, notify us within 14 days at <a href="mailto:sales@rotahr.com" className="text-blue-600 hover:underline">sales@rotahr.com</a> with your account name and the statement that you wish to withdraw. We will process any refund due within 14 days of receiving your notice.
             </p>
             <p className="mt-2 text-xs text-slate-500">
               Note: Most Rotahr subscribers are businesses (B2B). The right of withdrawal under this clause applies only to consumers as defined by Irish and EU consumer law.
@@ -160,7 +160,7 @@ export default function TermsPage() {
           <section>
             <h2 className="text-lg font-semibold text-slate-800 mb-2">11. Contact</h2>
             <p>
-              Questions about these terms: <a href="mailto:legal@rotahr.com" className="text-blue-600 hover:underline">legal@rotahr.com</a>
+              Questions about these terms: <a href="mailto:sales@rotahr.com" className="text-blue-600 hover:underline">sales@rotahr.com</a>
             </p>
           </section>
 

@@ -258,7 +258,7 @@ function PartnerForm() {
       <div className="success-msg">
         <strong style={{ display: "block", marginBottom: "8px", fontSize: "17px" }}>You're in! 🎉</strong>
         We'll send your unique referral link to your email within 24 hours.<br />
-        Questions? Email <a href="mailto:hello@rotahr.com" style={{ color: "#f97316" }}>hello@rotahr.com</a>
+        Questions? Email <a href="mailto:sales@rotahr.com" style={{ color: "#f97316" }}>sales@rotahr.com</a>
       </div>
     );
   }

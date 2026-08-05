@@ -64,7 +64,7 @@ export async function POST(req: Request) {
             As a reminder — you'll earn <strong>20% recurring commission</strong> on every client you refer, every month, for life.
           </p>
           <p style="color:#475569;line-height:1.7">
-            Any questions? Reply to this email or contact us at <a href="mailto:hello@rotahr.com" style="color:#f97316">hello@rotahr.com</a>
+            Any questions? Reply to this email or contact us at <a href="mailto:sales@rotahr.com" style="color:#f97316">sales@rotahr.com</a>
           </p>
           <div style="margin-top:32px;padding-top:24px;border-top:1px solid #e2e8f0;color:#94a3b8;font-size:13px">
             Rotahr · Built for Irish Hospitality

@@ -65,7 +65,7 @@ export function ClaimBanner({ slug, venueName }: { slug: string; venueName: stri
 
         <p className="text-xs text-slate-500 mt-4">
           Would rather it came down?{" "}
-          <a href="mailto:hello@rotahr.com" className="text-orange-700 underline">
+          <a href="mailto:sales@rotahr.com" className="text-orange-700 underline">
             Email us
           </a>{" "}
           and we&apos;ll remove it.

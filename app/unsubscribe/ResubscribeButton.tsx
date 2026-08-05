@@ -36,7 +36,7 @@ export function ResubscribeButton({ email }: { email: string }) {
       </button>
       {state === "error" && (
         <p className="text-xs text-white/50 mt-2">
-          That didn&apos;t work. Email privacy@rotahr.com and we&apos;ll sort it.
+          That didn&apos;t work. Email sales@rotahr.com and we&apos;ll sort it.
         </p>
       )}
     </div>
