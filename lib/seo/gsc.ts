@@ -40,6 +40,12 @@ function b64url(input: Buffer | string): string {
 
 let cachedToken: { token: string; expiresAt: number } | null = null;
 
+/** Exported for the diagnostic route, which needs to separate a credentials
+ *  failure from a Search Console permission failure. */
+export async function gscAccessToken(): Promise<string> {
+  return accessToken();
+}
+
 async function accessToken(): Promise<string> {
   if (cachedToken && cachedToken.expiresAt > Date.now() + 60_000) return cachedToken.token;
 
