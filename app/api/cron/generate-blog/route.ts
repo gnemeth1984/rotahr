@@ -188,7 +188,7 @@ function insertInternalLinks(
  * Give any published post that has no cover another chance. Capped per run so a
  * long backlog is worked through over several days instead of blowing maxDuration.
  */
-async function repairMissingCovers(limit = 3) {
+async function repairMissingCovers(limit = 1) {
   const coverless = await prisma.blogPost.findMany({
     where: { published: true, OR: [{ coverImage: null }, { coverImage: '' }] },
     orderBy: { createdAt: 'desc' },

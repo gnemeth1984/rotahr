@@ -138,7 +138,7 @@ async function openAiCover(title: string, category: string): Promise<{ body: Buf
       method: 'POST',
       headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ model: 'gpt-image-1', prompt, size: '1536x1024', n: 1 }),
-      signal: AbortSignal.timeout(180000),
+      signal: AbortSignal.timeout(75000),
     });
 
     if (!res.ok) {
