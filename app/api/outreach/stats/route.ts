@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 import { requireAdmin } from "../_auth";
 import { prisma } from "@/lib/db";
 import { getSentToday, DEFAULT_DAILY_LIMIT } from "@/lib/outreach/sender";
-import { isBrevoConfigured } from "@/lib/outreach/brevo";
+import { isBrevoConfigured, checkSenderDomain, outreachFromEmail } from "@/lib/outreach/brevo";
 
 /**
  * Shape is kept identical to what the old Railway service returned, so the
@@ -27,6 +27,11 @@ export async function GET() {
       prisma.emailSuppression.count({ where: { revokedAt: null } }),
       getSentToday(),
     ]);
+
+  // Surfaced so the dashboard can block sending rather than let it fail silently.
+  const domain = isBrevoConfigured()
+    ? await checkSenderDomain()
+    : { domain: outreachFromEmail().split("@")[1] ?? "", authenticated: false, missing: [] };
 
   const s = Object.fromEntries(byStatus.map((r) => [r.status, r._count._all])) as Record<
     string,
@@ -64,6 +69,10 @@ export async function GET() {
     clickRate: sends ? Math.round((clicked / sends) * 1000) / 10 : 0,
     suppressed,
     brevoConfigured: isBrevoConfigured(),
+    fromEmail: outreachFromEmail(),
+    domainAuthenticated: domain.authenticated,
+    domainMissingRecords: domain.missing,
+    domainError: "error" in domain ? domain.error : undefined,
     updatedAt: new Date().toISOString(),
   });
 }

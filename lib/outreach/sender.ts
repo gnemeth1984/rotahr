@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import { isSuppressed, normaliseEmail } from "@/lib/email/suppression";
-import { sendOutreachEmail, isBrevoConfigured } from "./brevo";
+import { sendOutreachEmail, isBrevoConfigured, checkSenderDomain } from "./brevo";
 import {
   renderEmail,
   NEXT_STATUS,
@@ -221,6 +221,25 @@ export async function runBatch(
 
   if (!opts.dryRun && !isBrevoConfigured()) {
     return { ...base, reason: "BREVO_API_KEY is not set" };
+  }
+
+  // Refuse a real batch while the sending domain is unauthenticated. Brevo
+  // returns 201 for these sends, so without this check the batch looks like it
+  // worked while 1,700 unsigned cold emails train every mailbox provider to
+  // treat rotahr.com as spam — including the customer mail sent from it.
+  if (!opts.dryRun && process.env.OUTREACH_ALLOW_UNVERIFIED_DOMAIN !== "true") {
+    const dns = await checkSenderDomain();
+    if (!dns.authenticated) {
+      const detail = dns.error
+        ? dns.error
+        : `add the missing DNS records for ${dns.domain} (${dns.missing
+            .map((r) => `${r.type} ${r.host}`)
+            .join(", ")})`;
+      return {
+        ...base,
+        reason: `Sending domain ${dns.domain} is not authenticated at Brevo — ${detail}. Mail would be unsigned and land in spam.`,
+      };
+    }
   }
 
   const remaining = dailyLimit - sentToday;

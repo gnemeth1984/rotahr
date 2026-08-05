@@ -52,6 +52,10 @@ interface Stats {
   clickRate: number;
   suppressed: number;
   brevoConfigured: boolean;
+  fromEmail: string;
+  domainAuthenticated: boolean;
+  domainMissingRecords: { host: string; type: string; value: string }[];
+  domainError?: string;
 }
 
 interface Outcome {
@@ -236,6 +240,8 @@ export function OutreachTab() {
   }
 
   const capReached = stats ? stats.sentToday >= stats.dailyLimit : false;
+  const domainBad = Boolean(stats?.brevoConfigured && !stats.domainAuthenticated);
+  const canSend = Boolean(stats?.brevoConfigured) && !capReached && !domainBad;
 
   return (
     <div className="space-y-5">
@@ -250,6 +256,51 @@ export function OutreachTab() {
               environment. Previews work without it; nothing can actually send.
             </p>
           </div>
+        </div>
+      )}
+
+      {/* Unauthenticated sending domain — the batch is blocked until this is fixed */}
+      {domainBad && (
+        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+          <p className="flex items-center gap-2 font-medium">
+            <AlertTriangle className="h-4 w-4 shrink-0" />
+            {stats?.domainError
+              ? `Could not verify ${stats?.fromEmail?.split("@")[1]} at Brevo`
+              : `${stats?.fromEmail?.split("@")[1]} is not authenticated at Brevo`}
+          </p>
+          <p className="mt-1 text-red-700">
+            {stats?.domainError ??
+              `Brevo accepts these sends and returns success, but the mail goes out unsigned
+               and lands in spam. Sending would also damage the reputation of the domain that
+               sends every customer their booking confirmations, so real batches are blocked
+               until the DNS records below are live.`}
+          </p>
+          {!!stats?.domainMissingRecords?.length && (
+            <div className="mt-3 overflow-x-auto rounded-lg border border-red-200 bg-white">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-red-100/60 uppercase tracking-wide text-red-700">
+                  <tr>
+                    <th className="px-3 py-2">Type</th>
+                    <th className="px-3 py-2">Host</th>
+                    <th className="px-3 py-2">Value</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {stats.domainMissingRecords.map((r) => (
+                    <tr key={`${r.type}-${r.host}`} className="border-t border-red-100">
+                      <td className="px-3 py-2 font-medium text-slate-700">{r.type}</td>
+                      <td className="px-3 py-2 font-mono text-slate-700">{r.host}</td>
+                      <td className="px-3 py-2 font-mono break-all text-slate-600">{r.value}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          <p className="mt-2 text-xs text-red-700">
+            Add these at your DNS provider, then hit Verify in Brevo. Previews and single test
+            sends still work in the meantime.
+          </p>
         </div>
       )}
 
@@ -426,7 +477,7 @@ export function OutreachTab() {
                 <div className="mt-3 flex flex-wrap items-center gap-2">
                   <Button
                     onClick={() => void runBatch(true)}
-                    disabled={sending || !stats?.brevoConfigured || capReached}
+                    disabled={sending || !canSend}
                   >
                     {sending ? (
                       <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
@@ -440,6 +491,11 @@ export function OutreachTab() {
                   </Button>
                   {capReached && (
                     <span className="text-xs text-amber-700">Daily cap reached — try tomorrow.</span>
+                  )}
+                  {domainBad && !capReached && (
+                    <span className="text-xs text-red-700">
+                      Blocked until the sending domain is authenticated.
+                    </span>
                   )}
                 </div>
               </>

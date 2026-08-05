@@ -32,6 +32,65 @@ export function isBrevoConfigured(): boolean {
   return Boolean(process.env.BREVO_API_KEY);
 }
 
+export function outreachFromEmail(): string {
+  return FROM_EMAIL;
+}
+
+export type DomainAuthStatus = {
+  domain: string;
+  authenticated: boolean;
+  /** Missing DNS records, ready to paste into the DNS provider. */
+  missing: { host: string; type: string; value: string }[];
+  error?: string;
+};
+
+/**
+ * Checks whether the sending domain is actually authenticated at Brevo.
+ *
+ * This matters more than it looks. Brevo will happily accept and send mail
+ * "from" a domain it has never verified, so the send reports success while the
+ * message arrives with no DKIM signature and an SPF record that does not list
+ * Brevo. Mailbox providers junk exactly that, and the domain being burned here
+ * is the same one that sends every customer their booking confirmations.
+ *
+ * Verified against the live account: rotahr.com returned authenticated:false
+ * and a test send still came back 201. A 201 therefore proves nothing about
+ * whether the mail can land, which is why a real batch checks this first.
+ */
+export async function checkSenderDomain(): Promise<DomainAuthStatus> {
+  const domain = FROM_EMAIL.split("@")[1] ?? "";
+  const apiKey = process.env.BREVO_API_KEY;
+  const base: DomainAuthStatus = { domain, authenticated: false, missing: [] };
+  if (!apiKey) return { ...base, error: "BREVO_API_KEY is not set" };
+
+  try {
+    const resp = await fetch(
+      `https://api.brevo.com/v3/senders/domains/${encodeURIComponent(domain)}`,
+      { headers: { "api-key": apiKey, Accept: "application/json" } }
+    );
+    const data = (await resp.json()) as {
+      authenticated?: boolean;
+      message?: string;
+      dns_records?: Record<
+        string,
+        { type?: string; value?: string; host_name?: string; status?: boolean } | null
+      >;
+    };
+    if (!resp.ok) return { ...base, error: data?.message ?? `HTTP ${resp.status}` };
+
+    const missing = Object.values(data.dns_records ?? {})
+      .filter(
+        (r): r is { type: string; value: string; host_name: string; status: boolean } =>
+          Boolean(r && r.status === false && r.host_name && r.value && r.type)
+      )
+      .map((r) => ({ host: r.host_name, type: r.type, value: r.value }));
+
+    return { domain, authenticated: Boolean(data.authenticated), missing };
+  } catch (e) {
+    return { ...base, error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
 export async function sendOutreachEmail(opts: {
   to: string;
   toName?: string;
