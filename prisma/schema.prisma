@@ -1697,11 +1697,11 @@ model SiteAudit {
   domain String
   origin String
 
-  score          Int
-  pagesCrawled   Int
-  issueCount     Int
-  criticalCount  Int
-  warningCount   Int
+  score         Int
+  pagesCrawled  Int
+  issueCount    Int
+  criticalCount Int
+  warningCount  Int
 
   /// Lighthouse performance score, null when PSI was skipped or rate limited.
   performance Int?
@@ -1713,10 +1713,86 @@ model SiteAudit {
 
   durationMs Int
   /// Platform admin who triggered the run.
-  runById String?
+  runById    String?
 
   createdAt DateTime @default(now())
 
   @@index([domain, createdAt])
   @@index([createdAt])
+}
+
+/// Cold-outreach lead. Replaces the SQLite table in the standalone Railway
+/// sender, which died with its volume and took the send history with it.
+/// Lives in Neon so the lead list, the suppression list and the app share one
+/// database and one source of truth.
+model OutreachLead {
+  id      String @id @default(cuid())
+  email   String @unique
+  name    String
+  segment String @default("Restaurant")
+  city    String @default("")
+  region  String @default("")
+  /// ISO-ish market code: ie | uk | us | ca | au. Drives currency, tax wording
+  /// and which site URL the email links to.
+  country String @default("ie")
+
+  /// Sequence position AND lifecycle state: new -> contacted -> followup_1 ->
+  /// followup_2 -> followup_3 -> cold. Terminal: replied | unsubscribed | bounced.
+  status        String    @default("new")
+  contactCount  Int       @default(0)
+  lastContacted DateTime?
+
+  /// Set when a send hard-bounces, so the address is never retried.
+  bouncedAt DateTime?
+  /// Set manually when someone replies — stops the sequence immediately.
+  repliedAt DateTime?
+
+  notes  String? @db.Text
+  source String? // which CSV / research run it came from
+
+  sends OutreachSend[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, lastContacted])
+  @@index([country, status])
+  @@index([segment])
+}
+
+/// One row per email actually handed to Brevo. `messageId` is what the Brevo
+/// webhook matches on to record opens and clicks.
+model OutreachSend {
+  id     String       @id @default(cuid())
+  leadId String
+  lead   OutreachLead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  email   String
+  segment String @default("")
+  /// Which sequence step this send was — the lead's status at send time.
+  step    String
+  subject String
+
+  messageId String? @unique
+
+  opened       Boolean   @default(false)
+  clicked      Boolean   @default(false)
+  openedAt     DateTime?
+  clickedAt    DateTime?
+  /// Populated from the Brevo webhook on hard_bounce / blocked / spam.
+  failedAt     DateTime?
+  failedReason String?
+
+  sentAt DateTime @default(now())
+
+  @@index([leadId, sentAt])
+  @@index([sentAt])
+  @@index([step])
+}
+
+/// Per-day send counter, so the daily cap survives serverless cold starts.
+/// A single row per calendar day keyed by YYYY-MM-DD in Europe/Dublin.
+model OutreachDailyCount {
+  date  String @id
+  count Int    @default(0)
 }

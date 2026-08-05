@@ -23,6 +23,15 @@
     },
     "app/api/cron/ai-visibility/route.ts": {
       "maxDuration": 300
+    },
+    "app/api/cron/outreach-batch/route.ts": {
+      "maxDuration": 300
+    },
+    "app/api/outreach/batch/route.ts": {
+      "maxDuration": 300
+    },
+    "app/api/outreach/import/route.ts": {
+      "maxDuration": 300
     }
   },
   "crons": [
@@ -77,6 +86,10 @@
     {
       "path": "/api/cron/ai-visibility",
       "schedule": "20 5 * * 1,4"
+    },
+    {
+      "path": "/api/cron/outreach-batch",
+      "schedule": "0 9 * * 1-5"
     }
   ]
 }
