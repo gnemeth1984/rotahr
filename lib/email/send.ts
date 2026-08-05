@@ -19,9 +19,11 @@ import { Resend } from "resend";
  * the surrounding request.
  */
 
-// No mailbox is currently active on rotahr.com, so replies to sales@/hello@
-// hard-bounce. Until the mailbox is provisioned, point replies somewhere real.
-const REPLY_TO = process.env.EMAIL_REPLY_TO ?? "gnemeth1984@gmail.com";
+// sales@rotahr.com is provisioned and accepting mail (verified by SMTP RCPT
+// probe), so replies now reach the business inbox rather than a personal one.
+// It is the only live mailbox on the domain - privacy@/legal@/hello@ resolve to
+// it as well, so do not reintroduce those as distinct reply addresses.
+const REPLY_TO = process.env.EMAIL_REPLY_TO ?? "sales@rotahr.com";
 
 const DEFAULT_FROM = process.env.EMAIL_FROM ?? "Rotahr <noreply@rotahr.com>";
 
