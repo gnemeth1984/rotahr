@@ -184,6 +184,29 @@ function insertInternalLinks(
   return paragraphs.join('\n\n');
 }
 
+/**
+ * Give any published post that has no cover another chance. Capped per run so a
+ * long backlog is worked through over several days instead of blowing maxDuration.
+ */
+async function repairMissingCovers(limit = 3) {
+  const coverless = await prisma.blogPost.findMany({
+    where: { published: true, OR: [{ coverImage: null }, { coverImage: '' }] },
+    orderBy: { createdAt: 'desc' },
+    take: limit,
+    select: { id: true, title: true, category: true, slug: true },
+  });
+
+  const repaired: string[] = [];
+  for (const post of coverless) {
+    const cover = await generateCoverImage(post.title, post.category).catch(() => null);
+    if (!cover) continue;
+    await prisma.blogPost.update({ where: { id: post.id }, data: { coverImage: cover } });
+    repaired.push(post.slug);
+    console.log('[Blog] Repaired missing cover for %s', post.slug);
+  }
+  return repaired;
+}
+
 export async function GET(req: Request) {
   const authHeader = req.headers.get('authorization');
   const secret = req.headers.get('x-cron-secret') || new URL(req.url).searchParams.get('secret');
@@ -195,6 +218,11 @@ export async function GET(req: Request) {
   }
 
   try {
+    // Self-heal before publishing. Cover generation depends on a third party, so
+    // it can fail for one run; without this, that post stays coverless forever
+    // (which is exactly how a Pollinations outage left a published post blank).
+    const coverlessRepaired = await repairMissingCovers();
+
     // Keyword-driven publishing (SEO autopilot). Every article is written for a
     // specific query harvested from Google Suggest / Search Console rather than
     // picked off a hand-written topic list. If the pipeline is empty we refill
@@ -208,6 +236,7 @@ export async function GET(req: Request) {
         keyword: auto.keyword,
         slug: auto.slug,
         title: auto.title,
+        coversRepaired: coverlessRepaired,
       });
     }
 
@@ -221,6 +250,7 @@ export async function GET(req: Request) {
           keyword: retry.keyword,
           slug: retry.slug,
           title: retry.title,
+          coversRepaired: coverlessRepaired,
         });
       }
     }
@@ -318,7 +348,7 @@ Write the article now:`;
     });
 
     console.log(`[Blog] Published: ${post.title}${coverImage ? ' (with cover image)' : ' (no cover image)'}`);
-    return NextResponse.json({ success: true, slug: post.slug, title: post.title, coverImage: !!coverImage });
+    return NextResponse.json({ success: true, slug: post.slug, title: post.title, coverImage: !!coverImage, coversRepaired: coverlessRepaired });
   } catch (err: any) {
     console.error('Blog generation error:', err);
     return NextResponse.json({ error: err.message }, { status: 500 });
