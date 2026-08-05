@@ -134,10 +134,20 @@ async function openAiCover(title: string, category: string): Promise<{ body: Buf
     `Absolutely no text, no letters, no numbers and no logos anywhere in the image.`;
 
   try {
+    // Quality is set explicitly and deliberately. gpt-image-1 defaults to
+    // "auto", which resolves to the high tier at ~$0.25 per 1536x1024 image -
+    // about $7.50/month for one post a day. "medium" is ~$0.063 (~$1.90/month)
+    // and is indistinguishable at blog-cover size. Never leave this unset.
     const res = await fetch('https://api.openai.com/v1/images/generations', {
       method: 'POST',
       headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: 'gpt-image-1', prompt, size: '1536x1024', n: 1 }),
+      body: JSON.stringify({
+        model: 'gpt-image-1',
+        prompt,
+        size: '1536x1024',
+        quality: 'medium',
+        n: 1,
+      }),
       signal: AbortSignal.timeout(75000),
     });
 
