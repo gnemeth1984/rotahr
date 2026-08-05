@@ -88,7 +88,7 @@ export async function findEligibleLeads(
     `
     SELECT id, email, name, segment, city, country, status
     FROM "OutreachLead"
-    WHERE status NOT IN ('cold','unsubscribed','replied','bounced')
+    WHERE status NOT IN ('cold','unsubscribed','replied','bounced','converted')
       AND "bouncedAt" IS NULL
       AND "repliedAt" IS NULL
       AND (

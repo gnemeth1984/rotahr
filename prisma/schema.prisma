@@ -1796,3 +1796,15 @@ model OutreachDailyCount {
   date  String @id
   count Int    @default(0)
 }
+
+/// One row per address that has been sent the signup welcome email.
+/// Exists purely to make the send idempotent: a user who registers and then
+/// completes onboarding triggers it twice, and both paths are fire-and-forget
+/// so neither can tell the other has already run.
+model WelcomeEmailLog {
+  id     String   @id @default(cuid())
+  email  String   @unique
+  sentAt DateTime @default(now())
+
+  @@index([sentAt])
+}

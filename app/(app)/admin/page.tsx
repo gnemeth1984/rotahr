@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Users,
   Building2,
@@ -24,11 +24,13 @@ import {
   FileText,
   Mail,
   Radio,
+  Send,
 } from "lucide-react";
 import { EmailCampaignsTab } from "@/components/admin/email-campaigns-tab";
 import { ActivityTab } from "@/components/admin/activity-tab";
 import { SeoTab } from "@/components/admin/seo-tab";
 import { SiteAuditTab } from "@/components/admin/site-audit-tab";
+import { OutreachTab } from "@/components/admin/outreach-tab";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
@@ -87,6 +89,17 @@ interface AnalyticsData {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+
+const ADMIN_TABS = [
+  "users",
+  "analytics",
+  "activity",
+  "email",
+  "outreach",
+  "seo",
+  "audit",
+] as const;
+type AdminTab = (typeof ADMIN_TABS)[number];
 
 function RoleBadge({ role }: { role: string }) {
   if (role === "ADMIN")
@@ -360,7 +373,13 @@ export default function AdminPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
 
-  const [activeTab, setActiveTab] = useState<"users" | "analytics" | "activity" | "email" | "seo" | "audit">("users");
+  const searchParams = useSearchParams();
+  // Lets the sidebar deep-link straight to a tab (?tab=outreach).
+  const initialTab = ((): AdminTab => {
+    const t = searchParams.get("tab");
+    return t && ADMIN_TABS.includes(t as AdminTab) ? (t as AdminTab) : "users";
+  })();
+  const [activeTab, setActiveTab] = useState<AdminTab>(initialTab);
   const [data, setData] = useState<UserApiResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -430,6 +449,8 @@ export default function AdminPage() {
             ? "Keyword research, automated publishing and ranking recovery"
             : activeTab === "audit"
             ? "Crawl any domain for technical, on-page, performance and AI-readiness issues"
+            : activeTab === "outreach"
+            ? "Cold email sequence to hospitality leads — preview every batch before it sends"
             : "Email marketing campaigns & audiences"}
         </p>
       </div>
@@ -508,6 +529,18 @@ export default function AdminPage() {
             <Mail className="h-3.5 w-3.5" /> Email Campaigns
           </span>
         </button>
+        <button
+          onClick={() => setActiveTab("outreach")}
+          className={`shrink-0 whitespace-nowrap px-3 py-2.5 text-sm font-medium border-b-2 transition-colors sm:px-4 sm:py-2 ${
+            activeTab === "outreach"
+              ? "border-emerald-600 text-emerald-700"
+              : "border-transparent text-slate-500 hover:text-slate-700"
+          }`}
+        >
+          <span className="flex items-center gap-1.5">
+            <Send className="h-3.5 w-3.5" /> Outreach
+          </span>
+        </button>
       </div>
 
       {/* Analytics tab */}
@@ -522,6 +555,9 @@ export default function AdminPage() {
 
       {/* Email Campaigns tab */}
       {activeTab === "email" && <EmailCampaignsTab />}
+
+      {/* Cold outreach tab */}
+      {activeTab === "outreach" && <OutreachTab />}
 
       {/* Users tab */}
       {activeTab === "users" && (

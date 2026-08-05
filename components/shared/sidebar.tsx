@@ -305,7 +305,9 @@ const navItems = [
   },
   // ── Platform ADMIN only (Gabor — no businessId) ──────────────────────────
   {
-    href: "/outreach",
+    // The standalone /outreach page never existed in this app — it lived on the
+    // now-dead Railway service, so this link 404'd. Outreach is a tab on /admin.
+    href: "/admin?tab=outreach",
     label: "Email Outreach",
     icon: RadioTower,
     roles: [Role.ADMIN],
