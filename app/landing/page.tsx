@@ -476,6 +476,7 @@ export default function LandingPage() {
             <h3 className="font-semibold text-slate-900 mb-3">More</h3>
             <ul className="space-y-2 text-slate-500">
               <li><Link href="/blog" className="hover:text-slate-900">Blog</Link></li>
+              <li><Link href="/list" className="hover:text-slate-900">List your venue — free</Link></li>
               <li><Link href="/partners" className="hover:text-slate-900">Partner programme</Link></li>
               <li><Link href="/try" className="hover:text-slate-900">Live demo</Link></li>
               <li><Link href="/privacy" className="hover:text-slate-900">Privacy</Link></li>
