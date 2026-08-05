@@ -68,6 +68,13 @@ export type EligibleFilter = {
   segment?: string | null;
   country?: string | null;
   limit?: number | null;
+  /**
+   * Restrict the batch to specific addresses. Eligibility, suppression and the
+   * daily cap all still apply — this narrows the selection, it does not bypass
+   * any check. Needed because selection is otherwise randomised, so there is no
+   * way to aim a small test batch at a known address.
+   */
+  emails?: string[] | null;
 };
 
 /**
@@ -80,7 +87,25 @@ export async function findEligibleLeads(
 ): Promise<
   { id: string; email: string; name: string; segment: string; city: string; country: string; status: string }[]
 > {
-  const { segment, country, take } = filter;
+  const { segment, country, emails, take } = filter;
+
+  // Placeholders are numbered as clauses are appended. Hand-numbering $1/$2 per
+  // filter combination is how an off-by-one silently sends to the wrong segment.
+  const params: unknown[] = [];
+  const clauses: string[] = [];
+
+  if (segment) {
+    params.push(segment);
+    clauses.push(`AND segment = $${params.length}`);
+  }
+  if (country) {
+    params.push(country);
+    clauses.push(`AND country = $${params.length}`);
+  }
+  if (emails?.length) {
+    params.push(emails.map((e) => normaliseEmail(e)));
+    clauses.push(`AND email = ANY($${params.length}::text[])`);
+  }
 
   const rows = await prisma.$queryRawUnsafe<
     { id: string; email: string; name: string; segment: string; city: string; country: string; status: string }[]
@@ -98,15 +123,14 @@ export async function findEligibleLeads(
         OR (status = 'followup_2'  AND "lastContacted" <= NOW() - INTERVAL '9 days')
         OR (status = 'followup_3'  AND "lastContacted" <= NOW() - INTERVAL '14 days')
       )
-      ${segment ? `AND segment = $1` : ""}
-      ${country ? `AND country = ${segment ? "$2" : "$1"}` : ""}
+      ${clauses.join("\n      ")}
     ORDER BY
       CASE WHEN status = 'new' THEN 0 ELSE 1 END,
       "lastContacted" ASC NULLS FIRST,
       random()
     LIMIT ${Math.max(0, Math.floor(take))}
     `,
-    ...[segment, country].filter((v): v is string => Boolean(v))
+    ...params
   );
 
   return rows;
@@ -254,6 +278,7 @@ export async function runBatch(
   const leads = await findEligibleLeads({
     segment: opts.segment ?? null,
     country: opts.country ?? null,
+    emails: opts.emails ?? null,
     take,
   });
 

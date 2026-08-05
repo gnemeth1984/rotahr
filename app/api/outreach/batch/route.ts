@@ -23,6 +23,7 @@ export async function POST(req: NextRequest) {
     segment?: string;
     limit?: number;
     confirm?: boolean;
+    emails?: string[];
   };
 
   const dryRun = body.confirm !== true;
@@ -31,6 +32,7 @@ export async function POST(req: NextRequest) {
     country: body.country && body.country !== "all" ? body.country : null,
     segment: body.segment && body.segment !== "all" ? body.segment : null,
     limit: body.limit ? Math.min(200, Math.max(1, Number(body.limit))) : null,
+    emails: Array.isArray(body.emails) && body.emails.length ? body.emails.slice(0, 200) : null,
     dryRun,
   });
 
