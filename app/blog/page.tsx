@@ -44,7 +44,7 @@ export default async function BlogPage() {
   const posts = await prisma.blogPost.findMany({
     where: { published: true },
     orderBy: { createdAt: 'desc' },
-    take: 30,
+    take: 500,
     select: { slug: true, title: true, excerpt: true, category: true, createdAt: true, coverImage: true },
   });
 
@@ -124,7 +124,7 @@ export default async function BlogPage() {
               >
                 {post.coverImage ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={post.coverImage} alt={post.title} className="w-full h-40 object-cover" />
+                  <img src={post.coverImage} alt={post.title} loading="lazy" className="w-full h-40 object-cover" />
                 ) : (
                   <div className="w-full h-40 bg-gradient-to-br from-emerald-50 to-emerald-100" />
                 )}
