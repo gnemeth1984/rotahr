@@ -65,10 +65,16 @@ export async function DELETE(_req: NextRequest, { params }: { params: { id: stri
   const session = await requireRole("ADMIN", "MANAGER");
   if (isResponse(session)) return session;
 
+  if (!session.user.businessId) {
+    return NextResponse.json({ error: "No business associated" }, { status: 400 });
+  }
+
   try {
-    // Fetch shift before deleting so we can notify the employee
-    const shift = await prisma.shift.findUnique({
-      where: { id: params.id },
+    // Tenant isolation: this used to look the shift up by raw ID, so a manager
+    // could delete another business's shift. Shift has no businessId column —
+    // scope through the employee relation, same as list/update.
+    const shift = await prisma.shift.findFirst({
+      where: { id: params.id, employee: { businessId: session.user.businessId } },
       select: { id: true, employeeId: true, date: true },
     });
 
@@ -76,7 +82,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: { id: stri
       return NextResponse.json({ error: "Shift not found" }, { status: 404 });
     }
 
-    await shiftService.delete(params.id);
+    await shiftService.delete(params.id, session.user.businessId);
 
     // Notify employee
     if (shift.employeeId) {

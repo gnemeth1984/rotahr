@@ -12,7 +12,8 @@ export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const businessId = session.user.businessId ?? "christys-bar-seed-id";
+  const businessId = session.user.businessId;
+  if (!businessId) return NextResponse.json({ error: "No business associated" }, { status: 400 });
   const { searchParams } = new URL(req.url);
   const employeeId = searchParams.get("employeeId");
   const allStaff = searchParams.get("allStaff") === "true";
@@ -86,7 +87,8 @@ export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const businessId = session.user.businessId ?? "christys-bar-seed-id";
+  const businessId = session.user.businessId;
+  if (!businessId) return NextResponse.json({ error: "No business associated" }, { status: 400 });
   const { type, note, latitude, longitude } = await req.json();
 
   if (!["in", "out", "break_start", "break_end"].includes(type)) {

@@ -1,19 +1,37 @@
-// @ts-nocheck
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth/options";
+import { requireTenant, isResponse, notFound } from "@/lib/auth/tenant";
 import { prisma } from "@/lib/db";
+
+// Tenant isolation: both handlers wrote on a raw item ID, so a manager could
+// edit or delete items on another business's checklist. VenueChecklistItem has
+// no businessId column — scope through the parent checklist.
+async function ownedItem(
+  itemId: string,
+  clId: string,
+  venueId: string,
+  businessId: string
+) {
+  return prisma.venueChecklistItem.findFirst({
+    where: {
+      id: itemId,
+      checklistId: clId,
+      checklist: { venueId, businessId },
+    },
+    select: { id: true },
+  });
+}
 
 // DELETE /api/venues/[id]/checklists/[clId]/items/[itemId]
 export async function DELETE(
-  req: NextRequest,
+  _req: NextRequest,
   { params }: { params: { id: string; clId: string; itemId: string } }
 ) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (session.user.role !== "MANAGER" && session.user.role !== "ADMIN") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const t = await requireTenant({ manager: true });
+  if (isResponse(t)) return t;
+
+  if (!(await ownedItem(params.itemId, params.clId, params.id, t.businessId))) {
+    return notFound();
   }
 
   await prisma.venueChecklistItem.delete({ where: { id: params.itemId } });
@@ -25,10 +43,11 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: { id: string; clId: string; itemId: string } }
 ) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (session.user.role !== "MANAGER" && session.user.role !== "ADMIN") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const t = await requireTenant({ manager: true });
+  if (isResponse(t)) return t;
+
+  if (!(await ownedItem(params.itemId, params.clId, params.id, t.businessId))) {
+    return notFound();
   }
 
   const { label, sortOrder } = await req.json();

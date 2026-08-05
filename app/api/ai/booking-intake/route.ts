@@ -19,7 +19,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const businessId = ((session.user as any).businessId as string | undefined) ?? "christys-bar-seed-id";
+  const businessId = (session.user as any).businessId as string | undefined;
+  if (!businessId) return NextResponse.json({ error: "No business associated" }, { status: 400 });
 
 
   let body: unknown;

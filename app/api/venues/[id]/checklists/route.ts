@@ -1,17 +1,27 @@
-// @ts-nocheck
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth/options";
+import { requireTenant, isResponse, notFound } from "@/lib/auth/tenant";
 import { prisma } from "@/lib/db";
 
+// Tenant isolation: both handlers trusted the venue ID from the URL, so any
+// signed-in user could read — and any manager could add to — another business's
+// venue checklists.
+async function ownedVenue(venueId: string, businessId: string) {
+  return prisma.venue.findFirst({
+    where: { id: venueId, businessId },
+    select: { id: true, businessId: true },
+  });
+}
+
 // GET /api/venues/[id]/checklists
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+  const t = await requireTenant();
+  if (isResponse(t)) return t;
+
+  if (!(await ownedVenue(params.id, t.businessId))) return notFound();
 
   const checklists = await prisma.venueChecklist.findMany({
-    where: { venueId: params.id },
+    where: { venueId: params.id, businessId: t.businessId },
     include: { items: { orderBy: { sortOrder: "asc" } } },
     orderBy: { createdAt: "asc" },
   });
@@ -20,21 +30,23 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
 // POST /api/venues/[id]/checklists — create checklist
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (session.user.role !== "MANAGER" && session.user.role !== "ADMIN") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const t = await requireTenant({ manager: true });
+  if (isResponse(t)) return t;
+
+  const venue = await ownedVenue(params.id, t.businessId);
+  if (!venue) return notFound();
 
   const { title, category, items } = await req.json();
   if (!title) return NextResponse.json({ error: "Title required" }, { status: 400 });
 
-  const itemList: string[] = Array.isArray(items) ? items.filter((i: string) => i && i.trim()) : [];
+  const itemList: string[] = Array.isArray(items)
+    ? items.filter((i: string) => i && i.trim())
+    : [];
 
   const checklist = await prisma.venueChecklist.create({
     data: {
       venueId: params.id,
-      businessId: (await prisma.venue.findUnique({ where: { id: params.id }, select: { businessId: true } }))?.businessId ?? "",
+      businessId: venue.businessId,
       title,
       category: category ?? "general",
       items: {

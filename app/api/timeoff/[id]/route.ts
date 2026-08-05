@@ -1,26 +1,19 @@
-// @ts-nocheck
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth/options";
+import { requireTenant, isResponse, notFound } from "@/lib/auth/tenant";
 import { prisma } from "@/lib/db";
 import { updateTimeOffSchema } from "@/lib/validators/timeoff";
-import { UserRole as Role } from "@/types/roles";
 import { sendTimeOffStatusEmail } from "@/lib/email";
 
+// Tenant isolation: PATCH/DELETE used to write on a raw client-supplied ID, so
+// a manager in one business could approve, reject or delete another business's
+// time-off requests. TimeOffRequest has no businessId column — scope through
+// the employee relation.
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const isManager =
-    session.user.role === Role.MANAGER || session.user.role === Role.ADMIN;
-  if (!isManager) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const t = await requireTenant({ manager: true });
+  if (isResponse(t)) return t;
 
   const { id } = await params;
   const body = await req.json();
@@ -33,22 +26,17 @@ export async function PATCH(
     );
   }
 
-  const request = await prisma.timeOffRequest.findUnique({
-    where: { id },
-    include: {
-      employee: { select: { email: true, firstName: true, lastName: true } },
-    },
+  const request = await prisma.timeOffRequest.findFirst({
+    where: { id, employee: { businessId: t.businessId } },
+    select: { id: true },
   });
-
-  if (!request) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
-  }
+  if (!request) return notFound();
 
   const updated = await prisma.timeOffRequest.update({
     where: { id },
     data: {
       status: result.data.status,
-      managedById: session.user.id,
+      managedById: t.userId,
     },
     include: {
       employee: { select: { id: true, firstName: true, lastName: true, email: true } },
@@ -82,29 +70,21 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  req: NextRequest,
+  _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const t = await requireTenant();
+  if (isResponse(t)) return t;
 
   const { id } = await params;
-  const request = await prisma.timeOffRequest.findUnique({
-    where: { id },
+  const request = await prisma.timeOffRequest.findFirst({
+    where: { id, employee: { businessId: t.businessId } },
     include: { employee: { select: { userId: true } } },
   });
+  if (!request) return notFound();
 
-  if (!request) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
-  }
-
-  const isManager =
-    session.user.role === Role.MANAGER || session.user.role === Role.ADMIN;
-  const isOwner = request.employee?.userId === session.user.id;
-
-  if (!isManager && !isOwner) {
+  const isOwner = request.employee?.userId === t.userId;
+  if (!t.isManager && !isOwner) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

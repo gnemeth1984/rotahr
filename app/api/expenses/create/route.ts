@@ -8,11 +8,15 @@ export async function POST(req: NextRequest) {
   const session = await requirePermission("bookkeeping");
   if (isResponse(session)) return session;
 
+  if (!session.user.businessId) {
+    return NextResponse.json({ error: "No business associated" }, { status: 400 });
+  }
+
   try {
     const body = await req.json();
     const data = createExpenseSchema.parse({
       ...body,
-      businessId: session.user.businessId ?? "christys-bar-seed-id",
+      businessId: session.user.businessId,
       createdById: session.user.id,
     });
     const expense = await expenseService.create(data);

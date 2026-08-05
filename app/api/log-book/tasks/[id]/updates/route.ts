@@ -9,7 +9,8 @@ import { z } from "zod";
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const businessId = session.user.businessId ?? "christys-bar-seed-id";
+  const businessId = session.user.businessId;
+  if (!businessId) return NextResponse.json({ error: "No business associated" }, { status: 400 });
 
   const task = await prisma.opsTask.findUnique({ where: { id: params.id } });
   if (!task || task.businessId !== businessId) return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -30,7 +31,8 @@ const schema = z.object({ note: z.string().min(1).max(1000) });
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const businessId = session.user.businessId ?? "christys-bar-seed-id";
+  const businessId = session.user.businessId;
+  if (!businessId) return NextResponse.json({ error: "No business associated" }, { status: 400 });
 
   const task = await prisma.opsTask.findUnique({ where: { id: params.id } });
   if (!task || task.businessId !== businessId) return NextResponse.json({ error: "Not found" }, { status: 404 });

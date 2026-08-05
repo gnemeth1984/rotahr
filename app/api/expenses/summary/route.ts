@@ -8,7 +8,8 @@ export async function GET(req: NextRequest) {
   if (isResponse(session)) return session;
 
   const { searchParams } = new URL(req.url);
-  const businessId = session.user.businessId ?? "christys-bar-seed-id";
+  const businessId = session.user.businessId;
+  if (!businessId) return NextResponse.json({ error: "No business associated" }, { status: 400 });
   const from = searchParams.get("from") ?? new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
   const to = searchParams.get("to") ?? new Date().toISOString();
 

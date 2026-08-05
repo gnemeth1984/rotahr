@@ -27,7 +27,8 @@ export async function POST(req: NextRequest) {
   if (session.user.role !== "MANAGER" && session.user.role !== "ADMIN") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
-  const businessId = session.user.businessId ?? "christys-bar-seed-id";
+  const businessId = session.user.businessId;
+  if (!businessId) return NextResponse.json({ error: "No business associated" }, { status: 400 });
 
   const body = await req.json();
   const parsed = schema.safeParse(body);

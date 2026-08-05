@@ -1,23 +1,28 @@
-// @ts-nocheck
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth/options";
+import { requireTenant, isResponse, notFound } from "@/lib/auth/tenant";
+import { prisma } from "@/lib/db";
 import { resolveFlag } from "@/lib/services/notification.service";
 
+// Tenant isolation: this resolved a flag by raw ID with no business check, so a
+// manager could clear another business's booking flags. Scope through the
+// reservation relation (BookingFlag has no businessId column).
 export async function PATCH(
   _req: Request,
   { params }: { params: { id: string; flagId: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const t = await requireTenant({ manager: true });
+    if (isResponse(t)) return t;
 
-    const role = session.user.role;
-    if (role !== "ADMIN" && role !== "MANAGER") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    const flagRow = await prisma.bookingFlag.findFirst({
+      where: {
+        id: params.flagId,
+        reservationId: params.id,
+        reservation: { businessId: t.businessId },
+      },
+      select: { id: true },
+    });
+    if (!flagRow) return notFound();
 
     const flag = await resolveFlag(params.flagId);
     return NextResponse.json({ flag });

@@ -1,36 +1,34 @@
-// @ts-nocheck
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth/options";
-import {
-  getEmployeeByEmail,
-  createFlag,
-} from "@/lib/services/notification.service";
+import { requireTenant, isResponse, notFound } from "@/lib/auth/tenant";
+import { prisma } from "@/lib/db";
+import { getEmployeeByEmail, createFlag } from "@/lib/services/notification.service";
 import { z } from "zod";
 
 const bodySchema = z.object({
   note: z.string().min(1, "Note is required"),
 });
 
-export async function POST(
-  req: Request,
-  { params }: { params: { id: string } }
-) {
+// Tenant isolation: reservationId came straight from the URL and was never
+// checked against the caller's business, so a flag could be attached to another
+// business's reservation.
+export async function POST(req: Request, { params }: { params: { id: string } }) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
+    const t = await requireTenant();
+    if (isResponse(t)) return t;
+    if (!t.email) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const businessId = session.user.businessId;
-    if (!businessId) {
-      return NextResponse.json({ error: "No business" }, { status: 400 });
-    }
-
-    const employee = await getEmployeeByEmail(session.user.email, businessId);
+    const employee = await getEmployeeByEmail(t.email, t.businessId);
     if (!employee) {
       return NextResponse.json({ error: "Not an employee" }, { status: 403 });
     }
+
+    const reservation = await prisma.reservation.findFirst({
+      where: { id: params.id, businessId: t.businessId },
+      select: { id: true },
+    });
+    if (!reservation) return notFound();
 
     const body = await req.json();
     const parsed = bodySchema.safeParse(body);

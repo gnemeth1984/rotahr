@@ -12,7 +12,8 @@ import { ensureChannels } from "@/lib/services/channel.service";
 export async function GET() {
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const businessId = session.user.businessId ?? "christys-bar-seed-id";
+  const businessId = session.user.businessId;
+  if (!businessId) return NextResponse.json({ error: "No business associated" }, { status: 400 });
 
   await ensureChannels(businessId);
 

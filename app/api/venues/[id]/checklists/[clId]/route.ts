@@ -1,20 +1,26 @@
-// @ts-nocheck
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth/options";
+import { requireTenant, isResponse, notFound } from "@/lib/auth/tenant";
 import { prisma } from "@/lib/db";
+
+// Tenant isolation: both handlers wrote on a raw checklist ID, so a manager
+// could rename or delete another business's checklists.
+async function ownedChecklist(clId: string, venueId: string, businessId: string) {
+  return prisma.venueChecklist.findFirst({
+    where: { id: clId, venueId, businessId },
+    select: { id: true },
+  });
+}
 
 // DELETE /api/venues/[id]/checklists/[clId]
 export async function DELETE(
-  req: NextRequest,
+  _req: NextRequest,
   { params }: { params: { id: string; clId: string } }
 ) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (session.user.role !== "MANAGER" && session.user.role !== "ADMIN") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const t = await requireTenant({ manager: true });
+  if (isResponse(t)) return t;
+
+  if (!(await ownedChecklist(params.clId, params.id, t.businessId))) return notFound();
 
   await prisma.venueChecklist.delete({ where: { id: params.clId } });
   return NextResponse.json({ ok: true });
@@ -25,11 +31,10 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: { id: string; clId: string } }
 ) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (session.user.role !== "MANAGER" && session.user.role !== "ADMIN") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const t = await requireTenant({ manager: true });
+  if (isResponse(t)) return t;
+
+  if (!(await ownedChecklist(params.clId, params.id, t.businessId))) return notFound();
 
   const { title, category } = await req.json();
   const checklist = await prisma.venueChecklist.update({

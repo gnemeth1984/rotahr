@@ -11,7 +11,8 @@ import { prisma } from "@/lib/db";
 export async function GET() {
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const businessId = session.user.businessId ?? "christys-bar-seed-id";
+  const businessId = session.user.businessId;
+  if (!businessId) return NextResponse.json({ error: "No business associated" }, { status: 400 });
 
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);

@@ -90,8 +90,13 @@ export const shiftService = {
     });
   },
 
-  async update(id: string, _businessId: string, data: z.infer<typeof updateShiftSchema>) {
-    const shift = await prisma.shift.findFirst({ where: { id } });
+  // Tenant isolation: businessId used to be accepted and ignored (`_businessId`),
+  // so a manager could edit any business's shift by ID. Shift has no businessId
+  // column — scope through the employee relation.
+  async update(id: string, businessId: string, data: z.infer<typeof updateShiftSchema>) {
+    const shift = await prisma.shift.findFirst({
+      where: { id, employee: { businessId } },
+    });
     if (!shift) throw new Error("Shift not found");
 
     return prisma.shift.update({
@@ -107,8 +112,13 @@ export const shiftService = {
     });
   },
 
-  async delete(id: string) {
-    const shift = await prisma.shift.findFirst({ where: { id } });
+  // Tenant isolation: previously took no businessId at all, so any manager
+  // could delete another business's shift by ID. Same relation-scoping as
+  // `update` and `list`.
+  async delete(id: string, businessId: string) {
+    const shift = await prisma.shift.findFirst({
+      where: { id, employee: { businessId } },
+    });
     if (!shift) throw new Error("Shift not found");
     return prisma.shift.delete({ where: { id } });
   },

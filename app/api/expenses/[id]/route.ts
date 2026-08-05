@@ -7,7 +7,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const session = await requirePermission("bookkeeping");
   if (isResponse(session)) return session;
 
-  const businessId = session.user.businessId ?? "christys-bar-seed-id";
+  const businessId = session.user.businessId;
+  if (!businessId) return NextResponse.json({ error: "No business associated" }, { status: 400 });
   try {
     const body = await req.json();
     const data = updateExpenseSchema.parse(body);
@@ -23,7 +24,8 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
   const session = await requirePermission("bookkeeping");
   if (isResponse(session)) return session;
 
-  const businessId = session.user.businessId ?? "christys-bar-seed-id";
+  const businessId = session.user.businessId;
+  if (!businessId) return NextResponse.json({ error: "No business associated" }, { status: 400 });
   try {
     await expenseService.softDelete(params.id, businessId);
     return NextResponse.json({ ok: true });

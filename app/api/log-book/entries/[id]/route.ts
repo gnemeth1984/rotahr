@@ -17,7 +17,8 @@ const patchSchema = z.object({
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const businessId = session.user.businessId ?? "christys-bar-seed-id";
+  const businessId = session.user.businessId;
+  if (!businessId) return NextResponse.json({ error: "No business associated" }, { status: 400 });
 
   const existing = await prisma.logEntry.findUnique({ where: { id: params.id } });
   if (!existing || existing.businessId !== businessId) {
@@ -46,7 +47,8 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
   if (session.user.role !== "MANAGER" && session.user.role !== "ADMIN") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
-  const businessId = session.user.businessId ?? "christys-bar-seed-id";
+  const businessId = session.user.businessId;
+  if (!businessId) return NextResponse.json({ error: "No business associated" }, { status: 400 });
 
   const existing = await prisma.logEntry.findUnique({ where: { id: params.id } });
   if (!existing || existing.businessId !== businessId) {

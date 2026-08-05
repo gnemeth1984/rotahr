@@ -14,7 +14,8 @@ export async function GET() {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const businessId = session.user.businessId ?? "christys-bar-seed-id";
+  const businessId = session.user.businessId;
+  if (!businessId) return NextResponse.json({ error: "No business associated" }, { status: 400 });
 
   const schedules = await prisma.hACCPSchedule.findMany({
     where: { businessId },
@@ -30,7 +31,8 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!canEdit(session.user.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const businessId = session.user.businessId ?? "christys-bar-seed-id";
+  const businessId = session.user.businessId;
+  if (!businessId) return NextResponse.json({ error: "No business associated" }, { status: 400 });
   const { checkType, times, daysOfWeek, active } = await req.json();
 
   if (!checkType) return NextResponse.json({ error: "checkType required" }, { status: 400 });
@@ -64,7 +66,8 @@ export async function DELETE(req: NextRequest) {
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!canEdit(session.user.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const businessId = session.user.businessId ?? "christys-bar-seed-id";
+  const businessId = session.user.businessId;
+  if (!businessId) return NextResponse.json({ error: "No business associated" }, { status: 400 });
   const { searchParams } = new URL(req.url);
   const checkType = searchParams.get("checkType");
   if (!checkType) return NextResponse.json({ error: "checkType required" }, { status: 400 });

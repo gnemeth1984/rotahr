@@ -17,7 +17,8 @@ export async function GET(req: NextRequest) {
   const session = await requirePermission("reports");
   if (isResponse(session)) return session;
 
-  const businessId = session.user.businessId ?? "christys-bar-seed-id";
+  const businessId = session.user.businessId;
+  if (!businessId) return NextResponse.json({ error: "No business associated" }, { status: 400 });
   const { searchParams } = new URL(req.url);
   const weeks = Math.min(26, Math.max(4, parseInt(searchParams.get("weeks") || "12", 10)));
 

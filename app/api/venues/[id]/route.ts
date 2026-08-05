@@ -1,17 +1,21 @@
-// @ts-nocheck
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth/options";
+import { requireTenant, isResponse, notFound } from "@/lib/auth/tenant";
 import { prisma } from "@/lib/db";
 
+// Tenant isolation: PATCH/DELETE wrote on a raw client-supplied venue ID, so a
+// manager could rename or deactivate another business's venue.
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (session.user.role !== "MANAGER" && session.user.role !== "ADMIN") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-  const businessId = session.user.businessId;
+  const t = await requireTenant({ manager: true });
+  if (isResponse(t)) return t;
+  const businessId = t.businessId;
+
+  const existing = await prisma.venue.findFirst({
+    where: { id: params.id, businessId },
+    select: { id: true },
+  });
+  if (!existing) return notFound();
+
   const body = await req.json();
   const {
     name, address, geoLat, geoLng, geoRadius, timezone, isDefault, active,
@@ -49,12 +53,16 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   return NextResponse.json({ venue });
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (session.user.role !== "MANAGER" && session.user.role !== "ADMIN") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
+  const t = await requireTenant({ manager: true });
+  if (isResponse(t)) return t;
+
+  const existing = await prisma.venue.findFirst({
+    where: { id: params.id, businessId: t.businessId },
+    select: { id: true },
+  });
+  if (!existing) return notFound();
+
   // Soft delete
   await prisma.venue.update({ where: { id: params.id }, data: { active: false } });
   return NextResponse.json({ ok: true });

@@ -8,6 +8,18 @@ function canEdit(role: string, permissions: string[]) {
   return role === Role.ADMIN || role === Role.MANAGER || permissions.includes("menu_planning");
 }
 
+// Tenant isolation: PATCH/DELETE took courseId from the request body and wrote
+// on it directly, so a manager could rename or delete a course belonging to
+// another business's function menu. FunctionMenuCourse has no businessId column
+// — scope through the parent menu.
+async function ownedCourse(courseId: string, menuId: string, businessId: string) {
+  if (!courseId) return null;
+  return prisma.functionMenuCourse.findFirst({
+    where: { id: courseId, functionMenuId: menuId, functionMenu: { businessId } },
+    select: { id: true },
+  });
+}
+
 // POST — add a course to a menu
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
@@ -46,6 +58,9 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { courseId, label, choiceCount, sortOrder } = await req.json();
+  if (!(await ownedCourse(courseId, params.id, session.user.businessId))) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
 
   const course = await prisma.functionMenuCourse.update({
     where: { id: courseId },
@@ -68,6 +83,10 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { courseId } = await req.json();
+  if (!(await ownedCourse(courseId, params.id, session.user.businessId))) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
   await prisma.functionMenuCourse.delete({ where: { id: courseId } });
   return NextResponse.json({ ok: true });
 }

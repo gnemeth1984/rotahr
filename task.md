@@ -1,27 +1,40 @@
-# "Get better" pass — Aug 4 2026
+# Tenant-isolation sweep on [id] write routes (Aug 2026)
 
-Audit baseline after PSI key: rotahr.com 98/100. Lighthouse a11y 85, best-practices 92.
+Gabor approved a full sweep after `f57c034` fixed `/api/reservations/[id]`.
 
-## Done
-- [x] CSP: allow app.lemonsqueezy.com + assets.lemonsqueezy.com in script-src, connect-src, frame-src
-      (lemon.js was BLOCKED in prod — overlay checkout dead)
-- [x] viewport: removed maximumScale:1 (was failing meta-viewport a11y audit, blocked pinch-zoom)
-- [x] contrast: landing slate-400 -> slate-600 on light bgs; badge/price #F97316 -> #C2410C;
-      text-red-500 -> red-700; orange link -> orange-700 + permanent underline
-      (left slate-400 inside dark CTA + dark /compare pages alone — passes there)
-- [x] landmark-one-main: <main> added to /landing, /blog, /blog/[slug]
-- [x] privacy/terms "Last updated" slate-400 -> slate-600
+## Helper
+- [x] `lib/auth/tenant.ts` — `requireTenant({manager})`, `isResponse`, `notFound`
 
-## In progress
-- [ ] Verify whether checkout CTA depends on lemon.js (dead buttons?) or plain hrefs
-- [ ] Content volume gap: 7shifts 1008 sitemap URLs vs our 79
-      NOTE: lib/seo/locations.ts warns against doorway pages — do NOT mass-generate city pages.
-      Plan: real /features/[slug] module pages (HACCP, rota, bookings, payroll, bookkeeping, CRM)
-      + expand landing (574w) with an answer-shaped FAQ
-- [ ] publicClaimToken for Christy's Bar "The Well" (cmsap83160000vavrlksnx272)
-- [ ] tsc + build, commit, push, re-audit
+## Vulnerable routes to fix
+- [ ] lib/services/shift.service.ts — `update(id, _businessId)` IGNORES businessId; `delete(id)` unscoped
+- [ ] app/api/shifts/[id]/route.ts — DELETE fetches by raw id
+- [ ] app/api/certifications/[id]/route.ts — PATCH + DELETE
+- [ ] app/api/hr/documents/[id]/route.ts — DELETE
+- [ ] app/api/hr/onboarding/[id]/route.ts — PATCH (no role check either) + DELETE
+- [ ] app/api/timeoff/[id]/route.ts — PATCH + DELETE
+- [ ] app/api/bookings/[id]/flags/[flagId]/resolve/route.ts — PATCH
+- [ ] app/api/bookings/[id]/flag/route.ts — POST (arbitrary reservationId)
+- [ ] app/api/venues/[id]/route.ts — PATCH + DELETE
+- [ ] app/api/venues/[id]/checklists/route.ts — GET + POST
+- [ ] app/api/venues/[id]/checklists/[clId]/route.ts — PATCH + DELETE
+- [ ] app/api/venues/[id]/checklists/[clId]/items/route.ts — POST
+- [ ] app/api/venues/[id]/checklists/[clId]/items/[itemId]/route.ts — PATCH + DELETE
+- [ ] app/api/suppliers/statements/[id]/reconcile/route.ts — POST
+- [ ] app/api/log-book/entries/[id]/updates/route.ts — DELETE (any update by id)
+- [ ] app/api/menu/functions/[id]/courses/route.ts — PATCH + DELETE (courseId unchecked)
+- [ ] app/api/menu/functions/[id]/courses/[courseId]/dishes/route.ts — POST/PATCH/DELETE
 
-## Blocked on Gabor
-- PAGESPEED_API_KEY must be added to Vercel env vars (only in local .env.local)
-- Search Console: add service account as Full user (403)
-- PrivateEmail mailbox + SPF/DKIM
+## Also fix
+- [ ] Remove `businessId ?? "christys-bar-seed-id"` fallback in log-book routes
+      (entries/[id], entries/[id]/updates, tasks/[id], tasks/[id]/updates)
+
+## Verified already safe
+bookings/[id], employee/[id], expenses/[id], tables/[id], stock/[id], suppliers/[id],
+orders/[id], reservations/[id], crm/* , menu/dishes/[id], menu/functions/[id],
+channels/*, notifications/[id]/read, app-notifications/[id]/read (updateMany+userId),
+timeoff approve/reject (service scopes), admin/email/broadcasts/[id] (super-admin only)
+
+## Notes
+- Brevo is NOT used in code — only mentioned in docs/email-marketing/content.md as a
+  suggested free tool. App sends via Resend (`lib/email/send.ts`). There is already an
+  /admin email system: app/api/admin/email/{broadcasts,contacts,segments,sent}.

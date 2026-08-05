@@ -15,7 +15,8 @@ export async function POST(req: NextRequest) {
     session.user.role === Role.MANAGER || session.user.role === Role.ADMIN;
   if (!isManager) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const businessId = session.user.businessId ?? "christys-bar-seed-id";
+  const businessId = session.user.businessId;
+  if (!businessId) return NextResponse.json({ error: "No business associated" }, { status: 400 });
   const { recipientIds, body } = await req.json();
 
   if (!Array.isArray(recipientIds) || recipientIds.length === 0 || !body?.trim()) {
