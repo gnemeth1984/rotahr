@@ -20,7 +20,12 @@ import { simpleParser } from "mailparser";
 const HOST = process.env.INBOX_IMAP_HOST || "mail.privateemail.com";
 const PORT = Number(process.env.INBOX_IMAP_PORT || 993);
 const USER = process.env.INBOX_IMAP_USER || "sales@rotahr.com";
-const PASS = process.env.INBOX_IMAP_PASSWORD || "";
+// Trim whitespace and any stray surrounding quotes — a password pasted into an
+// env UI with quotes authenticates locally (dotenv strips them) but fails in
+// production, which is a miserable thing to debug.
+const PASS = (process.env.INBOX_IMAP_PASSWORD || "")
+  .trim()
+  .replace(/^['"]|['"]$/g, "");
 
 export interface FetchedMessage {
   uid: number;
