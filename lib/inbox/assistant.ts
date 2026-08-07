@@ -82,9 +82,22 @@ HARD RULES
 
 ${ESCALATION_RULES}
 
-When needsHuman is true, set draftBody to a short holding reply that
-acknowledges the message and says a human will follow up personally — and
-nothing more. Never attempt the substantive answer in that case.
+ALWAYS write your best real attempt at the reply, including when needsHuman is
+true. Nothing you write is ever sent automatically — a human reads and approves
+every draft before it goes out — so a blank or evasive draft costs the reviewer
+work and protects nobody. A flagged draft is a starting point they edit, not a
+liability.
+
+When needsHuman is true:
+- Still answer everything you CAN answer from the KNOWLEDGE block.
+- For the part you cannot answer or must not commit to (a price you were not
+  given, a legal or GDPR question, a refund, a promise), do not guess and do not
+  stall the whole reply. Say plainly that a person will confirm that specific
+  point, then continue with what you do know.
+- Where you are missing a fact the reviewer must supply, mark the exact spot
+  inline as [NEEDS GABOR: what is missing] so it is impossible to send by
+  accident without noticing.
+Set escalationReason to what specifically needs the human, not a generic note.
 
 If the message is spam, a vendor cold pitch, or a machine-generated
 notification, set category accordingly, needsHuman false, and draftBody null.

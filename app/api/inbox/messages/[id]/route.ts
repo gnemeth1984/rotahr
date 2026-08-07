@@ -109,6 +109,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const text = (body.body ?? msg.draftBody ?? "").trim();
   if (!text) return NextResponse.json({ error: "Nothing to send — the draft is empty" }, { status: 400 });
 
+  // The UI blocks this too, but the UI is not the security boundary. A
+  // [NEEDS GABOR: ...] marker is the AI flagging a fact it had to leave blank;
+  // shipping that placeholder to a prospect is a commercial own-goal.
+  if (/\[NEEDS GABOR/i.test(text)) {
+    return NextResponse.json(
+      { error: "Draft still contains a [NEEDS GABOR: …] placeholder — replace it before sending" },
+      { status: 400 }
+    );
+  }
+
   const subject = replySubject(msg.subject, body.subject ?? msg.draftSubject);
 
   const result = await sendEmail({

@@ -153,6 +153,11 @@ export function InboxTab() {
 
   async function send(msg: InboxMessage) {
     if (!draft.trim()) return toast.error("Draft is empty");
+    // A [NEEDS GABOR: ...] marker means the AI knowingly left a gap it could not
+    // fill. Sending one to a prospect is worse than sending nothing.
+    if (/\[NEEDS GABOR/i.test(draft)) {
+      return toast.error("Replace the [NEEDS GABOR: …] placeholder before sending");
+    }
     if (!confirm(`Send this reply to ${msg.fromEmail}?`)) return;
     setBusy(true);
     try {
@@ -329,8 +334,11 @@ export function InboxTab() {
                 <div className="flex items-start gap-2 rounded border border-amber-300 bg-amber-50 p-2.5 text-xs text-amber-800">
                   <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                   <span>
-                    <strong>Write this one yourself.</strong>{" "}
-                    {selected.escalationReason || "Flagged for human review."}
+                    <strong>Check this before sending.</strong>{" "}
+                    {selected.escalationReason || "Flagged for human review."}{" "}
+                    The draft below is a starting point — anything marked{" "}
+                    <code className="rounded bg-amber-100 px-1">[NEEDS GABOR: …]</code> must be
+                    replaced by you before it can send.
                   </span>
                 </div>
               )}
