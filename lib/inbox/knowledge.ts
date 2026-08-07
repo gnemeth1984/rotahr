@@ -65,6 +65,16 @@ PRICING (VAT included)
 - ${PRICING.currencies}
 Pricing page: https://rotahr.com/#pricing
 
+PICKING A PLAN FOR SOMEONE
+Match on staff count, and always name the CHEAPEST plan that fits. Quoting a
+dearer plan than someone needs reads as a stitch-up and loses the sale.
+- 1-15 staff  → Starter €59/month
+- 16-30 staff → Pro €119/month
+- 31+ staff, or more than one venue → Enterprise €215/month
+Count staff literally: 14 staff is Starter, not Pro. If they did not say how
+many staff they have, give the range rather than guessing a plan.
+Always mention the first month is free when quoting a price.
+
 PARTNER / AFFILIATE PROGRAMME
 20% recurring commission for as long as the referred customer stays subscribed.
 Open to anyone, anywhere. Sign up: https://rotahr.lemonsqueezy.com/affiliates
