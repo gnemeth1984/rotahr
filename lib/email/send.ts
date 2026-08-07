@@ -42,8 +42,15 @@ export interface SendArgs {
   to: string | string[];
   subject: string;
   html: string;
+  /** Plain-text alternative. Worth setting on one-to-one mail: a text/plain
+   *  part improves both accessibility and spam scoring. */
+  text?: string;
   from?: string;
   replyTo?: string;
+  /** Extra RFC 5322 headers. Used to set In-Reply-To / References so a reply
+   *  threads into the recipient's existing conversation instead of starting a
+   *  new one. */
+  headers?: Record<string, string>;
   /** Label used in server logs to identify the sending feature. */
   context: string;
 }
@@ -73,6 +80,8 @@ export async function sendEmail(args: SendArgs): Promise<SendResult> {
       replyTo: args.replyTo ?? REPLY_TO,
       subject: args.subject,
       html: args.html,
+      ...(args.text ? { text: args.text } : {}),
+      ...(args.headers ? { headers: args.headers } : {}),
     });
 
     if (error) {
