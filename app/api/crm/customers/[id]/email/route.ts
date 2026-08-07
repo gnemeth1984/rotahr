@@ -59,13 +59,22 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   // must never actually trigger an outbound message.
   const isDemo = isDemoEmail(session.user.email || "") || isDemoBusinessId(session.user.businessId);
 
-  let sentFrom = "Rotahr <no-reply@rotahr.com>";
+  // sales@rotahr.com is the only real mailbox on the domain, so it is the only
+  // address we can legitimately send as. The guest is replying to the venue and
+  // not to Rotahr, so the venue's own address is set as Reply-To - otherwise
+  // every guest reply would land in the Rotahr inbox instead of the business's.
+  const sharedFrom = business?.name
+    ? `${business.name} <sales@rotahr.com>`
+    : "Rotahr <sales@rotahr.com>";
+  const venueReplyTo = contactVenue?.email || undefined;
+
+  let sentFrom = sharedFrom;
   let fellBackToDefault = false;
   let simulated = false;
 
   if (isDemo) {
     simulated = true;
-    sentFrom = business?.name ? `${business.name} <no-reply@rotahr.com>` : "Rotahr <no-reply@rotahr.com>";
+    sentFrom = sharedFrom;
   } else {
     // Send via the business's connected Gmail account if they've set one up,
     // otherwise fall back to the shared Rotahr sending address.
@@ -86,7 +95,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         console.error("Gmail send failed, falling back to Resend:", err);
         fellBackToDefault = true;
         const fallback = await resend.emails.send({
-          from: business?.name ? `${business.name} <no-reply@rotahr.com>` : "Rotahr <no-reply@rotahr.com>",
+          from: sharedFrom,
+          replyTo: venueReplyTo,
           to: customer.email,
           subject: parsed.data.subject,
           html: emailBody,
@@ -97,7 +107,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       }
     } else {
       const result = await resend.emails.send({
-        from: business?.name ? `${business.name} <no-reply@rotahr.com>` : "Rotahr <no-reply@rotahr.com>",
+        from: sharedFrom,
+        replyTo: venueReplyTo,
         to: customer.email,
         subject: parsed.data.subject,
         html: emailBody,

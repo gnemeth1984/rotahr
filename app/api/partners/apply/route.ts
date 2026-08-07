@@ -28,11 +28,12 @@ export async function POST(req: Request) {
       data: { name, email, company, code, active: false },
     });
 
-    // Notify Gabor
+    // Notify the business inbox. This used to go to a personal Gmail address,
+    // which meant partner applications landed outside the business and the
+    // personal address was baked into the codebase.
     await sendEmailQuiet({
       context: "partner-apply-notify",
-      from: "Rotahr <noreply@rotahr.com>",
-      to: "gnemeth1984@gmail.com",
+      to: "sales@rotahr.com",
       subject: `New Partner Application: ${name}`,
       html: `
         <h2>New Partner Application</h2>
@@ -48,7 +49,6 @@ export async function POST(req: Request) {
     // Confirm to applicant
     const confirmation = await sendEmail({
       context: "partner-apply-confirm",
-      from: "Rotahr <noreply@rotahr.com>",
       to: email,
       subject: "Partner application received — Rotahr",
       html: `

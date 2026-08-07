@@ -1601,7 +1601,7 @@ model ChannelMessageReceipt {
 
 // ── Connected Email (send-as-yourself via Gmail/Outlook) ─────────────────────
 // One connection per business — CRM emails send through the connected inbox
-// instead of the shared no-reply@rotahr.com address when present.
+// instead of the shared sales@rotahr.com address when present.
 model EmailConnection {
   id         String   @id @default(cuid())
   businessId String   @unique

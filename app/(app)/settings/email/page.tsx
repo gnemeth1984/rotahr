@@ -225,7 +225,7 @@ export default function EmailSettingsPage() {
       <Separator />
       <div className="space-y-1 text-sm text-muted-foreground">
         <p className="font-medium text-foreground">Not connected yet?</p>
-        <p>Every CRM email sends from Rotahr's own address (no-reply@rotahr.com) until you connect your inbox — nothing breaks in the meantime, replies just won't land anywhere useful.</p>
+        <p>Every CRM email sends from Rotahr's own address (sales@rotahr.com) until you connect your inbox — nothing breaks in the meantime, and replies are routed back to your venue's email address.</p>
       </div>
     </div>
   );

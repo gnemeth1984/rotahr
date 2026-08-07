@@ -42,7 +42,6 @@ export async function POST(req: NextRequest) {
 
     const sent = await sendEmail({
       context: "password-reset",
-      from: "Rotahr <noreply@rotahr.com>",
       to: email,
       subject: "Reset your Rotahr password",
       html: `

@@ -11,7 +11,7 @@
 ---
 
 **To:** Via LinkedIn DM or Instagram DM  
-**From:** Gabor Nemeth (personal profile or gnemeth1984@gmail.com)  
+**From:** Gabor Nemeth (sales@rotahr.com)  
 **Subject:** [LinkedIn: no subject] / [Email: Irish-built tech for your clients — worth a look?]
 
 ---

@@ -92,7 +92,7 @@ Demo at rotahr.com — or happy to jump on a 20-minute call.
 
 Gabor Nemeth
 Founder, Rotahr
-gnemeth1984@gmail.com
+sales@rotahr.com
 ```
 
 ### Template B: "You're using Deputy/Bizimply" (add-on pitch)

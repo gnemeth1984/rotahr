@@ -36,7 +36,7 @@ Thanks for your time,
 
 **Gabor Nemeth**
 Founder, Rotahr
-📧 hello@rotahr.com
+📧 sales@rotahr.com
 🌐 rotahr.com
 
 ---

@@ -9,7 +9,7 @@
 ---
 
 **To:** Via techontoast.community/tech-partners contact form OR LinkedIn DM  
-**From:** gnemeth1984@gmail.com (personal feel — founder to founder)  
+**From:** sales@rotahr.com (founder to founder)  
 **Subject:** Rotahr — single-site hospitality tech you haven't listed yet
 
 ---
@@ -29,7 +29,7 @@ Happy to send more detail, a demo link, or just chat.
 Gabor Nemeth  
 Founder, Rotahr  
 rotahr.com  
-gnemeth1984@gmail.com
+sales@rotahr.com
 
 ---
 

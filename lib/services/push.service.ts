@@ -5,7 +5,7 @@ import { prisma } from "@/lib/db";
 function initWebPush() {
   const pub = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
   const priv = process.env.VAPID_PRIVATE_KEY;
-  const subject = process.env.VAPID_SUBJECT ?? "mailto:gnemeth1984@gmail.com";
+  const subject = process.env.VAPID_SUBJECT ?? "mailto:sales@rotahr.com";
   if (pub && priv) {
     webpush.setVapidDetails(subject, pub, priv);
   }

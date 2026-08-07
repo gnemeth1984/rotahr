@@ -1117,7 +1117,7 @@ export default function CustomerProfilePage() {
                 ? "Demo mode — this will be logged in the email history but no real email is sent."
                 : gmailStatus?.connected
                 ? `This email will be sent from your connected Gmail (${gmailStatus.email}) and logged in the email history.`
-                : "This email will be sent from Rotahr's shared address (no-reply@rotahr.com). Connect your own Gmail in Settings > Email to send as yourself instead."}
+                : "This email will be sent from Rotahr's shared address (sales@rotahr.com) with your venue's own email as the reply-to, so guest replies come back to you. Connect your own Gmail in Settings > Email to send as yourself instead."}
             </p>
           </div>
           <DialogFooter>

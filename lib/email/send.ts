@@ -25,7 +25,12 @@ import { Resend } from "resend";
 // it as well, so do not reintroduce those as distinct reply addresses.
 const REPLY_TO = process.env.EMAIL_REPLY_TO ?? "sales@rotahr.com";
 
-const DEFAULT_FROM = process.env.EMAIL_FROM ?? "Rotahr <noreply@rotahr.com>";
+// The From address must be a mailbox that actually exists. rotahr.com has
+// exactly one - sales@ - so every outbound message sends from it. A From
+// address nobody can reach (noreply@, no-reply@) silently swallows the
+// bounce reports and out-of-office replies that receiving servers send back
+// to it, and some filters score an unreachable From as suspicious.
+const DEFAULT_FROM = process.env.EMAIL_FROM ?? "Rotahr <sales@rotahr.com>";
 
 export interface SendResult {
   ok: boolean;

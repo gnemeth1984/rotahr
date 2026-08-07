@@ -35,7 +35,12 @@ import {
 } from "@/components/ui/alert-dialog";
 import VenuePages from "./_venue-pages";
 
-const SUPER_ADMIN_EMAIL = "gnemeth1984@gmail.com";
+// Gating on the session's isPlatformAdmin flag rather than comparing against a
+// hardcoded address. This is a client component, so any literal here is
+// compiled into the public JS bundle and readable by anyone who fetches it -
+// a hardcoded owner email was being served to the world. The flag is set
+// server-side in the JWT callback from SUPER_ADMINS, so it is authoritative
+// and leaks nothing.
 
 interface Article {
   id: string;
@@ -146,7 +151,7 @@ export default function BlogCommentsPage() {
 
   useEffect(() => {
     if (status === "loading") return;
-    if (!session?.user || session.user.email !== SUPER_ADMIN_EMAIL) {
+    if (!session?.user?.isPlatformAdmin) {
       router.replace("/");
       return;
     }
@@ -182,7 +187,7 @@ export default function BlogCommentsPage() {
     (a) => a.snippet && a.snippet.toLowerCase().includes("verify")
   ).length;
 
-  if (status === "loading" || !session?.user || session.user.email !== SUPER_ADMIN_EMAIL) {
+  if (status === "loading" || !session?.user?.isPlatformAdmin) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50">
         <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
