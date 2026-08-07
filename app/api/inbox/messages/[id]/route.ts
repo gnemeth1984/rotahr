@@ -125,7 +125,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     context: "inbox-reply",
     to: msg.fromEmail,
     subject,
-    text,
+    // The signature is appended at send time, not stored in the draft, so the
+    // reviewer edits only the words that are actually theirs.
+    text: withSignature(text),
     html: textToHtml(text),
     // Threading headers so the reply lands in the sender's existing conversation
     // rather than opening a second, disconnected thread.
@@ -165,11 +167,45 @@ function escapeHtml(s: string): string {
     .replace(/"/g, "&quot;");
 }
 
+/**
+ * Signature.
+ *
+ * Deliberately restrained. This is a one-to-one reply, so it has to look like a
+ * person wrote it — a full marketing template with banners and social icons
+ * reads as bulk mail, which is both less persuasive and more likely to be
+ * filtered. A small logo and one link line is the most branding this can carry
+ * without changing what the email *is*.
+ *
+ * The plain-text and HTML parts must carry the same information. A text part
+ * that does not match its HTML part is a spam signal, and some recipients only
+ * ever render the text one.
+ */
+const SIG_TEXT = `\n\n—\nRotahr · Scheduling, bookings, payroll and HACCP for hospitality\nhttps://rotahr.com`;
+
+function signatureHtml(): string {
+  return [
+    `<div style="margin-top:22px;padding-top:14px;border-top:1px solid #e2e8f0">`,
+    // Width/height are set inline because Outlook ignores CSS sizing on images.
+    `<img src="https://rotahr.com/email-logo.png" alt="Rotahr" width="130" height="48" style="display:block;border:0;margin-bottom:8px">`,
+    `<p style="margin:0;font-size:12px;line-height:1.5;color:#64748b">`,
+    `Scheduling, bookings, payroll and HACCP for hospitality<br>`,
+    `<a href="https://rotahr.com" style="color:#e8365d;text-decoration:none">rotahr.com</a>`,
+    `</p></div>`,
+  ].join("");
+}
+
+/** Append the plain-text signature, unless the sender already has one. */
+function withSignature(text: string): string {
+  return text.includes("rotahr.com\n") || text.trimEnd().endsWith("rotahr.com")
+    ? text
+    : `${text.trimEnd()}${SIG_TEXT}`;
+}
+
 /** Plain text to simple HTML. The reply is prose, so paragraphs are enough. */
 function textToHtml(text: string): string {
   const paras = escapeHtml(text)
     .split(/\n{2,}/)
     .map((p) => `<p style="margin:0 0 14px">${p.replace(/\n/g, "<br>")}</p>`)
     .join("");
-  return `<div style="font-family:-apple-system,Segoe UI,sans-serif;font-size:15px;line-height:1.6;color:#1e293b">${paras}</div>`;
+  return `<div style="font-family:-apple-system,Segoe UI,sans-serif;font-size:15px;line-height:1.6;color:#1e293b">${paras}${signatureHtml()}</div>`;
 }

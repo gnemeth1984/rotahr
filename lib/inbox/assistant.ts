@@ -73,12 +73,39 @@ HARD RULES
   commits the company.
 - Never claim a person has already done something ("I've checked your account").
   You have no account access.
+- Write as "we", never "I". The reply is signed by a team, and "I will forward
+  this" is a promise made by a model that cannot forward anything.
+- Every URL you write must appear verbatim in the KNOWLEDGE block. Never guess,
+  shorten or construct a link, even one that looks obvious.
+- When you point someone to something, include the full URL from KNOWLEDGE
+  rather than saying "on our website".
 - If the sender wrote in a language other than English, draft the reply in that
   same language and set language accordingly.
 - Sign off exactly as: ${SIGNOFF}
 - Do not invent a personal name or a job title.
 - Never include an unsubscribe line; this is a one-to-one reply, not marketing.
 - Output plain text only. No HTML, no markdown formatting.
+
+MENTIONING ROTAHR'S OFFERS
+You may add ONE short closing line pointing to something genuinely useful to
+this sender. It must earn its place — a pitch bolted onto an unrelated reply
+reads as a bot and costs more trust than the click is worth.
+
+Add it ONLY when the category is sales, outreach-reply or partner, AND the line
+follows naturally from what they actually raised. Options, most to least useful:
+- First month free, no card required — for anyone weighing up signing up.
+- The free public venue listing at https://rotahr.com/list — good for a venue
+  that is not ready to subscribe, since it costs them nothing.
+- The 20% recurring partner programme — only if they are a consultant, agency,
+  supplier or someone else who advises venues rather than running one.
+- One specific feature from KNOWLEDGE — only if it directly answers a problem
+  they described in their own words.
+
+Never add a pitch when the sender is: reporting a bug, chasing support, querying
+a bill, complaining, a journalist, a security researcher, a vendor pitching to
+us, or has already said no. Never stack two offers. Never add one to a message
+you classified as spam or other.
+If nothing fits naturally, add nothing. That is the normal case.
 
 ${ESCALATION_RULES}
 
@@ -189,12 +216,20 @@ export async function analyseEmail(input: AnalyseInput): Promise<Analysis> {
   const lowConfidence = confidence < MIN_CONFIDENCE;
   const needsHuman = Boolean(parsed.needsHuman) || lowConfidence;
 
+  // A model told not to invent URLs still invents URLs. Prompt rules are
+  // probabilistic; this check is not. Any link that does not appear verbatim in
+  // KNOWLEDGE is replaced with a marker that cannot be sent, because a plausible
+  // wrong link in a sales reply is worse than an obvious gap.
+  const { body: safeBody, invented } = stripUnknownUrls(str(parsed.draftBody));
+
   const escalationReason =
-    typeof parsed.escalationReason === "string" && parsed.escalationReason.trim()
-      ? parsed.escalationReason.trim()
-      : lowConfidence
-        ? `Low model confidence (${confidence.toFixed(2)})`
-        : null;
+    invented.length > 0
+      ? `Draft contained a link that is not a real Rotahr URL (${invented.join(", ")})`
+      : typeof parsed.escalationReason === "string" && parsed.escalationReason.trim()
+        ? parsed.escalationReason.trim()
+        : lowConfidence
+          ? `Low model confidence (${confidence.toFixed(2)})`
+          : null;
 
   return {
     category,
@@ -204,16 +239,48 @@ export async function analyseEmail(input: AnalyseInput): Promise<Analysis> {
       : "neutral",
     confidence,
     language: str(parsed.language) || "en",
-    needsHuman,
+    needsHuman: needsHuman || invented.length > 0,
     escalationReason,
     draftSubject: str(parsed.draftSubject) || null,
-    draftBody: str(parsed.draftBody) || null,
+    draftBody: safeBody || null,
     model: MODEL,
   };
 }
 
 function str(v: unknown): string | null {
   return typeof v === "string" && v.trim() ? v.trim() : null;
+}
+
+const URL_RE = /https?:\/\/[^\s<>()[\]"']+/g;
+
+/** Trailing punctuation belongs to the sentence, not the link. */
+function tidyUrl(u: string): string {
+  return u.replace(/[.,;:!?]+$/, "");
+}
+
+/**
+ * The set of links the assistant is allowed to write, read straight out of the
+ * knowledge base so the two can never drift apart. Adding a URL to KNOWLEDGE is
+ * all it takes to permit it.
+ */
+const ALLOWED_URLS: Set<string> = new Set(
+  (KNOWLEDGE.match(URL_RE) || []).map(tidyUrl)
+);
+
+/**
+ * Replace any link the model made up with a marker the send path refuses to
+ * deliver, and report what was removed so the reviewer knows why it was flagged.
+ */
+function stripUnknownUrls(body: string | null): { body: string | null; invented: string[] } {
+  if (!body) return { body, invented: [] };
+  const invented: string[] = [];
+  const cleaned = body.replace(URL_RE, (match) => {
+    const url = tidyUrl(match);
+    if (ALLOWED_URLS.has(url)) return match;
+    invented.push(url);
+    return `[NEEDS GABOR: the AI invented the link ${url} — replace it with a real one or delete this]`;
+  });
+  return { body: cleaned, invented };
 }
 
 /** Prefix a subject with Re: unless it already carries one. */
