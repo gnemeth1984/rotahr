@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { requirePlatformAdmin } from "@/app/api/inbox/_auth";
 import { normaliseEmail, isSuppressed } from "@/lib/email/suppression";
 import { buildPageFromEmail, type BuildFromEmailResult } from "@/lib/public-page/from-email";
+import { buildPageFromUrl, setPageContact } from "@/lib/public-page/from-url";
+import { discoverContacts } from "@/lib/public-page/contact-discovery";
 import { renderListingInvite, LISTING_INVITED_STATUS } from "@/lib/outreach/listing-invite";
 import { sendOutreachEmail } from "@/lib/outreach/brevo";
 
@@ -136,6 +138,90 @@ export async function POST(req: Request) {
           : { ok: false as const, email: r.email, error: r.error, needsUrl: r.needsUrl === true }
       ),
     });
+  }
+
+  // Build from a URL instead of an address: a Google Maps pin, a Facebook page,
+  // a website. Email optional — see lib/public-page/from-url.ts for what a page
+  // without one can and can't do.
+  if (action === "build_url") {
+    const urls = String(typeof body.urls === "string" ? body.urls : "")
+      .split(/[\s,;]+/)
+      .map((s) => s.trim())
+      .filter((s) => s.length > 3 && /\./.test(s))
+      .slice(0, 10);
+    if (urls.length === 0) {
+      return NextResponse.json({ error: "No usable links in that." }, { status: 400 });
+    }
+
+    const single = urls.length === 1;
+    const name = single && typeof body.name === "string" ? body.name : null;
+    const email = single && typeof body.email === "string" ? body.email : null;
+    const discover = body.discover !== false;
+
+    const out: Record<string, unknown>[] = [];
+    for (const url of urls) {
+      try {
+        const r = await buildPageFromUrl({ url, name, email, discover });
+        out.push(
+          r.ok
+            ? {
+                ok: true,
+                url,
+                businessId: r.businessId,
+                slug: r.slug,
+                name: r.name,
+                email: r.email,
+                needsContact: r.needsContact,
+                address: r.extracted.address ?? null,
+                phone: r.extracted.phone ?? null,
+                warnings: r.warnings,
+                contacts: r.contacts,
+              }
+            : { ok: false, url, error: r.error, contacts: r.contacts ?? null }
+        );
+      } catch (e) {
+        out.push({ ok: false, url, error: e instanceof Error ? e.message : "Build failed." });
+      }
+    }
+    return NextResponse.json({ results: out });
+  }
+
+  // Re-run discovery against a page that has no contact yet.
+  if (action === "discover") {
+    const businessId = typeof body.businessId === "string" ? body.businessId : "";
+    const biz = await prisma.business.findUnique({
+      where: { id: businessId },
+      select: {
+        name: true,
+        publicWebsite: true,
+        publicFacebook: true,
+        publicInstagram: true,
+        publicPhone: true,
+      },
+    });
+    if (!biz) return NextResponse.json({ error: "No page with that id." }, { status: 404 });
+    if (!biz.publicWebsite && !biz.publicFacebook && !biz.publicInstagram) {
+      return NextResponse.json(
+        { error: "No website, Facebook or Instagram on this page — nowhere to look." },
+        { status: 400 }
+      );
+    }
+    const contacts = await discoverContacts({
+      name: biz.name,
+      website: biz.publicWebsite,
+      facebook: biz.publicFacebook,
+      instagram: biz.publicInstagram,
+      knownPhone: biz.publicPhone,
+    });
+    return NextResponse.json({ ok: true, contacts });
+  }
+
+  if (action === "set_contact") {
+    const businessId = typeof body.businessId === "string" ? body.businessId : "";
+    const email = typeof body.email === "string" ? body.email : "";
+    const r = await setPageContact(businessId, email);
+    if (!r.ok) return NextResponse.json({ error: r.error }, { status: 400 });
+    return NextResponse.json({ ok: true, email: r.email });
   }
 
   if (action === "send") {

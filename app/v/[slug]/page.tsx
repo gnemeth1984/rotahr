@@ -353,7 +353,13 @@ export default async function PublicVenuePage({ params }: { params: { slug: stri
       {/* ── Claim ────────────────────────────────────────────────────── */}
       {/* Prospect pages only: gives the real owner a route to take the page
           over, which previously did not exist anywhere in the product. */}
-      {venue.isProspect && <ClaimBanner slug={venue.slug} venueName={venue.name} />}
+      {venue.isProspect && (
+        <ClaimBanner
+          slug={venue.slug}
+          venueName={venue.name}
+          hasContact={Boolean(venue.email)}
+        />
+      )}
 
       {/* ── Footer ───────────────────────────────────────────────────── */}
       <footer className="border-t border-slate-200 py-10 text-center">

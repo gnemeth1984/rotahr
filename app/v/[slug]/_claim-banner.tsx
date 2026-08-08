@@ -9,7 +9,23 @@ import { useState } from "react";
  * the contact address already on file for the venue, so a passer-by can't take
  * over someone else's page.
  */
-export function ClaimBanner({ slug, venueName }: { slug: string; venueName: string }) {
+export function ClaimBanner({
+  slug,
+  venueName,
+  hasContact = true,
+}: {
+  slug: string;
+  venueName: string;
+  /**
+   * False when we hold no contact address for the venue.
+   *
+   * Claiming works by emailing a link to the address already on file, so with no
+   * address there is nothing to send and the button would silently do nothing.
+   * Showing a real owner a "check your inbox" message for an email that can
+   * never arrive is worse than telling them to get in touch.
+   */
+  hasContact?: boolean;
+}) {
   const [state, setState] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [message, setMessage] = useState<string | null>(null);
 
@@ -37,11 +53,21 @@ export function ClaimBanner({ slug, venueName }: { slug: string; venueName: stri
         <p className="text-sm text-slate-600 mb-4 max-w-2xl">
           We built this page for {venueName} from publicly available information —
           we don&apos;t run the venue. If it&apos;s yours, you can claim it and
-          edit everything on it: hours, menu, photos and bookings. We&apos;ll email
-          a claim link to the contact address we have on file.
+          edit everything on it: hours, menu, photos and bookings.{" "}
+          {hasContact
+            ? "We'll email a claim link to the contact address we have on file."
+            : "We don't have a contact address for you on file, so email us from the venue's address and we'll hand it over."}
         </p>
 
-        {state === "sent" ? (
+        {!hasContact ? (
+          <a
+            href={`mailto:sales@rotahr.com?subject=${encodeURIComponent(`Claiming the Rotahr page for ${venueName}`)}`}
+            className="inline-block text-sm font-semibold text-white px-5 py-2.5 rounded-xl transition-opacity hover:opacity-90"
+            style={{ background: "linear-gradient(135deg, #F97316, #EC4899)" }}
+          >
+            Email us to claim it
+          </a>
+        ) : state === "sent" ? (
           <p className="text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3">
             {message}
           </p>

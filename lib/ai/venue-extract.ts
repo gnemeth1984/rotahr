@@ -125,13 +125,15 @@ export function nameGuessFromUrl(url: string): string | null {
   }
 }
 
-interface Fetched {
+export interface Fetched {
   text: string;
   meta: Record<string, string>;
   ok: boolean;
+  /** Raw HTML, kept so callers can read mailto:/tel: hrefs that htmlToText drops. */
+  html?: string;
 }
 
-async function fetchPage(url: string): Promise<Fetched> {
+export async function fetchPage(url: string): Promise<Fetched> {
   // Facebook and Google Maps answer 400 to an ordinary browser UA from a server,
   // but still serve Googlebot. Try the honest UA first, then fall back.
   for (const ua of [BROWSER_UA, BOT_UA]) {
@@ -143,7 +145,12 @@ async function fetchPage(url: string): Promise<Fetched> {
       });
       if (!res.ok) continue;
       const html = await res.text();
-      return { text: htmlToText(html).slice(0, 30000), meta: metaTags(html), ok: true };
+      return {
+        text: htmlToText(html).slice(0, 30000),
+        meta: metaTags(html),
+        ok: true,
+        html: html.slice(0, 400000),
+      };
     } catch {
       // try the next UA
     }
@@ -212,12 +219,43 @@ interface OsmHit {
   category: string | null;
 }
 
-/** Look the venue up on OpenStreetMap. Free, keyless, and good on Irish pubs. */
-export async function lookupOsm(query: string): Promise<OsmHit | null> {
+/** Great-circle distance in km, for sanity-checking a name match against a pin. */
+export function distanceKm(
+  a: { lat: number; lng: number },
+  b: { lat: number; lng: number }
+): number {
+  const R = 6371;
+  const dLat = ((b.lat - a.lat) * Math.PI) / 180;
+  const dLng = ((b.lng - a.lng) * Math.PI) / 180;
+  const la1 = (a.lat * Math.PI) / 180;
+  const la2 = (b.lat * Math.PI) / 180;
+  const h =
+    Math.sin(dLat / 2) ** 2 + Math.cos(la1) * Math.cos(la2) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+
+/**
+ * Look the venue up on OpenStreetMap. Free, keyless, and good on Irish pubs.
+ *
+ * `near` matters more than it looks. Venue names are not unique — searching
+ * "The Long Hall" unbounded returns a bar in Manhattan, and a Dublin pub was
+ * published with a New York address because of it. When the pasted URL carries
+ * coordinates we bias the search to that area and reject anything implausibly
+ * far from the pin.
+ */
+export async function lookupOsm(
+  query: string,
+  near?: { lat: number; lng: number } | null
+): Promise<OsmHit | null> {
   try {
+    // ~55km box around the pin: generous enough for a vaguely-placed marker,
+    // tight enough to exclude a same-named venue in another country.
+    const box = near
+      ? `&viewbox=${near.lng - 0.5},${near.lat + 0.5},${near.lng + 0.5},${near.lat - 0.5}&bounded=1`
+      : "";
     const url =
       `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}` +
-      `&format=jsonv2&addressdetails=1&extratags=1&limit=1`;
+      `&format=jsonv2&addressdetails=1&extratags=1&limit=1${box}`;
     const res = await fetch(url, {
       headers: { "User-Agent": OSM_UA, "Accept-Language": "en" },
       signal: AbortSignal.timeout(12000),
@@ -226,6 +264,13 @@ export async function lookupOsm(query: string): Promise<OsmHit | null> {
     const rows = await res.json();
     const hit = Array.isArray(rows) ? rows[0] : null;
     if (!hit) return null;
+
+    // A bounded search can still return an edge case, so verify the result is
+    // actually near the pin rather than trusting the viewbox.
+    if (near) {
+      const d = distanceKm(near, { lat: Number(hit.lat), lng: Number(hit.lon) });
+      if (!Number.isFinite(d) || d > 60) return null;
+    }
 
     const a = hit.address || {};
     const ex = hit.extratags || {};
@@ -304,9 +349,10 @@ export async function extractVenueFromUrl(url: string): Promise<ExtractedVenue> 
   }
 
   // --- 2. OpenStreetMap gap-filler ---------------------------------------
+  const urlCoords = coordsFromUrl(url);
   let osm: OsmHit | null = null;
   if (nameHint) {
-    osm = await lookupOsm(nameHint);
+    osm = await lookupOsm(nameHint, urlCoords);
     if (osm) {
       sourcesUsed.push("OpenStreetMap");
       websiteHint = osm.website;
@@ -315,6 +361,10 @@ export async function extractVenueFromUrl(url: string): Promise<ExtractedVenue> 
         `OpenStreetMap matched "${osm.name}" (${osm.displayName}). ${
           nameMatches ? "Confirm it's the same venue" : "The name doesn't match exactly — confirm this is the right place"
         } before saving.`
+      );
+    } else if (urlCoords) {
+      notes.push(
+        "Nothing matching that name on OpenStreetMap near the map pin. Address and hours will be blank unless the venue has its own website."
       );
     }
   }
@@ -368,7 +418,7 @@ export async function extractVenueFromUrl(url: string): Promise<ExtractedVenue> 
 
   const str = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null);
   const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : null);
-  const coords = coordsFromUrl(url);
+  const coords = urlCoords;
 
   // The model happily returns { closed: true, open: null } — coerce every entry
   // into the strict { day, closed, open, close } shape the save endpoint accepts.

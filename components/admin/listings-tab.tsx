@@ -26,21 +26,44 @@ import {
   Link2,
   EyeOff,
   Eye,
+  Search,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
+interface ContactCandidate {
+  value: string;
+  source: string;
+  confidence: "found" | "uncertain";
+  mx?: "ok" | "no-mx" | "unknown";
+  note?: string;
+}
+
+interface Discovered {
+  emails: ContactCandidate[];
+  phones: ContactCandidate[];
+  socials: ContactCandidate[];
+  checked: string[];
+  notes: string[];
+}
+
 interface BuildRow {
   ok: boolean;
-  email: string;
+  /** Present on email-mode rows. */
+  email?: string;
+  /** Present on link-mode rows. */
+  url?: string;
   businessId?: string;
   slug?: string;
   name?: string;
   sourceUrl?: string;
   address?: string | null;
+  phone?: string | null;
   warnings?: string[];
   error?: string;
   needsUrl?: boolean;
+  needsContact?: boolean;
+  contacts?: Discovered | null;
 }
 
 interface PageRow {
@@ -67,6 +90,14 @@ async function post(body: Record<string, unknown>) {
 }
 
 export function ListingsTab() {
+  // Two ways in, because the input we have varies: sometimes an address off a
+  // directory, sometimes just a Google Maps pin for a place with no website.
+  const [mode, setMode] = useState<"email" | "link">("email");
+  const [urls, setUrls] = useState("");
+  const [urlEmail, setUrlEmail] = useState("");
+  const [discoverOn, setDiscoverOn] = useState(true);
+  const [contactDraft, setContactDraft] = useState<Record<string, string>>({});
+  const [discovered, setDiscovered] = useState<Record<string, Discovered>>({});
   const [emails, setEmails] = useState("");
   const [sourceUrl, setSourceUrl] = useState("");
   const [nameOverride, setNameOverride] = useState("");
@@ -82,6 +113,8 @@ export function ListingsTab() {
 
   const emailCount = emails.split(/[\s,;]+/).filter((s) => s.includes("@")).length;
   const single = emailCount === 1;
+  const urlList = urls.split(/[\s,;]+/).filter((s) => s.length > 3 && s.includes("."));
+  const singleUrl = urlList.length === 1;
 
   const loadPages = useCallback(async () => {
     setLoadingPages(true);
@@ -115,6 +148,57 @@ export function ListingsTab() {
     }
     setResults((json.results as BuildRow[]) || []);
     void loadPages();
+  }
+
+  async function buildFromUrls() {
+    setBuilding(true);
+    setMsg(null);
+    setResults(null);
+    const { ok, json } = await post({
+      action: "build_url",
+      urls,
+      name: singleUrl && nameOverride.trim() ? nameOverride.trim() : null,
+      email: singleUrl && urlEmail.trim() ? urlEmail.trim() : null,
+      discover: discoverOn,
+    });
+    setBuilding(false);
+    if (!ok) {
+      setMsg({ kind: "err", text: String(json.error || "Build failed.") });
+      return;
+    }
+    setResults((json.results as BuildRow[]) || []);
+    void loadPages();
+  }
+
+  async function runDiscovery(id: string) {
+    setBusyId(id);
+    setMsg(null);
+    const { ok, json } = await post({ action: "discover", businessId: id });
+    setBusyId(null);
+    if (!ok) {
+      setMsg({ kind: "err", text: String(json.error || "Discovery failed.") });
+      return;
+    }
+    const d = json.contacts as Discovered;
+    setDiscovered((s) => ({ ...s, [id]: d }));
+    // Prefill the box with the best usable address so it's one click to accept.
+    const best = d.emails.find((c) => c.mx !== "no-mx");
+    if (best) setContactDraft((s) => ({ ...s, [id]: best.value }));
+    else setMsg({ kind: "err", text: "Nothing found. Not guessing an address." });
+  }
+
+  async function saveContact(id: string) {
+    const email = (contactDraft[id] || "").trim();
+    if (!email) return;
+    setBusyId(id);
+    const { ok, json } = await post({ action: "set_contact", businessId: id, email });
+    setBusyId(null);
+    setMsg(
+      ok
+        ? { kind: "ok", text: `Contact set to ${String(json.email)} — the page can be invited and claimed now.` }
+        : { kind: "err", text: String(json.error || "Couldn't set that.") }
+    );
+    if (ok) void loadPages();
   }
 
   async function sendInvite(id: string, name: string) {
@@ -161,6 +245,93 @@ export function ListingsTab() {
     <div className="space-y-6">
       {/* ─── Build ─────────────────────────────────────────────────────── */}
       <div className="bg-white rounded-xl border border-slate-200 p-5">
+        <div className="flex items-center gap-1 mb-4 bg-slate-100 rounded-lg p-1 w-fit">
+          {(["email", "link"] as const).map((m) => (
+            <button
+              key={m}
+              onClick={() => setMode(m)}
+              className={`px-3 py-1.5 rounded-md text-sm font-medium transition ${
+                mode === m ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+              }`}
+            >
+              {m === "email" ? "From email" : "From link"}
+            </button>
+          ))}
+        </div>
+
+        {mode === "link" ? (
+          <>
+            <h3 className="font-semibold text-slate-900">Build pages from links</h3>
+            <p className="text-sm text-slate-500 mt-1">
+              Google Maps, Facebook or a website. Use this when there&apos;s no email to work from &mdash;
+              we&apos;ll read the venue off the link and then go looking for a contact.
+            </p>
+
+            <textarea
+              value={urls}
+              onChange={(e) => setUrls(e.target.value)}
+              rows={4}
+              spellCheck={false}
+              placeholder={
+                "https://www.google.com/maps/place/The+Venue+Name/...\nhttps://www.facebook.com/somevenue"
+              }
+              className="mt-3 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-orange-400"
+            />
+
+            {singleUrl && (
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                <Input
+                  value={nameOverride}
+                  onChange={(e) => setNameOverride(e.target.value)}
+                  placeholder="Venue name (optional — needed if the link hides it)"
+                />
+                <Input
+                  value={urlEmail}
+                  onChange={(e) => setUrlEmail(e.target.value)}
+                  placeholder="Email, if you already know it (optional)"
+                />
+              </div>
+            )}
+
+            <label className="mt-3 flex items-start gap-2 text-sm text-slate-600 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={discoverOn}
+                onChange={(e) => setDiscoverOn(e.target.checked)}
+                className="mt-0.5"
+              />
+              <span>
+                Hunt for a contact (website contact pages, Facebook, Instagram bio). Adds ~20s per venue.
+                Only ever reports addresses actually printed somewhere &mdash; it never guesses{" "}
+                <span className="font-mono text-xs">info@</span>.
+              </span>
+            </label>
+
+            <div className="mt-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800 flex gap-2">
+              <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+              <span>
+                A page with no contact still earns search traffic, but it can&apos;t be invited or claimed
+                &mdash; the claim link only ever goes to an address already on file. Add a contact later and
+                both unlock.
+              </span>
+            </div>
+
+            <div className="mt-4 flex items-center gap-3">
+              <Button onClick={buildFromUrls} disabled={building || urlList.length === 0}>
+                {building ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                {building
+                  ? "Building…"
+                  : `Build ${urlList.length || ""} page${urlList.length === 1 ? "" : "s"}`.trim()}
+              </Button>
+              {building && (
+                <span className="text-xs text-slate-500">
+                  Reading each link, then looking for contacts &mdash; up to a minute per venue.
+                </span>
+              )}
+            </div>
+          </>
+        ) : (
+          <>
         <h3 className="font-semibold text-slate-900">Build pages from email addresses</h3>
         <p className="text-sm text-slate-500 mt-1">
           Paste one address or a whole list. Each one gets its website read and a live page built. Nothing is
@@ -207,6 +378,8 @@ export function ListingsTab() {
             </span>
           )}
         </div>
+          </>
+        )}
       </div>
 
       {msg && (
@@ -233,7 +406,7 @@ export function ListingsTab() {
           <div className="space-y-3">
             {results.map((r) => (
               <div
-                key={r.email}
+                key={r.email || r.url}
                 className={`rounded-lg border px-4 py-3 text-sm ${
                   r.ok ? "border-emerald-200 bg-emerald-50/50" : "border-amber-200 bg-amber-50/50"
                 }`}
@@ -241,11 +414,14 @@ export function ListingsTab() {
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="font-medium text-slate-900">
-                      {r.ok ? r.name : r.email}
+                      {r.ok ? r.name : r.email || r.url}
                     </p>
                     {r.ok ? (
-                      <p className="text-slate-600 text-xs mt-0.5">
-                        {r.email} &middot; built from {r.sourceUrl}
+                      <p className="text-slate-600 text-xs mt-0.5 break-all">
+                        {r.email || (
+                          <span className="text-amber-700 font-medium">no contact found</span>
+                        )}
+                        {r.sourceUrl ? ` · built from ${r.sourceUrl}` : r.url ? ` · from ${r.url}` : ""}
                       </p>
                     ) : (
                       <p className="text-amber-800 text-xs mt-0.5">{r.error}</p>
@@ -277,6 +453,29 @@ export function ListingsTab() {
                   <p className="text-xs text-slate-500 mt-2 flex items-center gap-1">
                     <Link2 className="h-3 w-3" /> Paste this address on its own with a link to retry.
                   </p>
+                )}
+
+                {/* What the contact hunt turned up. Shown even on a failed build,
+                    since the details are still worth having. */}
+                {r.contacts && (r.contacts.emails.length > 0 || r.contacts.phones.length > 0) && (
+                  <div className="mt-3 border-t border-slate-200/70 pt-2 space-y-1">
+                    <p className="text-xs font-medium text-slate-700">Contacts found</p>
+                    {r.contacts.emails.map((c) => (
+                      <p key={c.value} className="text-xs text-slate-600 break-all">
+                        <span className="font-mono">{c.value}</span>
+                        <span className="text-slate-400"> — {c.source}</span>
+                        {c.mx === "no-mx" && (
+                          <span className="text-red-600 font-medium"> · dead domain, would bounce</span>
+                        )}
+                      </p>
+                    ))}
+                    {r.contacts.phones.map((c) => (
+                      <p key={c.value} className="text-xs text-slate-600">
+                        <span className="font-mono">{c.value}</span>
+                        <span className="text-slate-400"> — {c.source}</span>
+                      </p>
+                    ))}
+                  </div>
                 )}
               </div>
             ))}
@@ -350,6 +549,74 @@ export function ListingsTab() {
                     )}
                   </div>
                 </div>
+
+                {/* No contact: page is live and indexable but unclaimable and
+                    un-invitable until an address exists. */}
+                {!p.email && (
+                  <div className="mt-3 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2">
+                    <p className="text-xs text-amber-800 flex gap-1.5">
+                      <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                      No contact on file — can&apos;t be invited or claimed yet.
+                    </p>
+
+                    {discovered[p.id] && (
+                      <div className="mt-2 space-y-1">
+                        {discovered[p.id].emails.length === 0 && (
+                          <p className="text-xs text-slate-600">
+                            Nothing found on {discovered[p.id].checked.length} page(s) checked.
+                          </p>
+                        )}
+                        {discovered[p.id].emails.map((c) => (
+                          <button
+                            key={c.value}
+                            onClick={() => setContactDraft((s) => ({ ...s, [p.id]: c.value }))}
+                            className="block text-left text-xs text-slate-700 hover:text-orange-600"
+                          >
+                            <span className="font-mono">{c.value}</span>
+                            <span className="text-slate-400"> — {c.source}</span>
+                            {c.mx === "no-mx" && (
+                              <span className="text-red-600"> · dead domain</span>
+                            )}
+                          </button>
+                        ))}
+                        {discovered[p.id].phones.map((c) => (
+                          <p key={c.value} className="text-xs text-slate-500">
+                            phone: <span className="font-mono">{c.value}</span> — {c.source}
+                          </p>
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_auto_auto]">
+                      <Input
+                        value={contactDraft[p.id] || ""}
+                        onChange={(e) => setContactDraft((s) => ({ ...s, [p.id]: e.target.value }))}
+                        placeholder="Contact email"
+                        className="text-sm"
+                      />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => void runDiscovery(p.id)}
+                        disabled={busyId === p.id}
+                      >
+                        {busyId === p.id ? (
+                          <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                        ) : (
+                          <Search className="h-4 w-4 mr-1" />
+                        )}
+                        Find contact
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={() => void saveContact(p.id)}
+                        disabled={busyId === p.id || !(contactDraft[p.id] || "").trim()}
+                      >
+                        Save
+                      </Button>
+                    </div>
+                  </div>
+                )}
 
                 {!p.invited && p.email && (
                   <div className="mt-3 grid gap-2 sm:grid-cols-[140px_1fr_auto_auto]">
