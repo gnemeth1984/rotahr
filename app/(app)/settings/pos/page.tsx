@@ -25,13 +25,13 @@ import {
   CheckCircle2,
   Clock,
   AlertCircle,
-  ExternalLink,
   ShieldCheck,
 } from "lucide-react";
 import { toast } from "sonner";
 
 interface PosStatus {
   connected: boolean;
+  available?: { lightspeed: boolean; square: boolean };
   provider?: string;
   connectedAt?: string;
   lastSyncAt?: string;
@@ -43,16 +43,14 @@ const PROVIDERS = [
   {
     id: "lightspeed",
     name: "Lightspeed K-Series",
-    description: "Most popular in Irish & UK restaurants",
+    description: "Popular with restaurants in Ireland and the UK",
     logo: "💡",
-    note: "Requires API access from partners.lightspeedhq.com",
   },
   {
     id: "square",
     name: "Square POS",
-    description: "Ideal for cafés, bars & small venues",
+    description: "Ideal for cafés, bars and smaller venues",
     logo: "⬛",
-    note: "Instant sandbox access — go live in minutes",
   },
 ];
 
@@ -231,31 +229,59 @@ export default function PosSettingsPage() {
           <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
             Choose your POS system
           </h2>
-          {PROVIDERS.map((provider) => (
-            <Card key={provider.id} className="hover:border-primary/50 transition-colors">
-              <CardContent className="flex items-center justify-between p-6">
-                <div className="flex items-center gap-4">
-                  <span className="text-3xl">{provider.logo}</span>
-                  <div>
-                    <p className="font-semibold">{provider.name}</p>
-                    <p className="text-sm text-muted-foreground">{provider.description}</p>
-                    {provider.note && (
-                      <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
-                        <AlertCircle className="h-3 w-3" />
-                        {provider.note}
+          {PROVIDERS.map((provider) => {
+            const ready =
+              status?.available?.[provider.id as "lightspeed" | "square"] ?? true;
+            return (
+              <Card
+                key={provider.id}
+                className={
+                  ready
+                    ? "hover:border-primary/50 transition-colors"
+                    : "opacity-70"
+                }
+              >
+                <CardContent className="flex items-center justify-between p-6">
+                  <div className="flex items-center gap-4">
+                    <span className="text-3xl">{provider.logo}</span>
+                    <div>
+                      <p className="font-semibold flex items-center gap-2">
+                        {provider.name}
+                        {!ready && (
+                          <Badge variant="outline" className="text-xs">
+                            Coming soon
+                          </Badge>
+                        )}
                       </p>
-                    )}
+                      <p className="text-sm text-muted-foreground">
+                        {provider.description}
+                      </p>
+                      {!ready && (
+                        <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
+                          <AlertCircle className="h-3 w-3" />
+                          Not switched on yet — email sales@rotahr.com and we&apos;ll
+                          set it up for you.
+                        </p>
+                      )}
+                    </div>
                   </div>
-                </div>
-                <Button asChild>
-                  <a href={`/api/pos/connect/${provider.id}`}>
-                    <Plug className="h-4 w-4 mr-2" />
-                    Connect
-                  </a>
-                </Button>
-              </CardContent>
-            </Card>
-          ))}
+                  {ready ? (
+                    <Button asChild>
+                      <a href={`/api/pos/connect/${provider.id}`}>
+                        <Plug className="h-4 w-4 mr-2" />
+                        Connect
+                      </a>
+                    </Button>
+                  ) : (
+                    <Button disabled>
+                      <Plug className="h-4 w-4 mr-2" />
+                      Connect
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
 
@@ -266,35 +292,6 @@ export default function PosSettingsPage() {
         </div>
       )}
 
-      {/* Help links */}
-      <Separator />
-      <div className="space-y-2 text-sm text-muted-foreground">
-        <p className="font-medium text-foreground">Need API credentials?</p>
-        <ul className="space-y-1">
-          <li>
-            <a
-              href="https://partners.lightspeedhq.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1 hover:text-foreground"
-            >
-              <ExternalLink className="h-3 w-3" />
-              Lightspeed K-Series partner portal
-            </a>
-          </li>
-          <li>
-            <a
-              href="https://developer.squareup.com/apps"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1 hover:text-foreground"
-            >
-              <ExternalLink className="h-3 w-3" />
-              Square Developer dashboard (free sandbox)
-            </a>
-          </li>
-        </ul>
-      </div>
     </div>
   );
 }

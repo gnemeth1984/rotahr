@@ -90,6 +90,19 @@ https://rotahr.com/try needs no signup and no card — it opens a demo panel wit
 one-click logins for both owner and staff views, loaded with realistic data.
 This is usually the most useful thing to offer someone who is still deciding.
 
+POS / TILL INTEGRATION
+Rotahr connects to a till so revenue sits beside the rota and labour cost, and
+so stock depletes off sales. Only daily aggregates are stored — total revenue,
+hourly buckets and top-selling item names. No customer names, card details or
+transaction IDs, ever. Disconnecting deletes all of it.
+- Square: connect it yourself in Settings → POS.
+- Lightspeed K-Series: built, and switched on per venue — say we will enable it
+  for them and the team will follow up.
+- Any other till (Toast, Zettle, SumUp, Revel, Clover, TouchBistro, EPOS Now,
+  etc.): not supported today. Say so plainly and add that everything else in
+  Rotahr works fully without a POS connected — most venues run it that way.
+Never promise a date, a custom build or an API for a POS that is not listed here.
+
 WHERE TO SEND PEOPLE
 sales@rotahr.com is the only contact address, and it is the address they have
 already written to. Never tell a sender to "contact support", "reach out to our

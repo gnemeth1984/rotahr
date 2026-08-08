@@ -9,6 +9,14 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // Which providers are actually usable in this environment (credentials present).
+  const available = {
+    lightspeed: Boolean(
+      process.env.LIGHTSPEED_CLIENT_ID && process.env.LIGHTSPEED_CLIENT_SECRET
+    ),
+    square: Boolean(process.env.SQUARE_APP_ID && process.env.SQUARE_APP_SECRET),
+  };
+
   const conn = await prisma.posConnection.findUnique({
     where: { businessId: session.user.businessId! },
     select: {
@@ -22,11 +30,12 @@ export async function GET() {
   });
 
   if (!conn) {
-    return NextResponse.json({ connected: false });
+    return NextResponse.json({ connected: false, available });
   }
 
   return NextResponse.json({
     connected: true,
+    available,
     provider: conn.provider,
     connectedAt: conn.connectedAt,
     lastSyncAt: conn.lastSyncAt,
