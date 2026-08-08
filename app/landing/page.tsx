@@ -210,6 +210,9 @@ export default function LandingPage() {
             <Link href="/features" className="hover:text-slate-900 transition-colors">Features</Link>
             <a href="#pricing" className="hover:text-slate-900 transition-colors">Pricing</a>
             <Link href="/compare" className="hover:text-slate-900 transition-colors">Compare</Link>
+            <Link href="/list" className="hover:text-slate-900 transition-colors">
+              List your venue <span className="text-emerald-600 font-medium">free</span>
+            </Link>
             <Link href="/blog" className="hover:text-slate-900 transition-colors">Blog</Link>
           </nav>
           <div className="flex items-center gap-3">
@@ -377,6 +380,54 @@ export default function LandingPage() {
           <p className="text-center text-sm text-slate-600 mt-8">
             Enterprise pricing is custom — <Link href="/auth/signin" className="text-orange-700 underline">contact us</Link> to get started.
           </p>
+        </div>
+      </section>
+
+      {/*
+        Free venue listing.
+        Placed directly after pricing on purpose: this is the moment a visitor
+        has just decided the monthly cost is more than they want to commit to,
+        and it converts that no into a free page plus an email address.
+      */}
+      <section id="free-listing" className="py-24">
+        <div className="max-w-5xl mx-auto px-6">
+          <div className="rounded-3xl border border-slate-200 bg-white p-8 sm:p-12 shadow-sm">
+            <span className="inline-block rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 mb-4">
+              Free — no card, no subscription
+            </span>
+            <h2 className="text-3xl font-extrabold mb-4">
+              Not ready for the software? Claim your venue page for free.
+            </h2>
+            <p className="text-slate-600 mb-6 max-w-2xl">
+              Every venue gets a free public page on Rotahr — your opening hours, menu,
+              location and a booking button, on a link you can put in your Instagram bio.
+              It costs nothing, works whether or not you ever subscribe, and takes
+              about two minutes to claim.
+            </p>
+            <ul className="grid gap-3 sm:grid-cols-3 mb-8 text-sm text-slate-700">
+              <li className="flex gap-2">
+                <span className="text-emerald-600 font-bold">✓</span>
+                Your own page on rotahr.com
+              </li>
+              <li className="flex gap-2">
+                <span className="text-emerald-600 font-bold">✓</span>
+                Takes bookings straight away
+              </li>
+              <li className="flex gap-2">
+                <span className="text-emerald-600 font-bold">✓</span>
+                Upgrade later, or never
+              </li>
+            </ul>
+            <div className="flex flex-wrap items-center gap-4">
+              <Link
+                href="/list"
+                className="inline-flex items-center justify-center rounded-xl bg-slate-900 px-6 py-3 text-sm font-semibold text-white hover:bg-slate-800"
+              >
+                List your venue — free
+              </Link>
+              <span className="text-sm text-slate-500">No card required, ever.</span>
+            </div>
+          </div>
         </div>
       </section>
 
