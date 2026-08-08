@@ -201,6 +201,7 @@ export async function POST(req: Request) {
       toName: biz.name,
       subject: content.subject,
       html: content.html,
+      text: content.text,
       tags: ["listing_invite"],
     });
 

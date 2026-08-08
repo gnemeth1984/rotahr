@@ -100,6 +100,12 @@ export async function sendOutreachEmail(opts: {
   toName?: string;
   subject: string;
   html: string;
+  /**
+   * Plain-text alternative. Worth passing whenever we have one: a multipart
+   * message scores better than HTML-only, and Brevo's auto-generated text part
+   * is a tag-stripped dump of the HTML, links and all.
+   */
+  text?: string;
   tags?: string[];
 }): Promise<SendResult> {
   const apiKey = process.env.BREVO_API_KEY;
@@ -118,6 +124,7 @@ export async function sendOutreachEmail(opts: {
     to: [{ email: opts.to, name: opts.toName || opts.to }],
     subject: opts.subject,
     htmlContent: opts.html,
+    ...(opts.text ? { textContent: opts.text } : {}),
     tags: opts.tags,
     headers: {
       "List-Unsubscribe": `<${unsub}>, <mailto:${UNSUB_MAILBOX}?subject=unsubscribe>`,
