@@ -248,7 +248,7 @@ export default function PitchPage() {
                     <div className="wn-card"><div className="wn-icon">📈</div><div className="wn-name">Price Variance Alerts</div><div className="wn-desc">AI reads supplier invoices and flags items where the price has increased more than 5% since last order. Know before you pay.</div></div>
                     <div className="wn-card"><div className="wn-icon">👥</div><div className="wn-name">CRM & Customer Profiles</div><div className="wn-desc">Auto-built from reservations. Track visits, no-shows, spend, and notes. GDPR-compliant with one-click anonymisation.</div></div>
                     <div className="wn-card"><div className="wn-icon">🤖</div><div className="wn-name">AI Booking Assistant</div><div className="wn-desc">Handles reservations 24/7, suggests staffing adjustments based on demand, auto-confirms and emails guests.</div></div>
-                    <div className="wn-card"><div className="wn-icon">🔗</div><div className="wn-name">POS Integration</div><div className="wn-desc">Connect Lightspeed or Square. Booking data flows into your till system. No double entry.</div></div>
+                    <div className="wn-card"><div className="wn-icon">🔗</div><div className="wn-name">POS Integration</div><div className="wn-desc">Connect Square. Sales flow in beside your rota and labour cost. No double entry.</div></div>
                     <div className="wn-card"><div className="wn-icon">🧾</div><div className="wn-name">AI Invoice Scanning</div><div className="wn-desc">Upload a supplier invoice, AI reads line items and auto-fills stock levels and prices. No manual entry.</div></div>
                     <div className="wn-card"><div className="wn-icon">📱</div><div className="wn-name">Staff Mobile App</div><div className="wn-desc">iOS & Android. Push notifications for shifts, time-off approvals, rota changes and booking updates.</div></div>
                   </div>
@@ -342,7 +342,7 @@ export default function PitchPage() {
                         <li>Messaging & announcements</li>
                         <li>AI booking assistant</li>
                         <li>Menu specials board</li>
-                        <li>POS integration (Lightspeed & Square)</li>
+                        <li>POS integration (Square)</li>
                       </ul>
                     </div>
                     <div className="price-card feat">

@@ -103,7 +103,7 @@ const plans = [
       "Team messaging",
       "Employee profiles",
       "AI booking assistant",
-      "POS integration (Square, Lightspeed on request)",
+      "POS integration (Square)",
       "Mobile app (iOS & Android)",
       "Email & push notifications",
     ],
@@ -187,7 +187,7 @@ const landingFaq = [
   },
   {
     q: "Does it integrate with my POS?",
-    a: "Square connects in a couple of clicks from Settings → POS, and Lightspeed K-Series is enabled per venue on request. A POS connection is worth having for sales-driven stock depletion and demand-aware staffing, but everything else in Rotahr works fully without one — most venues run it that way.",
+    a: "Square connects in a couple of clicks from Settings → POS. It is the only till we support today. A POS connection is worth having for sales-driven stock depletion and demand-aware staffing, but everything else in Rotahr works fully without one — most venues run it that way.",
   },
 ]
 

@@ -39,13 +39,11 @@ interface PosStatus {
   accountId?: string;
 }
 
+// Square is the only till offered in the UI. The Lightspeed OAuth code stays in
+// lib/pos/lightspeed.ts and the connect/callback routes, but it is not listed
+// here: without LIGHTSPEED_CLIENT_ID it cannot be connected, and advertising it
+// as "coming soon" promised a setup nobody is going to do.
 const PROVIDERS = [
-  {
-    id: "lightspeed",
-    name: "Lightspeed K-Series",
-    description: "Popular with restaurants in Ireland and the UK",
-    logo: "💡",
-  },
   {
     id: "square",
     name: "Square POS",

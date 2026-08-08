@@ -3,12 +3,27 @@
  * Docs: https://developer.squareup.com/docs
  */
 
+/**
+ * Square has exactly two hosts, and both OAuth and the REST API live on the
+ * same one:
+ *   production  https://connect.squareup.com
+ *   sandbox     https://connect.squareupsandbox.com
+ *
+ * This previously pointed production at `connect.squareapis.com`, which does
+ * not resolve (NXDOMAIN) — so every live API call would have failed at DNS
+ * while OAuth appeared to succeed, leaving a "connected" POS that never synced.
+ *
+ * The environment is now chosen explicitly rather than off NODE_ENV: the app
+ * holds live Square credentials, and live credentials are rejected by the
+ * sandbox host, so a local `next dev` run must still talk to production.
+ * Set SQUARE_ENV=sandbox only when using sandbox credentials.
+ */
 const SQUARE_BASE =
-  process.env.NODE_ENV === "production"
-    ? "https://connect.squareapis.com"
-    : "https://connect.squareupsandbox.com";
+  process.env.SQUARE_ENV === "sandbox"
+    ? "https://connect.squareupsandbox.com"
+    : "https://connect.squareup.com";
 
-const SQUARE_AUTH = "https://connect.squareup.com";
+const SQUARE_AUTH = SQUARE_BASE;
 
 export function getSquareAuthUrl(state: string): string {
   const params = new URLSearchParams({
