@@ -3,6 +3,10 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { isRateLimited } from "@/lib/auth/rate-limit";
 import { findClaimable } from "@/lib/public-page/claim";
+import {
+  recordMarketingConsent,
+  MARKETING_CONSENT_TEXT_V1,
+} from "@/lib/public-page/consent";
 
 /**
  * Complete a claim: turn a prospect page into a real account owned by the
@@ -19,7 +23,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Too many requests. Try again shortly." }, { status: 429 });
   }
 
-  let body: { token?: string; name?: string; email?: string; password?: string };
+  let body: {
+    token?: string;
+    name?: string;
+    email?: string;
+    password?: string;
+    marketingOptIn?: boolean;
+  };
   try {
     body = await req.json();
   } catch {
@@ -27,6 +37,10 @@ export async function POST(req: NextRequest) {
   }
 
   const { token, name, email, password } = body;
+  // Consent is a separate decision from claiming, so it is only ever true when
+  // the checkbox was actually ticked. Anything other than a literal `true` —
+  // absent, "false", "on", 1 — counts as no consent.
+  const marketingOptIn = body.marketingOptIn === true;
   if (!token || !name?.trim() || !email?.trim() || !password) {
     return NextResponse.json({ error: "All fields are required." }, { status: 400 });
   }
@@ -78,12 +92,35 @@ export async function POST(req: NextRequest) {
           // it from Settings now.
           publicNoIndex: false,
           onboardingComplete: false,
+          // The takedown link is for pages we published unasked. Once the owner
+          // holds the account, removal belongs behind their login.
+          publicTakedownToken: null,
         },
       });
     });
   } catch (err) {
     console.error("[claim:complete]", err);
     return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });
+  }
+
+  // Recorded after the claim succeeds and deliberately outside the transaction:
+  // a failure to write the consent log must not roll back the account someone
+  // just created. Only ever called when the box was ticked — no row is written
+  // for a claim without consent, so silence is never mistaken for a yes.
+  if (marketingOptIn) {
+    try {
+      await recordMarketingConsent({
+        email: normalisedEmail,
+        businessId: business.id,
+        granted: true,
+        source: "claim_form",
+        consentText: MARKETING_CONSENT_TEXT_V1,
+        ip,
+        userAgent: req.headers.get("user-agent"),
+      });
+    } catch (err) {
+      console.error("[claim:complete] consent log failed", err);
+    }
   }
 
   return NextResponse.json({ ok: true, slug: business.slug, email: normalisedEmail });

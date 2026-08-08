@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isSuppressed, normaliseEmail, suppress } from "@/lib/email/suppression";
+import { withdrawMarketingConsent } from "@/lib/public-page/consent";
 
 /**
  * One-click unsubscribe target for the `List-Unsubscribe-Post` header
@@ -32,6 +33,16 @@ export async function POST(req: NextRequest) {
     reason: "one-click (List-Unsubscribe-Post)",
     userAgent: req.headers.get("user-agent"),
   });
+
+  // Also clear the nurture consent flag and log the withdrawal. Suppression
+  // alone would stop the mail but leave `marketingOptIn` true, so our own
+  // records would still claim consent we no longer have.
+  await withdrawMarketingConsent({
+    email,
+    source: "unsubscribe_link",
+    ip: req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null,
+    userAgent: req.headers.get("user-agent"),
+  }).catch((err) => console.error("[unsubscribe] consent withdrawal log failed", err));
 
   return NextResponse.json({ ok: true });
 }

@@ -9,6 +9,7 @@
 import { prisma } from "@/lib/prisma";
 import { randomBytes } from "crypto";
 import { slugify, validateSlug, RESERVED_SLUGS, type OpeningHoursEntry } from "./types";
+import { isTakenDown } from "./takedown";
 
 /**
  * Businesses that must never get a public page: seed/demo data and the
@@ -147,6 +148,15 @@ export interface ProspectVenueInput {
 
 /** Create a Business + default Venue whose only purpose is the public page. */
 export async function createProspectVenuePage(input: ProspectVenueInput) {
+  // A venue that already asked us to remove its page must never be republished
+  // by a later import. Enforced here rather than at the call sites so no future
+  // bulk tool can forget to check.
+  if (await isTakenDown(input.name, input.email)) {
+    throw new Error(
+      `${input.name} previously asked to be removed from Rotahr — not republishing.`
+    );
+  }
+
   const slug = input.slug ? input.slug : await uniquePublicSlug(input.name);
   const check = validateSlug(slug);
   if (check.ok === false) throw new Error(check.error);
@@ -167,6 +177,10 @@ export async function createProspectVenuePage(input: ProspectVenueInput) {
         publicPageEnabled: true,
         publicProspect: true,
         publicClaimToken: randomBytes(16).toString("hex"),
+        // Issued at creation, not on demand: the invite email that announces the
+        // page must be able to carry a working "remove this" link in the same
+        // message. Offering removal only after they reply is not one click.
+        publicTakedownToken: randomBytes(24).toString("base64url"),
         publicNoIndex: noIndex,
         publicTagline: input.tagline || null,
         publicAbout: input.about || null,

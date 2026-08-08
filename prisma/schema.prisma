@@ -107,6 +107,24 @@ model Business {
   publicProspect     Boolean @default(false) // page built by us for a venue that isn't a customer yet
   publicClaimToken   String? @unique // one-time token so an owner can claim their prospect page
 
+  // Single-use link that lets a venue delete a page we built for them without
+  // creating an account or emailing anyone. A page published on someone's
+  // behalf must be removable in one click by the person it describes.
+  publicTakedownToken String? @unique
+
+  // ── Marketing consent ─────────────────────────────────────────────────────
+  // Claiming a page is NOT consent to marketing: the two are separate acts and
+  // are recorded separately. This flag is set only by an explicit, unticked-by-
+  // default checkbox. Every change is also appended to MarketingConsentEvent,
+  // because GDPR Art. 7(1) requires us to *demonstrate* consent, and a boolean
+  // that was flipped by an unknown process on an unknown date demonstrates
+  // nothing.
+  marketingOptIn    Boolean   @default(false)
+  marketingOptInAt  DateTime?
+  marketingOptOutAt DateTime?
+  /// Address the consent was given for — may differ from the claimer's login.
+  marketingEmail    String?
+
   // Lemon Squeezy subscription
   lsCustomerId     String? // Lemon Squeezy customer ID
   lsSubscriptionId String? // Lemon Squeezy subscription ID
@@ -1890,4 +1908,54 @@ model InboxSyncState {
   lastSyncAt DateTime?
   lastError  String?   @db.Text
   updatedAt  DateTime  @updatedAt
+}
+
+/// Append-only proof of marketing consent, for GDPR Art. 7(1) ("the controller
+/// shall be able to demonstrate that the data subject has consented").
+///
+/// Rows are never updated or deleted, including on withdrawal — a withdrawal is
+/// a new row with granted=false. The exact wording shown next to the checkbox is
+/// stored per event, because consent is only valid for what the person was
+/// actually told, and that wording will change over time.
+model MarketingConsentEvent {
+  id String @id @default(cuid())
+
+  email      String
+  businessId String?
+
+  /// true = opted in, false = withdrawn.
+  granted Boolean
+  /// Where it happened: "claim_form" | "unsubscribe_link" | "admin" | "settings".
+  source  String
+  /// Verbatim consent wording presented at the time.
+  consentText String? @db.Text
+
+  ip        String?
+  userAgent String? @db.Text
+
+  createdAt DateTime @default(now())
+
+  @@index([email, createdAt])
+  @@index([businessId])
+}
+
+/// Venues that asked us to remove the page we built for them.
+///
+/// The record outlives the Business row on purpose. If we only deleted the
+/// business, the next bulk import from the lead list would cheerfully publish
+/// the same venue again — turning one polite removal request into a repeat
+/// offence. Provisioning checks this table before creating anything.
+model ListingTakedown {
+  id String @id @default(cuid())
+
+  /// Normalised venue name (lowercased, punctuation stripped) — the key we can
+  /// still match on after the Business row is gone.
+  nameKey String @unique
+  email   String?
+  slug    String?
+  reason  String? @db.Text
+
+  createdAt DateTime @default(now())
+
+  @@index([email])
 }

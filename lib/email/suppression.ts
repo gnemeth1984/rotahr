@@ -76,8 +76,12 @@ export async function suppress(opts: {
 
 export async function unsuppress(email: string): Promise<void> {
   const e = normaliseEmail(email);
+  // updateMany, not update: the common case is an address that was never
+  // suppressed, and `update` treats "no such row" as an error — it logged a
+  // Prisma stack trace on a perfectly normal opt-in. updateMany matches zero
+  // rows quietly.
   await prisma.emailSuppression
-    .update({ where: { email: e }, data: { revokedAt: new Date() } })
+    .updateMany({ where: { email: e }, data: { revokedAt: new Date() } })
     .catch(() => undefined);
 }
 

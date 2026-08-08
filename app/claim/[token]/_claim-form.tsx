@@ -9,6 +9,9 @@ export function ClaimForm({ token, slug }: { token: string; slug: string }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  // Unticked by default, and it stays that way. A pre-ticked box is not consent
+  // under GDPR Art. 4(11) — consent has to be a clear affirmative action.
+  const [marketingOptIn, setMarketingOptIn] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -20,7 +23,7 @@ export function ClaimForm({ token, slug }: { token: string; slug: string }) {
     const res = await fetch("/api/claim/complete", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ token, name, email, password }),
+      body: JSON.stringify({ token, name, email, password, marketingOptIn }),
     });
     const data = await res.json().catch(() => ({}));
 
@@ -96,6 +99,22 @@ export function ClaimForm({ token, slug }: { token: string; slug: string }) {
         />
         <p className="text-xs text-slate-500 mt-1.5">At least 8 characters.</p>
       </div>
+
+      <label className="flex gap-3 items-start cursor-pointer rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3.5">
+        <input
+          type="checkbox"
+          checked={marketingOptIn}
+          onChange={(e) => setMarketingOptIn(e.target.checked)}
+          className="mt-0.5 h-4 w-4 shrink-0 accent-[#FF6B35]"
+        />
+        <span className="text-sm text-slate-300 leading-relaxed">
+          Email me occasional Rotahr product updates and articles for hospitality
+          operators. No more than a couple a month, and one click unsubscribes.
+        </span>
+      </label>
+      <p className="text-xs text-slate-500 -mt-1">
+        Optional. Your listing works exactly the same either way.
+      </p>
 
       {error && (
         <p role="alert" className="text-sm text-red-300 bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3">
