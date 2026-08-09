@@ -69,6 +69,17 @@ export const SEED_CLUSTERS: { cluster: string; seeds: string[]; intent: Intent }
       "food safety records restaurant",
       "haccp software",
       "cleaning schedule template restaurant",
+      // The AI-visibility tracker shows no competitor named at all for these —
+      // not us, not Deputy, not 7shifts. Unowned ground with a shipped feature
+      // behind it is the cheapest ranking available to us.
+      "paperless haccp",
+      "digital food safety app",
+      "temperature log app kitchen",
+      "replace paper temperature logs",
+      "food safety management system restaurant",
+      "haccp records for inspection",
+      "allergen record keeping restaurant",
+      "cooling and reheating records",
     ],
   },
   {
@@ -80,6 +91,9 @@ export const SEED_CLUSTERS: { cluster: string; seeds: string[]; intent: Intent }
       "tip pooling rules",
       "hospitality payroll software",
       "overtime rules restaurant staff",
+      "tips distribution app",
+      "tronc scheme setup",
+      "staff break entitlement rules",
     ],
   },
   {
@@ -90,6 +104,23 @@ export const SEED_CLUSTERS: { cluster: string; seeds: string[]; intent: Intent }
       "table management software",
       "reduce no show reservations",
       "restaurant floor plan software",
+      "table booking app for restaurants",
+      "reservation software for small restaurant",
+      "restaurant table plan software",
+    ],
+  },
+  {
+    // Rotahr's actual differentiator: one system instead of four. The models
+    // named nobody for "what software combines rota and HACCP" — that is a
+    // question only we can answer honestly.
+    cluster: "all-in-one hospitality",
+    intent: "commercial",
+    seeds: [
+      "all in one restaurant software",
+      "software that combines rota and haccp",
+      "restaurant scheduling and bookings in one app",
+      "one app for rota payroll and bookings",
+      "replace multiple restaurant apps",
     ],
   },
   {
@@ -111,6 +142,10 @@ export const SEED_CLUSTERS: { cluster: string; seeds: string[]; intent: Intent }
       "how to do a stock take restaurant",
       "recipe costing",
       "reduce food waste restaurant",
+      "recipe costing software",
+      "food cost calculator restaurant",
+      "kitchen inventory app",
+      "dish cost per portion",
     ],
   },
   {
@@ -138,7 +173,6 @@ const MODIFIERS = [
   "for",
   "best",
   "cheap",
-  "free",
   "how to",
   "what is",
   "vs",
@@ -146,6 +180,13 @@ const MODIFIERS = [
   "template",
   "uk",
   "us",
+  // "free" is deliberately absent. It harvested a whole family of
+  // "best free ... software" / "... free download" queries that isUsable() now
+  // rejects anyway, because somebody searching for free software will not pay
+  // €59/month. Every one of those was ~130 wasted autocomplete calls.
+  "for restaurants",
+  "for small",
+  "app",
 ];
 
 export type Suggestion = { keyword: string; cluster: string; intent: Intent; source: "suggest" };
@@ -179,13 +220,111 @@ export function classifyIntent(keyword: string, fallback: Intent): Intent {
 }
 
 /**
+ * Territory where two things are true at once: Rotahr ships the feature, and
+ * the AI-visibility tracker shows NO competitor is named in the answer — not
+ * Deputy, not 7shifts, not When I Work. Nobody owns these questions, so a new
+ * domain can take them. This is the opposite of "best scheduling software",
+ * where the answer has been settled for a decade.
+ */
+const FEATURE_GAP: RegExp[] = [
+  /\bhaccp\b/,
+  /\bfood safety\b/,
+  /\btemperature (log|record|check|sheet|monitoring)/,
+  /\bpaper(less)?\b[^.]{0,30}\b(log|record|checklist)/,
+  /\brecipe cost/,
+  /\bfood cost/,
+  /\bmenu engineering\b/,
+  /\bgross profit\b/,
+  /\bportion (cost|control)/,
+  /\btronc\b/,
+  /\btip (pool|out|distribution|split|share)/,
+  /\bstock ?take\b/,
+  /\bno[- ]show/,
+  // "cap table management software" is startup equity, not restaurant tables —
+  // it matched a bare /table (management)/ and scored 84.
+  /(?<!\bcap )\btable (management|plan|booking)/,
+  // NOT a bare /\bfloor plan\b/ — that matched a whole family of diagram-tool
+  // queries ("restaurant floor plan maker ai", "smartdraw...") and pushed them
+  // to the top of the queue. People searching those want drawing software.
+  /\b(break entitlement|rest break)/,
+  /\bclock (in|out)\b/,
+  /\bcleaning schedule\b/,
+  /\bdelivery (check|note)\b/,
+  /\bcert(ification)?s? (expiry|tracker|tracking)/,
+  /\ballergen\b/,
+];
+
+/** The market Rotahr actually sells to. */
+const OUR_VERTICAL =
+  /\b(restaurant|pub|bar|cafe|café|coffee shop|hotel|hospitality|kitchen|bistro|brasserie|takeaway|catering|caterer|chef|barista|waiter|waitress|food truck|gastropub|nightclub|diner|deli|bakery|brewery|venue)s?\b/;
+
+/**
+ * Venue types narrow enough that naming one is already a long-tail query.
+ * "restaurant" and "hotel" are deliberately excluded — they are big contested
+ * categories in their own right, so they belong in OUR_VERTICAL but not here.
+ */
+const NARROW_VENUE =
+  /\b(pub|bar|cafe|café|coffee shop|bistro|brasserie|gastropub|food truck|takeaway|deli|bakery|brewery|nightclub|diner|caterer|catering)s?\b/;
+
+/** Qualifiers that mean "a venue like mine", not "the market leader". */
+const SMALLNESS =
+  /\b(small|independent|single (location|site|venue)|one location|family[- ]run|family owned|boutique|micro|tiny|local)\b/;
+
+/** A market we actually bill in — EUR, GBP, USD, CAD, AUD. */
+const OUR_MARKET =
+  /\b(ireland|irish|uk|united kingdom|england|scotland|wales|britain|british|us|usa|united states|america|american|canada|canadian|australia|australian|dublin|cork|galway|london|manchester|birmingham|glasgow|leeds|new york|chicago|texas|california|toronto|vancouver|sydney|melbourne)\b/;
+
+/**
+ * A generic category term: "<something> scheduling software", "rota app",
+ * "management system". On its own, with no narrowing angle, every one of these
+ * is defended by When I Work, Deputy, Homebase and 7shifts — companies with a
+ * decade of domain authority and thousands of backlinks.
+ */
+const CATEGORY_TERM =
+  /\b(scheduling|schedule|rota|roster|rostering|shift planning|workforce|management|payroll|time and attendance|hr)\b[^.]{0,24}\b(software|app|system|tool|platform|solution|program|programme)s?\b/;
+
+/**
+ * True when a query is a bare category head term with nothing to narrow it.
+ *
+ * This is the lesson of the first 61 articles: they targeted exactly these, and
+ * returned 5 clicks in 28 days with nothing in striking distance. A 650-word
+ * page from a six-month-old domain cannot outrank a decade of authority, no
+ * matter how well written. Any narrowing angle — our vertical, a market we
+ * bill in, a staff count, an unowned feature — makes the same query winnable,
+ * so only the completely unqualified ones get buried.
+ */
+export function isDefendedHeadTerm(keyword: string): boolean {
+  const k = keyword.toLowerCase();
+  if (!CATEGORY_TERM.test(k)) return false;
+
+  // A real narrowing angle makes the same category term winnable.
+  if (FEATURE_GAP.some((re) => re.test(k))) return false;
+  if (OUR_MARKET.test(k)) return false;
+  if (/\b\d+\b/.test(k)) return false; // "rota software for 12 staff" — a real operator
+  if (NARROW_VENUE.test(k)) return false; // a pub or food truck is long-tail by nature
+  if (OUR_VERTICAL.test(k) && SMALLNESS.test(k)) return false;
+
+  // Naming the vertical alone is NOT enough: "restaurant management software"
+  // is every bit as defended as "employee scheduling software", and it scored
+  // 84 here until this rule existed.
+  return true;
+}
+
+/**
  * Score a keyword. Higher = write it sooner.
  *
- * Weighting reflects where the cheap wins are, in order:
- *  - striking distance in Search Console (already ranking 5-20) beats everything
+ * The previous version returned 49 for virtually every candidate: the
+ * word-count bucket saturated at 5 words (+25) and intent was almost always
+ * commercial (+24), so 800 keywords tied and the queue published whatever
+ * happened to be next in insertion order. Scoring now stays continuous and
+ * leans on signals that actually differ between two long commercial queries:
+ *
+ *  - striking distance in Search Console (already ranking 4-20) beats everything
  *  - real impressions with no clicks = demand we're already visible for
- *  - commercial/transactional intent converts, so it outranks pure curiosity
- *  - long-tail (4+ words) is winnable; two-word head terms are not, yet
+ *  - unowned feature ground (HACCP, recipe costing, tips) over defended ground
+ *  - our own vertical over generic business software
+ *  - specificity of any kind, because each qualifier is one more competitor who
+ *    never bothered writing the page
  */
 export function scoreKeyword(k: {
   keyword: string;
@@ -195,14 +334,32 @@ export function scoreKeyword(k: {
   position?: number | null;
 }): number {
   let score = 0;
+  const key = k.keyword.trim().toLowerCase();
+  const words = key.split(/\s+/).length;
 
-  const words = k.keyword.trim().split(/\s+/).length;
-  if (words >= 5) score += 25;
-  else if (words === 4) score += 20;
-  else if (words === 3) score += 12;
-  else score += 2; // head term — keep it in the map, don't lead with it
+  // Long tail, continuous — no ceiling at five words.
+  score += Math.min(30, Math.max(0, (words - 2) * 6));
 
   score += { transactional: 30, commercial: 24, local: 18, informational: 10 }[k.intent] ?? 10;
+
+  // Hospitality context. "rota software for pubs" is worth ten of "rota software".
+  if (OUR_VERTICAL.test(key)) score += 22;
+
+  // Ground no competitor holds in AI answers, where we ship the feature.
+  if (FEATURE_GAP.some((re) => re.test(key))) score += 28;
+
+  if (OUR_MARKET.test(key)) score += 10;
+
+  // A number is nearly always a real operator describing their own venue.
+  if (/\b\d+\s*(staff|employees|people|seats|covers|locations|sites|venues|tables)\b/.test(key))
+    score += 14;
+
+  // Question-shaped queries are cheap to answer outright, and a self-contained
+  // answer is exactly what an assistant lifts.
+  if (/^(how|what|why|when|do|does|is|are|can|should)\b/.test(key)) score += 8;
+
+  // Unwinnable at our authority. Kept in the map, buried in the queue.
+  if (isDefendedHeadTerm(key)) score -= 45;
 
   const pos = k.position ?? null;
   if (pos !== null && pos > 0) {
@@ -227,6 +384,9 @@ const STOP_PATTERNS = [
   /\bpdf\b/i,
   /\breddit\b/i,
   /\bcrack|torrent|nulled\b/i,
+  // "in <language>" — we publish in English only, and "food cost formula in
+  // restaurant in hindi" was sitting at 90 in the queue.
+  /\bin (hindi|urdu|tamil|telugu|bengali|marathi|gujarati|punjabi|malayalam|kannada|arabic|indonesian|tagalog|filipino|vietnamese|thai|swahili|amharic|nepali)\b/i,
 ];
 
 /**
@@ -252,12 +412,81 @@ const OFF_MARKET = new RegExp(
   "i"
 );
 
-/** Drop queries that can never convert for a scheduling SaaS. */
+/**
+ * Industries Rotahr does not serve. Autocomplete offers these constantly
+ * because scheduling software is a generic category — "employee scheduling
+ * software for healthcare" was sitting in the queue scoring the same 49 as
+ * everything else. Ranking for them would bring clicks that can never convert
+ * and dilute the topical authority we're trying to build in hospitality.
+ */
+const OFF_VERTICAL = new RegExp(
+  "\\b(" +
+    [
+      "healthcare", "health care", "hospital", "nursing", "nurse", "care home", "clinic",
+      "dental", "dentist", "pharmacy", "medical", "veterinary",
+      "construction", "warehouse", "manufacturing", "factory", "logistics", "trucking",
+      "security guard", "call cent(er|re)", "bpo",
+      "retail store", "supermarket", "grocery store", "petrol station",
+      "gym", "fitness", "salon", "spa", "barbershop", "tattoo",
+      "school", "teacher", "university", "college", "church", "nonprofit", "non-profit",
+      "police", "fire department", "airline", "airport",
+      "cleaning company", "janitorial", "landscaping", "daycare", "childcare", "nanny",
+      // Startup finance, not hospitality — "cap table management software".
+      "cap table", "captable", "equity management", "shareholder",
+    ].join("|") +
+    ")\\b",
+  "i"
+);
+
+/**
+ * Queries from people who will never buy. Rotahr starts at €59/month; somebody
+ * searching "free download" or "open source" is not a customer at any point in
+ * the funnel. We published "best open source shift planning software" on 5
+ * August — a real article, real cost, zero possible conversion.
+ */
+const NEVER_CONVERTS = new RegExp(
+  "(" +
+    [
+      "\\bfree download\\b", "\\bdownload free\\b", "\\bfreeware\\b", "\\bopen source\\b",
+      "\\bfor sale\\b", "\\bfree trial download\\b", "\\bfull version\\b",
+      // "best free X software" — the whole intent is not paying for it.
+      "\\bfree\\b[^.]{0,40}\\b(software|app|system|tool|platform|program|programme|maker|creator|generator|builder|designer)s?\\b",
+      "\\b(software|app|system|tool|platform|maker|creator|generator|builder|designer)s?\\b[^.]{0,24}\\bfree\\b",
+    ].join("|") +
+    ")",
+  "i"
+);
+
+/**
+ * Developers building their own thing, and people looking for a diagramming
+ * tool. "restaurant table booking system using php and mysql" scored 104 and
+ * sat at the very top of the queue — a student writing a college project, who
+ * will never buy scheduling software. Note "how to make a staff rota" is
+ * deliberately NOT caught here: that's an operator we can help and sell to.
+ */
+const DIY_OR_DEV = new RegExp(
+  "(" +
+    [
+      "\\b(php|mysql|sql server|python|javascript|java|c#|\\.net|laravel|django|react|node ?js)\\b",
+      "\\bsource code\\b", "\\bgithub\\b", "\\bapi (tutorial|documentation)\\b",
+      "\\bhow to (build|code|program|develop)\\b", "\\bdatabase (design|schema)\\b",
+      "\\ber diagram\\b", "\\buml\\b", "\\bproject report\\b", "\\bfinal year project\\b",
+      // Diagram tools, not hospitality software.
+      "\\b(smartdraw|visio|lucidchart|autocad|sketchup|canva|figma)\\b",
+    ].join("|") +
+    ")",
+  "i"
+);
+
+/** Drop queries that can never convert for a hospitality SaaS. */
 export function isUsable(keyword: string): boolean {
   const k = keyword.trim();
   if (k.length < 8 || k.length > 90) return false;
   if (!/^[a-z0-9 '&/.+-]+$/i.test(k)) return false;
   if (OFF_MARKET.test(k)) return false;
+  if (OFF_VERTICAL.test(k)) return false;
+  if (NEVER_CONVERTS.test(k)) return false;
+  if (DIY_OR_DEV.test(k)) return false;
   return !STOP_PATTERNS.some((re) => re.test(k));
 }
 

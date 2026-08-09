@@ -255,6 +255,98 @@ Return ONLY JSON: {"faq":[{"q":"...","a":"..."}]} with 3-6 entries.`,
  * table, a figure with its qualifier attached. Flowing prose that builds to a
  * conclusion reads well and gets quoted by nobody.
  */
+/** Words in a markdown body, ignoring link syntax and table pipes. */
+function countWords(md: string): number {
+  return md
+    .replace(/```[\s\S]*?```/g, " ")
+    .replace(/[|>#*_`[\]()-]/g, " ")
+    .split(/\s+/)
+    .filter(Boolean).length;
+}
+
+/**
+ * True when the body opens with a bold answer paragraph before the first H2.
+ * That block is what Google's AI Overviews and ChatGPT lift verbatim, so it
+ * must survive every edit pass.
+ */
+function hasLeadAnswer(md: string): boolean {
+  const beforeFirstH2 = md.split(/^## /m)[0];
+  return /\*\*[^*]{40,}\*\*/.test(beforeFirstH2);
+}
+
+/**
+ * The brief asks for 1100-1600 words. gpt-4o-mini reliably delivers 620-860 and
+ * stops — the first 61 articles averaged well under half the target, which is a
+ * large part of why none of them rank. The pages holding position 1 for a
+ * commercial comparison query run 2,000+ words with tables and worked figures.
+ *
+ * So we measure, and if it came back thin we send it back once with the actual
+ * count quoted at it. Asking for "more detail" produces padding; asking for
+ * named specific additions produces substance.
+ */
+const MIN_WORDS = 1000;
+
+async function ensureDepth(keyword: string, content: string, intent: string): Promise<string> {
+  const words = countWords(content);
+  if (words >= MIN_WORDS) return content;
+
+  const commercial = intent === "commercial" || intent === "transactional";
+  const asks = commercial
+    ? `- A comparison table of at least 4 real named tools with what each actually costs and who each suits.
+- A "what this costs in practice" section with worked figures for a named venue size.
+- An honest "when NOT to pick Rotahr" paragraph. Buyers trust a page that rules itself out.`
+    : `- A worked example with real figures, start to finish.
+- A copyable checklist, template or step sequence the reader can lift straight out.
+- A "common mistakes" section naming what goes wrong and the consequence of each.`;
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "user",
+          content: `This article targets the Google query "${keyword}". It is ${words} words. Competing pages that rank on page one for this query run 1,500-2,500 words, so as it stands it cannot compete.
+
+Expand it to at least 1,400 words by ADDING substance. Rules:
+- Keep every existing heading and sentence. This is additive only — do not rewrite or summarise what is there.
+- CRITICAL: the article opens with a short bold paragraph answering the query, BEFORE the first "## " heading. Reproduce it first, word for word, still bold. Never drop it and never move it under a heading — it is the block search engines and AI assistants quote.
+- Keep any *Related: [...]* lines and the closing Rotahr link exactly where they are.
+- Add these:
+${asks}
+- Every number you add must name what it applies to (venue size, country, year) in the same sentence.
+- No padding. No "in today's fast-paced world". If you have nothing substantive to add to a section, leave it alone.
+- Clean Markdown, no H1, no code fences.
+
+Article:
+${content}
+
+Return ONLY JSON: {"content":"the full expanded markdown"}`,
+        },
+      ],
+      max_tokens: 8000,
+      temperature: 0.6,
+      response_format: { type: "json_object" },
+    });
+    const parsed = JSON.parse(completion.choices[0].message.content || "{}") as { content?: string };
+    // Only accept a genuine expansion — a shorter or barely-changed result is a
+    // regression, and we'd rather ship the honest short version.
+    if (parsed.content && countWords(parsed.content) > words * 1.15) {
+      // The lead paragraph is the whole AI-visibility play, and the model does
+      // drop it: the first live run turned a bold opening answer into a plain
+      // "## Understanding..." heading. Length is not worth losing it.
+      if (hasLeadAnswer(content) && !hasLeadAnswer(parsed.content)) {
+        console.error(`[seo] depth pass dropped the lead answer on "${keyword}" — keeping original`);
+        return content;
+      }
+      console.log(`[seo] expanded "${keyword}" ${words} -> ${countWords(parsed.content)} words`);
+      return parsed.content;
+    }
+  } catch (err) {
+    console.error("[seo] depth pass failed", err);
+  }
+  return content;
+}
+
 async function writeArticle(keyword: string, cluster: string, intent: string, questions: string[]): Promise<Article | null> {
   const year = new Date().getFullYear();
 
@@ -271,7 +363,7 @@ ${intentBrief}
 
 Hard rules:
 - The H1/title must read naturally but contain the query or a very close variant.
-- 1100-1600 words. No padding, no "in today's fast-paced world".
+- 1400-1900 words, and treat that as a floor rather than a target. Pages that rank on page one for a query like this run 1,500-2,500 words. No padding, no "in today's fast-paced world" — length must come from specifics.
 - Open with a 2-3 sentence direct answer to the query, in bold, before any heading.
   Write it so it stands alone if someone quotes only that paragraph.
 - 4-6 "## " H2 sections. Include at least one markdown table.
@@ -304,7 +396,7 @@ Return ONLY JSON, no code fences:
   const completion = await openai.chat.completions.create({
     model: "gpt-4o-mini",
     messages: [{ role: "user", content: prompt }],
-    max_tokens: 5000,
+    max_tokens: 8000,
     temperature: 0.7,
     response_format: { type: "json_object" },
   });
@@ -321,6 +413,8 @@ Return ONLY JSON, no code fences:
     if (a.faq.length === 0) {
       a.faq = await faqFor(keyword, a.content, questions);
     }
+
+    a.content = await ensureDepth(keyword, a.content, intent);
     return a;
   } catch (err) {
     console.error("[seo] article JSON parse failed", err, raw.slice(0, 300));
@@ -445,21 +539,97 @@ export async function publishNextArticle(): Promise<
 // 3. Refresh what nearly ranks
 // ---------------------------------------------------------------------------
 
+/**
+ * Take the thinnest published article and bring it up to a competitive length.
+ *
+ * This is the fallback when Search Console has no striking-distance data to act
+ * on. There are 61 published articles averaging around 700 words; every one of
+ * them is too short to compete for the query it targets. Fixing an existing URL
+ * that Google has already crawled is strictly better than adding a 62nd thin
+ * page, because the page already has indexing history to build on.
+ */
+async function thickenThinnestPost(): Promise<
+  { refreshed: true; slug: string; addedFor: string[] } | null
+> {
+  const threeWeeksAgo = new Date(Date.now() - 21 * 24 * 3600 * 1000);
+
+  const thin = await prisma.blogPost.findFirst({
+    where: {
+      published: true,
+      // Thinnest first, but never the same page twice in three weeks.
+      AND: [
+        { OR: [{ wordCount: { lt: MIN_WORDS } }, { wordCount: null }] },
+        { OR: [{ refreshedAt: null }, { refreshedAt: { lt: threeWeeksAgo } }] },
+      ],
+    },
+    orderBy: [{ wordCount: "asc" }, { createdAt: "asc" }],
+  });
+  if (!thin) return null;
+
+  return thickenPost(thin);
+}
+
+async function thickenPost(post: {
+  id: string;
+  slug: string;
+  title: string;
+  content: string;
+  keyword: string | null;
+  category: string;
+}): Promise<{ refreshed: true; slug: string; addedFor: string[] } | null> {
+  const before = countWords(post.content);
+  const expanded = await ensureDepth(
+    post.keyword || post.title,
+    post.content,
+    post.category === "management" ? "commercial" : "informational"
+  );
+  const after = countWords(expanded);
+  if (after <= before * 1.15) return null;
+
+  await prisma.blogPost.update({
+    where: { id: post.id },
+    data: {
+      content: expanded,
+      wordCount: after,
+      refreshedAt: new Date(),
+      refreshCount: { increment: 1 },
+    },
+  });
+
+  const ping = await submitToIndexNow([`${SITE}/blog/${post.slug}`]);
+  await log("refresh", true, `/blog/${post.slug} thickened ${before} -> ${after} words (${ping})`);
+  return { refreshed: true, slug: post.slug, addedFor: [`length ${before} -> ${after}`] };
+}
+
 export async function refreshDecaying(): Promise<
   { refreshed: false; reason: string } | { refreshed: true; slug: string; addedFor: string[] }
 > {
+  // Thickening a thin page needs no ranking data at all, so a missing Search
+  // Console connection must not gate it — that gate is why this job returned
+  // nothing five weeks running.
   if (!gscConfigured()) {
-    await log("refresh", false, "GSC not configured");
+    const thickened = await thickenThinnestPost();
+    if (thickened) return thickened;
+    await log("refresh", false, "GSC not configured, no thin posts left");
     return {
       refreshed: false,
-      reason: "Search Console isn't connected, so there's no ranking data to refresh against.",
+      reason: "Search Console isn't connected and every article is above the length floor.",
     };
   }
 
   const striking = await strikingDistance(28, 20);
   if (striking.length === 0) {
-    await log("refresh", false, "nothing in striking distance");
-    return { refreshed: false, reason: "No queries in striking distance yet — keep publishing." };
+    // "Nothing in striking distance" has been the answer five weeks running,
+    // and the job just burned its slot each time. Nothing ranks 4-20 because
+    // the back catalogue is too thin to rank at all, so when there's no ranking
+    // signal to act on, go fix the thinnest page instead of returning nothing.
+    const thickened = await thickenThinnestPost();
+    if (thickened) return thickened;
+    await log("refresh", false, "nothing in striking distance, no thin posts left");
+    return {
+      refreshed: false,
+      reason: "Nothing ranks 4-20 yet and every article is above the length floor.",
+    };
   }
 
   // Group the opportunities by the page that owns them, biggest first.
