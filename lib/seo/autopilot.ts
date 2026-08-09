@@ -581,14 +581,34 @@ export async function publishNextArticle(): Promise<
   );
 
   if (!article) {
+    // A failed generation used to mark the keyword "skipped" for good, so the
+    // best queries in the queue were the ones most likely to be thrown away:
+    // the fact guard refuses on exactly the commercial pricing pages we most
+    // want to own, and one bad roll of the dice retired the keyword forever.
+    // Give it three tries, dropping its priority each time so tomorrow's run
+    // works on something else first rather than looping on the same row.
+    const tries = Number(/attempt (\d+)/.exec(candidate.note || "")?.[1] || 0) + 1;
+    const exhausted = tries >= 3;
     await prisma.seoKeyword.update({
       where: { id: candidate.id },
-      data: { status: "skipped", note: "generation failed" },
+      data: exhausted
+        ? { status: "skipped", note: `generation failed on attempt ${tries} — giving up` }
+        : {
+            status: "queued",
+            note: `generation failed on attempt ${tries} — requeued`,
+            priority: { decrement: 10 },
+          },
     });
-    await log("publish", false, `generation failed for "${candidate.keyword}"`);
+    await log(
+      "publish",
+      false,
+      `generation failed for "${candidate.keyword}" (attempt ${tries}${exhausted ? ", retired" : ", requeued"})`,
+    );
     return {
       published: false,
-      reason: "Article generation failed — keyword skipped.",
+      reason: exhausted
+        ? "Article generation failed three times — keyword retired."
+        : "Article generation failed — keyword requeued for another run.",
     };
   }
 
