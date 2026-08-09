@@ -61,8 +61,12 @@ export async function harvestKeywords(): Promise<{
   // One read + one write instead of a round trip per keyword. A harvest finds
   // ~1,000 suggestions and Neon is not local, so this is the difference between
   // seconds and timing out.
-  const existingRows = await prisma.seoKeyword.findMany({ select: { keyword: true } });
-  const known = new Set(existingRows.map((r: { keyword: string }) => r.keyword));
+  const existingRows = await prisma.seoKeyword.findMany({
+    select: { keyword: true },
+  });
+  const known = new Set(
+    existingRows.map((r: { keyword: string }) => r.keyword),
+  );
 
   const fresh = suggestions
     .filter((s) => !known.has(s.keyword))
@@ -95,7 +99,9 @@ export async function harvestKeywords(): Promise<{
         position: row.position,
       });
 
-      const existing = await prisma.seoKeyword.findUnique({ where: { keyword: row.keyword } });
+      const existing = await prisma.seoKeyword.findUnique({
+        where: { keyword: row.keyword },
+      });
       if (existing) {
         await prisma.seoKeyword.update({
           where: { keyword: row.keyword },
@@ -158,7 +164,7 @@ export async function harvestKeywords(): Promise<{
   await log(
     "keywords",
     true,
-    `suggest=${suggestions.length} created=${created} gscNew=${fromGsc} rescored=${rescored} gsc=${gscConfigured()}`
+    `suggest=${suggestions.length} created=${created} gscNew=${fromGsc} rescored=${rescored} gsc=${gscConfigured()}`,
   );
 
   return { suggested: suggestions.length, fromGsc, created, rescored };
@@ -192,7 +198,10 @@ const CATEGORIES = [
 ];
 
 /** Weave 2-3 contextual internal links plus one product link into the markdown. */
-function insertInternalLinks(content: string, related: { slug: string; title: string }[]): string {
+function insertInternalLinks(
+  content: string,
+  related: { slug: string; title: string }[],
+): string {
   if (related.length === 0) return content;
 
   const paragraphs = content.split("\n\n");
@@ -203,13 +212,15 @@ function insertInternalLinks(content: string, related: { slug: string; title: st
 
   const links = related.slice(0, 3);
   links.forEach((link, i) => {
-    const idx = bodyIdxs[Math.floor(((i + 1) / (links.length + 1)) * bodyIdxs.length)];
+    const idx =
+      bodyIdxs[Math.floor(((i + 1) / (links.length + 1)) * bodyIdxs.length)];
     if (idx === undefined) return;
-    paragraphs[idx] = `${paragraphs[idx]}\n\n*Related: [${link.title}](/blog/${link.slug})*`;
+    paragraphs[idx] =
+      `${paragraphs[idx]}\n\n*Related: [${link.title}](/blog/${link.slug})*`;
   });
 
   paragraphs.push(
-    `Want to see how this works in practice? [Explore Rotahr](/landing) — scheduling, bookings, food safety and payroll for restaurants, bars and hotels.`
+    `Want to see how this works in practice? [Explore Rotahr](/landing) — scheduling, bookings, food safety and payroll for restaurants, bars and hotels.`,
   );
 
   return paragraphs.join("\n\n");
@@ -219,7 +230,7 @@ function insertInternalLinks(content: string, related: { slug: string; title: st
 async function faqFor(
   keyword: string,
   content: string,
-  questions: string[]
+  questions: string[],
 ): Promise<{ q: string; a: string }[]> {
   try {
     const completion = await openai.chat.completions.create({
@@ -243,7 +254,9 @@ Return ONLY JSON: {"faq":[{"q":"...","a":"..."}]} with 3-6 entries.`,
     });
     const parsed = JSON.parse(completion.choices[0].message.content || "{}");
     return Array.isArray(parsed.faq)
-      ? parsed.faq.filter((f: { q?: string; a?: string }) => f?.q && f?.a).slice(0, 6)
+      ? parsed.faq
+          .filter((f: { q?: string; a?: string }) => f?.q && f?.a)
+          .slice(0, 6)
       : [];
   } catch {
     return [];
@@ -261,6 +274,19 @@ Return ONLY JSON: {"faq":[{"q":"...","a":"..."}]} with 3-6 entries.`,
  * conclusion reads well and gets quoted by nobody.
  */
 /** Words in a markdown body, ignoring link syntax and table pipes. */
+/**
+ * Everything a reader (or Google's rich result) will actually see, as one blob
+ * for the fact guard. The FAQ ships on the page and inside FAQPage schema, so
+ * it has to be held to the same standard as the body.
+ */
+function factsSurface(
+  content: string,
+  faq?: { q: string; a: string }[] | null,
+): string {
+  const faqText = (faq || []).map((f) => `${f.q}\n${f.a}`).join("\n\n");
+  return faqText ? `${content}\n\n${faqText}` : content;
+}
+
 function countWords(md: string): number {
   return md
     .replace(/```[\s\S]*?```/g, " ")
@@ -291,7 +317,11 @@ function hasLeadAnswer(md: string): boolean {
  */
 const MIN_WORDS = 1000;
 
-async function ensureDepth(keyword: string, content: string, intent: string): Promise<string> {
+async function ensureDepth(
+  keyword: string,
+  content: string,
+  intent: string,
+): Promise<string> {
   const words = countWords(content);
   if (words >= MIN_WORDS) return content;
 
@@ -304,13 +334,19 @@ async function ensureDepth(keyword: string, content: string, intent: string): Pr
 - A copyable checklist, template or step sequence the reader can lift straight out.
 - A "common mistakes" section naming what goes wrong and the consequence of each.`;
 
-  try {
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        {
-          role: "user",
-          content: `${PRODUCT_FACTS}
+  // Two attempts, not one. The depth pass fails silently often enough to
+  // matter: the bookings gap article came back under the +15% bar three runs in
+  // a row and shipped at 727 words with nothing in the log to say why. A second
+  // try at a higher temperature clears it most of the time, and the reason is
+  // now always logged.
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "user",
+            content: `${PRODUCT_FACTS}
 
 This article targets the Google query "${keyword}". It is ${words} words. Competing pages that rank on page one for this query run 1,500-2,500 words, so as it stands it cannot compete.
 
@@ -330,44 +366,66 @@ Article:
 ${content}
 
 Return ONLY JSON: {"content":"the full expanded markdown"}`,
-        },
-      ],
-      max_tokens: 8000,
-      temperature: 0.6,
-      response_format: { type: "json_object" },
-    });
-    const parsed = JSON.parse(completion.choices[0].message.content || "{}") as { content?: string };
-    // Only accept a genuine expansion — a shorter or barely-changed result is a
-    // regression, and we'd rather ship the honest short version.
-    if (parsed.content && countWords(parsed.content) > words * 1.15) {
-      // The lead paragraph is the whole AI-visibility play, and the model does
-      // drop it: the first live run turned a bold opening answer into a plain
-      // "## Understanding..." heading. Length is not worth losing it.
-      if (hasLeadAnswer(content) && !hasLeadAnswer(parsed.content)) {
-        console.error(`[seo] depth pass dropped the lead answer on "${keyword}" — keeping original`);
-        return content;
-      }
-      const expanded = stripPlaceholderLinks(parsed.content);
-      // The expansion pass is where invented pricing tables appear, because
-      // "add a comparison table" is exactly the instruction that makes a model
-      // reach for numbers it doesn't have.
-      const problems = checkRotahrFacts(expanded);
-      if (problems.length) {
+          },
+        ],
+        max_tokens: 8000,
+        temperature: attempt === 1 ? 0.6 : 0.85,
+        response_format: { type: "json_object" },
+      });
+      const parsed = JSON.parse(
+        completion.choices[0].message.content || "{}",
+      ) as { content?: string };
+      // Only accept a genuine expansion — a shorter or barely-changed result is a
+      // regression, and we'd rather ship the honest short version.
+      // The bar relaxes on the last attempt. A +12% expansion is still 100 real
+    // words of substance, and rejecting it leaves the page thinner than
+    // accepting it — the strict bar exists to reject regressions, not gains.
+    const bar = attempt === 1 ? 1.15 : 1.05;
+    if (!parsed.content || countWords(parsed.content) <= words * bar) {
         console.error(
-          `[seo] depth pass invented facts about Rotahr on "${keyword}" — keeping original:\n  ${problems.join("\n  ")}`
+          `[seo] depth pass attempt ${attempt} came back thin on "${keyword}": ${words} -> ${
+            parsed.content ? countWords(parsed.content) : 0
+          } words`,
         );
-        return content;
+      } else {
+        // The lead paragraph is the whole AI-visibility play, and the model does
+        // drop it: the first live run turned a bold opening answer into a plain
+        // "## Understanding..." heading. Length is not worth losing it.
+        if (hasLeadAnswer(content) && !hasLeadAnswer(parsed.content)) {
+          console.error(
+            `[seo] depth pass dropped the lead answer on "${keyword}" — keeping original`,
+          );
+          return content;
+        }
+        const expanded = stripPlaceholderLinks(parsed.content);
+        // The expansion pass is where invented pricing tables appear, because
+        // "add a comparison table" is exactly the instruction that makes a model
+        // reach for numbers it doesn't have.
+        const problems = checkRotahrFacts(expanded);
+        if (problems.length) {
+          console.error(
+            `[seo] depth pass invented facts about Rotahr on "${keyword}" — keeping original:\n  ${problems.join("\n  ")}`,
+          );
+          return content;
+        }
+        console.log(
+          `[seo] expanded "${keyword}" ${words} -> ${countWords(expanded)} words`,
+        );
+        return expanded;
       }
-      console.log(`[seo] expanded "${keyword}" ${words} -> ${countWords(expanded)} words`);
-      return expanded;
+    } catch (err) {
+      console.error("[seo] depth pass failed", err);
     }
-  } catch (err) {
-    console.error("[seo] depth pass failed", err);
   }
   return content;
 }
 
-async function writeArticle(keyword: string, cluster: string, intent: string, questions: string[]): Promise<Article | null> {
+async function writeArticle(
+  keyword: string,
+  cluster: string,
+  intent: string,
+  questions: string[],
+): Promise<Article | null> {
   const year = new Date().getFullYear();
 
   const intentBrief =
@@ -431,7 +489,9 @@ Return ONLY JSON, no code fences:
     const a = JSON.parse(raw) as Article;
     if (!a.title || !a.content) return null;
     if (!CATEGORIES.includes(a.category)) a.category = "management";
-    a.faq = Array.isArray(a.faq) ? a.faq.filter((f) => f?.q && f?.a).slice(0, 6) : [];
+    a.faq = Array.isArray(a.faq)
+      ? a.faq.filter((f) => f?.q && f?.a).slice(0, 6)
+      : [];
 
     // The model drops the FAQ field often enough to matter, and the FAQ is what
     // earns the FAQPage schema. Ask once more, for just that piece.
@@ -445,10 +505,15 @@ Return ONLY JSON, no code fences:
     // gets indexed, quoted by AI assistants as fact, and read by someone
     // deciding whether to buy — so it blocks publication rather than being
     // logged and shipped. The keyword goes back in the queue for another run.
-    const problems = checkRotahrFacts(a.content);
+    // The FAQ is checked with the body, not after it. The first live version of
+    // this guard only read a.content, and an invented "$2 per user per month for
+    // tools like Rotahr" shipped inside the FAQ block — which is the part
+    // Google lifts into a rich result, so it was the worst possible place to
+    // miss it.
+    const problems = checkRotahrFacts(factsSurface(a.content, a.faq));
     if (problems.length) {
       console.error(
-        `[seo] REFUSING "${keyword}" — invented facts about Rotahr:\n  ${problems.join("\n  ")}`
+        `[seo] REFUSING "${keyword}" — invented facts about Rotahr:\n  ${problems.join("\n  ")}`,
       );
       return null;
     }
@@ -462,7 +527,8 @@ Return ONLY JSON, no code fences:
 }
 
 export async function publishNextArticle(): Promise<
-  { published: false; reason: string } | { published: true; slug: string; keyword: string; title: string }
+  | { published: false; reason: string }
+  | { published: true; slug: string; keyword: string; title: string }
 > {
   // Highest-scoring keyword we haven't written yet — skipping anything we've
   // effectively already covered. Autocomplete throws up whole families of
@@ -485,7 +551,7 @@ export async function publishNextArticle(): Promise<
   for (const row of shortlist) {
     const dupe = covered.find(
       (c: { keyword: string | null; slug: string }) =>
-        c.keyword && similarity(c.keyword, row.keyword) >= 0.7
+        c.keyword && similarity(c.keyword, row.keyword) >= 0.7,
     );
     if (dupe) {
       await prisma.seoKeyword.update({
@@ -500,7 +566,10 @@ export async function publishNextArticle(): Promise<
 
   if (!candidate) {
     await log("publish", false, "keyword queue empty");
-    return { published: false, reason: "Keyword queue is empty — run the keyword harvest." };
+    return {
+      published: false,
+      reason: "Keyword queue is empty — run the keyword harvest.",
+    };
   }
 
   const questions = await questionsFor(candidate.keyword).catch(() => []);
@@ -508,7 +577,7 @@ export async function publishNextArticle(): Promise<
     candidate.keyword,
     candidate.cluster,
     candidate.intent,
-    questions
+    questions,
   );
 
   if (!article) {
@@ -517,7 +586,10 @@ export async function publishNextArticle(): Promise<
       data: { status: "skipped", note: "generation failed" },
     });
     await log("publish", false, `generation failed for "${candidate.keyword}"`);
-    return { published: false, reason: "Article generation failed — keyword skipped." };
+    return {
+      published: false,
+      reason: "Article generation failed — keyword skipped.",
+    };
   }
 
   // Slug collisions happen when two queries produce the same title.
@@ -542,8 +614,14 @@ export async function publishNextArticle(): Promise<
           select: { slug: true, title: true },
         });
 
-  const content = insertInternalLinks(article.content, [...sameCategory, ...fallback].slice(0, 3));
-  const coverImage = await generateCoverImage(article.title, article.category).catch(() => null);
+  const content = insertInternalLinks(
+    article.content,
+    [...sameCategory, ...fallback].slice(0, 3),
+  );
+  const coverImage = await generateCoverImage(
+    article.title,
+    article.category,
+  ).catch(() => null);
 
   const post = await prisma.blogPost.create({
     data: {
@@ -569,9 +647,18 @@ export async function publishNextArticle(): Promise<
   });
 
   const ping = await submitToIndexNow([`${SITE}/blog/${slug}`, `${SITE}/blog`]);
-  await log("publish", true, `"${candidate.keyword}" -> /blog/${slug} (${ping})`);
+  await log(
+    "publish",
+    true,
+    `"${candidate.keyword}" -> /blog/${slug} (${ping})`,
+  );
 
-  return { published: true, slug, keyword: candidate.keyword, title: post.title };
+  return {
+    published: true,
+    slug,
+    keyword: candidate.keyword,
+    title: post.title,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -587,9 +674,11 @@ export async function publishNextArticle(): Promise<
  * that Google has already crawled is strictly better than adding a 62nd thin
  * page, because the page already has indexing history to build on.
  */
-async function thickenThinnestPost(): Promise<
-  { refreshed: true; slug: string; addedFor: string[] } | null
-> {
+async function thickenThinnestPost(): Promise<{
+  refreshed: true;
+  slug: string;
+  addedFor: string[];
+} | null> {
   const threeWeeksAgo = new Date(Date.now() - 21 * 24 * 3600 * 1000);
 
   const thin = await prisma.blogPost.findFirst({
@@ -608,7 +697,7 @@ async function thickenThinnestPost(): Promise<
   return thickenPost(thin);
 }
 
-async function thickenPost(post: {
+export async function thickenPost(post: {
   id: string;
   slug: string;
   title: string;
@@ -620,7 +709,7 @@ async function thickenPost(post: {
   const expanded = await ensureDepth(
     post.keyword || post.title,
     post.content,
-    post.category === "management" ? "commercial" : "informational"
+    post.category === "management" ? "commercial" : "informational",
   );
   const after = countWords(expanded);
   if (after <= before * 1.15) return null;
@@ -636,12 +725,21 @@ async function thickenPost(post: {
   });
 
   const ping = await submitToIndexNow([`${SITE}/blog/${post.slug}`]);
-  await log("refresh", true, `/blog/${post.slug} thickened ${before} -> ${after} words (${ping})`);
-  return { refreshed: true, slug: post.slug, addedFor: [`length ${before} -> ${after}`] };
+  await log(
+    "refresh",
+    true,
+    `/blog/${post.slug} thickened ${before} -> ${after} words (${ping})`,
+  );
+  return {
+    refreshed: true,
+    slug: post.slug,
+    addedFor: [`length ${before} -> ${after}`],
+  };
 }
 
 export async function refreshDecaying(): Promise<
-  { refreshed: false; reason: string } | { refreshed: true; slug: string; addedFor: string[] }
+  | { refreshed: false; reason: string }
+  | { refreshed: true; slug: string; addedFor: string[] }
 > {
   // Thickening a thin page needs no ranking data at all, so a missing Search
   // Console connection must not gate it — that gate is why this job returned
@@ -652,7 +750,8 @@ export async function refreshDecaying(): Promise<
     await log("refresh", false, "GSC not configured, no thin posts left");
     return {
       refreshed: false,
-      reason: "Search Console isn't connected and every article is above the length floor.",
+      reason:
+        "Search Console isn't connected and every article is above the length floor.",
     };
   }
 
@@ -664,10 +763,15 @@ export async function refreshDecaying(): Promise<
     // signal to act on, go fix the thinnest page instead of returning nothing.
     const thickened = await thickenThinnestPost();
     if (thickened) return thickened;
-    await log("refresh", false, "nothing in striking distance, no thin posts left");
+    await log(
+      "refresh",
+      false,
+      "nothing in striking distance, no thin posts left",
+    );
     return {
       refreshed: false,
-      reason: "Nothing ranks 4-20 yet and every article is above the length floor.",
+      reason:
+        "Nothing ranks 4-20 yet and every article is above the length floor.",
     };
   }
 
@@ -688,12 +792,19 @@ export async function refreshDecaying(): Promise<
     .sort((a, b) => b.impressions - a.impressions);
 
   for (const target of ranked) {
-    const slug = target.page.replace(/^https?:\/\/[^/]+/, "").replace(/^\/blog\//, "").replace(/\/$/, "");
+    const slug = target.page
+      .replace(/^https?:\/\/[^/]+/, "")
+      .replace(/^\/blog\//, "")
+      .replace(/\/$/, "");
     const post = await prisma.blogPost.findUnique({ where: { slug } });
     if (!post) continue;
 
     // Don't churn the same page every week.
-    if (post.refreshedAt && Date.now() - post.refreshedAt.getTime() < 21 * 24 * 3600 * 1000) continue;
+    if (
+      post.refreshedAt &&
+      Date.now() - post.refreshedAt.getTime() < 21 * 24 * 3600 * 1000
+    )
+      continue;
 
     const queries = target.rows.slice(0, 6);
     const prompt = `Below is a published article from Rotahr's blog. Search Console shows it already ranks at position 4-20 for these queries, meaning Google thinks it is nearly the right answer:
@@ -723,7 +834,12 @@ Return ONLY JSON, no fences:
       response_format: { type: "json_object" },
     });
 
-    let parsed: { title?: string; metaDesc?: string; content?: string; faq?: { q: string; a: string }[] };
+    let parsed: {
+      title?: string;
+      metaDesc?: string;
+      content?: string;
+      faq?: { q: string; a: string }[];
+    };
     try {
       parsed = JSON.parse(completion.choices[0].message.content || "");
     } catch {
@@ -734,13 +850,28 @@ Return ONLY JSON, no fences:
       continue;
     }
 
+    // The refresh pass rewrites a live page, so it can introduce invented
+    // pricing into an article that was previously clean. Skip the page rather
+    // than overwrite good text with bad.
+    const refreshProblems = checkRotahrFacts(
+      factsSurface(parsed.content, parsed.faq),
+    );
+    if (refreshProblems.length) {
+      console.error(
+        `[seo] refresh invented facts about Rotahr on /blog/${post.slug} — skipping:\n  ${refreshProblems.join("\n  ")}`,
+      );
+      continue;
+    }
+
     await prisma.blogPost.update({
       where: { id: post.id },
       data: {
         title: parsed.title?.trim() || post.title,
         content: parsed.content,
         metaDesc: (parsed.metaDesc || post.metaDesc).slice(0, 165),
-        faq: parsed.faq?.length ? JSON.stringify(parsed.faq.slice(0, 6)) : post.faq,
+        faq: parsed.faq?.length
+          ? JSON.stringify(parsed.faq.slice(0, 6))
+          : post.faq,
         wordCount: parsed.content.split(/\s+/).length,
         refreshedAt: new Date(),
         refreshCount: { increment: 1 },
@@ -749,13 +880,20 @@ Return ONLY JSON, no fences:
 
     const ping = await submitToIndexNow([`${SITE}/blog/${post.slug}`]);
     const addedFor = queries.map((q) => q.keyword);
-    await log("refresh", true, `/blog/${post.slug} for [${addedFor.join(", ")}] (${ping})`);
+    await log(
+      "refresh",
+      true,
+      `/blog/${post.slug} for [${addedFor.join(", ")}] (${ping})`,
+    );
 
     return { refreshed: true, slug: post.slug, addedFor };
   }
 
   await log("refresh", false, "all striking-distance pages refreshed recently");
-  return { refreshed: false, reason: "Every striking-distance page was refreshed in the last 3 weeks." };
+  return {
+    refreshed: false,
+    reason: "Every striking-distance page was refreshed in the last 3 weeks.",
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -786,7 +924,10 @@ export async function snapshotMetrics(days = 90): Promise<{
 }> {
   if (!gscConfigured()) {
     await log("metrics", false, "Search Console not configured");
-    return { ok: false, reason: "Search Console isn't connected, so there's nothing to snapshot." };
+    return {
+      ok: false,
+      reason: "Search Console isn't connected, so there's nothing to snapshot.",
+    };
   }
 
   let rows;
@@ -799,7 +940,11 @@ export async function snapshotMetrics(days = 90): Promise<{
   }
 
   if (!rows.length) {
-    await log("metrics", true, "no rows returned (site may have no impressions yet)");
+    await log(
+      "metrics",
+      true,
+      "no rows returned (site may have no impressions yet)",
+    );
     return { ok: true, days: 0, clicks: 0, impressions: 0 };
   }
 
@@ -825,7 +970,7 @@ export async function snapshotMetrics(days = 90): Promise<{
   await log(
     "metrics",
     true,
-    `${rows.length} days snapshotted — ${clicks} clicks, ${impressions} impressions`
+    `${rows.length} days snapshotted — ${clicks} clicks, ${impressions} impressions`,
   );
 
   return { ok: true, days: rows.length, clicks, impressions };
