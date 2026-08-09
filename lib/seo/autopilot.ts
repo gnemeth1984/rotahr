@@ -31,6 +31,11 @@ import {
   similarity,
   type Intent,
 } from "@/lib/seo/keywords";
+import {
+  PRODUCT_FACTS,
+  checkRotahrFacts,
+  stripPlaceholderLinks,
+} from "@/lib/seo/product-facts";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const SITE = "https://rotahr.com";
@@ -292,9 +297,9 @@ async function ensureDepth(keyword: string, content: string, intent: string): Pr
 
   const commercial = intent === "commercial" || intent === "transactional";
   const asks = commercial
-    ? `- A comparison table of at least 4 real named tools with what each actually costs and who each suits.
-- A "what this costs in practice" section with worked figures for a named venue size.
-- An honest "when NOT to pick Rotahr" paragraph. Buyers trust a page that rules itself out.`
+    ? `- A comparison table of at least 4 real named tools and who each suits. For pricing, give the SHAPE of each competitor's pricing (per employee, per venue, free tier) rather than an invented current figure. Rotahr's row must use its real flat prices from the facts above.
+- A "what this costs in practice" section with worked figures for a named venue size, using Rotahr's real plan prices.
+- An honest "when NOT to pick Rotahr" paragraph, drawn from the stated limitations above. Buyers trust a page that rules itself out.`
     : `- A worked example with real figures, start to finish.
 - A copyable checklist, template or step sequence the reader can lift straight out.
 - A "common mistakes" section naming what goes wrong and the consequence of each.`;
@@ -305,7 +310,9 @@ async function ensureDepth(keyword: string, content: string, intent: string): Pr
       messages: [
         {
           role: "user",
-          content: `This article targets the Google query "${keyword}". It is ${words} words. Competing pages that rank on page one for this query run 1,500-2,500 words, so as it stands it cannot compete.
+          content: `${PRODUCT_FACTS}
+
+This article targets the Google query "${keyword}". It is ${words} words. Competing pages that rank on page one for this query run 1,500-2,500 words, so as it stands it cannot compete.
 
 Expand it to at least 1,400 words by ADDING substance. Rules:
 - Keep every existing heading and sentence. This is additive only — do not rewrite or summarise what is there.
@@ -315,6 +322,8 @@ Expand it to at least 1,400 words by ADDING substance. Rules:
 ${asks}
 - Every number you add must name what it applies to (venue size, country, year) in the same sentence.
 - No padding. No "in today's fast-paced world". If you have nothing substantive to add to a section, leave it alone.
+- Never state or imply that Rotahr charges per employee, per user or per seat, and never attach a price to Rotahr other than its real flat plan prices above.
+- Every link must be a real URL or /blog/... path. No [text](#) placeholders.
 - Clean Markdown, no H1, no code fences.
 
 Article:
@@ -338,8 +347,19 @@ Return ONLY JSON: {"content":"the full expanded markdown"}`,
         console.error(`[seo] depth pass dropped the lead answer on "${keyword}" — keeping original`);
         return content;
       }
-      console.log(`[seo] expanded "${keyword}" ${words} -> ${countWords(parsed.content)} words`);
-      return parsed.content;
+      const expanded = stripPlaceholderLinks(parsed.content);
+      // The expansion pass is where invented pricing tables appear, because
+      // "add a comparison table" is exactly the instruction that makes a model
+      // reach for numbers it doesn't have.
+      const problems = checkRotahrFacts(expanded);
+      if (problems.length) {
+        console.error(
+          `[seo] depth pass invented facts about Rotahr on "${keyword}" — keeping original:\n  ${problems.join("\n  ")}`
+        );
+        return content;
+      }
+      console.log(`[seo] expanded "${keyword}" ${words} -> ${countWords(expanded)} words`);
+      return expanded;
     }
   } catch (err) {
     console.error("[seo] depth pass failed", err);
@@ -356,6 +376,10 @@ async function writeArticle(keyword: string, cluster: string, intent: string, qu
       : `This is a research query. Answer the question completely in the first 60 words, then go deeper. Include at least one concrete number, worked example, or template the reader can copy.`;
 
   const prompt = `You are writing for Rotahr — staff scheduling, bookings, food-safety (HACCP) and payroll software for restaurants, bars and hotels. It was founded by a former chef, so the voice is practical and unimpressed by fluff.
+
+${PRODUCT_FACTS}
+
+Competitor pricing changes constantly and you cannot look it up, so do not state a specific figure for a competitor as if it were current. Describe the shape of their pricing instead ("bills per employee per month, which scales with headcount") and tell the reader to check the vendor's page for today's number. Never put an invented figure in a table.
 
 Write ONE article that ranks for this exact Google query: "${keyword}"
 Topic cluster: ${cluster}
@@ -378,6 +402,7 @@ Hard rules:
 - Write for an international audience (US, UK, Ireland and beyond). Where something is legally region-specific, say that rules vary and to check local requirements rather than stating a figure that may be stale. It is currently ${year}.
 - Mention Rotahr once or twice, as a tool, in passing. Never a sales pitch.
 - Clean Markdown only, no HTML, no H1 inside the body (the title is the H1).
+- Every markdown link must point at a real absolute URL or a real /blog/... path. NEVER write a placeholder link like [Read more](#) — if you have no URL, use plain text.
 - "faq" is required and must contain 3-6 real questions with 2-4 sentence answers. Never return it empty.
 ${questions.length ? `- Answer these real related searches in the FAQ:\n${questions.map((q) => `  - ${q}`).join("\n")}` : ""}
 
@@ -412,6 +437,20 @@ Return ONLY JSON, no code fences:
     // earns the FAQPage schema. Ask once more, for just that piece.
     if (a.faq.length === 0) {
       a.faq = await faqFor(keyword, a.content, questions);
+    }
+
+    a.content = stripPlaceholderLinks(a.content);
+
+    // A factual error about our own pricing is not a style problem. Left in, it
+    // gets indexed, quoted by AI assistants as fact, and read by someone
+    // deciding whether to buy — so it blocks publication rather than being
+    // logged and shipped. The keyword goes back in the queue for another run.
+    const problems = checkRotahrFacts(a.content);
+    if (problems.length) {
+      console.error(
+        `[seo] REFUSING "${keyword}" — invented facts about Rotahr:\n  ${problems.join("\n  ")}`
+      );
+      return null;
     }
 
     a.content = await ensureDepth(keyword, a.content, intent);
