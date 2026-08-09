@@ -1,6 +1,13 @@
 import { prisma } from "@/lib/prisma";
 import { normaliseEmail } from "@/lib/email/suppression";
-import { extractVenueFromUrl, type ExtractedVenue } from "@/lib/ai/venue-extract";
+import {
+  extractVenueFromUrl,
+  coordsFromUrl,
+  placeQueryFromUrl,
+  hitAgreesWithQuery,
+  nameGuessFromUrl,
+  type ExtractedVenue,
+} from "@/lib/ai/venue-extract";
 import { createProspectVenuePage, hasIndexableContent } from "./provision";
 import { isTakenDown } from "./takedown";
 import { discoverContacts, type DiscoveredContacts } from "./contact-discovery";
@@ -65,13 +72,61 @@ function normaliseUrl(raw: string): string | null {
   }
 }
 
+/**
+ * Expand a shortened Maps link to the real one.
+ *
+ * The share button in the Maps app gives you `maps.app.goo.gl/xxxx`, which
+ * carries no coordinates. Since publishing is refused when there is no pin to
+ * verify an OpenStreetMap match against, an unexpanded short link could never
+ * build anything — and the share button is how most people copy a place.
+ *
+ * Follows redirects manually so we can read the final URL rather than the body.
+ */
+async function resolveShortLink(url: string): Promise<string> {
+  if (!/(maps\.app\.goo\.gl|goo\.gl\/maps|g\.co\/kgs)/i.test(url)) return url;
+
+  let current = url;
+  for (let i = 0; i < 5; i++) {
+    try {
+      const res = await fetch(current, {
+        method: "GET",
+        redirect: "manual",
+        headers: { "User-Agent": "Mozilla/5.0 (compatible; Googlebot/2.1)" },
+        signal: AbortSignal.timeout(15000),
+      });
+      const next = res.headers.get("location");
+      if (!next) {
+        // Some responses land via an automatic redirect instead of a header.
+        return res.url && res.url !== current ? res.url : current;
+      }
+      current = new URL(next, current).toString();
+      // Once the coordinates are present there is nothing more to gain.
+      if (/@(-?\d+\.\d+),(-?\d+\.\d+)/.test(current)) return current;
+    } catch {
+      return current;
+    }
+  }
+  return current;
+}
+
 export async function buildPageFromUrl(input: BuildFromUrlInput): Promise<BuildFromUrlResult> {
-  const url = normaliseUrl(input.url);
-  if (!url) return { ok: false, error: "That isn't a usable URL." };
+  const normalised = normaliseUrl(input.url);
+  if (!normalised) {
+    return {
+      ok: false,
+      error: `"${input.url.slice(0, 80)}" isn't a usable link. Paste the whole thing, starting with https://`,
+    };
+  }
+
+  const url = await resolveShortLink(normalised);
 
   const extracted = await extractVenueFromUrl(url);
 
-  const name = input.name?.trim() || extracted.name;
+  // Fall back to the name in the URL itself. Not for the page title's sake —
+  // publishing is still refused below without an address — but so the refusal
+  // says "found The Long Hall but no address" instead of claiming there was no
+  // name in a link that plainly contains one.
+  const name = input.name?.trim() || extracted.name || nameGuessFromUrl(url);
   if (!name) {
     return {
       ok: false,
@@ -83,26 +138,33 @@ export async function buildPageFromUrl(input: BuildFromUrlInput): Promise<BuildF
   // Refuse to publish when the ONLY evidence is a name match on OpenStreetMap.
   //
   // This is not theoretical. Google Maps blocks server-side fetches, so a pasted
-  // Maps link often yields nothing but a name, which then gets looked up on OSM.
-  // A test with a Dublin pub published a New York address that way: same name,
-  // different continent. Coordinates are now checked against the pin, but a
-  // single unverified name match is still too weak to put a real business's
-  // address on a public page under our domain.
-  // A name match is only trustworthy when it was anchored to the pin's
-  // coordinates. Bounded to the map pin, "The Long Hall" resolves to the right
-  // Dublin pub; unbounded, the same query returns a bar in Manhattan 5,111km
-  // away. So OSM-only is allowed when the URL carried coordinates to check
-  // against, and refused when it didn't.
+  // Google Maps blocks server-side fetches, so a pasted Maps link often yields
+  // nothing but a name, which then gets looked up on OpenStreetMap. A name alone
+  // is not enough: a test with Dublin's The Long Hall published a New York
+  // address that way, 5,111km off, because the same name exists in Manhattan.
+  //
+  // A match is trustworthy once it is anchored to something the link itself
+  // carried — either coordinates, or a full postal address in ?q=. Both pin the
+  // search to one place on earth. With neither, refuse rather than guess.
   const used = extracted.sourcesUsed;
   const onlyOsm = used.length > 0 && used.every((s) => s === "OpenStreetMap");
-  const hadPin = /@(-?\d+\.\d+),(-?\d+\.\d+)/.test(url);
-  if (onlyOsm && !hadPin) {
+  const hasCoords = coordsFromUrl(url) !== null;
+  const placeQuery = placeQueryFromUrl(url);
+  // A postal address in ?q= only anchors the match if the address that came back
+  // is recognisably the one that was asked for. Treating the mere presence of an
+  // address as proof published a Massachusetts pub for a Dublin one.
+  const addressAgrees = Boolean(
+    placeQuery && extracted.address && hitAgreesWithQuery(placeQuery, extracted.address)
+  );
+  const anchored = hasCoords || addressAgrees;
+
+  if (onlyOsm && !anchored) {
     return {
       ok: false,
       error:
-        `Only found "${name}" by name-matching OpenStreetMap, with no coordinates in the link to check it against — ` +
-        `venue names repeat across countries, so this could easily be the wrong place. Paste the full Google Maps ` +
-        `/place/ URL (the one with @lat,long in it), or the venue's own website.`,
+        `Only found "${name}" by name-matching OpenStreetMap, with nothing in the link to check it against — ` +
+        `venue names repeat across countries, so this could easily be the wrong place. Open the venue in Google Maps ` +
+        `and copy the URL from the browser address bar (it contains @lat,long), or paste the venue's own website.`,
     };
   }
 

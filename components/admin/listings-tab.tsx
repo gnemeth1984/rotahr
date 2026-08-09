@@ -113,7 +113,9 @@ export function ListingsTab() {
 
   const emailCount = emails.split(/[\s,;]+/).filter((s) => s.includes("@")).length;
   const single = emailCount === 1;
-  const urlList = urls.split(/[\s,;]+/).filter((s) => s.length > 3 && s.includes("."));
+  // Whitespace only — Maps URLs contain commas in their coordinates, and
+  // splitting on those breaks every link. Must match the server's parser.
+  const urlList = urls.split(/\s+/).filter((s) => s.length > 3 && s.includes("."));
   const singleUrl = urlList.length === 1;
 
   const loadPages = useCallback(async () => {

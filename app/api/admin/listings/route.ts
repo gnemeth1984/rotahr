@@ -144,9 +144,13 @@ export async function POST(req: Request) {
   // a website. Email optional — see lib/public-page/from-url.ts for what a page
   // without one can and can't do.
   if (action === "build_url") {
+    // Split on WHITESPACE ONLY. A URL cannot contain a space, but commas and
+    // semicolons are perfectly legal in one — and Google Maps puts commas in
+    // the coordinates (@53.3419,-6.2687,17z). Splitting on commas shredded
+    // every Maps link into three useless fragments.
     const urls = String(typeof body.urls === "string" ? body.urls : "")
-      .split(/[\s,;]+/)
-      .map((s) => s.trim())
+      .split(/\s+/)
+      .map((s) => s.trim().replace(/^[<(]|[>)]$/g, ""))
       .filter((s) => s.length > 3 && /\./.test(s))
       .slice(0, 10);
     if (urls.length === 0) {

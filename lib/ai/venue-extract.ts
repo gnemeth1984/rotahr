@@ -97,13 +97,131 @@ export function metaTags(html: string): Record<string, string> {
   return out;
 }
 
-/** Pull lat/lng straight out of a Google Maps URL when it's in there. */
-export function coordsFromUrl(url: string): { lat: number; lng: number } | null {
+/**
+ * Pull lat/lng straight out of a Google Maps URL when it's in there.
+ *
+ * Order matters. `!3d<lat>!4d<lng>` inside the `data=` blob is the *place's* own
+ * position, whereas `@lat,lng` is only the viewport centre the user happened to
+ * be looking at — which can sit streets away, or in another town if they were
+ * zoomed out. Prefer the precise one when both are present.
+ */
+export interface UrlCoords {
+  lat: number;
+  lng: number;
+  /**
+   * True only when the numbers are the place's own position (`!3d/!4d`).
+   *
+   * The distinction decides whether the pin can be reverse-geocoded. Reverse
+   * geocoding a viewport centre returns whatever happens to sit at the middle of
+   * the screen: the viewport in a Long Hall test URL reverses to "Old Town Cafe"
+   * on Chancery Lane, a different business entirely.
+   */
+  precise: boolean;
+}
+
+export function coordsFromUrl(url: string): UrlCoords | null {
+  const place = url.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/);
+  if (place) return { lat: Number(place[1]), lng: Number(place[2]), precise: true };
   const at = url.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
-  if (at) return { lat: Number(at[1]), lng: Number(at[2]) };
+  if (at) return { lat: Number(at[1]), lng: Number(at[2]), precise: false };
   const q = url.match(/[?&]q=(-?\d+\.\d+),(-?\d+\.\d+)/);
-  if (q) return { lat: Number(q[1]), lng: Number(q[2]) };
+  if (q) return { lat: Number(q[1]), lng: Number(q[2]), precise: false };
   return null;
+}
+
+/**
+ * The `?q=` value on a resolved Maps share link.
+ *
+ * The share button often expands to `maps.google.com?q=Name, Full Address, Eircode`
+ * with no coordinates at all. That string is Google's own canonical address for
+ * the place, which makes it both a far better OpenStreetMap query than a bare
+ * name and strong enough evidence on its own — a name plus a street plus a
+ * postcode does not accidentally match a venue on another continent.
+ */
+export function placeQueryFromUrl(url: string): string | null {
+  try {
+    const u = new URL(url);
+    if (!u.hostname.includes("google.")) return null;
+    const q = u.searchParams.get("q");
+    if (!q) return null;
+    const cleaned = q.replace(/\+/g, " ").trim();
+    // Bare coordinates are handled by coordsFromUrl, not here.
+    if (/^-?\d+\.\d+,\s*-?\d+\.\d+$/.test(cleaned)) return null;
+    return cleaned || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The address part of a `?q=Name, Street, Town, Eircode` share link.
+ *
+ * Geocoding the address without the venue name is far more reliable: Nominatim
+ * finds "30-32 Westland Row, Dublin 2, D02 DP70" instantly but returns nothing
+ * for the same string with "Kennedy's Pub & Restaurant, " on the front.
+ */
+export function addressPartFromQuery(query: string): string | null {
+  const parts = query
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (parts.length < 2) return null;
+  return parts.slice(1).join(", ");
+}
+
+/** Words too common to prove two addresses describe the same place. */
+const GENERIC_PLACE_WORDS = new Set([
+  "the", "and", "street", "road", "lane", "avenue", "drive", "square", "place",
+  "county", "ireland", "united", "kingdom", "states", "america", "north",
+  "south", "east", "west", "upper", "lower", "main", "new", "saint", "leinster",
+  "munster", "connacht", "ulster", "usa",
+]);
+
+/**
+ * Does an OpenStreetMap hit actually describe the place the link named?
+ *
+ * Needed because a search that is not bounded to coordinates roams the planet.
+ * A resolved share link for Kennedy's Pub on Westland Row, Dublin published
+ * "247A Maple Street, Marlborough, Middlesex County" — a same-named pub in
+ * Massachusetts — because a full postal address was treated as self-anchoring.
+ * It is not: the anchor has to be checked, by requiring the hit to repeat at
+ * least two distinctive words from the query (street, town or postcode).
+ */
+export function hitAgreesWithQuery(query: string, displayName: string): boolean {
+  const tokens = Array.from(
+    new Set(
+      (query.toLowerCase().match(/[a-z0-9]{3,}/g) ?? []).filter(
+        (t) => !GENERIC_PLACE_WORDS.has(t)
+      )
+    )
+  );
+  if (tokens.length < 2) return false;
+  const hay = displayName.toLowerCase();
+  return tokens.filter((t) => hay.includes(t)).length >= 2;
+}
+
+/** Do two venue names plausibly refer to the same business? */
+export function namesAgree(a: string, b: string): boolean {
+  const words = (s: string) =>
+    new Set(
+      (s.toLowerCase().normalize("NFKD").match(/[a-z0-9]{3,}/g) ?? []).filter(
+        (w) => !GENERIC_PLACE_WORDS.has(w)
+      )
+    );
+  const A = words(a);
+  const B = words(b);
+  if (!A.size || !B.size) return false;
+  // Apostrophes differ between sources ("O’Sheas" vs "O’Shea’s"), so compare on
+  // prefixes rather than whole words.
+  for (const x of A) {
+    for (const y of B) {
+      if (x === y) return true;
+      if (x.length >= 4 && y.length >= 4 && (x.startsWith(y.slice(0, 4)) || y.startsWith(x.slice(0, 4)))) {
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 /** Best-effort venue name from a Facebook/Maps URL slug, for the OSM lookup. */
@@ -118,6 +236,11 @@ export function nameGuessFromUrl(url: string): string | null {
     if (u.hostname.includes("google.")) {
       const m = u.pathname.match(/\/place\/([^/@]+)/);
       if (m) return decodeURIComponent(m[1]).replace(/\+/g, " ").trim() || null;
+      // Share links with no /place/ segment carry it all in ?q= instead, as
+      // "Name, Street, Town, Eircode". Only the first segment is the name —
+      // returning the whole string would title the page with a postal address.
+      const q = placeQueryFromUrl(url);
+      if (q) return q.split(",")[0].trim() || null;
     }
     return null;
   } catch {
@@ -272,28 +395,62 @@ export async function lookupOsm(
       if (!Number.isFinite(d) || d > 60) return null;
     }
 
-    const a = hit.address || {};
-    const ex = hit.extratags || {};
-    const line = [
-      [a.house_number, a.road].filter(Boolean).join(" "),
-      a.village || a.town || a.city || a.city_district,
-      a.county,
-      a.postcode,
-    ]
-      .filter(Boolean)
-      .join(", ");
+    return osmHitFrom(hit);
+  } catch {
+    return null;
+  }
+}
 
-    return {
-      name: hit.name || "",
-      displayName: hit.display_name || "",
-      address: line || hit.display_name || "",
-      lat: Number(hit.lat),
-      lng: Number(hit.lon),
-      phone: ex.phone || ex["contact:phone"] || null,
-      website: ex.website || ex["contact:website"] || null,
-      hours: ex.opening_hours ? parseOsmHours(ex.opening_hours) : null,
-      category: hit.type || hit.category || null,
-    };
+/** Shape a raw Nominatim row into an OsmHit. */
+function osmHitFrom(hit: Record<string, any>): OsmHit {
+  const a = hit.address || {};
+  const ex = hit.extratags || {};
+  const line = [
+    [a.house_number, a.road].filter(Boolean).join(" "),
+    a.village || a.town || a.city || a.city_district,
+    a.county,
+    a.postcode,
+  ]
+    .filter(Boolean)
+    .join(", ");
+
+  return {
+    name: hit.name || "",
+    displayName: hit.display_name || "",
+    address: line || hit.display_name || "",
+    lat: Number(hit.lat),
+    lng: Number(hit.lon),
+    phone: ex.phone || ex["contact:phone"] || null,
+    website: ex.website || ex["contact:website"] || null,
+    hours: ex.opening_hours ? parseOsmHours(ex.opening_hours) : null,
+    category: hit.type || hit.category || null,
+  };
+}
+
+/**
+ * What OpenStreetMap has at an exact set of coordinates.
+ *
+ * Searching by name fails for plenty of real venues — O'Shea's Corner in
+ * Wicklow is in OpenStreetMap as a pub with a full address, yet no spelling of
+ * its name returns it from search. Its map pin finds it first time. Only ever
+ * call this with a pin that is the place's own position (`precise`), never a
+ * viewport centre, and check the name before trusting the result.
+ */
+export async function reverseOsm(
+  at: { lat: number; lng: number }
+): Promise<OsmHit | null> {
+  try {
+    const url =
+      `https://nominatim.openstreetmap.org/reverse?lat=${at.lat}&lon=${at.lng}` +
+      `&format=jsonv2&addressdetails=1&extratags=1&zoom=18`;
+    const res = await fetch(url, {
+      headers: { "User-Agent": OSM_UA, "Accept-Language": "en" },
+      signal: AbortSignal.timeout(12000),
+    });
+    if (!res.ok) return null;
+    const row = await res.json();
+    if (!row || row.error || !row.lat) return null;
+    return osmHitFrom(row);
   } catch {
     return null;
   }
@@ -350,21 +507,67 @@ export async function extractVenueFromUrl(url: string): Promise<ExtractedVenue> 
 
   // --- 2. OpenStreetMap gap-filler ---------------------------------------
   const urlCoords = coordsFromUrl(url);
+  // A resolved share link often gives a full postal address in ?q=. Geocoding
+  // that is dramatically more reliable than searching a bare venue name.
+  const placeQuery = placeQueryFromUrl(url);
   let osm: OsmHit | null = null;
-  if (nameHint) {
-    osm = await lookupOsm(nameHint, urlCoords);
+  if (urlCoords || nameHint) {
+    // 1. The pin itself, when it's the place's own position. Most trustworthy
+    //    thing available — but only adopted if the name agrees, so a slightly
+    //    off pin can't hand us the business next door.
+    if (urlCoords?.precise && nameHint) {
+      const rev = await reverseOsm(urlCoords);
+      if (rev && rev.name && namesAgree(nameHint, rev.name)) osm = rev;
+    }
+
+    // 2. Google's own "Name, Street, Town, Eircode" string from ?q=.
+    if (!osm && placeQuery) {
+      const hit = await lookupOsm(placeQuery, urlCoords);
+      // Unbounded searches roam the planet, so an unpinned hit has to prove it
+      // matches the address that was asked for.
+      if (hit && (urlCoords || hitAgreesWithQuery(placeQuery, hit.displayName))) osm = hit;
+    }
+
+    // 3. The address without the venue name — Nominatim answers that when it
+    //    won't answer the two combined.
+    const addressOnly = placeQuery ? addressPartFromQuery(placeQuery) : null;
+    if (!osm && addressOnly) {
+      const hit = await lookupOsm(addressOnly, urlCoords);
+      if (hit && (urlCoords || hitAgreesWithQuery(addressOnly, hit.displayName))) {
+        osm = hit;
+        notes.push(
+          `Address geocoded from the link's own text ("${addressOnly}") rather than matched to a venue on OpenStreetMap — check it names the right building.`
+        );
+      }
+    }
+
+    // 4. The name, but ONLY bounded to a pin. A bare unbounded name search is
+    //    what published a Massachusetts address for a Dublin pub; there is no
+    //    version of it that is safe.
+    if (!osm && nameHint && urlCoords) {
+      osm = await lookupOsm(nameHint, urlCoords);
+    }
+
     if (osm) {
       sourcesUsed.push("OpenStreetMap");
       websiteHint = osm.website;
-      const nameMatches = osm.name.toLowerCase().includes(nameHint.toLowerCase().split(" ")[0] ?? "");
+      if (!osm.name) {
+        notes.push(`OpenStreetMap placed that address at: ${osm.displayName}. Check it before saving.`);
+      } else {
+        const agrees = nameHint ? namesAgree(nameHint, osm.name) : false;
+        notes.push(
+          `OpenStreetMap matched "${osm.name}" (${osm.displayName}). ${
+            agrees
+              ? "Confirm it's the same venue"
+              : "The name doesn't match the link — confirm this is the right place"
+          } before saving.`
+        );
+      }
+    } else {
       notes.push(
-        `OpenStreetMap matched "${osm.name}" (${osm.displayName}). ${
-          nameMatches ? "Confirm it's the same venue" : "The name doesn't match exactly — confirm this is the right place"
-        } before saving.`
-      );
-    } else if (urlCoords) {
-      notes.push(
-        "Nothing matching that name on OpenStreetMap near the map pin. Address and hours will be blank unless the venue has its own website."
+        urlCoords
+          ? "Nothing matching that name on OpenStreetMap near the map pin. Address and hours will be blank unless the venue has its own website."
+          : "Nothing on OpenStreetMap for that link, and it carries no coordinates to search around. Address and hours will be blank unless the venue has its own website."
       );
     }
   }
@@ -458,8 +661,11 @@ export async function extractVenueFromUrl(url: string): Promise<ExtractedVenue> 
     instagram: str(parsed.instagram),
     venueType: str(parsed.venueType),
     cuisine: str(parsed.cuisine),
-    geoLat: num(parsed.geoLat) ?? coords?.lat ?? osm?.lat ?? null,
-    geoLng: num(parsed.geoLng) ?? coords?.lng ?? osm?.lng ?? null,
+    // The venue's own position beats a viewport centre: a URL's `@lat,lng` is
+    // wherever the map happened to be pointing and can be a few streets out, so
+    // an OpenStreetMap hit for the venue itself is the better pin.
+    geoLat: num(parsed.geoLat) ?? (coords?.precise ? coords.lat : null) ?? osm?.lat ?? coords?.lat ?? null,
+    geoLng: num(parsed.geoLng) ?? (coords?.precise ? coords.lng : null) ?? osm?.lng ?? coords?.lng ?? null,
     openingHours: modelHours ?? osm?.hours ?? null,
     notesForReview: notes,
     sourcesUsed: Array.from(new Set(sourcesUsed)),
