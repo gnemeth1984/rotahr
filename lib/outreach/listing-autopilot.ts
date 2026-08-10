@@ -38,14 +38,29 @@ import { submitToIndexNow } from "@/lib/seo/indexnow";
  * nothing else keys off, and the lead stays exactly where it was.
  */
 
+/**
+ * Env numbers, parsed so a bad value cannot weaken a safety limit.
+ *
+ * `Number(process.env.X || 12)` looks safe but isn't: a typo'd value yields
+ * NaN, and every comparison against NaN is false — so `age < REVIEW_HOURS`
+ * would wave through a page built one minute ago. Anything that isn't a
+ * positive finite number falls back to the hard-coded default.
+ */
+function envInt(name: string, fallback: number): number {
+  const raw = process.env[name];
+  if (raw == null || raw.trim() === "") return fallback;
+  const n = Number(raw);
+  return Number.isFinite(n) && n >= 0 ? n : fallback;
+}
+
 /** 10/day. The cap that matters is deliverability, not our patience. */
-export const LISTING_DAILY_LIMIT = Number(process.env.LISTING_INVITE_DAILY_LIMIT || 10);
+export const LISTING_DAILY_LIMIT = envInt("LISTING_INVITE_DAILY_LIMIT", 10);
 
 /** Built per overnight run. Above the send limit so the queue survives a bad night. */
-const BUILD_PER_RUN = Number(process.env.LISTING_BUILD_PER_RUN || 14);
+const BUILD_PER_RUN = envInt("LISTING_BUILD_PER_RUN", 14);
 
 /** How long a page must sit unsent, so there is a window to bin a bad one. */
-const REVIEW_HOURS = Number(process.env.LISTING_REVIEW_HOURS || 12);
+const REVIEW_HOURS = envInt("LISTING_REVIEW_HOURS", 12);
 
 /**
  * Markets the autopilot may email. IE only by default: the UK list is imported
@@ -56,7 +71,7 @@ const MARKETS = (process.env.LISTING_MARKETS || "ie")
   .map((s) => s.trim().toLowerCase())
   .filter(Boolean);
 
-const SEND_DELAY_MS = Number(process.env.LISTING_SEND_DELAY_MS || 2500);
+const SEND_DELAY_MS = envInt("LISTING_SEND_DELAY_MS", 2500);
 
 /** Marker written into OutreachLead.notes so a dead end is tried once, not nightly. */
 const SKIP_MARKER = "[listing-autopilot]";
@@ -292,7 +307,7 @@ export type BuildQueueResult = {
  * to anybody. Keeping roughly three days of sending in hand is enough to
  * survive a failed overnight run without any of that.
  */
-const MAX_QUEUE = Number(process.env.LISTING_MAX_QUEUE || LISTING_DAILY_LIMIT * 3);
+const MAX_QUEUE = envInt("LISTING_MAX_QUEUE", LISTING_DAILY_LIMIT * 3);
 
 /**
  * Overnight build phase. Publishes pages, emails nobody.
@@ -507,6 +522,27 @@ export async function sendListingInvite(
   });
   if (!biz || !biz.publicProspect) {
     return { ok: false, error: "No prospect page with that id.", status: 404 };
+  }
+
+  /**
+   * Real invites may only leave from the deployed app.
+   *
+   * `.env.local` holds the production database URL and a live Brevo key, so a
+   * throwaway script run from the sandbox sends real mail to real venues. That
+   * is exactly what happened: eleven invites went to pages eleven minutes old
+   * from a working copy that was mid-edit, while the committed code had the
+   * review window in place. Reading the source proved nothing because the
+   * source wasn't what ran. Vercel sets VERCEL=1; nothing else does, so the
+   * cron and the admin panel are unaffected and local runs are inert unless
+   * someone opts in on purpose.
+   */
+  if (!process.env.VERCEL && process.env.LISTING_ALLOW_LOCAL_SEND !== "true") {
+    return {
+      ok: false,
+      error:
+        "Refusing to send from outside the deployed app. Set LISTING_ALLOW_LOCAL_SEND=true only if you mean to mail real venues from here.",
+      status: 403,
+    };
   }
 
   /**
