@@ -1,12 +1,17 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requirePlatformAdmin } from "@/app/api/inbox/_auth";
-import { normaliseEmail, isSuppressed } from "@/lib/email/suppression";
+import { normaliseEmail } from "@/lib/email/suppression";
 import { buildPageFromEmail, type BuildFromEmailResult } from "@/lib/public-page/from-email";
 import { buildPageFromUrl, setPageContact } from "@/lib/public-page/from-url";
 import { discoverContacts } from "@/lib/public-page/contact-discovery";
 import { renderListingInvite, LISTING_INVITED_STATUS } from "@/lib/outreach/listing-invite";
-import { sendOutreachEmail } from "@/lib/outreach/brevo";
+import {
+  sendListingInvite,
+  buildQueue,
+  sendQueue,
+  listingAutopilotStatus,
+} from "@/lib/outreach/listing-autopilot";
 
 /**
  * Paste-and-go listings tool.
@@ -232,121 +237,36 @@ export async function POST(req: Request) {
     const businessId = typeof body.businessId === "string" ? body.businessId : "";
     if (!businessId) return NextResponse.json({ error: "businessId required" }, { status: 400 });
 
-    const biz = await prisma.business.findUnique({
-      where: { id: businessId },
-      select: {
-        id: true,
-        name: true,
-        publicSlug: true,
-        publicEmail: true,
-        publicProspect: true,
-        publicTakedownToken: true,
-        venues: { take: 1, select: { address: true } },
-      },
-    });
-    if (!biz || !biz.publicProspect) {
-      return NextResponse.json({ error: "No prospect page with that id." }, { status: 404 });
-    }
-    if (!biz.publicSlug || !biz.publicTakedownToken || !biz.publicEmail) {
-      // Sending an invite whose links don't work is worse than not sending.
-      return NextResponse.json(
-        { error: "That page is missing a slug, email or takedown token — can't send." },
-        { status: 400 }
-      );
-    }
-    if (await isSuppressed(biz.publicEmail)) {
-      return NextResponse.json({ error: "That address has unsubscribed." }, { status: 400 });
-    }
-
-    const existingLead = await prisma.outreachLead.findUnique({
-      where: { email: biz.publicEmail },
-      select: { id: true, status: true, contactCount: true },
-    });
-    if (existingLead?.status === LISTING_INVITED_STATUS) {
-      return NextResponse.json({ error: "Already invited." }, { status: 400 });
-    }
-    if (existingLead && ["bounced", "unsubscribed"].includes(existingLead.status)) {
-      return NextResponse.json(
-        { error: `Lead is ${existingLead.status} — not sending.` },
-        { status: 400 }
-      );
-    }
-
     // Venue rows have no city column, so the city in the subject line is only
     // ever one the admin typed. Left out rather than guessed from the address.
     const city = typeof body.city === "string" && body.city.trim() ? body.city.trim() : undefined;
     const hook = typeof body.hook === "string" && body.hook.trim() ? body.hook.trim() : undefined;
 
-    const content = renderListingInvite({
-      name: biz.name,
-      email: biz.publicEmail,
-      slug: biz.publicSlug,
-      takedownToken: biz.publicTakedownToken,
-      city,
-      hook,
-    });
+    // Same implementation the cron uses, so a hand-sent invite and an automated
+    // one are indistinguishable in the database.
+    const r = await sendListingInvite(businessId, { city, hook });
+    if (!r.ok) return NextResponse.json({ error: r.error }, { status: r.status ?? 400 });
+    return NextResponse.json({ ok: true, subject: r.subject, to: r.to });
+  }
 
-    const sent = await sendOutreachEmail({
-      to: biz.publicEmail,
-      toName: biz.name,
-      subject: content.subject,
-      html: content.html,
-      text: content.text,
-      tags: ["listing_invite"],
-    });
+  // Autopilot: state, and manual triggers for both phases. The cron calls the
+  // same functions — these buttons exist so a run can be watched once before
+  // it is left to run itself.
+  if (action === "autopilot_status") {
+    return NextResponse.json({ ok: true, status: await listingAutopilotStatus() });
+  }
 
-    if (!sent.ok) {
-      if (sent.hardBounce) {
-        await prisma.outreachLead.upsert({
-          where: { email: biz.publicEmail },
-          create: {
-            email: biz.publicEmail,
-            name: biz.name,
-            city: city || "",
-            status: "bounced",
-            bouncedAt: new Date(),
-            source: "listing_invite",
-          },
-          update: { status: "bounced", bouncedAt: new Date() },
-        });
-      }
-      return NextResponse.json({ error: sent.error || "Send failed." }, { status: 502 });
-    }
+  if (action === "autopilot_build") {
+    const take = Number(body.take) > 0 ? Math.min(Number(body.take), 25) : undefined;
+    const result = await buildQueue({ take, deadlineMs: 240_000 });
+    return NextResponse.json({ ok: true, ...result });
+  }
 
-    // Parked on `listing_invited`, which matches no branch in
-    // findEligibleLeads — so the weekday cron cannot fold these into the
-    // five-step product pitch.
-    const lead = await prisma.outreachLead.upsert({
-      where: { email: biz.publicEmail },
-      create: {
-        email: biz.publicEmail,
-        name: biz.name,
-        city: city || "",
-        status: LISTING_INVITED_STATUS,
-        contactCount: 1,
-        lastContacted: new Date(),
-        source: "listing_invite",
-      },
-      update: {
-        status: LISTING_INVITED_STATUS,
-        contactCount: { increment: 1 },
-        lastContacted: new Date(),
-      },
-    });
-
-    await prisma.outreachSend
-      .create({
-        data: {
-          leadId: lead.id,
-          email: biz.publicEmail,
-          step: LISTING_INVITED_STATUS,
-          subject: content.subject,
-          messageId: sent.messageId,
-        },
-      })
-      .catch(() => undefined);
-
-    return NextResponse.json({ ok: true, subject: content.subject, to: biz.publicEmail });
+  if (action === "autopilot_send") {
+    const dryRun = body.dryRun === true;
+    const limit = Number(body.limit) > 0 ? Math.min(Number(body.limit), 25) : undefined;
+    const result = await sendQueue({ dryRun, limit });
+    return NextResponse.json({ ok: true, ...result });
   }
 
   if (action === "preview") {

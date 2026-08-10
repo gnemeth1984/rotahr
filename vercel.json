@@ -32,6 +32,15 @@
     },
     "app/api/outreach/import/route.ts": {
       "maxDuration": 300
+    },
+    "app/api/cron/listing-build/route.ts": {
+      "maxDuration": 300
+    },
+    "app/api/cron/listing-invites/route.ts": {
+      "maxDuration": 300
+    },
+    "app/api/admin/listings/route.ts": {
+      "maxDuration": 300
     }
   },
   "crons": [
@@ -94,6 +103,14 @@
     {
       "path": "/api/cron/inbox-sync",
       "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/listing-build",
+      "schedule": "50 3 * * *"
+    },
+    {
+      "path": "/api/cron/listing-invites",
+      "schedule": "30 9 * * 1-5"
     }
   ]
 }

@@ -27,6 +27,7 @@ import {
   EyeOff,
   Eye,
   Search,
+  Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -64,6 +65,20 @@ interface BuildRow {
   needsUrl?: boolean;
   needsContact?: boolean;
   contacts?: Discovered | null;
+}
+
+interface AutopilotStatus {
+  enabled: boolean;
+  markets: string[];
+  dailyLimit: number;
+  buildPerRun: number;
+  reviewHours: number;
+  sentToday: number;
+  readyToSend: number;
+  inReview: number;
+  invitedTotal: number;
+  poolRemaining: number;
+  daysOfRunway: number;
 }
 
 interface PageRow {
@@ -110,6 +125,8 @@ export function ListingsTab() {
   const [cityById, setCityById] = useState<Record<string, string>>({});
   const [hookById, setHookById] = useState<Record<string, string>>({});
   const [preview, setPreview] = useState<{ subject: string; html: string; to: string } | null>(null);
+  const [auto, setAuto] = useState<AutopilotStatus | null>(null);
+  const [autoBusy, setAutoBusy] = useState<null | "build" | "send" | "dry">(null);
 
   const emailCount = emails.split(/[\s,;]+/).filter((s) => s.includes("@")).length;
   const single = emailCount === 1;
@@ -129,9 +146,56 @@ export function ListingsTab() {
     }
   }, []);
 
+  const loadAuto = useCallback(async () => {
+    const { ok, json } = await post({ action: "autopilot_status" });
+    if (ok && json.status) setAuto(json.status as AutopilotStatus);
+  }, []);
+
   useEffect(() => {
     void loadPages();
-  }, [loadPages]);
+    void loadAuto();
+  }, [loadPages, loadAuto]);
+
+  /**
+   * Manual triggers for the two cron phases. They call the same functions the
+   * cron does — the point is to be able to watch a run once before trusting it
+   * to run itself at 4am.
+   */
+  async function runAutopilot(kind: "build" | "send" | "dry") {
+    if (kind === "send" && !confirm(`Send up to ${auto?.dailyLimit ?? 10} invites now? These go to real venues.`))
+      return;
+    setAutoBusy(kind);
+    setMsg(null);
+    const { ok, json } = await post(
+      kind === "build"
+        ? { action: "autopilot_build" }
+        : { action: "autopilot_send", dryRun: kind === "dry" }
+    );
+    setAutoBusy(null);
+    if (!ok) {
+      setMsg({ kind: "err", text: String(json.error || "Autopilot run failed.") });
+      return;
+    }
+    if (kind === "build") {
+      setMsg({
+        kind: "ok",
+        text: `Built ${json.built} page(s), ${json.failed} skipped. ${json.poolRemaining} venues left in the pool.`,
+      });
+    } else {
+      const reason = json.reason ? ` — ${String(json.reason)}` : "";
+      setMsg({
+        kind: kind === "dry" ? "ok" : json.sent ? "ok" : "err",
+        text:
+          kind === "dry"
+            ? `Would send to: ${
+                (json.outcomes as { to: string }[] | undefined)?.map((o) => o.to).join(", ") || "nobody"
+              }${reason}`
+            : `Sent ${json.sent}, skipped ${json.skipped}${reason}`,
+      });
+    }
+    void loadPages();
+    void loadAuto();
+  }
 
   async function build() {
     setBuilding(true);
@@ -245,6 +309,68 @@ export function ListingsTab() {
 
   return (
     <div className="space-y-6">
+      {/* ─── Autopilot ─────────────────────────────────────────────────── */}
+      <div className="bg-white rounded-xl border border-slate-200 p-5">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h3 className="font-semibold text-slate-900 flex items-center gap-2">
+              <Zap className="h-4 w-4 text-orange-500" />
+              Autopilot
+            </h3>
+            <p className="text-sm text-slate-500 mt-1">
+              Builds {auto?.buildPerRun ?? 14} pages overnight, then emails {auto?.dailyLimit ?? 10} of them
+              on weekday mornings &mdash; oldest first, and never a page younger than{" "}
+              {auto?.reviewHours ?? 12}h, so there&apos;s always a window to bin a bad one before its owner
+              hears about it.
+            </p>
+          </div>
+          <span
+            className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${
+              auto?.enabled ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"
+            }`}
+          >
+            {auto ? (auto.enabled ? "On" : "Off") : "…"}
+          </span>
+        </div>
+
+        {auto && (
+          <div className="mt-4 grid grid-cols-2 sm:grid-cols-5 gap-3 text-center">
+            {[
+              { label: "Sent today", value: `${auto.sentToday}/${auto.dailyLimit}` },
+              { label: "Ready to send", value: auto.readyToSend },
+              { label: `In review (<${auto.reviewHours}h)`, value: auto.inReview },
+              { label: "Venues in pool", value: auto.poolRemaining },
+              { label: "Days of runway", value: auto.daysOfRunway },
+            ].map((s) => (
+              <div key={s.label} className="rounded-lg bg-slate-50 border border-slate-200 px-2 py-3">
+                <div className="text-lg font-semibold text-slate-900">{s.value}</div>
+                <div className="text-[11px] text-slate-500 leading-tight mt-0.5">{s.label}</div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <Button variant="outline" onClick={() => runAutopilot("build")} disabled={autoBusy !== null}>
+            {autoBusy === "build" ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+            Build a batch now
+          </Button>
+          <Button variant="outline" onClick={() => runAutopilot("dry")} disabled={autoBusy !== null}>
+            {autoBusy === "dry" ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+            Who&apos;s next (dry run)
+          </Button>
+          <Button onClick={() => runAutopilot("send")} disabled={autoBusy !== null}>
+            {autoBusy === "send" ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
+            Send today&apos;s batch
+          </Button>
+          {auto && (
+            <span className="text-xs text-slate-500">
+              Market{auto.markets.length > 1 ? "s" : ""}: {auto.markets.join(", ").toUpperCase()}
+            </span>
+          )}
+        </div>
+      </div>
+
       {/* ─── Build ─────────────────────────────────────────────────────── */}
       <div className="bg-white rounded-xl border border-slate-200 p-5">
         <div className="flex items-center gap-1 mb-4 bg-slate-100 rounded-lg p-1 w-fit">
