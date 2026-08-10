@@ -98,7 +98,18 @@ export async function POST(req: NextRequest) {
         });
         await prisma.outreachLead.update({
           where: { id: send.leadId },
-          data: { status: "bounced", bouncedAt: new Date() },
+          data: {
+            status: "bounced",
+            bouncedAt: new Date(),
+            // A hard bounce is the strongest possible evidence that the mailbox
+            // does not exist — better than any probe, because a real message was
+            // actually attempted. Writing the verdict here keeps the webhook and
+            // scripts/verify-leads.ts from disagreeing, and means the send-time
+            // gate blocks this address even if the lead is later revived.
+            emailVerdict: "dead",
+            verifyDetail: `hard bounce via webhook: ${(evt.reason || type).slice(0, 140)}`,
+            verifiedAt: new Date(),
+          },
         });
         // A spam complaint is an opt-out in every way that matters.
         if (type === "spam" && evt.email) {
