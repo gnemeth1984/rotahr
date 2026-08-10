@@ -17,6 +17,10 @@
  *                          errored before delivery was ever attempted)
  *   --recheck-days N       re-verify leads whose verdict is older than N days
  *                          (default 90; mailboxes are created and deleted)
+ *   --verdict V            re-probe leads currently holding verdict V, ignoring
+ *                          how recently it was set. Mainly --verdict unknown:
+ *                          those probes were inconclusive rather than negative,
+ *                          and a slower second pass resolves most of them.
  *   --dry                  probe and print, write nothing
  */
 import { prisma } from "@/lib/db";
@@ -34,6 +38,7 @@ async function main() {
   const limit = Number(arg("limit", "100"));
   const country = arg("country");
   const revalidateBounced = has("revalidate-bounced");
+  const verdictFilter = arg("verdict");
   const recheckDays = Number(arg("recheck-days", "90"));
   const dry = has("dry");
   const staleBefore = new Date(Date.now() - recheckDays * 86_400_000);
@@ -46,11 +51,21 @@ async function main() {
         sends: { none: {} },
         ...(country ? { country } : {}),
       }
-    : {
-        status: { notIn: ["unsubscribed", "replied", "converted", "bounced"] },
-        OR: [{ verifiedAt: null }, { verifiedAt: { lt: staleBefore } }],
-        ...(country ? { country } : {}),
-      };
+    : verdictFilter
+      ? {
+          // Re-probe a specific verdict regardless of how recently it was set.
+          // `unknown` is the case that matters: it means the probe was
+          // inconclusive (timeout, greylisting, rate limit), not that the
+          // mailbox is bad, and a quieter second pass usually resolves it.
+          status: { notIn: ["unsubscribed", "replied", "converted", "bounced"] },
+          emailVerdict: verdictFilter,
+          ...(country ? { country } : {}),
+        }
+      : {
+          status: { notIn: ["unsubscribed", "replied", "converted", "bounced"] },
+          OR: [{ verifiedAt: null }, { verifiedAt: { lt: staleBefore } }],
+          ...(country ? { country } : {}),
+        };
 
   const leads = await prisma.outreachLead.findMany({
     where,
@@ -62,7 +77,7 @@ async function main() {
   console.log(
     `Verifying ${leads.length} lead(s)${country ? ` in ${country}` : ""}${
       revalidateBounced ? " [revalidating bounced-with-no-send]" : ""
-    }${dry ? " [dry run]" : ""}\n`
+    }${verdictFilter ? ` [re-probing verdict=${verdictFilter}]` : ""}${dry ? " [dry run]" : ""}\n`
   );
   if (!leads.length) return;
 
