@@ -54,7 +54,7 @@
     },
     {
       "path": "/api/cron/generate-blog",
-      "schedule": "0 6 * * *"
+      "schedule": "0 5 * * *"
     },
     {
       "path": "/api/cron/purge-receipt-images",

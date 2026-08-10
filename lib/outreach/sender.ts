@@ -82,6 +82,34 @@ export type EligibleFilter = {
  * Raw SQL because the per-status delay is a comparison between two columns,
  * which Prisma's filter API can't express.
  */
+/**
+ * A row limit that is always a non-negative integer.
+ *
+ * `Math.max(0, Math.floor(take))` is not enough: both pass NaN straight
+ * through, and interpolating that produces `LIMIT nan`, which Postgres rejects
+ * with `column "nan" does not exist` (42703) — the whole batch fails on a
+ * misread env var rather than sending a sensible number.
+ */
+function safeTake(take: number): number {
+  return Number.isFinite(take) && take > 0 ? Math.floor(take) : 0;
+}
+
+/**
+ * Countries the cold batch may email, as an allowlist.
+ *
+ * Unset means "no restriction", which is the behaviour this cron has always
+ * had. It exists because the lead table holds both markets (258 IE, 1517 UK)
+ * and nothing in the query separated them, so a market being "on hold" was a
+ * decision held in someone's head rather than in the code. Set
+ * OUTREACH_COUNTRIES=ie to hold the UK list without deleting it.
+ */
+function allowedCountries(): string[] {
+  return (process.env.OUTREACH_COUNTRIES || "")
+    .split(",")
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+}
+
 export async function findEligibleLeads(
   filter: EligibleFilter & { take: number }
 ): Promise<
@@ -101,6 +129,13 @@ export async function findEligibleLeads(
   if (country) {
     params.push(country);
     clauses.push(`AND country = $${params.length}`);
+  }
+  // Applied on top of any explicit country filter, never instead of it, so an
+  // ad-hoc call cannot widen the batch past the configured markets.
+  const allowed = allowedCountries();
+  if (allowed.length) {
+    params.push(allowed);
+    clauses.push(`AND lower(country) = ANY($${params.length}::text[])`);
   }
   if (emails?.length) {
     params.push(emails.map((e) => normaliseEmail(e)));
@@ -128,7 +163,7 @@ export async function findEligibleLeads(
       CASE WHEN status = 'new' THEN 0 ELSE 1 END,
       "lastContacted" ASC NULLS FIRST,
       random()
-    LIMIT ${Math.max(0, Math.floor(take))}
+    LIMIT ${safeTake(take)}
     `,
     ...params
   );
