@@ -243,8 +243,10 @@ export async function POST(req: Request) {
     const hook = typeof body.hook === "string" && body.hook.trim() ? body.hook.trim() : undefined;
 
     // Same implementation the cron uses, so a hand-sent invite and an automated
-    // one are indistinguishable in the database.
-    const r = await sendListingInvite(businessId, { city, hook });
+    // one are indistinguishable in the database. `force` is set because this
+    // button is only reachable by a human with the page in front of them — that
+    // click is the review the window otherwise waits for.
+    const r = await sendListingInvite(businessId, { city, hook, force: true, via: "admin-row" });
     if (!r.ok) return NextResponse.json({ error: r.error }, { status: r.status ?? 400 });
     return NextResponse.json({ ok: true, subject: r.subject, to: r.to });
   }
@@ -265,7 +267,7 @@ export async function POST(req: Request) {
   if (action === "autopilot_send") {
     const dryRun = body.dryRun === true;
     const limit = Number(body.limit) > 0 ? Math.min(Number(body.limit), 25) : undefined;
-    const result = await sendQueue({ dryRun, limit });
+    const result = await sendQueue({ dryRun, limit, via: "admin-batch" });
     return NextResponse.json({ ok: true, ...result });
   }
 

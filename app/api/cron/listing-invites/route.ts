@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ skipped: true, reason: "BREVO_API_KEY is not set" });
   }
 
-  const result = await sendQueue();
+  const result = await sendQueue({ via: "cron" });
 
   return NextResponse.json({
     ok: true,

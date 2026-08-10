@@ -97,6 +97,31 @@ const HOSPITALITY_WORDS =
   /\b(restaurant|café|cafe|coffee|bar|pub|tavern|bistro|brasserie|hotel|inn|guesthouse|b&b|takeaway|kitchen|dining|dine|eatery|grill|pizzeria|pizza|deli|bakery|brunch|breakfast|lunch|dinner|menu|cocktail|craft beer|wine bar|gastro|catering|food|chef|table|booking|reservation)\b/i;
 
 /**
+ * The bar for publishing a page nobody will look at first.
+ *
+ * `hasIndexableContent()` accepts opening hours on their own, which is right for
+ * the manual tool — an admin can see the page is thin and decide anyway. It is
+ * too low for unattended publishing: An Brog went out with seven opening-hours
+ * rows, no address, no phone and a thirty-three character description, and the
+ * "I built you a page" email pointed straight at it.
+ *
+ * An address is the one field that makes the page useful to a searcher and
+ * makes the email defensible, so the autopilot requires it.
+ */
+export function goodEnoughToAnnounce(input: {
+  address?: string | null;
+  about?: string | null;
+}): { ok: boolean; why?: string } {
+  if (!input.address || input.address.trim().length < 8) {
+    return { ok: false, why: "no address on the page — too thin to announce unattended" };
+  }
+  if (!input.about || input.about.trim().length < 60) {
+    return { ok: false, why: "description too short to announce unattended" };
+  }
+  return { ok: true };
+}
+
+/**
  * Would a human recognise this as a venue?
  *
  * Runs on the extraction, not the guess: the model is told it is filling in a
@@ -252,7 +277,22 @@ export type BuildQueueResult = {
   indexnow?: string;
   poolRemaining: number;
   stoppedEarly?: string;
+  /** Set when the brake below stopped the run before any build was attempted. */
+  paused?: string;
 };
+
+/**
+ * Stop building once this many pages are already waiting to be invited.
+ *
+ * Building 14 a day against 10 weekday sends means the queue grows every
+ * weekend and never drains. Three things go wrong if it's left unbounded: a
+ * model call is spent weeks before the page is used, the "I built you a page"
+ * email starts describing a page assembled a month ago from a menu that has
+ * since changed, and a takedown request arrives for a page nobody has mentioned
+ * to anybody. Keeping roughly three days of sending in hand is enough to
+ * survive a failed overnight run without any of that.
+ */
+const MAX_QUEUE = Number(process.env.LISTING_MAX_QUEUE || LISTING_DAILY_LIMIT * 3);
 
 /**
  * Overnight build phase. Publishes pages, emails nobody.
@@ -262,11 +302,26 @@ export type BuildQueueResult = {
  * record of what it did. Stopping cleanly at the budget reports honestly.
  */
 export async function buildQueue(
-  opts: { take?: number; deadlineMs?: number } = {}
+  opts: { take?: number; deadlineMs?: number; ignoreQueueCap?: boolean } = {}
 ): Promise<BuildQueueResult> {
-  const take = opts.take ?? BUILD_PER_RUN;
   const deadline = Date.now() + (opts.deadlineMs ?? 240_000);
 
+  // Every unsent page counts toward the cap, whether or not its review window
+  // has elapsed — pages in review are queue too, they just haven't matured yet.
+  const queued = opts.ignoreQueueCap ? 0 : await unsentPageCount();
+  const room = opts.ignoreQueueCap ? (opts.take ?? BUILD_PER_RUN) : MAX_QUEUE - queued;
+  if (room <= 0) {
+    return {
+      attempted: 0,
+      built: 0,
+      failed: 0,
+      outcomes: [],
+      poolRemaining: await candidatePoolSize(),
+      paused: `${queued} pages already waiting to be invited (cap ${MAX_QUEUE}) — not building more until the queue drains`,
+    };
+  }
+
+  const take = Math.min(opts.take ?? BUILD_PER_RUN, room);
   const candidates = await pickBuildCandidates(take);
   const outcomes: BuildOutcome[] = [];
   const newUrls: string[] = [];
@@ -298,6 +353,20 @@ export async function buildQueue(
           await markSkipped(lead.id, reason);
           continue;
         }
+        // Second quality gate, stricter than the manual tool's. A page that
+        // fails it is deleted rather than published-and-never-sent, so the
+        // Listings tab doesn't silt up with pages that can never go out.
+        const quality = goodEnoughToAnnounce({
+          address: r.extracted.address,
+          about: r.extracted.about,
+        });
+        if (!quality.ok) {
+          await prisma.business.delete({ where: { id: r.businessId } }).catch(() => undefined);
+          outcomes.push({ email: lead.email, name: r.name, ok: false, reason: quality.why });
+          await markSkipped(lead.id, quality.why || "below quality bar");
+          continue;
+        }
+
         outcomes.push({ email: lead.email, name: r.name, ok: true, slug: r.slug });
         // noindex pages are the thin ones; only ask search engines for the rest.
         if (r.indexable) newUrls.push(`https://rotahr.com/v/${r.slug}`);
@@ -337,6 +406,34 @@ export type ReadyPage = {
  * Pages cleared to be announced: real content on them, a contact to send to,
  * working links, past the review window, and no invite already recorded.
  */
+/**
+ * Every prospect page that could still be invited — mature or still in review.
+ *
+ * This is what the build brake measures, not `pickReadyPages`: a page built ten
+ * minutes ago is already committed work even though it can't be sent yet, and
+ * counting only mature pages would let a run build another full batch every
+ * night while the previous one sat in its review window.
+ */
+export async function unsentPageCount(): Promise<number> {
+  const rows = await prisma.$queryRaw<{ n: bigint }[]>`
+    SELECT count(*) AS n FROM "Business" b
+    WHERE b."publicProspect" = true
+      AND b."publicSlug" IS NOT NULL
+      AND b."publicEmail" IS NOT NULL
+      AND NOT EXISTS (
+        SELECT 1 FROM "EmailSuppression" s
+        WHERE s.email = b."publicEmail" AND s."revokedAt" IS NULL
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM "OutreachLead" l
+        WHERE l.email = b."publicEmail"
+          AND (l.status IN (${LISTING_INVITED_STATUS}, 'bounced', 'unsubscribed', 'replied', 'converted')
+               OR l."bouncedAt" IS NOT NULL)
+      )
+  `;
+  return Number(rows[0]?.n ?? 0);
+}
+
 export async function pickReadyPages(take: number): Promise<ReadyPage[]> {
   if (take <= 0) return [];
   const cutoff = new Date(Date.now() - REVIEW_HOURS * 3600_000);
@@ -383,7 +480,18 @@ export type InviteResult =
  */
 export async function sendListingInvite(
   businessId: string,
-  opts: { city?: string; hook?: string } = {}
+  opts: {
+    city?: string;
+    hook?: string;
+    /**
+     * Skip the review-window check. Only ever set by the per-row admin button,
+     * where a human is looking at the page as they click — that click IS the
+     * review. No automated path may set it.
+     */
+    force?: boolean;
+    /** Recorded on the lead so a surprise batch can be traced to its trigger. */
+    via?: string;
+  } = {}
 ): Promise<InviteResult> {
   const biz = await prisma.business.findUnique({
     where: { id: businessId },
@@ -394,10 +502,30 @@ export async function sendListingInvite(
       publicEmail: true,
       publicProspect: true,
       publicTakedownToken: true,
+      createdAt: true,
     },
   });
   if (!biz || !biz.publicProspect) {
     return { ok: false, error: "No prospect page with that id.", status: 404 };
+  }
+
+  /**
+   * The review window, enforced here rather than only in pickReadyPages.
+   *
+   * It used to live solely in that query's WHERE clause, which meant the
+   * protection belonged to one code path instead of to the act of sending. Ten
+   * invites went out to pages eleven minutes old, and one of them (An Brog) had
+   * no address and a one-line description — precisely what the window exists to
+   * catch. Every caller now funnels through this check, so a new script, route
+   * or button cannot quietly reintroduce the same hole.
+   */
+  const ageHours = (Date.now() - biz.createdAt.getTime()) / 3_600_000;
+  if (!opts.force && ageHours < REVIEW_HOURS) {
+    return {
+      ok: false,
+      error: `Page is ${ageHours.toFixed(1)}h old and the review window is ${REVIEW_HOURS}h — not sending yet.`,
+      status: 400,
+    };
   }
   if (!biz.publicSlug || !biz.publicTakedownToken || !biz.publicEmail) {
     // An invite whose links don't work is worse than no invite.
@@ -478,6 +606,19 @@ export async function sendListingInvite(
     },
   });
 
+  // Who sent this, in plain text on the lead. Cheap, and the thing whose
+  // absence made an unexplained batch of ten take an hour to investigate.
+  await prisma.outreachLead
+    .update({
+      where: { id: lead.id },
+      data: {
+        notes: `${lead.notes ? lead.notes + "\n" : ""}[listing-invite] ${new Date().toISOString()} via ${
+          opts.via || "unknown"
+        }${opts.force ? " (forced past review window)" : ""}`,
+      },
+    })
+    .catch(() => undefined);
+
   await prisma.outreachSend
     .create({
       data: {
@@ -506,7 +647,7 @@ export type SendQueueResult = {
 
 /** Morning send phase: up to `LISTING_DAILY_LIMIT` invites, oldest page first. */
 export async function sendQueue(
-  opts: { limit?: number; dryRun?: boolean } = {}
+  opts: { limit?: number; dryRun?: boolean; via?: string } = {}
 ): Promise<SendQueueResult> {
   const sentToday = await invitesSentToday();
   const base = {
@@ -557,7 +698,7 @@ export async function sendQueue(
       outcomes.push({ to: page.email, name: page.name, sent: false, reason: "dry run" });
       continue;
     }
-    const r = await sendListingInvite(page.id);
+    const r = await sendListingInvite(page.id, { via: opts.via || "sendQueue" });
     if (r.ok) {
       sent++;
       outcomes.push({ to: r.to, name: page.name, sent: true, subject: r.subject });
@@ -591,12 +732,16 @@ export type AutopilotStatus = {
   invitedTotal: number;
   poolRemaining: number;
   daysOfRunway: number;
+  queued: number;
+  maxQueue: number;
+  /** True when the queue is full, so tonight's build will deliberately do nothing. */
+  buildPaused: boolean;
 };
 
 /** What the admin panel shows: is it on, is there fuel, did it move today. */
 export async function listingAutopilotStatus(): Promise<AutopilotStatus> {
   const cutoff = new Date(Date.now() - REVIEW_HOURS * 3600_000);
-  const [sentToday, ready, pool, invitedTotal, inReview] = await Promise.all([
+  const [sentToday, ready, pool, invitedTotal, inReview, queued] = await Promise.all([
     invitesSentToday(),
     pickReadyPages(500),
     candidatePoolSize(),
@@ -609,6 +754,7 @@ export async function listingAutopilotStatus(): Promise<AutopilotStatus> {
         createdAt: { gt: cutoff },
       },
     }),
+    unsentPageCount(),
   ]);
   return {
     enabled: autopilotEnabled(),
@@ -622,5 +768,8 @@ export async function listingAutopilotStatus(): Promise<AutopilotStatus> {
     invitedTotal,
     poolRemaining: pool,
     daysOfRunway: Math.floor((ready.length + pool) / Math.max(1, LISTING_DAILY_LIMIT)),
+    queued,
+    maxQueue: MAX_QUEUE,
+    buildPaused: queued >= MAX_QUEUE,
   };
 }

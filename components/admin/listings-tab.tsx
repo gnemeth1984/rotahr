@@ -79,6 +79,9 @@ interface AutopilotStatus {
   invitedTotal: number;
   poolRemaining: number;
   daysOfRunway: number;
+  queued: number;
+  maxQueue: number;
+  buildPaused: boolean;
 }
 
 interface PageRow {
@@ -177,10 +180,14 @@ export function ListingsTab() {
       return;
     }
     if (kind === "build") {
-      setMsg({
-        kind: "ok",
-        text: `Built ${json.built} page(s), ${json.failed} skipped. ${json.poolRemaining} venues left in the pool.`,
-      });
+      setMsg(
+        json.paused
+          ? { kind: "ok", text: String(json.paused) }
+          : {
+              kind: "ok",
+              text: `Built ${json.built} page(s), ${json.failed} skipped. ${json.poolRemaining} venues left in the pool.`,
+            }
+      );
     } else {
       const reason = json.reason ? ` — ${String(json.reason)}` : "";
       setMsg({
@@ -268,7 +275,12 @@ export function ListingsTab() {
   }
 
   async function sendInvite(id: string, name: string) {
-    if (!confirm(`Send the invite email for ${name}? This goes to a real venue and can't be undone.`)) return;
+    if (
+      !confirm(
+        `Send the invite email for ${name}? This goes to a real venue, skips the review window, and can't be undone.`
+      )
+    )
+      return;
     setBusyId(id);
     setMsg(null);
     const { ok, json } = await post({
@@ -333,11 +345,22 @@ export function ListingsTab() {
           </span>
         </div>
 
+        {auto?.buildPaused && (
+          <div className="mt-3 rounded-lg bg-slate-50 border border-slate-200 px-3 py-2 text-xs text-slate-600 flex gap-2">
+            <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+            <span>
+              Building is paused: {auto.queued} pages are already waiting to be invited. It restarts on
+              its own as the queue drains &mdash; this is the brake working, not a fault.
+            </span>
+          </div>
+        )}
+
         {auto && (
-          <div className="mt-4 grid grid-cols-2 sm:grid-cols-5 gap-3 text-center">
+          <div className="mt-4 grid grid-cols-2 sm:grid-cols-6 gap-3 text-center">
             {[
               { label: "Sent today", value: `${auto.sentToday}/${auto.dailyLimit}` },
               { label: "Ready to send", value: auto.readyToSend },
+              { label: "Queue", value: `${auto.queued}/${auto.maxQueue}` },
               { label: `In review (<${auto.reviewHours}h)`, value: auto.inReview },
               { label: "Venues in pool", value: auto.poolRemaining },
               { label: "Days of runway", value: auto.daysOfRunway },
