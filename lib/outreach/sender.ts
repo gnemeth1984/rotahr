@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { isUndeliverable } from "@/lib/outreach/verdict";
 import { isSuppressed, normaliseEmail } from "@/lib/email/suppression";
 import { sendOutreachEmail, isBrevoConfigured, checkSenderDomain } from "./brevo";
 import {
@@ -199,6 +200,22 @@ export async function sendToLead(lead: {
       data: { status: "unsubscribed" },
     });
     return { email: lead.email, step, sent: false, reason: "unsubscribed" };
+  }
+
+  /**
+   * Never send to a mailbox a probe has already proved dead.
+   *
+   * Read from the stored verdict rather than probed here: verification speaks
+   * SMTP on port 25, which Vercel blocks outbound, so it runs as a batch job.
+   * Only `dead` and `no-mx` block — `unknown` and `catch-all` still send, so a
+   * failed or impossible probe never costs a real prospect.
+   */
+  const verdict = await prisma.outreachLead
+    .findUnique({ where: { id: lead.id }, select: { emailVerdict: true } })
+    .then((r) => r?.emailVerdict ?? null)
+    .catch(() => null);
+  if (isUndeliverable(verdict)) {
+    return { email: lead.email, step, sent: false, reason: `skipped: mailbox ${verdict}` };
   }
 
   const content = renderEmail(lead, step);

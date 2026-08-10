@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { isSuppressed } from "@/lib/email/suppression";
+import { isUndeliverable } from "@/lib/outreach/verdict";
 import { buildPageFromEmail } from "@/lib/public-page/from-email";
 import { renderListingInvite, LISTING_INVITED_STATUS } from "./listing-invite";
 import { sendOutreachEmail, isBrevoConfigured, checkSenderDomain } from "./brevo";
@@ -593,8 +594,23 @@ export async function sendListingInvite(
 
   const existingLead = await prisma.outreachLead.findUnique({
     where: { email: biz.publicEmail },
-    select: { id: true, status: true },
+    select: { id: true, status: true, emailVerdict: true },
   });
+
+  /**
+   * Don't invite a mailbox already proved dead. These addresses come from
+   * scraping a venue's own site, so `info@` is often a guess that no server
+   * accepts — and a bounce on a listing invite costs the same reputation as a
+   * bounce on a cold pitch. `force` does not override this: a human can decide
+   * a page is worth sending early, but cannot make a dead mailbox exist.
+   */
+  if (isUndeliverable(existingLead?.emailVerdict)) {
+    return {
+      ok: false,
+      error: `Mailbox verified as ${existingLead?.emailVerdict} — not sending.`,
+      status: 400,
+    };
+  }
   if (existingLead?.status === LISTING_INVITED_STATUS) {
     return { ok: false, error: "Already invited.", status: 400 };
   }

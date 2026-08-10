@@ -1765,6 +1765,17 @@ model OutreachLead {
   /// Set manually when someone replies — stops the sequence immediately.
   repliedAt DateTime?
 
+  /// Result of the SMTP mailbox probe: ok | dead | catch-all | no-mx | unknown.
+  /// Scraped lists are full of invented `info@` addresses on real domains, which
+  /// is why an MX check cleared all 9 of August's hard bounces. `dead` and
+  /// `no-mx` block sending; `unknown` never does.
+  emailVerdict String?
+  /// Raw SMTP reply behind the verdict, kept so a wrong call can be argued with.
+  verifyDetail String?
+  /// When the probe last ran. Mailboxes come and go, so an old verdict is a
+  /// stale one and gets re-checked rather than trusted forever.
+  verifiedAt DateTime?
+
   notes  String? @db.Text
   source String? // which CSV / research run it came from
 
@@ -1776,6 +1787,7 @@ model OutreachLead {
   @@index([status, lastContacted])
   @@index([country, status])
   @@index([segment])
+  @@index([emailVerdict])
 }
 
 /// One row per email actually handed to Brevo. `messageId` is what the Brevo
