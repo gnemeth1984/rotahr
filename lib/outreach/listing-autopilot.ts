@@ -519,6 +519,22 @@ export async function sendListingInvite(
    * catch. Every caller now funnels through this check, so a new script, route
    * or button cannot quietly reintroduce the same hole.
    */
+  /**
+   * The daily cap, also enforced here and not only in sendQueue.
+   *
+   * Eleven invites went out on a ten-invite day: two runs each read
+   * `sentToday` as 0 before either had sent anything, so both were entitled to
+   * a full batch. Checking immediately before each individual send closes the
+   * window to one message instead of a whole batch.
+   */
+  if (!opts.force && (await invitesSentToday()) >= LISTING_DAILY_LIMIT) {
+    return {
+      ok: false,
+      error: `Daily limit of ${LISTING_DAILY_LIMIT} listing invites already reached.`,
+      status: 429,
+    };
+  }
+
   const ageHours = (Date.now() - biz.createdAt.getTime()) / 3_600_000;
   if (!opts.force && ageHours < REVIEW_HOURS) {
     return {
@@ -740,22 +756,19 @@ export type AutopilotStatus = {
 
 /** What the admin panel shows: is it on, is there fuel, did it move today. */
 export async function listingAutopilotStatus(): Promise<AutopilotStatus> {
-  const cutoff = new Date(Date.now() - REVIEW_HOURS * 3600_000);
-  const [sentToday, ready, pool, invitedTotal, inReview, queued] = await Promise.all([
+  const [sentToday, ready, pool, invitedTotal, queued] = await Promise.all([
     invitesSentToday(),
     pickReadyPages(500),
     candidatePoolSize(),
     prisma.outreachLead.count({ where: { status: LISTING_INVITED_STATUS } }),
-    prisma.business.count({
-      where: {
-        publicProspect: true,
-        publicNoIndex: false,
-        publicEmail: { not: null },
-        createdAt: { gt: cutoff },
-      },
-    }),
     unsentPageCount(),
   ]);
+
+  // "In review" is the part of the queue that isn't sendable yet. Counting
+  // every page created in the last 12h instead reported 11 while only 2 were
+  // actually waiting — a dashboard that overstates the backlog is worse than
+  // no dashboard, because it makes a stalled autopilot look busy.
+  const inReview = Math.max(0, queued - ready.length);
   return {
     enabled: autopilotEnabled(),
     markets: MARKETS,
