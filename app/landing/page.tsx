@@ -7,6 +7,7 @@ import { Check, Zap, ArrowRight } from "lucide-react"
 import { competitors as competitorPages } from "@/lib/seo/competitors"
 import { locations } from "@/lib/seo/locations"
 import { features as featurePages } from "@/lib/seo/features"
+import { CAPTERRA_URL, hasCapterraListing } from "@/lib/capterra"
 import {
   organizationSchema,
   softwareApplicationSchema,
@@ -530,6 +531,22 @@ export default function LandingPage() {
               <li><Link href="/list" className="hover:text-slate-900">List your venue — free</Link></li>
               <li><Link href="/partners" className="hover:text-slate-900">Partner programme</Link></li>
               <li><Link href="/try" className="hover:text-slate-900">Live demo</Link></li>
+              {hasCapterraListing() && (
+                <li>
+                  {/* Outbound to the directory profile. rel="noopener" because
+                      target="_blank" without it hands the opened tab a handle
+                      on this window. Not nofollow — this is a link we want
+                      associated with the brand. */}
+                  <a
+                    href={CAPTERRA_URL!}
+                    target="_blank"
+                    rel="noopener"
+                    className="hover:text-slate-900"
+                  >
+                    Rotahr on Capterra
+                  </a>
+                </li>
+              )}
               <li><Link href="/privacy" className="hover:text-slate-900">Privacy</Link></li>
               <li><Link href="/terms" className="hover:text-slate-900">Terms</Link></li>
             </ul>

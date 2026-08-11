@@ -8,11 +8,18 @@
  * page to a crawler.
  */
 
+import { CAPTERRA_URL } from "@/lib/capterra";
+
 export const SITE_URL = "https://rotahr.com";
 
+// Profiles that are demonstrably the same entity as this site. A directory
+// listing belongs here: it is the strongest third-party corroboration a young
+// brand has. Anything unset is filtered out rather than emitted as null —
+// invalid JSON-LD is ignored wholesale, so one bad member costs the lot.
 const SAME_AS = [
   "https://ie.linkedin.com/in/gabor-nemeth-02790a42",
-];
+  CAPTERRA_URL,
+].filter((u): u is string => typeof u === "string" && u.length > 0);
 
 /** Publisher identity — reused so every page points at one consistent entity. */
 export function organizationSchema() {
