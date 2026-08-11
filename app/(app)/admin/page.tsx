@@ -35,6 +35,7 @@ import { SiteAuditTab } from "@/components/admin/site-audit-tab";
 import { OutreachTab } from "@/components/admin/outreach-tab";
 import { InboxTab } from "@/components/admin/inbox-tab";
 import { ListingsTab } from "@/components/admin/listings-tab";
+import { LinksTab } from "@/components/admin/links-tab";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
@@ -101,6 +102,7 @@ const ADMIN_TABS = [
   "email",
   "outreach",
   "listings",
+  "links",
   "inbox",
   "seo",
   "audit",
@@ -459,6 +461,8 @@ export default function AdminPage() {
             ? "Cold email sequence to hospitality leads — preview every batch before it sends"
             : activeTab === "listings"
             ? "Paste a venue's email, build them a live page, then send the invite once you've looked at it"
+            : activeTab === "links"
+            ? "Off-site visibility — directories, trade press and associations, contacted by hand"
             : activeTab === "inbox"
             ? "Incoming mail to sales@rotahr.com — AI drafts a reply, you review and send"
             : "Email marketing campaigns & audiences"}
@@ -564,6 +568,18 @@ export default function AdminPage() {
           </span>
         </button>
         <button
+          onClick={() => setActiveTab("links")}
+          className={`shrink-0 whitespace-nowrap px-3 py-2.5 text-sm font-medium border-b-2 transition-colors sm:px-4 sm:py-2 ${
+            activeTab === "links"
+              ? "border-emerald-600 text-emerald-700"
+              : "border-transparent text-slate-500 hover:text-slate-700"
+          }`}
+        >
+          <span className="flex items-center gap-1.5">
+            <Link2 className="h-3.5 w-3.5" /> Links
+          </span>
+        </button>
+        <button
           onClick={() => setActiveTab("inbox")}
           className={`shrink-0 whitespace-nowrap px-3 py-2.5 text-sm font-medium border-b-2 transition-colors sm:px-4 sm:py-2 ${
             activeTab === "inbox"
@@ -595,6 +611,9 @@ export default function AdminPage() {
 
       {/* Prospect listings tab */}
       {activeTab === "listings" && <ListingsTab />}
+
+      {/* Off-site visibility tab */}
+      {activeTab === "links" && <LinksTab />}
 
       {/* AI inbox assistant tab */}
       {activeTab === "inbox" && <InboxTab />}

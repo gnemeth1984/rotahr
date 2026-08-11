@@ -1774,7 +1774,7 @@ model OutreachLead {
   verifyDetail String?
   /// When the probe last ran. Mailboxes come and go, so an old verdict is a
   /// stale one and gets re-checked rather than trusted forever.
-  verifiedAt DateTime?
+  verifiedAt   DateTime?
 
   notes  String? @db.Text
   source String? // which CSV / research run it came from
@@ -1936,9 +1936,9 @@ model MarketingConsentEvent {
   businessId String?
 
   /// true = opted in, false = withdrawn.
-  granted Boolean
+  granted     Boolean
   /// Where it happened: "claim_form" | "unsubscribe_link" | "admin" | "settings".
-  source  String
+  source      String
   /// Verbatim consent wording presented at the time.
   consentText String? @db.Text
 
@@ -1962,7 +1962,7 @@ model ListingTakedown {
 
   /// Normalised venue name (lowercased, punctuation stripped) — the key we can
   /// still match on after the Business row is gone.
-  nameKey String @unique
+  nameKey String  @unique
   email   String?
   slug    String?
   reason  String? @db.Text
@@ -1970,4 +1970,63 @@ model ListingTakedown {
   createdAt DateTime @default(now())
 
   @@index([email])
+}
+
+// LinkProspect — one place we want Rotahr mentioned, and the state of that ask.
+//
+// This is the only SEO gap the automated stack doesn't cover. 144 pages are
+// indexable, 71 articles are published, and 5 pages have ever earned an
+// impression: rotahr.com has no inbound links, so Google has no reason to rank
+// it above incumbents. More content cannot fix that — 71 posts is the proof.
+//
+// Deliberately NOT an automated sender. Every row here is a real editor,
+// association or directory whose goodwill is spent once; a cron blasting them
+// would burn the list and the domain with it. The pipeline exists so nothing is
+// forgotten and nothing is contacted twice, not so it can run unattended.
+//
+// `kind` distinguishes what the ask actually is, because they convert on
+// completely different timescales:
+//   directory  — free listing, we control it, days
+//   press      — editor pitch, needs a story, weeks
+//   guest_post — bylined article, needs writing time, weeks
+//   podcast    — interview, needs a hook, weeks
+//   community  — forum/association presence, ongoing
+//   partner    — integration/affiliate cross-link, months
+model LinkProspect {
+  id     String @id @default(cuid())
+  name   String
+  url    String @unique
+  kind   String @default("directory")
+  region String @default("general") // ie | uk | general
+
+  // Contact route, only ever what the target itself publishes. A guessed
+  // editor address is a spam report against a domain we can't afford to lose.
+  contactEmail String?
+  contactName  String?
+  contactNote  String? @db.Text // submission process, what they accept
+
+  /// Rough authority guess, 1-10, for ordering the queue. Not a real DR score —
+  /// we have no Ahrefs licence — just "how much would this matter".
+  weight Int @default(5)
+
+  /// Why this target plausibly cares about Rotahr. Written per row, because a
+  /// pitch that could be sent to any of them will be ignored by all of them.
+  angle String? @db.Text
+
+  // new | queued | sent | live | rejected | no_reply
+  status String @default("new")
+
+  /// The URL of the mention once it exists — the whole point of the row.
+  liveUrl String?
+
+  sentAt     DateTime?
+  liveAt     DateTime?
+  followUpAt DateTime?
+  notes      String?   @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, weight])
+  @@index([kind])
 }
