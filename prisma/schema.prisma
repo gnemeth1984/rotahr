@@ -2030,3 +2030,77 @@ model LinkProspect {
   @@index([status, weight])
   @@index([kind])
 }
+
+/// A venue that has no website of its own, sourced from OpenStreetMap.
+///
+/// WHY THIS TABLE EXISTS SEPARATELY FROM `OutreachLead`
+/// A lead is an email address we may pitch to. These rows frequently have no
+/// email at all, and that is fine: the reason to build a page for a venue with
+/// no website is that the page can rank for the venue's own name, which is how
+/// `christys-the-well` reached the first page of Google in nine days. The value
+/// is the ranking and the inbound claim, not an outbound send. Putting these in
+/// `OutreachLead` would either pollute the sequence with un-emailable rows or
+/// force us to invent addresses to fill the column.
+///
+/// WHY OPENSTREETMAP AND NOT GOOGLE PLACES
+/// Places has better coverage and a `websiteUri` field that would answer this
+/// question directly, but the Maps Platform terms forbid caching its content
+/// beyond 30 days and forbid using it to build a mailing list. A permanent
+/// prospect table built from Places data would breach them. OSM is ODbL: bulk
+/// extraction and reuse are expressly allowed, with attribution, which the
+/// public pages carry.
+///
+/// WHY `hasWebsite` IS STORED RATHER THAN ASSUMED
+/// The absence of a `website` tag in OSM means "nobody has tagged one", not
+/// "this venue has no website". Some of these will turn out to have a site we
+/// simply couldn't see, and when a check finds one the row is retired rather
+/// than silently rebuilt — a venue with its own homepage will outrank our page
+/// for its own name, so it belongs in the ordinary pitch sequence instead.
+model VenueCandidate {
+  id String @id @default(cuid())
+
+  /// OSM identity — the dedupe key. `node/123456` style, stable across re-runs,
+  /// so re-sourcing the same bbox updates rows instead of duplicating them.
+  osmRef String @unique
+
+  name    String
+  amenity String // pub | restaurant | cafe | bar | fast_food
+  country String @default("ie")
+
+  street      String?
+  housenumber String?
+  city        String?
+  postcode    String?
+  lat         Float?
+  lon         Float?
+
+  phone        String?
+  email        String?
+  facebook     String?
+  instagram    String?
+  openingHours String? // raw OSM opening_hours syntax, parsed at build time
+  cuisine      String?
+
+  /// Set true only once a check has actually found a live site. Null means
+  /// unchecked, which is not the same as false.
+  hasWebsite   Boolean?
+  websiteFound String?
+
+  // new | enriched | built | skipped | rejected
+  status String @default("new")
+
+  /// Slug of the page once one exists, so a rebuild is never a second page.
+  builtSlug String?
+
+  /// Why a row was skipped — chain, duplicate of an existing lead, no address.
+  skipReason String?
+
+  notes     String?   @db.Text
+  builtAt   DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([status, country])
+  @@index([amenity])
+  @@index([city])
+}
