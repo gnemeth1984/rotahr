@@ -86,6 +86,7 @@ export function renderListingInvite(lead: ListingInviteLead): {
   ${hookHtml}
   <p style="margin:0 0 14px">I built a page for ${name} on Rotahr. It's live now, it cost you nothing, and I didn't ask first &mdash; so have a look and tell me to bin it if you'd rather:</p>
   <p style="margin:0 0 18px">${ctaButton(pageUrl, "See the page")}</p>
+  <p style="margin:0 0 14px">These pages do get found. One of them &mdash; a bar in Listowel &mdash; is already on the first page of Google for the venue's own name, ahead of most of the directory listings. So this is another door into your place, and it's worth it being right.</p>
   <p style="margin:0 0 14px">It's put together from what's publicly listed about you, so there'll be things I got wrong or left out. Three options, all one click:</p>
   <ul style="margin:0 0 18px;padding-left:20px">
     <li style="margin:0 0 8px"><strong>Leave it.</strong> Do nothing. It stays up, free, and I won't chase you.</li>
@@ -108,6 +109,7 @@ export function renderListingInvite(lead: ListingInviteLead): {
     hook || null,
     `I built a page for ${lead.name} on Rotahr. It's live now, it cost you nothing, and I didn't ask first - so have a look and tell me to bin it if you'd rather:`,
     pageUrl,
+    "These pages do get found. One of them - a bar in Listowel - is already on the first page of Google for the venue's own name, ahead of most of the directory listings. So this is another door into your place, and it's worth it being right.",
     "It's put together from what's publicly listed about you, so there'll be things I got wrong or left out. Three options, all one click:",
     "- Leave it. Do nothing. It stays up, free, and I won't chase you.",
     '- Claim it and fix it - your photos, your menu, your hours, and a booking button that emails you directly. No commission and no per-cover fee. There\'s an "Is this your venue?" button at the bottom of the page.',
