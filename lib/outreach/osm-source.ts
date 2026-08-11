@@ -93,7 +93,27 @@ const CHAIN_PATTERNS = [
   /\bboojum\b/i,
   /\bfive guys\b/i,
   /\bgourmet burger\b/i,
+  // Found in the first Irish extract, all with 5+ locations apiece.
+  /\bapache pizza\b/i,
+  /\bcaff[eè] nero\b/i,
+  /\bbob & ?berts\b/i,
+  /\bpizza max\b/i,
+  /\bmacari'?s\b/i,
+  /\bkrispy kreme\b/i,
+  /\btim hortons\b/i,
+  /\bgrain & ?grill\b/i,
+  /\bthe bakewell\b/i,
 ];
+
+/**
+ * Names that look like a chain but are not.
+ *
+ * "The Village Inn", "Kelly's" and "Murphy's" each appear five or more times in
+ * the extract because they are the most ordinary pub names in Ireland, not
+ * because one company owns them. Filtering by repetition alone would throw away
+ * exactly the independent venues this channel exists to find, so repetition is
+ * never used as a chain signal — only an explicit name match is.
+ */
 
 export function isChain(name: string): boolean {
   return CHAIN_PATTERNS.some((re) => re.test(name));
