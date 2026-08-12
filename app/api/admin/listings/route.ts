@@ -242,11 +242,47 @@ export async function POST(req: Request) {
     const city = typeof body.city === "string" && body.city.trim() ? body.city.trim() : undefined;
     const hook = typeof body.hook === "string" && body.hook.trim() ? body.hook.trim() : undefined;
 
+    /**
+     * `force` is no longer implied by the click.
+     *
+     * This button used to pass force: true unconditionally, on the theory that
+     * a human looking at the page is the review. On 11 Aug that theory sent
+     * eight invites in under three minutes to pages 2.9h old — one click each,
+     * no friction, no cap. So: a page past the review window is sent normally,
+     * and a page inside it may only be forced when the caller types the slug
+     * back. Getting `confirmSlug` right requires actually reading the row.
+     */
+    const page = await prisma.business.findUnique({
+      where: { id: businessId },
+      select: { createdAt: true, publicSlug: true, publicProspect: true },
+    });
+    if (!page || !page.publicProspect) {
+      return NextResponse.json({ error: "No prospect page with that id." }, { status: 404 });
+    }
+    const reviewHours = (await listingAutopilotStatus()).reviewHours;
+    const ageHours = (Date.now() - page.createdAt.getTime()) / 3_600_000;
+    const early = ageHours < reviewHours;
+
+    if (early) {
+      const confirmSlug = typeof body.confirmSlug === "string" ? body.confirmSlug.trim() : "";
+      const slug = page.publicSlug ?? "";
+      if (!confirmSlug || confirmSlug !== slug) {
+        return NextResponse.json(
+          {
+            error: `This page is ${ageHours.toFixed(1)}h old — the review window is ${reviewHours}h. To send anyway, type the page slug (${slug}) to confirm.`,
+            needsConfirm: true,
+            slug,
+            ageHours: Number(ageHours.toFixed(1)),
+            reviewHours,
+          },
+          { status: 409 }
+        );
+      }
+    }
+
     // Same implementation the cron uses, so a hand-sent invite and an automated
-    // one are indistinguishable in the database. `force` is set because this
-    // button is only reachable by a human with the page in front of them — that
-    // click is the review the window otherwise waits for.
-    const r = await sendListingInvite(businessId, { city, hook, force: true, via: "admin-row" });
+    // one are indistinguishable in the database.
+    const r = await sendListingInvite(businessId, { city, hook, force: early, via: "admin-row" });
     if (!r.ok) return NextResponse.json({ error: r.error }, { status: r.status ?? 400 });
     return NextResponse.json({ ok: true, subject: r.subject, to: r.to });
   }

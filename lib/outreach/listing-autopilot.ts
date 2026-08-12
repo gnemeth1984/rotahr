@@ -500,9 +500,13 @@ export async function sendListingInvite(
     city?: string;
     hook?: string;
     /**
-     * Skip the review-window check. Only ever set by the per-row admin button,
-     * where a human is looking at the page as they click — that click IS the
-     * review. No automated path may set it.
+     * Skip the review-window check ONLY. It no longer lifts the daily cap, the
+     * dead-mailbox check or the already-invited check.
+     *
+     * A single click used to be enough to set this, and eight invites went out
+     * against pages 2.9h old before anyone noticed. The route that sets it now
+     * requires the page's slug to be typed back first, so an early send costs
+     * deliberate effort. No automated path may set it.
      */
     force?: boolean;
     /** Recorded on the lead so a surprise batch can be traced to its trigger. */
@@ -564,7 +568,17 @@ export async function sendListingInvite(
    * a full batch. Checking immediately before each individual send closes the
    * window to one message instead of a whole batch.
    */
-  if (!opts.force && (await invitesSentToday()) >= LISTING_DAILY_LIMIT) {
+  /**
+   * The cap applies to `force` too, deliberately.
+   *
+   * It used to be inside the `!opts.force` branch, which made the per-row
+   * button an unlimited send channel: eight invites left in under three
+   * minutes on 11 Aug because nothing counted them. Reputation damage is a
+   * function of volume per day and does not care whether a human clicked, so
+   * the cap is the one rule with no override. Raise LISTING_DAILY_LIMIT if a
+   * bigger day is genuinely wanted.
+   */
+  if ((await invitesSentToday()) >= LISTING_DAILY_LIMIT) {
     return {
       ok: false,
       error: `Daily limit of ${LISTING_DAILY_LIMIT} listing invites already reached.`,

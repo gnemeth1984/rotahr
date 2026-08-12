@@ -274,11 +274,10 @@ export function ListingsTab() {
     if (ok) void loadPages();
   }
 
-  async function sendInvite(id: string, name: string) {
+  async function sendInvite(id: string, name: string, confirmSlug?: string) {
     if (
-      !confirm(
-        `Send the invite email for ${name}? This goes to a real venue, skips the review window, and can't be undone.`
-      )
+      !confirmSlug &&
+      !confirm(`Send the invite email for ${name}? This goes to a real venue and can't be undone.`)
     )
       return;
     setBusyId(id);
@@ -288,8 +287,27 @@ export function ListingsTab() {
       businessId: id,
       city: cityById[id] || undefined,
       hook: hookById[id] || undefined,
+      confirmSlug,
     });
     setBusyId(null);
+
+    /**
+     * The page is inside the review window. Rather than a second yes/no — which
+     * is what let eight early invites out in three minutes — the slug has to be
+     * typed. Reading it off the row is the review.
+     */
+    if (!ok && json?.needsConfirm && !confirmSlug) {
+      const typed = prompt(
+        `${String(json.error)}\n\nThis is the check that exists because 8 invites once went out to pages under 3 hours old. Leave it blank to cancel.`
+      );
+      if (typed && typed.trim() === String(json.slug)) {
+        await sendInvite(id, name, typed.trim());
+        return;
+      }
+      setMsg({ kind: "err", text: "Not sent — slug didn't match, so the review window stands." });
+      return;
+    }
+
     setMsg(
       ok
         ? { kind: "ok", text: `Sent to ${String(json.to)} — "${String(json.subject)}"` }
@@ -647,7 +665,8 @@ export function ListingsTab() {
           </Button>
         </div>
         <p className="text-sm text-slate-500 mb-4">
-          Look at the page before sending. Send is one click and cannot be recalled.
+          Look at the page before sending — send cannot be recalled. A page younger than the review window
+          asks you to type its slug first, and the daily cap applies to hand-sends too.
         </p>
 
         {loadingPages && pages.length === 0 ? (
