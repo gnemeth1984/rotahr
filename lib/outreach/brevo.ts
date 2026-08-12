@@ -57,9 +57,12 @@ export type DomainAuthStatus = {
  * Brevo. Mailbox providers junk exactly that, and the domain being burned here
  * is the same one that sends every customer their booking confirmations.
  *
- * Verified against the live account: rotahr.com returned authenticated:false
- * and a test send still came back 201. A 201 therefore proves nothing about
- * whether the mail can land, which is why a real batch checks this first.
+ * Verified against the live account: rotahr.com once returned
+ * authenticated:false while a test send still came back 201. A 201 therefore
+ * proves nothing about whether the mail can land, which is why a real batch
+ * checks this first. As of 2026-08-12 rotahr.com is authenticated - both
+ * brevo1/brevo2._domainkey CNAMEs resolve to live keys - but the check stays,
+ * because a DNS change can silently undo it at any time.
  */
 export async function checkSenderDomain(): Promise<DomainAuthStatus> {
   const domain = FROM_EMAIL.split("@")[1] ?? "";
