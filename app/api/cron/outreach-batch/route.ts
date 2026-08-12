@@ -36,6 +36,20 @@ export async function GET(req: NextRequest) {
   // consume the whole day's allowance in a single burst.
   const perRun = Number(process.env.OUTREACH_BATCH_SIZE || 25);
 
+  // `?dry=1` reports the limits this deployment actually resolved and sends
+  // nothing. Vercel encrypts env values and will not decrypt them back over the
+  // API, so after changing OUTREACH_DAILY_LIMIT there is otherwise no way to
+  // confirm the running deployment picked the new number up short of firing a
+  // real batch at real strangers.
+  if (req.nextUrl.searchParams.get("dry") === "1") {
+    return NextResponse.json({
+      dryRun: true,
+      dailyLimit: DEFAULT_DAILY_LIMIT,
+      batchSize: perRun,
+      effectivePerRun: Math.min(perRun, DEFAULT_DAILY_LIMIT),
+    });
+  }
+
   const result = await runBatch({ limit: Math.min(perRun, DEFAULT_DAILY_LIMIT) });
 
   return NextResponse.json({
