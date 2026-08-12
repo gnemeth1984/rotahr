@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { isSuperAdminEmail } from "@/lib/auth/super-admins";
 import { Resend } from "resend";
+import { isUnroutableAddress } from "@/lib/email/send";
 
 const resend = new Resend(process.env.RESEND_API_KEY!);
 
@@ -37,6 +38,15 @@ export async function POST(req: Request) {
   try {
     const { email, firstName, lastName, audienceId } = await req.json();
     if (!email) return NextResponse.json({ error: "email required" }, { status: 400 });
+    // Keep demo and reserved-domain addresses out of the audience entirely —
+    // a contact list is reused across every future broadcast, so one bad
+    // address bounces repeatedly rather than once.
+    if (isUnroutableAddress(email)) {
+      return NextResponse.json(
+        { error: "That address is on a demo or reserved domain (.demo/.test/example.com) and would bounce." },
+        { status: 400 }
+      );
+    }
 
     const payload = audienceId
       ? { email, firstName, lastName, audienceId } // legacy API with audienceId

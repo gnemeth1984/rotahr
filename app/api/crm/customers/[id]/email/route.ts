@@ -6,6 +6,7 @@ import { Resend } from "resend";
 import { z } from "zod";
 import { sendViaGmail } from "@/lib/google/gmail";
 import { isDemoEmail, isDemoBusinessId } from "@/lib/demo/reset";
+import { isUnroutableAddress } from "@/lib/email/send";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -26,6 +27,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!customer) return NextResponse.json({ error: "Not found" }, { status: 404 });
   if (!customer.email) return NextResponse.json({ error: "Customer has no email address" }, { status: 400 });
   if (!customer.gdprConsent) return NextResponse.json({ error: "Customer has not given GDPR marketing consent" }, { status: 403 });
+  /**
+   * The demo guard below checks who is SENDING. This checks who is RECEIVING —
+   * a seeded customer on a .demo domain would hard-bounce even from a real
+   * account, and bounces are charged to the domain regardless of who caused them.
+   */
+  if (isUnroutableAddress(customer.email)) {
+    return NextResponse.json(
+      { error: "That address is on a demo or reserved domain and cannot receive mail." },
+      { status: 400 }
+    );
+  }
   if (customer.isAnonymised) return NextResponse.json({ error: "Customer is anonymised" }, { status: 400 });
 
   const body = await req.json();

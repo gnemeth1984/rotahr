@@ -55,6 +55,35 @@ export interface SendArgs {
   context: string;
 }
 
+/**
+ * Addresses that provably cannot receive mail, dropped before Resend sees them.
+ *
+ * The demo seed gives every fake staff member a working-looking address on a
+ * made-up domain — sarah.connolly@rotahr.demo, luke.flanagan@bloombistro.demo,
+ * dan.kearns@cornercafe.demo, mark.doyle@harringtongroup.demo. `.demo` is not a
+ * real TLD, so all of them hard-bounce, and the daily shift-reminder cron was
+ * mailing every one of them: 25 bounces on 11 Aug, 14 on 10 Aug, every single
+ * day, from the same domain that sends real listing invites and password
+ * resets. Bounce rate is what mailbox providers use to decide whether the
+ * domain is trustworthy, so demo data was quietly spending the reputation the
+ * real outreach depends on.
+ *
+ * The check lives here, in the one function every feature sends through, rather
+ * than in the cron that happened to be caught. isDemoEmail() in lib/demo/reset
+ * only matches @rotahr.demo and would still have missed three of the four demo
+ * businesses; this matches the whole shape of the problem instead.
+ */
+export function isUnroutableAddress(email: string): boolean {
+  const addr = email.trim().toLowerCase();
+  const domain = addr.split("@")[1];
+  if (!domain) return true;
+  // Reserved by RFC 2606 / RFC 6761 for documentation and testing — no MX, ever.
+  const RESERVED = ["demo", "test", "example", "invalid", "localhost", "local", "internal"];
+  const tld = domain.split(".").pop() ?? "";
+  if (RESERVED.includes(tld)) return true;
+  return ["example.com", "example.org", "example.net"].includes(domain);
+}
+
 function getResend(): Resend | null {
   const key = process.env.RESEND_API_KEY;
   if (!key || key === "re_placeholder") return null;
@@ -73,10 +102,32 @@ export async function sendEmail(args: SendArgs): Promise<SendResult> {
     return { ok: false, id: null, error };
   }
 
+  /**
+   * Filter unroutable recipients before the API call, not after.
+   *
+   * A send to a mix of real and demo addresses still counts every demo bounce
+   * against the domain, so they are removed from the list rather than the send
+   * being abandoned — one real recipient in a batch should still get their mail.
+   */
+  const recipients = (Array.isArray(args.to) ? args.to : [args.to]).filter(Boolean);
+  const deliverable = recipients.filter((r) => !isUnroutableAddress(r));
+  const dropped = recipients.length - deliverable.length;
+  if (dropped > 0) {
+    console.warn(
+      `[email:${args.context}] skipped ${dropped} unroutable recipient(s): ` +
+        recipients.filter((r) => isUnroutableAddress(r)).join(", ")
+    );
+  }
+  if (deliverable.length === 0) {
+    // Reported as ok: for demo data this is the correct outcome, and a caller
+    // that treats it as failure would log noise or retry forever.
+    return { ok: true, id: null, error: null };
+  }
+
   try {
     const { data, error } = await resend.emails.send({
       from: args.from ?? DEFAULT_FROM,
-      to: args.to,
+      to: deliverable,
       replyTo: args.replyTo ?? REPLY_TO,
       subject: args.subject,
       html: args.html,
