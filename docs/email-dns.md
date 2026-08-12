@@ -12,10 +12,11 @@ change below is made in **Vercel → Domains → rotahr.com → DNS**.
 | **Namecheap Private Email** | mail Gabor sends by hand from the `sales@` mailbox (MX = `mx1/mx2.privateemail.com`) | `include:spf.privateemail.com` added 12 Aug | `privateemail._domainkey` added 12 Aug, 2048-bit | **passes** |
 
 Current root SPF: `v=spf1 include:spf.privateemail.com include:spf.brevo.com ~all`
-Current DMARC: `v=DMARC1; p=none; rua=mailto:gnemeth1984@gmail.com`
+Current DMARC: `v=DMARC1; p=quarantine; sp=quarantine; adkim=r; aspf=r; pct=100; rua=mailto:gnemeth1984@gmail.com`
 
-All three senders aligned as of 12 Aug 2026, so `p=quarantine` is now safe.
-The section below is kept as the record of why it was not.
+All three senders aligned and DMARC moved to `p=quarantine` on 12 Aug 2026,
+verified on both Google and Cloudflare resolvers. The section below is kept as
+the record of why it was not safe earlier.
 
 ## Why p=quarantine was not safe before 12 Aug
 
@@ -48,7 +49,7 @@ will not validate.
 
 ## Then flip DMARC
 
-Change the `_dmarc` TXT record to:
+Done 12 Aug 2026. The `_dmarc` TXT record is:
 
 ```
 v=DMARC1; p=quarantine; sp=quarantine; adkim=r; aspf=r; pct=100; rua=mailto:gnemeth1984@gmail.com
@@ -69,3 +70,22 @@ curl -s "https://api.brevo.com/v3/senders/domains/rotahr.com" -H "api-key: $BREV
 A Vercel API token cannot do any of this unless it is **account-scoped**: the
 project-scoped token in `.env.local` gets `forbidden` from
 `/v4/domains/rotahr.com/records` and `/v5/domains`.
+
+## Reading the reports
+
+Aggregate reports arrive at `gnemeth1984@gmail.com` as daily XML attachments,
+one per reporting provider, starting roughly 24-48h after the policy change.
+They are machine-readable rather than pleasant, and the only line that matters
+per record is whether `dkim` and `spf` both say `pass`.
+
+What to watch for in the first fortnight:
+
+- A source IP you do not recognise failing both. Usually a forgotten service
+  still sending as `@rotahr.com` - the policy is now junking its mail.
+- Mailing lists and forwarders fail SPF by design, because the forwarder sends
+  from its own IP. They pass DKIM if the body was not modified, and `adkim=r`
+  keeps that passing. This is why the policy is `quarantine` and not `reject`.
+
+Only move to `p=reject` after a clean fortnight, and only if there is a reason
+to - `quarantine` already stops the impersonation that matters to a business
+this size.
