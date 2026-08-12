@@ -75,6 +75,139 @@ function tidyUrl(raw: string): string | null {
 }
 
 /**
+ * A mailbox we would refuse to send to anyway.
+ *
+ * `hr@dinos.ie\` reached the lead table on the 12 Aug run — a trailing
+ * backslash the model emitted, which every earlier check waved through because
+ * they only looked for an `@`. A malformed address is worse than none: it sits
+ * in the table looking sendable and fails at the provider.
+ */
+export function malformedEmail(email: string): boolean {
+  return !/^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/i.test(email.trim());
+}
+
+/** Strip everything but letters and digits, so "The Lady Belle" ≈ "theladybellepub". */
+function squash(s: string): string {
+  return s.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+/**
+ * Does this mailbox look like it belongs to a differently-named business?
+ *
+ * Rewritten after the 12 Aug run, where the first version flagged 6 of 46 and
+ * got both halves wrong:
+ *
+ *   false positives — "The Lady Belle" → theladybellepub@gmail.com was flagged,
+ *     because only the DOMAIN was compared and the domain is gmail.com. The
+ *     venue name was sitting in the local part all along. Same for Antiquity,
+ *     Tom Barry's and Briar Rose. Four of the six flags were noise, which is how
+ *     a flag gets ignored.
+ *   misses — "Mol's Bar" → hello@oneillsbartramore.com and "Sin É" →
+ *     risingsonscork@gmail.com both passed. These are the wrong venue entirely,
+ *     the actual thing worth catching. They passed because tokens under 4
+ *     characters were dropped, leaving "Mol" and "Sin" with nothing to compare.
+ *
+ * So: compare against the local part, the domain AND the source URL, match on
+ * squashed substrings rather than whole words, keep 3-character tokens, and when
+ * a name yields no usable token say so instead of silently passing.
+ */
+export function nameMismatch(name: string, email: string, website: string | null): string | null {
+  /**
+   * The URL PATH is deliberately excluded, only the host is compared.
+   *
+   * "Sin É" passed against risingsonscork@gmail.com because the site found was
+   * corkheritagepubs.com/sin-e — a directory page. Every directory page carries
+   * the venue name in its path, so matching the path means any directory listing
+   * vouches for any mailbox printed on it. The host is the part that says whose
+   * business this is.
+   */
+  const host = (() => {
+    if (!website) return "";
+    try {
+      return new URL(website).hostname;
+    } catch {
+      return website;
+    }
+  })();
+  const haystack = squash(`${email} ${host}`);
+  /**
+   * Segments, for short tokens only.
+   *
+   * "Sin É" passed against risingsonscork@gmail.com because "sin" is a
+   * substring of "rising". Three letters are short enough to appear inside an
+   * unrelated word by accident, so a 3-letter token has to line up with an
+   * actual segment of the address rather than any position in it.
+   */
+  const segments = `${email} ${host}`
+    .toLowerCase()
+    .split(/[^a-z]+/)
+    .filter(Boolean);
+  const generic = new Set([
+    "restaurant","hotel","bar","cafe","inn","house","the","and","pub","kitchen","takeaway",
+    "lounge","grill","bistro","tavern","coffee","food","company","ltd",
+  ]);
+  const tokens = name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .split(/\s+/)
+    // Plural strip, but only on a word long enough to survive it. Stripping
+    // blindly turned "Cass" into "cas" and flagged cassandco.ie as a stranger.
+    .map((t) => (t.length >= 5 ? t.replace(/s$/, "") : t)) // Barry's → barry
+    .filter((t) => t.length >= 3 && !generic.has(t));
+
+  if (tokens.length === 0) {
+    return `"${name}" has no distinctive word to match against ${email} — confirm by hand that this mailbox is the right venue.`;
+  }
+  const matched = tokens.some((t) =>
+    t.length >= 4
+      ? haystack.includes(t)
+      : // A 3-letter token must sit at a segment edge: "theoar" ends with "oar",
+        // whereas "rising" merely contains "sin".
+        segments.some((s) => s === t || s.startsWith(t) || s.endsWith(t))
+  );
+  if (!matched) {
+    return `nothing in ${email}${host ? ` or ${host}` : ""} matches "${name}" — this is very likely a different business. Confirm who the inbox belongs to before addressing them by the venue name.`;
+  }
+
+  /**
+   * Second rule: a mailbox on a domain that belongs to neither the venue nor
+   * the venue's own site.
+   *
+   * The first rule alone cleared four rows that are plainly wrong, because the
+   * WEBSITE matched the name while the EMAIL sat on an unrelated domain:
+   *
+   *   Foley's Bar, Cashel   site foleys.ie      → info@oneillsmerrionrow.ie
+   *                                               (a different pub, in Dublin)
+   *   Bennigan's, Clonmel   site bennigans.com  → info@lrbllc.com
+   *                                               (the US franchise company)
+   *   Number 21, Carrick    site number21.ie    → info@fyrefli.ie
+   *                                               (the agency that built the site)
+   *
+   * That last one is the pattern worth naming: a web designer's footer credit
+   * is on thousands of small hospitality sites, and scraping it produces a lead
+   * that would be addressed as the venue. A custom domain therefore has to look
+   * like the venue or like its site; free mailboxes are exempt, since gmail.com
+   * cannot match anything and rule one already read their local part.
+   */
+  const emailDomain = email.split("@")[1]?.toLowerCase() ?? "";
+  const FREE_MAIL = new Set([
+    "gmail.com","hotmail.com","hotmail.co.uk","outlook.com","outlook.ie","yahoo.com","yahoo.co.uk",
+    "yahoo.ie","live.com","live.ie","icloud.com","me.com","aol.com","eircom.net","btinternet.com",
+    "ymail.com","googlemail.com","protonmail.com","proton.me",
+  ]);
+  if (emailDomain && !FREE_MAIL.has(emailDomain) && host) {
+    const siteDomain = host.replace(/^www\./, "").toLowerCase();
+    const sameDomain = emailDomain === siteDomain || emailDomain.endsWith(`.${siteDomain}`) || siteDomain.endsWith(`.${emailDomain}`);
+    const domainMatchesName = tokens.some((t) => squash(emailDomain).includes(t));
+    if (!sameDomain && !domainMatchesName) {
+      return `mailbox is on ${emailDomain}, which is neither ${siteDomain} nor anything like "${name}" — often a web designer's footer credit, a franchise head office or a different venue. Confirm the mailbox before sending.`;
+    }
+  }
+
+  return null;
+}
+
+/**
  * Process one candidate end to end.
  *
  * Writes the verdict to the candidate row either way, so a second run never
@@ -141,7 +274,9 @@ export async function convertCandidate(
 
   // Best address first: contact-discovery already ranks generic mailboxes above
   // personal ones, and flags a domain that cannot receive mail.
-  const usable = contacts.emails.filter((e) => e.mx !== "no-mx");
+  // Drop anything that isn't a syntactically valid address before the MX check —
+  // `hr@dinos.ie\` got all the way into the lead table because nothing looked.
+  const usable = contacts.emails.filter((e) => e.mx !== "no-mx" && !malformedEmail(e.value));
 
   if (usable.length === 0) {
     const why = contacts.emails.length
@@ -226,13 +361,7 @@ export async function convertCandidate(
     // inbox, and if the hotel is later sourced under its own name we would hold
     // two leads on one mailbox. Recording it means a human can see it before a
     // send rather than after.
-    const nameTokens = row.name
-      .toLowerCase()
-      .replace(/[^a-z0-9\s]/g, " ")
-      .split(/\s+/)
-      .filter((t) => t.length >= 4 && !["restaurant", "hotel", "bar", "cafe", "inn", "house", "the"].includes(t));
-    const domain = pick.value.split("@")[1]?.toLowerCase() ?? "";
-    const mismatch = nameTokens.length > 0 && !nameTokens.some((t) => domain.includes(t));
+    const flag = nameMismatch(row.name, pick.value, site);
 
     // Park it out of the sequence's reach. Scoped to a lead that has never been
     // contacted, so re-running this can never drag an address that is already
@@ -245,9 +374,7 @@ export async function convertCandidate(
         notes:
           `[osm-discovery ${new Date().toISOString().slice(0, 10)}] address read from ${pick.source}. ` +
           `Parked as ${UNVERIFIED_STATUS} — probe with scripts/verify-leads.ts before any send.` +
-          (mismatch
-            ? `\n[check name] mailbox domain "${domain}" shares no word with "${row.name}" — likely a venue inside a larger business. Confirm who this inbox belongs to before addressing them by the venue name.`
-            : ""),
+          (flag ? `\n[check name] ${flag}` : ""),
       },
     });
   }
