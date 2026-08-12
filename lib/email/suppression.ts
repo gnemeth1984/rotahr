@@ -71,7 +71,32 @@ export async function suppress(opts: {
       userAgent: opts.userAgent ?? undefined,
     },
   });
+  await markLeadUnsubscribed(email);
   void notifyOutreachService(email);
+}
+
+/**
+ * Mirrors the opt-out onto the lead row straight away.
+ *
+ * `sendToLead()` already flips a suppressed lead to `unsubscribed`, but only
+ * when the lead next comes up for a send — so between the opt-out and that
+ * moment the lead still reads `contacted`. Measured 12 Aug 2026: 39 active
+ * suppressions and `status = 'unsubscribed'` on exactly 0 of 1,838 leads, which
+ * made the opt-out rate look like zero in every report that counts by status.
+ * Sending was never at risk (`isSuppressed()` is checked immediately before
+ * each send); the number was.
+ *
+ * updateMany so an address that was never a lead matches nothing quietly, and
+ * terminal states are left alone — `replied` and `bounced` say more about the
+ * lead than `unsubscribed` does.
+ */
+async function markLeadUnsubscribed(email: string): Promise<void> {
+  await prisma.outreachLead
+    .updateMany({
+      where: { email, status: { notIn: ["unsubscribed", "replied", "bounced", "converted"] } },
+      data: { status: "unsubscribed" },
+    })
+    .catch(() => undefined);
 }
 
 export async function unsuppress(email: string): Promise<void> {
@@ -82,6 +107,24 @@ export async function unsuppress(email: string): Promise<void> {
   // rows quietly.
   await prisma.emailSuppression
     .updateMany({ where: { email: e }, data: { revokedAt: new Date() } })
+    .catch(() => undefined);
+
+  // Put the lead back in the sequence, since leaving it on `unsubscribed` would
+  // silently keep it out forever. The step it was on before the opt-out isn't
+  // stored, so it resumes at `contacted` whenever it has been mailed at least
+  // once — the cadence then waits the usual 5 days from `lastContacted`, so an
+  // undo can never trigger an immediate send.
+  await prisma.outreachLead
+    .updateMany({
+      where: { email: e, status: "unsubscribed", contactCount: { gt: 0 } },
+      data: { status: "contacted" },
+    })
+    .catch(() => undefined);
+  await prisma.outreachLead
+    .updateMany({
+      where: { email: e, status: "unsubscribed", contactCount: 0 },
+      data: { status: "new" },
+    })
     .catch(() => undefined);
 }
 
