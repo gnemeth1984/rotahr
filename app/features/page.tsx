@@ -90,6 +90,81 @@ export default function FeaturesIndexPage() {
           ))}
         </div>
 
+        {/*
+          Module set stated in the vocabulary directory reviewers actually use.
+          G2's Restaurant Management category requires four of: inventory
+          management, POS, employee management, accounting, order management,
+          reservations. The module names above are the words our customers use
+          ("rota", "bookkeeping", "stock") and a reviewer scanning this page for
+          "inventory" or "accounting" found neither — a category request was
+          already refused once for a mismatch of exactly this kind. The two
+          things Rotahr is not are named for the same reason: a claim that
+          doesn't hold is worse than a gap that does.
+        */}
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-8 mb-16">
+          <h2 className="text-2xl font-bold mb-2">Where Rotahr fits</h2>
+          <p className="text-sm text-slate-300 mb-6 max-w-2xl leading-relaxed">
+            Rotahr is restaurant management software: it covers the back of house
+            — staff, stock, money, bookings and food safety — for independent
+            restaurants, pubs, cafés and small groups. In the standard category
+            terms:
+          </p>
+
+          <dl className="space-y-4 mb-8">
+            {[
+              {
+                term: "Employee management",
+                body: "Rota building, shift templates, time off and break entitlements, clock-in by GPS or QR, and payroll hours export.",
+                slug: "staff-scheduling",
+              },
+              {
+                term: "Inventory management",
+                body: "Stock counts, supplier deliveries, and recipe costing that re-prices every dish when an ingredient price moves.",
+                slug: "stock-recipe-costing",
+              },
+              {
+                term: "Accounting",
+                body: "Expense and receipt capture, category totals, P&L, VAT or sales-tax summaries, per-employee labour cost, CSV export.",
+                slug: "bookkeeping-receipts",
+              },
+              {
+                term: "Reservations and table management",
+                body: "Table bookings with a drag-and-drop floor plan, live table status by service, and guest history on every booking.",
+                slug: "table-bookings",
+              },
+              {
+                term: "Reporting",
+                body: "Labour cost against hours worked, food-safety compliance rates, booking and cover volumes, gross margin per dish.",
+                slug: "bookkeeping-receipts",
+              },
+              {
+                term: "Compliance records",
+                body: "Paperless HACCP — temperature and delivery checks, cleaning and opening/closing checklists, corrective actions, PDF export for an inspection.",
+                slug: "haccp-food-safety",
+              },
+            ].map((c) => (
+              <div key={c.term} className="border-l-2 border-[#FF6B35] pl-4">
+                <dt className="font-semibold">
+                  <Link href={`/features/${c.slug}`} className="hover:text-[#FF6B35] transition-colors">
+                    {c.term}
+                  </Link>
+                </dt>
+                <dd className="text-sm text-slate-300 leading-relaxed">{c.body}</dd>
+              </div>
+            ))}
+          </dl>
+
+          <h3 className="font-semibold mb-2 text-slate-200">What Rotahr is not</h3>
+          <p className="text-sm text-slate-400 leading-relaxed max-w-2xl">
+            Rotahr has no point of sale and no order management — it does not take
+            payments from your guests or send tickets to the kitchen, and it is
+            not a delivery or online-ordering platform. It sits alongside whatever
+            till you already run. There is also no course library or training
+            content: certification expiry dates are tracked, the courses
+            themselves are not.
+          </p>
+        </div>
+
         <div className="rounded-2xl bg-gradient-to-r from-[#FF6B35] to-[#E8365D] p-8 text-center mb-16">
           <h2 className="text-2xl font-bold mb-3">Easier to just look</h2>
           <p className="mb-6 text-white/90">

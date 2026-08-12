@@ -56,8 +56,30 @@ export function softwareApplicationSchema() {
     "@id": `${SITE_URL}/#software`,
     name: "Rotahr",
     applicationCategory: "BusinessApplication",
-    applicationSubCategory: "Workforce Management",
+    applicationSubCategory: "Restaurant Management Software",
     operatingSystem: "Web, iOS, Android",
+    /**
+     * The capability list in the vocabulary directories and LLMs index on.
+     * "Rota" and "bookkeeping" are what customers call these, but nothing
+     * matching "inventory" or "accounting" appeared anywhere in our markup,
+     * which is a poor showing for a product that does both. POS and order
+     * management are deliberately absent rather than softened.
+     */
+    featureList: [
+      "Employee scheduling",
+      "Employee management",
+      "Time and attendance tracking",
+      "Payroll hours export",
+      "Inventory management",
+      "Recipe and menu costing",
+      "Accounting and expense tracking",
+      "Reservations and table management",
+      "Floor plan management",
+      "Customer relationship management",
+      "HACCP food safety compliance records",
+      "Reporting and analytics",
+      "Multi-location management",
+    ],
     url: SITE_URL,
     description:
       "Venue management software for pubs, cafés, restaurants and hotels: rota scheduling, clock in/out, table reservations, HACCP compliance, stock, bookkeeping and payroll.",
