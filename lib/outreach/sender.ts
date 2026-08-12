@@ -152,6 +152,16 @@ export async function findEligibleLeads(
     WHERE status NOT IN ('cold','unsubscribed','replied','bounced','converted')
       AND "bouncedAt" IS NULL
       AND "repliedAt" IS NULL
+      -- Exclude proved-dead mailboxes from SELECTION, not only from sending.
+      --
+      -- sendOne() already refuses these, so none were ever mailed — but they
+      -- were still being picked, and a skipped lead consumes a slot in the
+      -- batch. 377 of the 1,284 queued leads carry verdict 'dead', so roughly
+      -- three in every ten slots were being spent on addresses that could not
+      -- receive anything. That is why daily sends read 8, 22, 3, 15, 10, 20
+      -- with the limit set to 10. Verdicts unknown and catch-all stay eligible,
+      -- the same asymmetry isUndeliverable() applies.
+      AND ("emailVerdict" IS NULL OR "emailVerdict" NOT IN ('dead','no-mx'))
       AND (
         status = 'new'
         OR (status = 'contacted'   AND "lastContacted" <= NOW() - INTERVAL '5 days')
