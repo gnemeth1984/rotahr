@@ -765,7 +765,7 @@ function OrderBuilderDialog({
                       value={line.unitPrice}
                       onChange={(e) => updateField(i, "unitPrice", e.target.value)}
                       className="h-9 text-sm"
-                      placeholder="€0.00"
+                      placeholder={`${symbol}0.00`}
                     />
 
                     <Button variant="ghost" size="icon" className="h-9 w-9 text-slate-300 hover:text-red-500" onClick={() => removeLine(i)}>
@@ -896,6 +896,7 @@ function StockReceiptScanDialog({
   onClose: () => void;
   onApplied: () => void;
 }) {
+  const { symbol, fmt: fmtMoney } = useCurrency();
   const fileRef = useRef<HTMLInputElement>(null);
   const [step, setStep] = useState<"upload" | "review" | "done">("upload");
   const [uploading, setUploading] = useState(false);
@@ -1171,7 +1172,7 @@ function StockReceiptScanDialog({
                           <td className="px-3 py-3 text-right">
                             {s.unitPrice !== null ? (
                               <span className={cn("font-medium", s.priceChanged ? "text-amber-700" : "text-slate-800")}>
-                                €{s.unitPrice.toFixed(2)}
+                                {fmtMoney(s.unitPrice)}
                               </span>
                             ) : <span className="text-slate-400">—</span>}
                           </td>
@@ -1394,7 +1395,7 @@ function OrdersTab({ orders, suppliers, stockItems, loading, onNew, onEdit, onRe
   orders: SupplierOrder[]; suppliers: Supplier[]; stockItems: StockItem[];
   loading: boolean; onNew: () => void; onEdit: (o: SupplierOrder) => void; onRefresh: () => void; hasDraft?: boolean;
 }) {
-  const { locale } = useCurrency();
+  const { locale, symbol, fmt: fmtMoney } = useCurrency();
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState("all");
 
@@ -1530,9 +1531,9 @@ function OrdersTab({ orders, suppliers, stockItems, loading, onNew, onEdit, onRe
                           <tr key={i} className="hover:bg-slate-50">
                             <td className="px-3 py-2">{item.stockItem?.name ?? "—"} <span className="text-slate-400">({item.stockItem?.unit ?? ""})</span></td>
                             <td className="px-3 py-2 text-right">{item.quantity}</td>
-                            <td className="px-3 py-2 text-right">{item.unitPrice != null ? `€${item.unitPrice.toFixed(2)}` : "—"}</td>
+                            <td className="px-3 py-2 text-right">{item.unitPrice != null ? fmtMoney(item.unitPrice) : "—"}</td>
                             <td className="px-3 py-2 text-right font-medium">
-                              {item.unitPrice != null ? `€${(item.quantity * item.unitPrice).toFixed(2)}` : "—"}
+                              {item.unitPrice != null ? fmtMoney(item.quantity * item.unitPrice) : "—"}
                             </td>
                           </tr>
                         ))}
@@ -1808,7 +1809,7 @@ function SupplierStatementsTab({
                                 <th className="text-left px-3 py-2 text-xs font-medium text-slate-500">Description</th>
                                 <th className="text-left px-3 py-2 text-xs font-medium text-slate-500">SKU</th>
                                 <th className="text-center px-3 py-2 text-xs font-medium text-slate-500">Qty</th>
-                                <th className="text-right px-3 py-2 text-xs font-medium text-slate-500">Unit €</th>
+                                <th className="text-right px-3 py-2 text-xs font-medium text-slate-500">Unit {symbol}</th>
                                 <th className="text-right px-3 py-2 text-xs font-medium text-slate-500">Total</th>
                               </tr>
                             </thead>
