@@ -1,4 +1,3 @@
-// @ts-nocheck
 "use client";
 
 import { useState, useEffect, useCallback, useRef, Component } from "react";
@@ -593,7 +592,10 @@ function OrderBuilderDialog({
       setNotes(editOrder.notes ?? "");
       setLines(editOrder.items.map((item) => ({
         stockItemId: item.stockItemId ?? undefined,
-        customName: item.customName ?? undefined,
+        // No customName here on purpose: POST /api/orders resolves a typed-in
+        // name to a real stock item (creating one if needed) before saving, so a
+        // stored line always has stockItemId and never a customName. Reading one
+        // back was dead code that only compiled because of @ts-nocheck.
         unit: item.stockItem?.unit ?? "unit",
         quantity: String(item.quantity),
         unitPrice: item.unitPrice != null ? String(item.unitPrice) : "",
@@ -1602,6 +1604,7 @@ function SupplierStatementsTab({
   suppliers: Supplier[]; stockItems: StockItem[];
   fmt: (n: number | null | undefined) => string;
 }) {
+  const { symbol } = useCurrency();
   const fileRef = useRef<HTMLInputElement>(null);
   const [statements, setStatements] = useState<SupplierStatement[]>([]);
   const [loading, setLoading] = useState(true);
