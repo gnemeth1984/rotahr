@@ -93,3 +93,62 @@ Combined must stay under 4000 characters — re-count after any edit.
 - "Supplier ordering" is purchase orders to suppliers, never customer or
   table-side ordering. Correct that reading immediately if it comes up.
 - Everything else above is verified against shipped code (August 2026).
+
+---
+
+## Tagline
+
+Pick one. Character count in brackets — portal taglines are usually capped near
+100, and the shorter ones survive being truncated in search listings.
+
+> One app to run your entire venue. [33]
+
+Alternatives, same claim, different angle:
+
+> Rota, bookings, food safety and stock in one app. [49]
+> Back of house, handled. Built by a chef. [40]
+> Everything behind the till, in one place. [41]
+> Run the venue from your phone, between tasks. [45]
+
+Recommended: **One app to run your entire venue.** It already leads the site, so
+the listing and the landing page tell buyers the same thing.
+
+---
+
+## Key benefits
+
+Benefit first, mechanism second — each line says what the operator gets, then why
+it is believable. Trim from the bottom if the field is short.
+
+> **See labour cost before you commit to it.** Wage cost recalculates against
+> budget as you drag shifts, so you fix an over-budget week while it is still a
+> draft rather than finding out on the payroll run.
+>
+> **Pass an inspection without the folder.** Temperature, cooking, cooling,
+> cleaning and opening checks are logged on a phone against your own named
+> equipment, reminders repeat until a check is actually done, and the inspection
+> pack is one click.
+>
+> **Know your margin per dish today, not last quarter.** Photograph a delivery
+> note and the line items update stock, expenses and your HACCP delivery check at
+> once — recipe costs move with the prices that actually landed.
+>
+> **Fill the room from a floor plan that matches it.** Tables laid out as they
+> really sit, live status per date, and a public booking page. Guest profiles,
+> visit counts and no-show history build themselves from bookings.
+>
+> **Stop paying for five subscriptions.** Scheduling, time and attendance,
+> reservations, food safety, stock, purchasing and receipt capture are one price
+> and one login, replacing the paper rota, the WhatsApp group and the shoebox.
+>
+> **Get answers from the person who built it.** Support comes from the founder, a
+> former chef, with no ticket queue. First month free, no card required.
+
+---
+
+## Notes on tagline and benefits
+
+- Benefit six is the differentiator most reviewers latch onto; keep it last so it
+  is the closing impression, but never cut it.
+- Do not turn "stop paying for five subscriptions" into a named competitor
+  comparison in the listing — save that for `/compare`, where it is qualified.
