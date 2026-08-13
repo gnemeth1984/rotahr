@@ -1023,6 +1023,37 @@ export async function main(prisma: PrismaClient = new PrismaClient()) {
   });
   console.log("✅ Suppliers & stock created");
 
+  // ── 19b. Supplier order lists (purchase orders) ─────────────────────────────
+  const ord1 = "demo-order-musgrave-draft";
+  const ord2 = "demo-order-diageo-sent";
+  const ord3 = "demo-order-pallas-received";
+
+  await prisma.supplierOrder.createMany({
+    data: [
+      { id: ord1, businessId: BIZ, supplierId: sup1, status: "draft", notes: "Weekly dry & fresh order — building off low stock levels" },
+      { id: ord2, businessId: BIZ, supplierId: sup2, status: "sent", notes: "Keg order for the weekend — Heineken below reorder level", sentAt: days(-1) },
+      { id: ord3, businessId: BIZ, supplierId: sup3, status: "received", notes: "Fish order — delivered short, 1 salmon missing (see statement)", sentAt: days(-4), receivedAt: days(-3) },
+    ],
+  });
+
+  await prisma.orderItem.createMany({
+    data: [
+      // Draft — Musgrave MarketPlace
+      { orderId: ord1, stockItemId: si3,  quantity: 2, unitPrice: 132.00 },
+      { orderId: ord1, stockItemId: si6,  quantity: 4, unitPrice: 22.00  },
+      { orderId: ord1, stockItemId: si7,  quantity: 2, unitPrice: 18.50  },
+      { orderId: ord1, stockItemId: si10, quantity: 3, unitPrice: 24.90  },
+      { orderId: ord1, stockItemId: si11, quantity: 2, unitPrice: 41.00, notes: "Short last week — check case count on arrival" },
+      // Sent — Diageo Ireland
+      { orderId: ord2, stockItemId: si1, quantity: 2, unitPrice: 165.00 },
+      { orderId: ord2, stockItemId: si2, quantity: 3, unitPrice: 145.00, notes: "Down to 2 kegs, bank holiday weekend" },
+      // Received — Pallas Foods
+      { orderId: ord3, stockItemId: si5, quantity: 4, unitPrice: 51.00, notes: "Only 3 delivered — credit requested" },
+      { orderId: ord3, stockItemId: si9, quantity: 2, unitPrice: 9.75  },
+    ],
+  });
+  console.log("✅ Supplier order lists created");
+
   // ── 20. Dishes / Recipes ────────────────────────────────────────────────────
   await prisma.dishIngredient.deleteMany({ where: { dish: { businessId: BIZ } } });
   await prisma.dish.deleteMany({ where: { businessId: BIZ } });
