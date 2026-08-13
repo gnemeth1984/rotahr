@@ -133,6 +133,11 @@ export default function FeaturesIndexPage() {
                 slug: "table-bookings",
               },
               {
+                term: "Order management (purchase orders)",
+                body: "Order lists built per supplier off live stock levels, with quantities and unit prices, moving draft to sent to received — plus supplier statement upload and reconciliation against what was ordered. Supplier purchase orders only, not guest orders.",
+                slug: "stock-recipe-costing",
+              },
+              {
                 term: "Reporting",
                 body: "Labour cost against hours worked, food-safety compliance rates, booking and cover volumes, gross margin per dish.",
                 slug: "bookkeeping-receipts",
@@ -156,12 +161,13 @@ export default function FeaturesIndexPage() {
 
           <h3 className="font-semibold mb-2 text-slate-200">What Rotahr is not</h3>
           <p className="text-sm text-slate-400 leading-relaxed max-w-2xl">
-            Rotahr has no point of sale and no order management — it does not take
-            payments from your guests or send tickets to the kitchen, and it is
-            not a delivery or online-ordering platform. It sits alongside whatever
-            till you already run. There is also no course library or training
-            content: certification expiry dates are tracked, the courses
-            themselves are not.
+            Rotahr has no point of sale — it does not take payments from your
+            guests, take orders at the table or send tickets to the kitchen, and
+            it is not a delivery or online-ordering platform. It sits alongside
+            whatever till you already run. Order management above means purchase
+            orders to your suppliers, never guest orders. There is also no course
+            library or training content: certification expiry dates are tracked,
+            the courses themselves are not.
           </p>
         </div>
 
@@ -171,10 +177,10 @@ export default function FeaturesIndexPage() {
             A full demo venue with real data in every module. Nothing to sign up for.
           </p>
           <Link
-            href="/try"
+            href="/product-tour"
             className="inline-block bg-white text-[#0F1C35] font-semibold px-7 py-3 rounded-xl hover:bg-slate-100 transition-colors"
           >
-            Open the demo
+            See real screens
           </Link>
         </div>
 

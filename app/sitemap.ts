@@ -53,6 +53,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${baseUrl}/list`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.7 },
     { url: `${baseUrl}/compare`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.7 },
     { url: `${baseUrl}/features`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.8 },
+    // Screenshot tour of the signed-in app. Public on purpose: buyers want to
+    // see inside before they sign up, and software-directory reviewers cannot
+    // verify a capability that only exists behind a login.
+    { url: `${baseUrl}/product-tour`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.8 },
     // Module pages: match how people actually search ("restaurant HACCP app"),
     // which the landing page's two-line summaries can never rank for.
     ...features.map(f => ({

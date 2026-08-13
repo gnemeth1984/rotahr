@@ -16,12 +16,13 @@ PASSWORD = "Demo1234!"
 OUT = Path("/home/user/rotahr/public/evidence")
 OUT.mkdir(parents=True, exist_ok=True)
 
-# label, path, optional tab text to click before shooting
+# label, path, optional tab text to click, optional extra text to click after the
+# tab (used to expand a collapsed row so its detail is visible in the shot)
 SHOTS = [
     ("floor-plan", "/bookings", "Floor Plan"),
     ("bookings-list", "/bookings", None),
     ("supplier-orders", "/stock", "Order Lists"),
-    ("supplier-statements", "/stock", "Statements"),
+    ("supplier-statements", "/stock", "Statements", "Musgrave MarketPlace"),
     ("suppliers", "/stock", "Suppliers"),
     ("haccp", "/haccp", None),
     ("stock-items", "/stock", "Stock List"),
@@ -34,6 +35,10 @@ def main():
     with sync_playwright() as p:
         browser = p.chromium.launch()
         ctx = browser.new_context(viewport={"width": 1440, "height": 900}, device_scale_factor=2)
+        # InstallBanner reads this flag on mount; setting it before any page
+        # loads keeps the PWA toast out of every screenshot. Clicking it away
+        # after login was unreliable — the toast animates in late.
+        ctx.add_init_script("try { localStorage.setItem('pwa-banner-dismissed', '1'); } catch (e) {}")
         page = ctx.new_page()
 
         print("login...")
@@ -52,28 +57,9 @@ def main():
         print("  landed on", page.url)
         time.sleep(10)
 
-        # The PWA install toast sits over the bottom-right of every page and has
-        # no place in evidence screenshots — dismiss it once, after login.
-        for sel in ('button[aria-label="Dismiss"]', 'button[aria-label="Close"]'):
-            try:
-                page.locator(sel).first.click(timeout=3000)
-                print("  dismissed install toast")
-                break
-            except Exception:
-                continue
-        else:
-            try:
-                toast = page.locator('text=Add to home screen').first
-                box = toast.bounding_box()
-                if box:
-                    # Click the X at the toast's top-right corner.
-                    page.mouse.click(box["x"] + 205, box["y"] - 4)
-                    print("  dismissed install toast (positional)")
-            except Exception as e:
-                print("  ! install toast not dismissed:", type(e).__name__)
-        time.sleep(2)
-
-        for label, path, tab in SHOTS:
+        for shot in SHOTS:
+            label, path, tab = shot[0], shot[1], shot[2]
+            expand = shot[3] if len(shot) > 3 else None
             try:
                 print(f"{label} -> {path} tab={tab}")
                 page.goto(f"{BASE}{path}", wait_until="domcontentloaded", timeout=60000)
@@ -97,6 +83,12 @@ def main():
                     if not clicked:
                         print(f"  ! could not click tab {tab}")
                     time.sleep(5)
+                if expand:
+                    try:
+                        page.get_by_text(expand, exact=False).first.click(timeout=8000)
+                        time.sleep(3)
+                    except Exception:
+                        print(f"  ! could not expand {expand}")
                 page.screenshot(path=str(OUT / f"{label}.png"), full_page=False)
                 print("  saved")
             except Exception as e:

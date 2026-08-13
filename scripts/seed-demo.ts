@@ -1239,6 +1239,16 @@ export async function main(prisma: PrismaClient = new PrismaClient()) {
         totalAmount: 3240.50,
         invoiceRef: "MUS-STMT-2025-06",
         status: "accepted",
+        // Line items as the upload route stores them, so the expanded view and
+        // the reconcile screen have something real to show.
+        aiExtracted: [
+          { description: "Ribeye Beef (5kg)",        sku: "MUS-BEEF-5",  qty: 2, unitPrice: 132.00, lineTotal: 264.00 },
+          { description: "Frozen Chips 10kg",        sku: "MUS-CHIP-10", qty: 4, unitPrice: 22.00,  lineTotal: 88.00  },
+          { description: "New Potatoes (20kg)",      sku: "MUS-POT-20",  qty: 2, unitPrice: 18.50,  lineTotal: 37.00  },
+          { description: "Seasonal Veg Mix (10kg)",  sku: "MUS-VEG-10",  qty: 3, unitPrice: 24.90,  lineTotal: 74.70  },
+          { description: "Irish Butter (5kg)",       sku: "MUS-BUT-5",   qty: 2, unitPrice: 41.00,  lineTotal: 82.00  },
+          { description: "Brioche Buns (48)",        sku: "MUS-BUN-48",  qty: 1, unitPrice: 21.60,  lineTotal: 21.60  },
+        ],
       },
       {
         businessId: BIZ,
@@ -1248,6 +1258,12 @@ export async function main(prisma: PrismaClient = new PrismaClient()) {
         totalAmount: 2436.00,
         invoiceRef: "DIA-STMT-2025-06",
         status: "pending",
+        // Deliberately not matching the Diageo order: 4 Heineken kegs billed
+        // against 3 ordered. The discrepancy is the point of the screen.
+        aiExtracted: [
+          { description: "Guinness Keg 50L", sku: "DIA-GNS-50", qty: 2, unitPrice: 165.00, lineTotal: 330.00 },
+          { description: "Heineken Keg 50L", sku: "DIA-HNK-50", qty: 4, unitPrice: 145.00, lineTotal: 580.00 },
+        ],
       },
     ],
   });
