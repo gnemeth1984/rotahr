@@ -172,6 +172,21 @@ export async function findEligibleLeads(
       ${clauses.join("\n      ")}
     ORDER BY
       CASE WHEN status = 'new' THEN 0 ELSE 1 END,
+      -- Spend the daily slots on mailboxes a probe has actually confirmed.
+      --
+      -- 'unknown' and NULL still send (an inconclusive or missing probe should
+      -- never cost a real prospect), but they are where the bounces come from:
+      -- the real bounce rate sat at 7.7%, above the 5% threshold that starts
+      -- hurting domain reputation. Ordering by verdict means a run fills up
+      -- with confirmed addresses first and only reaches the unproved ones when
+      -- confirmed leads run out, so reputation is spent on the safest traffic
+      -- available rather than a random mix.
+      CASE "emailVerdict"
+        WHEN 'ok'         THEN 0
+        WHEN 'catch-all'  THEN 1
+        WHEN 'unknown'    THEN 2
+        ELSE 3
+      END,
       "lastContacted" ASC NULLS FIRST,
       random()
     LIMIT ${safeTake(take)}
