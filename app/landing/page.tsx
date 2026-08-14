@@ -529,6 +529,9 @@ export default function LandingPage() {
             <ul className="space-y-2 text-slate-500">
               <li><Link href="/blog" className="hover:text-slate-900">Blog</Link></li>
               <li><Link href="/list" className="hover:text-slate-900">List your venue — free</Link></li>
+              {/* Sitewide link to the directory, so the 81 venue pages it links
+                  are two clicks from the landing page instead of unreachable. */}
+              <li><Link href="/venues-directory" className="hover:text-slate-900">Venue directory</Link></li>
               <li><Link href="/partners" className="hover:text-slate-900">Partner programme</Link></li>
               <li><Link href="/try" className="hover:text-slate-900">Live demo</Link></li>
               {hasCapterraListing() && (

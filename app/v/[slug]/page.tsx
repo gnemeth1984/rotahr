@@ -377,6 +377,13 @@ export default async function PublicVenuePage({ params }: { params: { slug: stri
             Rotahr
           </Link>
         </p>
+        {/* Links back to the directory so venue pages point at each other
+            rather than each being a dead end for a crawler. */}
+        <p className="mt-2 text-xs text-slate-400">
+          <Link href="/venues-directory" className="underline decoration-slate-300 underline-offset-4 hover:text-slate-600">
+            Browse other venues
+          </Link>
+        </p>
       </footer>
     </main>
   );

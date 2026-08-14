@@ -51,6 +51,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // Free venue listing signup. Worth indexing in its own right — "list my
     // restaurant" style queries are how venues find directories.
     { url: `${baseUrl}/list`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.7 },
+    // Directory of every live venue page. The /v/ pages below were reachable
+    // only from this sitemap, and sitemap-only URLs get crawled weakly — this
+    // is the page that actually links them.
+    { url: `${baseUrl}/venues-directory`, lastModified: new Date(), changeFrequency: 'daily', priority: 0.7 },
     { url: `${baseUrl}/compare`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.7 },
     { url: `${baseUrl}/features`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.8 },
     // Screenshot tour of the signed-in app. Public on purpose: buyers want to

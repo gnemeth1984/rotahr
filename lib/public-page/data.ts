@@ -213,3 +213,60 @@ export async function listPublicVenueSlugs(): Promise<{ slug: string; updatedAt:
     .filter((r): r is { publicSlug: string; updatedAt: Date } => Boolean(r.publicSlug))
     .map((r) => ({ slug: r.publicSlug, updatedAt: r.updatedAt }));
 }
+
+export interface DirectoryVenue {
+  name: string;
+  slug: string;
+  tagline: string | null;
+  address: string | null;
+  heroImage: string | null;
+  venueType: string | null;
+  cuisine: string | null;
+  isProspect: boolean;
+}
+
+/**
+ * Every live public page, for the public directory at /venues.
+ *
+ * The directory exists for one reason: all 81 venue pages were reachable only
+ * from the sitemap, with no link to them from anywhere on the site. Google
+ * treats sitemap-only URLs as low priority and crawls them weakly, so most were
+ * unlikely to be indexed at all. One page linking every venue gives the crawler
+ * a path in, and gives the pages internal link equity they had none of.
+ *
+ * Same visibility rules as the sitemap — `publicPageEnabled` and not
+ * `publicNoIndex` — so a venue that has opted out of search never appears here
+ * either, and switching the page off removes it from both at once.
+ */
+export async function listDirectoryVenues(): Promise<DirectoryVenue[]> {
+  const rows = await prisma.business.findMany({
+    where: { publicPageEnabled: true, publicNoIndex: false, publicSlug: { not: null } },
+    select: {
+      name: true,
+      publicSlug: true,
+      publicTagline: true,
+      publicAddress: true,
+      publicHeroImage: true,
+      publicProspect: true,
+      venues: {
+        where: { isDefault: true, active: true },
+        take: 1,
+        select: { address: true, venueType: true, cuisine: true },
+      },
+    },
+    orderBy: { name: "asc" },
+  });
+
+  return rows
+    .filter((r) => Boolean(r.publicSlug))
+    .map((r) => ({
+      name: r.name,
+      slug: r.publicSlug as string,
+      tagline: r.publicTagline,
+      address: r.publicAddress || r.venues[0]?.address || null,
+      heroImage: r.publicHeroImage,
+      venueType: r.venues[0]?.venueType ?? null,
+      cuisine: r.venues[0]?.cuisine ?? null,
+      isProspect: r.publicProspect,
+    }));
+}
