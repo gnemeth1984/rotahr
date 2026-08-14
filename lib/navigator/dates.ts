@@ -49,6 +49,15 @@ export function weekStartKey(key: string): string {
   return keyFromDay(d);
 }
 
+export const WEEKDAY_KEYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
+export type WeekdayKey = (typeof WEEKDAY_KEYS)[number];
+
+/** Short weekday key (mon..sun) for a YYYY-MM-DD date. */
+export function weekdayKey(key: string): WeekdayKey {
+  const dow = dayFromKey(key).getUTCDay(); // 0 = Sunday
+  return WEEKDAY_KEYS[dow === 0 ? 6 : dow - 1];
+}
+
 export function weekdayName(key: string): string {
   return new Intl.DateTimeFormat("en-IE", {
     weekday: "long",

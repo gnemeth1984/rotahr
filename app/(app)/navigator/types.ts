@@ -8,12 +8,20 @@ export type Block = {
   done?: boolean;
 };
 
+export type DayWindow = { start: string; end: string; note?: string } | null;
+
+export type WeekdayKey = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
+
+export type WeekPattern = Partial<Record<WeekdayKey, DayWindow>>;
+
 export type NavProfile = {
   id: string;
   wakeTime: string;
   sleepTime: string;
   workStart: string;
   workEnd: string;
+  weekPattern: WeekPattern | null;
+  energyPattern: string | null;
   timezone: string;
   dietary: string | null;
   kitchen: string | null;

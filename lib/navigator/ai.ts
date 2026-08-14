@@ -1,6 +1,6 @@
 import OpenAI from "openai";
 import { prisma } from "@/lib/db";
-import { buildSnapshot, renderSnapshot, type Snapshot } from "./context";
+import { buildSnapshot, renderSnapshot, windowForDate, renderWeekPattern, type Snapshot } from "./context";
 import { dayFromKey, weekdayName, minutesBetween } from "./dates";
 
 const MODEL = "gpt-4o-mini";
@@ -624,14 +624,24 @@ export async function generateDayPlan(
   const snapshot = await buildSnapshot(userId);
   const key = input.dateKey ?? snapshot.today;
   const p = snapshot.profile;
-  const workMins = minutesBetween(p.workStart, p.workEnd);
+  const { window: shift, source } = windowForDate(p, key);
+  const weekShape = renderWeekPattern(p);
+  const shiftLine = shift
+    ? `Work shift today: ${shift.start}–${shift.end}${shift.note ? ` (${shift.note})` : ""} (${Math.round(
+        minutesBetween(shift.start, shift.end) / 60
+      )}h). This is FIXED. Represent it as ONE block of kind "work" — never split it, never schedule tasks inside it. Real free time is only before ${shift.start} and after ${shift.end}.`
+    : source === "pattern"
+      ? `Today is a DAY OFF — no work shift. Keep it restful: family, garden, walk, optional light project time. Do not build a working day.`
+      : `Work window ${p.workStart}–${p.workEnd} (no weekly pattern set).`;
 
   const out = await json<{ focusTheme: string; anchor: string; blocks: GeneratedBlock[] }>(
     `${NAVIGATOR_PERSONA}
 
-Return JSON only: { "focusTheme": string, "anchor": string, "blocks": [{ "start": "HH:mm", "end": "HH:mm", "label": string, "kind": "deep"|"admin"|"meal"|"move"|"break"|"transition"|"rest"|"social"|"buffer", "why": string, "taskId"?: string }] }
+Return JSON only: { "focusTheme": string, "anchor": string, "blocks": [{ "start": "HH:mm", "end": "HH:mm", "label": string, "kind": "deep"|"admin"|"meal"|"move"|"break"|"transition"|"rest"|"social"|"work"|"buffer", "why": string, "taskId"?: string }] }
 
 Rules for blocks:
+- The work shift is immovable. Emit it as a single "work" block and plan only around it. Never place deep/admin work inside the shift.
+- Include a short "transition" block for getting ready and travelling before the shift, and a decompress block after it.
 - Cover morning, mid-day and evening between wake and sleep time. 8-14 blocks, no more.
 - At most 2 deep blocks. Deep blocks match the reported energy: energy 1-2 = 25min max, 3 = 40min, 4-5 = up to the user's preferred focus length.
 - Every deep or admin block is followed by a break or transition block.
@@ -644,7 +654,8 @@ Rules for blocks:
     `Day: ${weekdayName(key)} ${key}.
 Energy today: ${input.energy}/5. Available hours: ${input.availableHours}. Mood: ${input.mood ?? "not stated"}.
 Non-negotiable today: ${input.mustDo || "nothing stated — pick from open tasks"}.
-Work window is ${p.workStart}–${p.workEnd} (${Math.round(workMins / 60)}h).
+${shiftLine}
+${weekShape ? `Weekly shape: ${weekShape}` : ""}
 
 ${renderSnapshot(snapshot)}`
   );

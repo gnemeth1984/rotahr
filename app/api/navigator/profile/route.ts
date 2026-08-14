@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { Prisma } from "@prisma/client";
 import { navigatorUserId, forbidden } from "@/lib/navigator/guard";
 import { getOrCreateProfile } from "@/lib/navigator/context";
 import { z } from "zod";
@@ -8,11 +9,27 @@ export const dynamic = "force-dynamic";
 
 const time = z.string().regex(/^\d{2}:\d{2}$/);
 
+const dayWindow = z
+  .object({ start: time, end: time, note: z.string().max(120).optional() })
+  .nullable();
+
 const schema = z.object({
   wakeTime: time.optional(),
   sleepTime: time.optional(),
   workStart: time.optional(),
   workEnd: time.optional(),
+  weekPattern: z
+    .object({
+      mon: dayWindow.optional(),
+      tue: dayWindow.optional(),
+      wed: dayWindow.optional(),
+      thu: dayWindow.optional(),
+      fri: dayWindow.optional(),
+      sat: dayWindow.optional(),
+      sun: dayWindow.optional(),
+    })
+    .nullish(),
+  energyPattern: z.string().max(2000).nullish(),
   timezone: z.string().min(1).max(64).optional(),
   dietary: z.string().max(2000).nullish(),
   kitchen: z.string().max(2000).nullish(),
@@ -40,6 +57,15 @@ export async function PUT(req: NextRequest) {
   }
 
   await getOrCreateProfile(userId);
-  const profile = await prisma.navProfile.update({ where: { userId }, data: parsed.data });
+
+  // Prisma needs an explicit JsonNull sentinel for nulling a Json column;
+  // a bare null would be rejected at runtime.
+  const { weekPattern, ...rest } = parsed.data;
+  const data: Record<string, unknown> = { ...rest };
+  if (weekPattern !== undefined) {
+    data.weekPattern = weekPattern === null ? Prisma.JsonNull : weekPattern;
+  }
+
+  const profile = await prisma.navProfile.update({ where: { userId }, data: data as any });
   return NextResponse.json(profile);
 }

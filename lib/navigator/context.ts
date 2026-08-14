@@ -1,7 +1,83 @@
 import { prisma } from "@/lib/db";
-import { dayFromKey, todayKey, nowTime, addDaysKey, weekStartKey } from "./dates";
+import {
+  dayFromKey,
+  todayKey,
+  nowTime,
+  addDaysKey,
+  weekStartKey,
+  weekdayKey,
+  WEEKDAY_KEYS,
+  type WeekdayKey,
+} from "./dates";
 
 export const DEFAULT_TZ = "Europe/Dublin";
+
+export type DayWindow = { start: string; end: string; note?: string } | null;
+export type WeekPattern = Partial<Record<WeekdayKey, DayWindow>>;
+
+const DAY_LABEL: Record<WeekdayKey, string> = {
+  mon: "Mon",
+  tue: "Tue",
+  wed: "Wed",
+  thu: "Thu",
+  fri: "Fri",
+  sat: "Sat",
+  sun: "Sun",
+};
+
+function asWeekPattern(raw: unknown): WeekPattern | null {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const out: WeekPattern = {};
+  let any = false;
+  for (const d of WEEKDAY_KEYS) {
+    const v = (raw as Record<string, unknown>)[d];
+    if (v === null) {
+      out[d] = null;
+      any = true;
+      continue;
+    }
+    if (v && typeof v === "object") {
+      const o = v as Record<string, unknown>;
+      if (typeof o.start === "string" && typeof o.end === "string") {
+        out[d] = {
+          start: o.start,
+          end: o.end,
+          ...(typeof o.note === "string" && o.note ? { note: o.note } : {}),
+        };
+        any = true;
+      }
+    }
+  }
+  return any ? out : null;
+}
+
+/**
+ * The work window that actually applies on a given date. Falls back to the flat
+ * workStart/workEnd when no per-weekday pattern is set. `null` means a day off —
+ * which is not the same as "no data", and the planner must treat it differently.
+ */
+export function windowForDate(
+  profile: { workStart: string; workEnd: string; weekPattern?: unknown },
+  dateKey: string
+): { window: DayWindow; source: "pattern" | "fallback" } {
+  const pattern = asWeekPattern(profile.weekPattern);
+  if (!pattern) return { window: { start: profile.workStart, end: profile.workEnd }, source: "fallback" };
+  const d = weekdayKey(dateKey);
+  if (!(d in pattern)) return { window: { start: profile.workStart, end: profile.workEnd }, source: "fallback" };
+  return { window: pattern[d] ?? null, source: "pattern" };
+}
+
+/** One-line human summary of the week shape, for the AI context. */
+export function renderWeekPattern(profile: { workStart: string; workEnd: string; weekPattern?: unknown }): string | null {
+  const pattern = asWeekPattern(profile.weekPattern);
+  if (!pattern) return null;
+  return WEEKDAY_KEYS.map((d) => {
+    if (!(d in pattern)) return `${DAY_LABEL[d]} ${profile.workStart}-${profile.workEnd}`;
+    const w = pattern[d];
+    if (!w) return `${DAY_LABEL[d]} off`;
+    return `${DAY_LABEL[d]} ${w.start}-${w.end}${w.note ? ` (${w.note})` : ""}`;
+  }).join(", ");
+}
 
 export async function getOrCreateProfile(userId: string) {
   const existing = await prisma.navProfile.findUnique({ where: { userId } });
@@ -75,6 +151,8 @@ function bullets(lines: (string | null | undefined)[]) {
 /** Turns the snapshot into the text block the model actually reads. */
 export function renderSnapshot(s: Snapshot): string {
   const p = s.profile;
+  const { window: todayWindow, source } = windowForDate(p, s.today);
+  const weekShape = renderWeekPattern(p);
 
   const taskLines = s.tasks.slice(0, 25).map((t) => {
     const bits = [
@@ -108,7 +186,16 @@ export function renderSnapshot(s: Snapshot): string {
   return bullets([
     `## Right now`,
     `Local time ${s.now} (${s.tz}), date ${s.today}.`,
-    `Wakes ${p.wakeTime}, sleeps ${p.sleepTime}. Work window ${p.workStart}–${p.workEnd}. Preferred focus block ${p.focusMins}min / ${p.breakMins}min break.`,
+    `Wakes ${p.wakeTime}, sleeps ${p.sleepTime}. Preferred focus block ${p.focusMins}min / ${p.breakMins}min break.`,
+    todayWindow
+      ? `TODAY is a work day: shift ${todayWindow.start}–${todayWindow.end}${
+          todayWindow.note ? ` (${todayWindow.note})` : ""
+        }. Do NOT schedule anything except commute/transition inside that shift — plan around it.`
+      : source === "pattern"
+        ? `TODAY is a day OFF work. No shift. Free time is the whole day, but it is rest/family/project time — do not turn it into a work day.`
+        : `Work window ${p.workStart}–${p.workEnd} (no weekly pattern set).`,
+    weekShape ? `Weekly shape: ${weekShape}` : null,
+    p.energyPattern ? `Energy pattern: ${p.energyPattern}` : null,
     p.goals ? `Goals: ${p.goals}` : null,
     p.derailers ? `Known derailers: ${p.derailers}` : null,
     p.dietary ? `Food notes: ${p.dietary}` : null,

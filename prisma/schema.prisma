@@ -2120,6 +2120,14 @@ model NavProfile {
   workStart  String  @default("09:00")
   workEnd    String  @default("18:00")
   timezone   String  @default("Europe/Dublin")
+
+  /// Per-weekday shape, because a single work window is a lie for shift workers.
+  /// { mon: { start: "11:00", end: "19:30", note?: string } | null, ... sun: null }
+  /// Falls back to workStart/workEnd for any day not listed.
+  weekPattern Json?
+
+  /// When the brain is actually sharp vs when it reliably crashes, in the user's words.
+  energyPattern String? @db.Text
   dietary    String? @db.Text // allergies, preferences, what he actually eats
   kitchen    String? @db.Text // equipment / time available for cooking
   exercise   String? @db.Text // current activity, injuries, goals
