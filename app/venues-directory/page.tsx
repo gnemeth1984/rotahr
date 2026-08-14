@@ -56,20 +56,78 @@ function isRenderableImage(url: string | null): url is string {
   }
 }
 
-/** "Castleisland, Co. Kerry" -> "Co. Kerry". Falls back to the whole string. */
+const IE_COUNTIES = [
+  "Antrim", "Armagh", "Carlow", "Cavan", "Clare", "Cork", "Derry", "Donegal",
+  "Down", "Dublin", "Fermanagh", "Galway", "Kerry", "Kildare", "Kilkenny",
+  "Laois", "Leitrim", "Limerick", "Longford", "Louth", "Mayo", "Meath",
+  "Monaghan", "Offaly", "Roscommon", "Sligo", "Tipperary", "Tyrone",
+  "Waterford", "Westmeath", "Wexford", "Wicklow",
+];
+
+const UK_PLACES = [
+  "London", "Manchester", "Birmingham", "Leeds", "Liverpool", "Bristol",
+  "Sheffield", "Newcastle", "Nottingham", "Leicester", "Brighton", "Oxford",
+  "Cambridge", "Bath", "York", "Edinburgh", "Glasgow", "Aberdeen", "Dundee",
+  "Cardiff", "Swansea", "Belfast", "Norwich", "Exeter", "Plymouth", "Reading",
+  "Southampton", "Portsmouth", "Cornwall", "Devon", "Kent", "Surrey", "Essex",
+  "Yorkshire",
+];
+
+/**
+ * Group heading for an address, e.g. "Castleisland, Co. Kerry V93 XED7" -> Kerry.
+ *
+ * Naive "last comma-separated part" grouping produced 60+ groups of one, because
+ * most addresses end in an Eircode or UK postcode — the directory listed "V92
+ * EY60" and "D02 AK20" as if they were places. So the county or city is searched
+ * for anywhere in the string instead, and postcodes are discarded rather than
+ * treated as location names.
+ */
 function region(address: string | null): string {
   if (!address) return "Elsewhere";
-  const parts = address
-    .split(",")
-    .map((p) => p.trim())
-    .filter(Boolean);
-  if (!parts.length) return "Elsewhere";
-  const last = parts[parts.length - 1];
-  // Trailing "Ireland" / "United Kingdom" hides the useful part of the address.
-  if (/^(ireland|Éire|united kingdom|uk)$/i.test(last) && parts.length > 1) {
-    return parts[parts.length - 2];
+
+  const cleaned = address
+    // Eircode: one letter, two digits, then a 4-character routing key.
+    .replace(/\b[A-Z]\d{2}\s?[A-Z0-9]{4}\b/gi, " ")
+    // UK outward/inward postcode.
+    .replace(/\b[A-Z]{1,2}\d{1,2}[A-Z]?\s?\d[A-Z]{2}\b/gi, " ")
+    .replace(/\beircode\b/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  // Dublin postal districts ("D02", "Dublin 6") are all Dublin.
+  if (/\bD\d{2}\b/i.test(address) || /\bdublin\b/i.test(cleaned)) return "Dublin";
+
+  // Towns written without their county, which would otherwise each become a
+  // group of one next to the county they belong in.
+  const TOWN_COUNTY: Record<string, string> = {
+    Killarney: "Kerry", Tralee: "Kerry", Dingle: "Kerry", Kenmare: "Kerry",
+    Castleisland: "Kerry", Listowel: "Kerry", Kinsale: "Cork", Clonakilty: "Cork",
+    Midleton: "Cork", Youghal: "Cork", Bantry: "Cork", Ennis: "Clare",
+    Doolin: "Clare", Lahinch: "Clare", Westport: "Mayo", Clifden: "Galway",
+    Athlone: "Westmeath", Kilkenny: "Kilkenny", Bray: "Wicklow",
+    Greystones: "Wicklow", Dundalk: "Louth", Drogheda: "Louth",
+    Navan: "Meath", Naas: "Kildare", Sligo: "Sligo", Tramore: "Waterford",
+    Dungarvan: "Waterford", Clonmel: "Tipperary", Cashel: "Tipperary",
+  };
+  for (const [town, county] of Object.entries(TOWN_COUNTY)) {
+    if (new RegExp(`\\b${town}\\b`, "i").test(cleaned)) return county;
   }
-  return last;
+
+  for (const county of IE_COUNTIES) {
+    if (new RegExp(`\\b${county}\\b`, "i").test(cleaned)) return county;
+  }
+  for (const place of UK_PLACES) {
+    if (new RegExp(`\\b${place}\\b`, "i").test(cleaned)) return place;
+  }
+
+  // Nothing recognised: fall back to the last meaningful part, skipping a
+  // trailing country name which tells a reader nothing useful.
+  const parts = cleaned.split(",").map((p) => p.trim()).filter(Boolean);
+  for (let i = parts.length - 1; i >= 0; i--) {
+    if (/^(ireland|Éire|united kingdom|uk|england|scotland|wales)$/i.test(parts[i])) continue;
+    if (parts[i].length > 1) return parts[i];
+  }
+  return "Elsewhere";
 }
 
 export default async function VenueDirectoryPage() {
