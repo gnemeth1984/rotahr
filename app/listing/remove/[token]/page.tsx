@@ -37,7 +37,16 @@ export default async function RemoveListingPage({
             </p>
             <p className="text-sm text-slate-400">
               If you think that&apos;s wrong, email{" "}
-              <a href="mailto:sales@rotahr.com" className="text-[#ff6b35] underline">
+              {/* Carries the removal ref so nobody has to describe which page
+                  they mean, or type the business name to do it. */}
+              <a
+                href={`mailto:sales@rotahr.com?subject=${encodeURIComponent(
+                  "Listing removal — nothing found"
+                )}&body=${encodeURIComponent(
+                  `Hi,\n\nI opened a removal link and it says there is nothing to remove.\n\n---\nRemoval ref: ${token}`
+                )}`}
+                className="text-[#ff6b35] underline"
+              >
                 sales@rotahr.com
               </a>{" "}
               and a human will sort it.

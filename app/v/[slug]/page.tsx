@@ -310,7 +310,12 @@ export default async function PublicVenuePage({ params }: { params: { slug: stri
               )}
               {venue.email && (
                 <p>
-                  <a className="underline decoration-slate-300 underline-offset-4" href={`mailto:${venue.email}`}>
+                  {/* Subject prefilled with the venue name — a blank mailto made
+                      every enquiry start with typing out the business name. */}
+                  <a
+                    className="underline decoration-slate-300 underline-offset-4"
+                    href={`mailto:${venue.email}?subject=${encodeURIComponent(`Enquiry — ${venue.name}`)}`}
+                  >
                     {venue.email}
                   </a>
                 </p>

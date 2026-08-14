@@ -9,6 +9,19 @@ import { useState } from "react";
  * the contact address already on file for the venue, so a passer-by can't take
  * over someone else's page.
  */
+/**
+ * Every mailto here carries the venue name, page URL and slug already filled in.
+ *
+ * They used to open a blank message, so anyone getting in touch — including us,
+ * working through prospect pages — had to type the business name out before they
+ * could say anything. Nobody should retype what the page already knows.
+ */
+function prefilledMailto(subject: string, venueName: string, slug: string, body: string) {
+  const url = `https://rotahr.com/v/${slug}`;
+  const full = `${body}\n\n---\nVenue: ${venueName}\nPage: ${url}\nRef: ${slug}`;
+  return `mailto:sales@rotahr.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(full)}`;
+}
+
 export function ClaimBanner({
   slug,
   venueName,
@@ -61,7 +74,12 @@ export function ClaimBanner({
 
         {!hasContact ? (
           <a
-            href={`mailto:sales@rotahr.com?subject=${encodeURIComponent(`Claiming the Rotahr page for ${venueName}`)}`}
+            href={prefilledMailto(
+              `Claiming the Rotahr page for ${venueName}`,
+              venueName,
+              slug,
+              `Hi,\n\nI'd like to claim this page for ${venueName}. I'm emailing from the venue's address.`
+            )}
             className="inline-block text-sm font-semibold text-white px-5 py-2.5 rounded-xl transition-opacity hover:opacity-90"
             style={{ background: "linear-gradient(135deg, #F97316, #EC4899)" }}
           >
@@ -91,7 +109,15 @@ export function ClaimBanner({
 
         <p className="text-xs text-slate-500 mt-4">
           Would rather it came down?{" "}
-          <a href="mailto:sales@rotahr.com" className="text-orange-700 underline">
+          <a
+            href={prefilledMailto(
+              `Please remove the Rotahr page for ${venueName}`,
+              venueName,
+              slug,
+              `Hi,\n\nPlease take down this page for ${venueName}.`
+            )}
+            className="text-orange-700 underline"
+          >
             Email us
           </a>{" "}
           and we&apos;ll remove it.
