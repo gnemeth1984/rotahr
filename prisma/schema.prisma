@@ -2104,3 +2104,210 @@ model VenueCandidate {
   @@index([amenity])
   @@index([city])
 }
+
+// ---------------------------------------------------------------------------
+// Navigator — private single-user daily companion (platform super-admin only).
+// Deliberately NOT related to Business/Employee: this is a personal tool keyed
+// on userId only, so it can never leak into or depend on tenant data.
+// ---------------------------------------------------------------------------
+
+model NavProfile {
+  id     String @id @default(cuid())
+  userId String @unique
+
+  wakeTime   String  @default("07:00")
+  sleepTime  String  @default("23:00")
+  workStart  String  @default("09:00")
+  workEnd    String  @default("18:00")
+  timezone   String  @default("Europe/Dublin")
+  dietary    String? @db.Text // allergies, preferences, what he actually eats
+  kitchen    String? @db.Text // equipment / time available for cooking
+  exercise   String? @db.Text // current activity, injuries, goals
+  derailers  String? @db.Text // what usually blows the day up
+  goals      String? @db.Text // what "a good week" looks like
+  focusMins  Int     @default(50) // preferred hyperfocus block length
+  breakMins  Int     @default(10)
+  onboarded  Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model NavDayPlan {
+  id     String   @id @default(cuid())
+  userId String
+  date   DateTime @db.Date
+
+  energy         Int?    // 1-5 self-reported at plan time
+  mood           String?
+  availableHours Float?
+  focusTheme     String? // the one thing that makes today a win
+  blocks         Json? // [{ start, end, label, kind, taskId?, why? }]
+  anchor         String? @db.Text // "if you only do one thing" line
+  reflection     String? @db.Text // written at end of day
+  wins           String? @db.Text
+  friction       String? @db.Text
+  scoreOutOf5    Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, date])
+  @@index([userId, date])
+}
+
+model NavTask {
+  id     String @id @default(cuid())
+  userId String
+
+  title    String
+  notes    String? @db.Text
+  project  String? // free-text project/bucket name
+  parentId String? // set on micro-steps
+
+  // todo | doing | done | parked
+  status String @default("todo")
+  // urgent | important | quickwin | later
+  priority String @default("important")
+
+  effortMins  Int? // honest time estimate (time-blindness compensation)
+  startTrigger String? @db.Text // the exact first physical action
+  dueDate     DateTime?
+  scheduledFor DateTime? @db.Date
+  order       Int       @default(0)
+  completedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, status])
+  @@index([userId, parentId])
+  @@index([userId, scheduledFor])
+}
+
+model NavHabit {
+  id     String @id @default(cuid())
+  userId String
+
+  name        String
+  emoji       String  @default("*")
+  targetPerWk Int     @default(7)
+  cue         String? // when/where it hangs off an existing routine
+  active      Boolean @default(true)
+  order       Int     @default(0)
+
+  createdAt DateTime @default(now())
+
+  logs NavHabitLog[]
+
+  @@index([userId, active])
+}
+
+model NavHabitLog {
+  id      String   @id @default(cuid())
+  userId  String
+  habitId String
+  date    DateTime @db.Date
+  done    Boolean  @default(true)
+
+  habit NavHabit @relation(fields: [habitId], references: [id], onDelete: Cascade)
+
+  @@unique([habitId, date])
+  @@index([userId, date])
+}
+
+model NavMeal {
+  id     String   @id @default(cuid())
+  userId String
+  date   DateTime @db.Date
+
+  // breakfast | lunch | dinner | snack
+  slot        String
+  title       String
+  ingredients Json? // string[]
+  prepMins    Int     @default(10)
+  protein     Int? // rough grams, for pattern spotting
+  notes       String? @db.Text
+  eaten       Boolean @default(false)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, date])
+}
+
+model NavGroceryItem {
+  id     String @id @default(cuid())
+  userId String
+
+  name     String
+  qty      String?
+  category String  @default("other") // produce | protein | dairy | pantry | frozen | other
+  checked  Boolean @default(false)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, checked])
+}
+
+model NavWorkout {
+  id     String   @id @default(cuid())
+  userId String
+  date   DateTime @db.Date
+
+  title       String
+  kind        String  @default("movement") // strength | cardio | mobility | walk | movement
+  durationMins Int    @default(10)
+  intensity   String  @default("easy") // easy | moderate | hard
+  steps       Json? // string[] — the actual exercises
+  completed   Boolean @default(false)
+  notes       String? @db.Text
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, date])
+}
+
+model NavFocusSession {
+  id     String @id @default(cuid())
+  userId String
+
+  label       String
+  taskId      String?
+  plannedMins Int      @default(50)
+  startedAt   DateTime @default(now())
+  endedAt     DateTime?
+  actualMins  Int?
+  distractions Int     @default(0)
+  outcome     String?  @db.Text
+  completed   Boolean  @default(false)
+
+  @@index([userId, startedAt])
+}
+
+model NavCheckin {
+  id     String   @id @default(cuid())
+  userId String
+  at     DateTime @default(now())
+
+  // energy | hunger | overstim | mood | focus
+  kind  String
+  value Int // 1-5
+  note  String? @db.Text
+
+  @@index([userId, at])
+  @@index([userId, kind])
+}
+
+model NavChatMessage {
+  id     String @id @default(cuid())
+  userId String
+
+  // user | assistant
+  role    String
+  content String  @db.Text
+  actions Json? // what the assistant actually did, for transparency
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+}

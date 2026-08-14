@@ -41,6 +41,7 @@ import {
   Megaphone,
   ScanLine,
   Sun,
+  Compass,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -310,6 +311,16 @@ const navItems = [
     href: "/admin?tab=outreach",
     label: "Email Outreach",
     icon: RadioTower,
+    roles: [Role.ADMIN],
+    permission: null,
+    featureKey: null,
+    plans: null,
+    platformAdminOnly: true,
+  },
+  {
+    href: "/navigator",
+    label: "Navigator",
+    icon: Compass,
     roles: [Role.ADMIN],
     permission: null,
     featureKey: null,
