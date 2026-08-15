@@ -85,7 +85,20 @@ export type NudgeCtx = {
   sentToday: { kind: string; refKey: string; sentAt: Date }[];
   /** Minutes-since-midnight of the most recent nudge today, if any. */
   lastSentMins: number | null;
+  /**
+   * Most recent energy check-in, when it's recent enough to still be true.
+   * Null means "no idea", which is treated as normal energy rather than low --
+   * assuming someone is depleted when they haven't said so would water down
+   * every nudge for the majority of runs.
+   */
+  energy: { value: number; ageMins: number } | null;
 };
+
+/** A check-in older than this tells us nothing about right now. */
+export const ENERGY_FRESH_MINS = 240;
+
+/** 1-2 out of 5. Below this, asking for a 45-minute errand is just noise. */
+const LOW_ENERGY_AT = 2;
 
 export const toMins = (t: string): number => {
   const [h, m] = String(t).split(":").map(Number);
@@ -184,6 +197,12 @@ export function decideNudges(ctx: NudgeCtx): Nudge[] {
   const push = (n: Nudge) => {
     if (!already(n.kind, n.refKey) && !capped(n.kind)) out.push(n);
   };
+
+  // Running on empty? Nothing is suppressed because of it -- the same nudges
+  // still fire -- but what they ask for shrinks. A depleted person told to
+  // "knock out that 40-minute job" just closes the notification.
+  const lowEnergy =
+    ctx.energy != null && ctx.energy.ageMins <= ENERGY_FRESH_MINS && ctx.energy.value <= LOW_ENERGY_AT;
 
   // ── 1. Block starting ────────────────────────────────────────────────────
   // The core structure nudge: "this is what you're doing next, starting now".
@@ -296,7 +315,16 @@ export function decideNudges(ctx: NudgeCtx): Nudge[] {
         )
         .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
 
-      const pick = stale.find((t) => !already("errand", t.id));
+      // On a low-energy day, only the genuinely tiny errands are offered, and
+      // shortest wins over oldest. Nothing is skipped forever -- a 40-minute
+      // job simply waits for a run where he hasn't said he's flat.
+      const eligible = lowEnergy
+        ? stale
+            .filter((t) => (t.effortMins ?? 15) <= 15)
+            .sort((a, b) => (a.effortMins ?? 15) - (b.effortMins ?? 15))
+        : stale;
+
+      const pick = eligible.find((t) => !already("errand", t.id));
       if (pick) {
         const ageHours = (ctx.now.getTime() - pick.createdAt.getTime()) / 3600000;
         const ageDays = Math.floor(ageHours / 24);
@@ -306,10 +334,16 @@ export function decideNudges(ctx: NudgeCtx): Nudge[] {
         push({
           kind: "errand",
           refKey: pick.id,
-          title: `Free ${gapMins >= 60 ? "hour" : `${gapMins} min`} — ${pick.title}`,
-          body: pick.startTrigger
-            ? `${age} old, ~${mins} min. Start: ${pick.startTrigger}`
-            : `Sitting ${age} already, ~${mins} min. Do it now and it's gone.`,
+          title: lowEnergy
+            ? `Low battery — ${pick.title}`
+            : `Free ${gapMins >= 60 ? "hour" : `${gapMins} min`} — ${pick.title}`,
+          body: lowEnergy
+            ? pick.startTrigger
+              ? `Small one, ~${mins} min. Just: ${pick.startTrigger}`
+              : `Small one, ~${mins} min. Sitting ${age}. Low effort, then stop.`
+            : pick.startTrigger
+              ? `${age} old, ~${mins} min. Start: ${pick.startTrigger}`
+              : `Sitting ${age} already, ~${mins} min. Do it now and it's gone.`,
           link: LINK,
         });
       }
@@ -328,7 +362,9 @@ export function decideNudges(ctx: NudgeCtx): Nudge[] {
         kind: "stuck",
         refKey: stuck.id,
         title: `Still open ${days}d: ${stuck.title}`,
-        body: "Started but not moving. Break it into one 15-min step, or park it honestly.",
+        body: lowEnergy
+          ? "Started but not moving, and you're running low. Hit Smallest step and do just that."
+          : "Started but not moving. Break it into one 15-min step, or park it honestly.",
         link: LINK,
       });
     }

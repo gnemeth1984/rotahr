@@ -675,7 +675,34 @@ ${renderSnapshot(snapshot, key)}`
   return plan;
 }
 
-export async function breakdownTask(userId: string, taskId: string) {
+/**
+ * How to split a task. The mode exists because "break this down" means something
+ * different at 9am with a clear head than it does at 9pm after a double shift.
+ */
+export type BreakdownMode = "steps" | "low_energy" | "smallest";
+
+const BREAKDOWN_RULES: Record<BreakdownMode, string> = {
+  steps: `- 3 to 6 steps. Each is one sitting, max 45 minutes, with every decision already made inside the title.
+- No step may start with "plan", "think about" or "research" unless that IS the whole step, with a hard time cap.`,
+
+  // Tired, low dopamine, possibly post-shift. Ceiling per step matters more than
+  // covering the whole task: getting 3 easy steps done beats stalling on 6 hard ones.
+  low_energy: `- 3 to 5 steps, and EVERY step must be doable while tired and unmotivated.
+- Hard ceiling of 15 minutes per step. If a step cannot fit in 15 minutes, split it again.
+- No step may require a decision, reading anything long, or talking to anyone.
+- Prefer physical, mechanical, obvious actions over anything needing judgement.
+- It is fine if these steps do not finish the task. Momentum is the goal.`,
+
+  // One step only. Any list at all reintroduces the choice that caused the stall.
+  smallest: `- Return EXACTLY ONE step: the smallest possible physical first action.
+- It must take 2 to 5 minutes, maximum. If it is bigger than that, it is wrong.
+- It must require zero decisions, zero setup and zero reading.
+- Do not return a list. One step, nothing else.`,
+};
+
+const MAX_STEPS: Record<BreakdownMode, number> = { steps: 6, low_energy: 5, smallest: 1 };
+
+export async function breakdownTask(userId: string, taskId: string, mode: BreakdownMode = "steps") {
   const task = await prisma.navTask.findFirst({ where: { id: taskId, userId } });
   if (!task) throw new Error("Task not found");
   const snapshot = await buildSnapshot(userId);
@@ -684,8 +711,9 @@ export async function breakdownTask(userId: string, taskId: string) {
     `${NAVIGATOR_PERSONA}
 
 Return JSON only: { "steps": [{ "title": string, "effortMins": number, "startTrigger": string }], "firstMove": string }
-- 3 to 6 steps. Each is one sitting, max 45 minutes, with every decision already made inside the title.
-- No step may start with "plan", "think about" or "research" unless that IS the whole step, with a hard time cap.
+${BREAKDOWN_RULES[mode]}
+- Never put a duration in the step title. effortMins carries the time, and it must be your honest estimate of that step, not the ceiling you were given.
+- Titles must be distinct and self-explanatory. No "part 1 / part 2" numbering unless the parts are genuinely different work.
 - startTrigger is a 2-minute physical action requiring zero decisions.
 - firstMove: one sentence telling them exactly what to do in the next 2 minutes.`,
     `Task: ${task.title}
@@ -696,7 +724,7 @@ Context:
 ${renderSnapshot(snapshot)}`
   );
 
-  const steps = (out.steps ?? []).slice(0, 6);
+  const steps = (out.steps ?? []).slice(0, MAX_STEPS[mode]);
   await prisma.$transaction(
     steps.map((s, i) =>
       prisma.navTask.create({

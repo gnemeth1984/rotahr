@@ -79,7 +79,7 @@ export async function GET(req: NextRequest) {
     }
 
     const day = dayFromKey(dateKey);
-    const [plan, tasks, sentToday] = await Promise.all([
+    const [plan, tasks, sentToday, lastEnergy] = await Promise.all([
       prisma.navDayPlan.findFirst({ where: { userId: profile.userId, date: day } }),
       prisma.navTask.findMany({
         where: { userId: profile.userId, status: { in: ["todo", "doing"] } },
@@ -89,6 +89,13 @@ export async function GET(req: NextRequest) {
       prisma.navNudge.findMany({
         where: { userId: profile.userId, date: day },
         select: { kind: true, refKey: true, sentAt: true },
+      }),
+      // Latest energy check-in. Only ever used to make a nudge ask for LESS,
+      // never to suppress one, so a missing row is harmless.
+      prisma.navCheckin.findFirst({
+        where: { userId: profile.userId, kind: "energy" },
+        orderBy: { at: "desc" },
+        select: { value: true, at: true },
       }),
     ]);
 
@@ -128,6 +135,12 @@ export async function GET(req: NextRequest) {
       tasks: tasks as NudgeTask[],
       sentToday,
       lastSentMins,
+      energy: lastEnergy
+        ? {
+            value: lastEnergy.value,
+            ageMins: Math.max(0, Math.round((now.getTime() - lastEnergy.at.getTime()) / 60000)),
+          }
+        : null,
     });
 
     const sent: string[] = [];
@@ -168,7 +181,11 @@ export async function GET(req: NextRequest) {
       sent,
       quiet: inQuietHours(nowMins, profile.quietStart, profile.quietEnd) || undefined,
       onShift: onShift || undefined,
-      considered: { tasks: tasks.length, blocks: Array.isArray(plan?.blocks) ? plan.blocks.length : 0 },
+      considered: {
+        tasks: tasks.length,
+        blocks: Array.isArray(plan?.blocks) ? plan.blocks.length : 0,
+        energy: lastEnergy?.value ?? null,
+      },
     });
   }
 

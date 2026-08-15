@@ -1,10 +1,18 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Check, ChevronDown, ChevronRight, Play, Plus, Scissors, Trash2, Zap } from "lucide-react";
+import { BatteryLow, Check, ChevronDown, ChevronRight, Play, Plus, Scissors, Trash2, Zap } from "lucide-react";
 import { NavState, Task } from "./types";
 import { api, errMsg } from "./api";
 import { Btn, Empty, Field, PRIORITY_TONE, Panel, Pill, SectionTitle, inputClass } from "./nav-ui";
+import { WarmUpButton } from "./WarmUp";
+
+/**
+ * How the AI is asked to cut a task up. "steps" is the ordinary pass;
+ * "low_energy" caps every step at 15 minutes of no-thinking work; "smallest"
+ * returns exactly one move, for when even a list feels like too much.
+ */
+type BreakdownMode = "steps" | "low_energy" | "smallest";
 
 const BUCKETS = [
   { id: "urgent", label: "Urgent", blurb: "Real deadlines, real consequences" },
@@ -78,12 +86,15 @@ export function TasksTab({ state, refresh }: { state: NavState; refresh: () => v
     }
   }
 
-  async function breakdown(id: string) {
-    setBusy(`split-${id}`);
+  async function breakdown(id: string, mode: BreakdownMode) {
+    setBusy(`${mode}-${id}`);
     setError(null);
     setFirstMove(null);
     try {
-      const out = await api<{ firstMove: string }>(`/tasks/${id}/breakdown`, { method: "POST" });
+      const out = await api<{ firstMove: string }>(`/tasks/${id}/breakdown`, {
+        method: "POST",
+        body: { mode },
+      });
       setOpen((o) => ({ ...o, [id]: true }));
       if (out.firstMove) setFirstMove({ id, text: out.firstMove });
       refresh();
@@ -203,15 +214,53 @@ export function TasksTab({ state, refresh }: { state: NavState; refresh: () => v
                           )}
                           <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
                             {kids.length === 0 ? (
-                              <Btn size="sm" variant="ghost" loading={busy === `split-${t.id}`} onClick={() => breakdown(t.id)}>
-                                <Scissors className="h-3.5 w-3.5" />
-                                Break it down
-                              </Btn>
+                              <>
+                                <Btn
+                                  size="sm"
+                                  variant="ghost"
+                                  loading={busy === `steps-${t.id}`}
+                                  onClick={() => breakdown(t.id, "steps")}
+                                >
+                                  <Scissors className="h-3.5 w-3.5" />
+                                  Break it down
+                                </Btn>
+                                <Btn
+                                  size="sm"
+                                  variant="quiet"
+                                  loading={busy === `low_energy-${t.id}`}
+                                  onClick={() => breakdown(t.id, "low_energy")}
+                                  title="Short, no-thinking steps for a bad day"
+                                >
+                                  <BatteryLow className="h-3.5 w-3.5" />
+                                  Low energy
+                                </Btn>
+                                <Btn
+                                  size="sm"
+                                  variant="quiet"
+                                  loading={busy === `smallest-${t.id}`}
+                                  onClick={() => breakdown(t.id, "smallest")}
+                                  title="Just one tiny move to get unstuck"
+                                >
+                                  Smallest step
+                                </Btn>
+                              </>
                             ) : (
                               <Btn size="sm" variant="quiet" onClick={() => setOpen((o) => ({ ...o, [t.id]: !expanded }))}>
                                 {expanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
                                 {expanded ? "Hide steps" : "Show steps"}
                               </Btn>
+                            )}
+                            {t.startTrigger && t.status !== "done" && (
+                              <WarmUpButton
+                                task={{
+                                  id: t.id,
+                                  title: t.title,
+                                  startTrigger: t.startTrigger,
+                                  effortMins: t.effortMins ?? null,
+                                }}
+                                focusMins={state.profile.focusMins}
+                                onStarted={refresh}
+                              />
                             )}
                             <Btn size="sm" variant="quiet" loading={busy === `focus-${t.id}`} onClick={() => startFocus(t)}>
                               <Play className="h-3.5 w-3.5" />

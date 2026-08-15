@@ -1,8 +1,8 @@
-// Reads a Navigator reply aloud.
+// Reads a Navigator reply, or a task's start trigger, aloud.
 //
-// Takes a messageId rather than raw text: the text is looked up from the
-// caller's own messages, so this can never be used to bill arbitrary
-// text-to-speech, and the audio always matches what is actually on screen.
+// Takes an id rather than raw text: the text is looked up from the caller's own
+// rows, so this can never be used to bill arbitrary text-to-speech, and the
+// audio always matches what is actually on screen.
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import { prisma } from "@/lib/db";
@@ -12,13 +12,29 @@ import { z } from "zod";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-const schema = z.object({ messageId: z.string().min(1) });
+// Exactly one of these. messageId reads a chat reply; taskId reads the start
+// trigger for a task warm-up.
+const schema = z.union([
+  z.object({ messageId: z.string().min(1) }),
+  z.object({ taskId: z.string().min(1) }),
+]);
 
 // Hard ceiling on one request. Navigator replies are told to stay under ~120
 // words, so this only ever trips on something pathological.
 const MAX_CHARS = 3000;
 
 const VOICE = "alloy";
+
+const REPLY_INSTRUCTIONS =
+  "Read this calmly and warmly, like a friend talking, not an announcer. " +
+  "Steady, unhurried pace. Small pause between list items so each one lands.";
+
+// A warm-up is spoken into the moment of starting. Encouraging but brisk, so it
+// pushes the user into motion instead of inviting them to keep listening.
+const WARMUP_INSTRUCTIONS =
+  "Read this like a friend giving you a gentle push to start, right now. " +
+  "Warm, calm, and brief. Clear pause after the task name, then deliver the " +
+  "action plainly. Do not sound like an advert.";
 
 export async function POST(req: NextRequest) {
   const userId = await navigatorUserId();
@@ -33,17 +49,36 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid input" }, { status: 400 });
   }
 
-  const message = await prisma.navChatMessage.findFirst({
-    where: { id: parsed.data.messageId, userId },
-    select: { content: true, role: true },
-  });
+  let source: string;
+  let instructions: string;
 
-  if (!message) return NextResponse.json({ error: "Message not found" }, { status: 404 });
-  if (message.role !== "assistant") {
-    return NextResponse.json({ error: "Only Navigator replies can be read out." }, { status: 400 });
+  if ("taskId" in parsed.data) {
+    const task = await prisma.navTask.findFirst({
+      where: { id: parsed.data.taskId, userId },
+      select: { title: true, startTrigger: true },
+    });
+    if (!task) return NextResponse.json({ error: "Task not found" }, { status: 404 });
+    if (!task.startTrigger) {
+      return NextResponse.json({ error: "That task has no start trigger yet." }, { status: 400 });
+    }
+    // Spoken at the moment of starting, so it names the task then gives the one
+    // physical action. Nothing else — extra words here are an escape route.
+    source = `${task.title}. Start by: ${task.startTrigger}`;
+    instructions = WARMUP_INSTRUCTIONS;
+  } else {
+    const message = await prisma.navChatMessage.findFirst({
+      where: { id: parsed.data.messageId, userId },
+      select: { content: true, role: true },
+    });
+    if (!message) return NextResponse.json({ error: "Message not found" }, { status: 404 });
+    if (message.role !== "assistant") {
+      return NextResponse.json({ error: "Only Navigator replies can be read out." }, { status: 400 });
+    }
+    source = message.content;
+    instructions = REPLY_INSTRUCTIONS;
   }
 
-  const text = forSpeech(message.content);
+  const text = forSpeech(source);
   if (!text) return NextResponse.json({ error: "Nothing to read out." }, { status: 400 });
 
   try {
@@ -52,9 +87,7 @@ export async function POST(req: NextRequest) {
       model: "gpt-4o-mini-tts",
       voice: VOICE,
       input: text,
-      instructions:
-        "Read this calmly and warmly, like a friend talking, not an announcer. " +
-        "Steady, unhurried pace. Small pause between list items so each one lands.",
+      instructions,
     });
 
     const buffer = Buffer.from(await speech.arrayBuffer());
