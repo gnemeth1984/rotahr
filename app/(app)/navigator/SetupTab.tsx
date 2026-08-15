@@ -27,6 +27,29 @@ const DAYS: { key: WeekdayKey; label: string }[] = [
   { key: "sun", label: "Sunday" },
 ];
 
+const NUDGE_KINDS: { key: keyof NavProfile; label: string; hint: string }[] = [
+  {
+    key: "notifyBlocks",
+    label: "Next block starting",
+    hint: "The backbone — tells you what you're doing next, just before it starts.",
+  },
+  {
+    key: "notifyErrands",
+    label: "Small stuff you keep skipping",
+    hint: "Passport paperwork, checking a delivery, ordering shoes. Surfaced one at a time in real free gaps, oldest first.",
+  },
+  { key: "notifyDueToday", label: "Due today", hint: "One summary in the morning, not a running commentary." },
+  { key: "notifyOverdue", label: "Overdue", hint: "Max two a day, oldest first." },
+  { key: "notifyStuck", label: "Stuck in progress", hint: "Started over two days ago and hasn't moved." },
+  { key: "notifyIdle", label: "No plan yet", hint: "A prod when the day is free and nothing's been laid out." },
+  { key: "notifyEvening", label: "Close the day", hint: "A reflection prompt 45 min before quiet hours." },
+  {
+    key: "notifyDuringShift",
+    label: "Allow nudges during a shift",
+    hint: "Off by default — you're at work and can't act on them.",
+  },
+];
+
 // inputClass is w-full; strip it so day rows can size their own cells.
 const cellInput = inputClass.replace("w-full ", "");
 
@@ -86,6 +109,18 @@ export function SetupTab({ state, refresh }: { state: NavState; refresh: () => v
           goals: p.goals || null,
           focusMins: Number(p.focusMins) || 50,
           breakMins: Number(p.breakMins) || 10,
+          notifyEnabled: p.notifyEnabled,
+          notifyLeadMins: Number(p.notifyLeadMins) || 0,
+          notifyBlocks: p.notifyBlocks,
+          notifyDueToday: p.notifyDueToday,
+          notifyOverdue: p.notifyOverdue,
+          notifyErrands: p.notifyErrands,
+          notifyStuck: p.notifyStuck,
+          notifyIdle: p.notifyIdle,
+          notifyEvening: p.notifyEvening,
+          notifyDuringShift: p.notifyDuringShift,
+          quietStart: p.quietStart,
+          quietEnd: p.quietEnd,
           onboarded: true,
         },
       });
@@ -233,6 +268,75 @@ export function SetupTab({ state, refresh }: { state: NavState; refresh: () => v
               </div>
             );
           })}
+        </div>
+      </Panel>
+
+      <Panel className="p-5">
+        <SectionTitle>Nudges</SectionTitle>
+        <p className="mb-4 text-sm text-slate-400">
+          Reminders land in the Rotahr bell and on your phone once push is enabled. Nothing is ever sent
+          during a shift, or between your quiet hours below.
+        </p>
+
+        <label className="mb-4 flex cursor-pointer items-center gap-3">
+          <input
+            type="checkbox"
+            className="h-4 w-4 accent-[#ff6b35]"
+            checked={p.notifyEnabled}
+            onChange={(e) => set("notifyEnabled", e.target.checked)}
+          />
+          <span className="text-sm font-semibold text-white">Nudges on</span>
+        </label>
+
+        <div className={p.notifyEnabled ? "" : "pointer-events-none opacity-40"}>
+          <div className="mb-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <Field label="Warning before a block" hint="Minutes of head-start.">
+              <input
+                className={inputClass}
+                type="number"
+                min={0}
+                max={60}
+                value={p.notifyLeadMins}
+                onChange={(e) => set("notifyLeadMins", Number(e.target.value))}
+              />
+            </Field>
+            <Field label="Quiet from">
+              <input
+                className={inputClass}
+                type="time"
+                value={p.quietStart}
+                onChange={(e) => set("quietStart", e.target.value)}
+              />
+            </Field>
+            <Field label="Quiet until">
+              <input
+                className={inputClass}
+                type="time"
+                value={p.quietEnd}
+                onChange={(e) => set("quietEnd", e.target.value)}
+              />
+            </Field>
+          </div>
+
+          <div className="space-y-1">
+            {NUDGE_KINDS.map((n) => (
+              <label
+                key={n.key}
+                className="flex cursor-pointer items-start gap-3 rounded-lg px-2 py-2 hover:bg-white/5"
+              >
+                <input
+                  type="checkbox"
+                  className="mt-0.5 h-4 w-4 shrink-0 accent-[#ff6b35]"
+                  checked={Boolean(p[n.key])}
+                  onChange={(e) => set(n.key, e.target.checked as never)}
+                />
+                <span>
+                  <span className="block text-sm font-medium text-white">{n.label}</span>
+                  <span className="block text-xs text-slate-400">{n.hint}</span>
+                </span>
+              </label>
+            ))}
+          </div>
         </div>
       </Panel>
 

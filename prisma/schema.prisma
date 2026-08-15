@@ -2137,8 +2137,43 @@ model NavProfile {
   breakMins  Int     @default(10)
   onboarded  Boolean @default(false)
 
+  /// Nudge settings. Navigator's whole value is external structure, so these
+  /// default ON — the quiet windows below are what stop it being noise, not the
+  /// user remembering to mute it.
+  notifyEnabled     Boolean @default(true)
+  notifyLeadMins    Int     @default(5) // how early a block-start nudge fires
+  notifyBlocks      Boolean @default(true)
+  notifyDueToday    Boolean @default(true)
+  notifyOverdue     Boolean @default(true)
+  notifyErrands     Boolean @default(true) // the small stuff that quietly rots
+  notifyStuck       Boolean @default(true)
+  notifyIdle        Boolean @default(true)
+  notifyEvening     Boolean @default(true)
+  /// Shifts are for working, not for phone buzzes. Off by default.
+  notifyDuringShift Boolean @default(false)
+  quietStart        String  @default("22:00")
+  quietEnd          String  @default("07:00")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+/// One row per nudge actually sent. Exists purely so a 5-minute cron cannot
+/// send the same reminder twice — the unique key IS the dedup mechanism.
+model NavNudge {
+  id     String @id @default(cuid())
+  userId String
+
+  date   DateTime @db.Date // user-local day, for per-day caps
+  kind   String // block | due_today | overdue | errand | stuck | idle | evening
+  refKey String // block start, task id, or the date — whatever makes it unique
+  title  String
+  body   String @db.Text
+
+  sentAt DateTime @default(now())
+
+  @@unique([userId, date, kind, refKey])
+  @@index([userId, sentAt])
 }
 
 model NavDayPlan {

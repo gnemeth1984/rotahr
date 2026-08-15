@@ -1,0 +1,170 @@
+// Navigator nudge cron.
+// Runs every 5 minutes between 06:00-21:59 UTC (see vercel.json) so that block
+// reminders land close to the minute. The narrow hour range is deliberate: our
+// Neon compute scales to zero and every invocation holds it awake for the
+// 5-minute suspend delay, so an unrestricted */5 cron would keep the database
+// billing 24/7 for nothing.
+export const dynamic = "force-dynamic";
+
+import { NextRequest, NextResponse } from "next/server";
+import { dublinNow } from "@/lib/cron/service-hours";
+import {
+  decideNudges,
+  inQuietHours,
+  toMins,
+  type NudgeBlock,
+  type NudgeTask,
+} from "@/lib/navigator/nudges";
+
+// Widest possible quiet window across all users — checked BEFORE Prisma so the
+// DB compute can stay suspended. Per-user quiet hours are enforced properly
+// inside decideNudges().
+const HARD_QUIET_START = 23; // 23:00 Dublin
+const HARD_QUIET_END = 6; //  06:00 Dublin
+
+export async function GET(req: NextRequest) {
+  const authHeader = req.headers.get("authorization");
+  const secret =
+    req.headers.get("x-cron-secret") || new URL(req.url).searchParams.get("secret");
+  const authed =
+    authHeader === `Bearer ${process.env.CRON_SECRET}` || secret === process.env.CRON_SECRET;
+  if (!authed) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Dev-only clock override so the whole pipeline (engine -> ledger insert ->
+  // notification) can be exercised at an arbitrary time of day. Double-gated:
+  // never outside development, and the cron secret is already required above.
+  const testNow =
+    process.env.NODE_ENV !== "production"
+      ? new URL(req.url).searchParams.get("testNow")
+      : null;
+  const now = testNow ? new Date(testNow) : new Date();
+  if (Number.isNaN(now.getTime())) {
+    return NextResponse.json({ error: "Bad testNow" }, { status: 400 });
+  }
+  const { hour, minute } = dublinNow(now);
+  if (hour >= HARD_QUIET_START || hour < HARD_QUIET_END) {
+    return NextResponse.json({ skipped: "hard quiet hours", hour });
+  }
+
+  // Imported lazily so the quiet-hours exit above never wakes the database.
+  const { prisma } = await import("@/lib/db");
+  const { createNotification } = await import("@/lib/services/appNotification.service");
+  const { windowForDate } = await import("@/lib/navigator/context");
+  const { todayKey, dayFromKey } = await import("@/lib/navigator/dates");
+
+  const profiles = await prisma.navProfile.findMany({ where: { notifyEnabled: true } });
+  if (!profiles.length) return NextResponse.json({ ok: true, profiles: 0 });
+
+  const results: Record<string, unknown>[] = [];
+
+  for (const profile of profiles) {
+    const tz = profile.timezone || "Europe/Dublin";
+    const dateKey = todayKey(tz);
+    const nowMins = hour * 60 + minute;
+
+    // Cheap pre-check with this user's real quiet window — skip the reads.
+    if (inQuietHours(nowMins, profile.quietStart, profile.quietEnd)) {
+      results.push({ userId: profile.userId, skipped: "user quiet hours" });
+      continue;
+    }
+
+    const { window: shift, source } = windowForDate(profile, dateKey);
+    const onShift =
+      shift && nowMins >= toMins(shift.start) && nowMins < toMins(shift.end);
+    if (onShift && !profile.notifyDuringShift) {
+      results.push({ userId: profile.userId, skipped: "on shift" });
+      continue;
+    }
+
+    const day = dayFromKey(dateKey);
+    const [plan, tasks, sentToday] = await Promise.all([
+      prisma.navDayPlan.findFirst({ where: { userId: profile.userId, date: day } }),
+      prisma.navTask.findMany({
+        where: { userId: profile.userId, status: { in: ["todo", "doing"] } },
+        orderBy: { createdAt: "asc" },
+        take: 200,
+      }),
+      prisma.navNudge.findMany({
+        where: { userId: profile.userId, date: day },
+        select: { kind: true, refKey: true, sentAt: true },
+      }),
+    ]);
+
+    const lastSentMins = sentToday.length
+      ? Math.max(
+          ...sentToday.map((s) => {
+            const d = dublinNow(s.sentAt);
+            return d.hour * 60 + d.minute;
+          })
+        )
+      : null;
+
+    const nudges = decideNudges({
+      now,
+      nowMins,
+      dateKey,
+      prefs: {
+        notifyEnabled: profile.notifyEnabled,
+        notifyLeadMins: profile.notifyLeadMins,
+        notifyBlocks: profile.notifyBlocks,
+        notifyDueToday: profile.notifyDueToday,
+        notifyOverdue: profile.notifyOverdue,
+        notifyErrands: profile.notifyErrands,
+        notifyStuck: profile.notifyStuck,
+        notifyIdle: profile.notifyIdle,
+        notifyEvening: profile.notifyEvening,
+        notifyDuringShift: profile.notifyDuringShift,
+        quietStart: profile.quietStart,
+        quietEnd: profile.quietEnd,
+        wakeTime: profile.wakeTime,
+      },
+      shift,
+      isDayOff: shift === null && source === "pattern",
+      planExists: !!plan,
+      blocks: Array.isArray(plan?.blocks) ? (plan.blocks as unknown as NudgeBlock[]) : [],
+      hasReflection: !!plan?.reflection || plan?.scoreOutOf5 != null,
+      tasks: tasks as NudgeTask[],
+      sentToday,
+      lastSentMins,
+    });
+
+    const sent: string[] = [];
+    for (const n of nudges) {
+      // The unique index is the real guard: two overlapping cron runs cannot
+      // both deliver the same nudge, because the insert loses the race.
+      try {
+        await prisma.navNudge.create({
+          data: {
+            userId: profile.userId,
+            date: day,
+            kind: n.kind,
+            refKey: n.refKey,
+            title: n.title,
+            body: n.body,
+            // Written from the app clock on purpose. The errand spacing rule
+            // compares sentAt against this same `now`, and letting Postgres
+            // fill it with CURRENT_TIMESTAMP would mix two clocks.
+            sentAt: now,
+          },
+        });
+      } catch {
+        continue; // already sent — skip delivery entirely
+      }
+
+      await createNotification({
+        userId: profile.userId,
+        type: "navigator",
+        title: n.title,
+        body: n.body,
+        link: n.link,
+      });
+      sent.push(`${n.kind}:${n.refKey}`);
+    }
+
+    results.push({ userId: profile.userId, sent });
+  }
+
+  return NextResponse.json({ ok: true, at: `${hour}:${String(minute).padStart(2, "0")}`, results });
+}

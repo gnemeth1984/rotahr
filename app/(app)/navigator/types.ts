@@ -31,6 +31,18 @@ export type NavProfile = {
   focusMins: number;
   breakMins: number;
   onboarded: boolean;
+  notifyEnabled: boolean;
+  notifyLeadMins: number;
+  notifyBlocks: boolean;
+  notifyDueToday: boolean;
+  notifyOverdue: boolean;
+  notifyErrands: boolean;
+  notifyStuck: boolean;
+  notifyIdle: boolean;
+  notifyEvening: boolean;
+  notifyDuringShift: boolean;
+  quietStart: string;
+  quietEnd: string;
 };
 
 export type DayPlan = {

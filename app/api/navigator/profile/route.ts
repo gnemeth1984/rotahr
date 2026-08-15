@@ -39,6 +39,18 @@ const schema = z.object({
   focusMins: z.number().int().min(10).max(180).optional(),
   breakMins: z.number().int().min(2).max(60).optional(),
   onboarded: z.boolean().optional(),
+  notifyEnabled: z.boolean().optional(),
+  notifyLeadMins: z.number().int().min(0).max(60).optional(),
+  notifyBlocks: z.boolean().optional(),
+  notifyDueToday: z.boolean().optional(),
+  notifyOverdue: z.boolean().optional(),
+  notifyErrands: z.boolean().optional(),
+  notifyStuck: z.boolean().optional(),
+  notifyIdle: z.boolean().optional(),
+  notifyEvening: z.boolean().optional(),
+  notifyDuringShift: z.boolean().optional(),
+  quietStart: time.optional(),
+  quietEnd: time.optional(),
 });
 
 export async function GET() {
