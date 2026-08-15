@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { navigatorUserId, forbidden } from "@/lib/navigator/guard";
-import { getOrCreateProfile, DEFAULT_TZ } from "@/lib/navigator/context";
+import { getOrCreateProfile, DEFAULT_TZ, windowForDate } from "@/lib/navigator/context";
 import { dayFromKey, todayKey, nowTime, weekStartKey, addDaysKey } from "@/lib/navigator/dates";
 import { momentumFor } from "@/lib/navigator/momentum";
+import { timeDebtFor } from "@/lib/navigator/timedebt";
+import { ritualsForDay, currentRitual } from "@/lib/navigator/rituals";
+import { planIsStale, STALE_AFTER_MINS } from "@/lib/navigator/compress";
 
 export const dynamic = "force-dynamic";
 
@@ -23,7 +26,7 @@ export async function GET() {
       // Drafts are excluded here on purpose. An un-triaged capture must not
       // show up in the live task list, or quick-capture just becomes clutter.
       prisma.navTask.findMany({
-        where: { userId, status: { notIn: ["done", "draft"] } },
+        where: { userId, status: { notIn: ["done", "draft"] }, archivedAt: null },
         orderBy: [{ order: "asc" }, { createdAt: "asc" }],
       }),
       prisma.navMeal.findMany({ where: { userId, date: dayFromKey(today) }, orderBy: { createdAt: "asc" } }),
@@ -48,26 +51,67 @@ export async function GET() {
       }),
     ]);
 
-  const [doneToday, drafts] = await Promise.all([
+  const [doneToday, drafts, recentNudges, snoozes, ritualLogs] = await Promise.all([
+    // Archived tasks are excluded everywhere, including here — a task archived
+    // last night should not reappear in today's "done" strip.
     prisma.navTask.findMany({
-      where: { userId, status: "done", completedAt: { gte: new Date(`${today}T00:00:00.000Z`) } },
+      where: {
+        userId,
+        status: "done",
+        archivedAt: null,
+        completedAt: { gte: new Date(`${today}T00:00:00.000Z`) },
+      },
       orderBy: { completedAt: "desc" },
       take: 20,
     }),
     prisma.navTask.findMany({
-      where: { userId, status: "draft" },
+      where: { userId, status: "draft", archivedAt: null },
       orderBy: { createdAt: "desc" },
       take: 50,
     }),
+    // What the app has said today. Shown in-app so a missed push isn't a lost
+    // nudge, and so each one has somewhere to be snoozed from.
+    prisma.navNudge.findMany({
+      where: { userId, sentAt: { gte: new Date(Date.now() - 1000 * 60 * 60 * 14) } },
+      orderBy: { sentAt: "desc" },
+      take: 12,
+    }),
+    prisma.navSnooze.findMany({ where: { userId, until: { gt: new Date() } }, orderBy: { until: "asc" } }),
+    prisma.navRitualLog.findMany({ where: { userId, date: dayFromKey(today) } }),
   ]);
 
   // Read-only aggregation over rows already in the DB. Cheap enough to inline
   // here rather than making the UI do a second round trip.
-  const momentum = await momentumFor(userId, today);
+  const [momentum, timeDebt] = await Promise.all([
+    momentumFor(userId, today),
+    timeDebtFor(userId, today),
+  ]);
+
+  const nowStr = nowTime(tz);
+  const nowMins = (() => {
+    const [h, m] = nowStr.split(":").map(Number);
+    return (Number.isFinite(h) ? h : 0) * 60 + (Number.isFinite(m) ? m : 0);
+  })();
+
+  const { window: todayShift } = windowForDate(profile, today);
+  const rituals = profile.ritualsEnabled
+    ? ritualsForDay(
+        {
+          wakeTime: profile.wakeTime,
+          sleepTime: profile.sleepTime,
+          workStart: profile.workStart,
+          workEnd: profile.workEnd,
+          focusMins: profile.focusMins,
+          ritualsEnabled: profile.ritualsEnabled,
+        },
+        today,
+        todayShift
+      )
+    : [];
 
   return NextResponse.json({
     today,
-    now: nowTime(tz),
+    now: nowStr,
     weekStart,
     profile,
     plan,
@@ -84,5 +128,16 @@ export async function GET() {
     checkins,
     weekPlans,
     momentum,
+    timeDebt,
+    todayShift,
+    rituals,
+    ritualLogs,
+    currentRitual: rituals.length ? currentRitual(rituals, nowMins) : null,
+    recentNudges,
+    snoozes,
+    // Offered, not forced: the UI only shows the rescue button when the plan has
+    // demonstrably stopped matching reality.
+    planStale: planIsStale(plan?.blocks, nowMins),
+    staleAfterMins: STALE_AFTER_MINS,
   });
 }

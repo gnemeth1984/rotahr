@@ -40,6 +40,13 @@ const schema = z.object({
   breakMins: z.number().int().min(2).max(60).optional(),
   onboarded: z.boolean().optional(),
   coachTone: z.enum(["warm", "direct", "drill", "clinical"]).optional(),
+  // 4.3 shift buffers. Capped at 2 hours each — beyond that it stops being a
+  // buffer and starts eating the day it's meant to protect.
+  bufferShifts: z.boolean().optional(),
+  preShiftMins: z.number().int().min(0).max(120).optional(),
+  postShiftMins: z.number().int().min(0).max(120).optional(),
+  // 6.3 rituals.
+  ritualsEnabled: z.boolean().optional(),
   notifyEnabled: z.boolean().optional(),
   notifyLeadMins: z.number().int().min(0).max(60).optional(),
   notifyBlocks: z.boolean().optional(),

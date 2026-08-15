@@ -2156,6 +2156,16 @@ model NavProfile {
   notifyEvening     Boolean @default(true)
   /// Shifts are for working, not for phone buzzes. Off by default.
   notifyDuringShift Boolean @default(false)
+
+  /// Shift buffering. A shift does not start when it starts — it starts when you
+  /// have to stop everything else and get ready. Reserving that time as a real
+  /// block is what stops the plan pretending the hour before a shift is usable.
+  bufferShifts  Boolean @default(true)
+  preShiftMins  Int     @default(45)
+  postShiftMins Int     @default(30)
+
+  /// The three fixed daily rituals (warm-up / midday reset / shutdown).
+  ritualsEnabled Boolean @default(true)
   quietStart        String  @default("22:00")
   quietEnd          String  @default("07:00")
 
@@ -2227,12 +2237,67 @@ model NavTask {
   order       Int       @default(0)
   completedAt DateTime?
 
+  /// Set by the nightly cron once a finished task is old enough to stop being
+  /// visible. Archived is NOT deleted: history still drives momentum and time
+  /// debt, it just leaves the list so the list stays believable.
+  archivedAt DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([userId, status])
   @@index([userId, parentId])
   @@index([userId, scheduledFor])
+  @@index([userId, archivedAt])
+}
+
+/// A nudge the user pushed away, and until when.
+///
+/// Separate from NavNudge on purpose: NavNudge is an append-only ledger of what
+/// was sent (and its unique key is the dedup mechanism, so it must not be mutated
+/// or reused). A snooze is a forward-looking suppression of one (kind, refKey)
+/// pair, and it has to survive past midnight, which a per-day ledger row cannot.
+model NavSnooze {
+  id     String @id @default(cuid())
+  userId String
+
+  kind   String // matches NudgeKind
+  refKey String // matches the nudge's refKey — usually a task id or a date
+
+  /// Hard expiry. Always set, even for conditional snoozes, so nothing can be
+  /// silenced forever by a condition that never becomes true.
+  until DateTime
+
+  /// Optional early-release rule, checked at nudge time. Can only UNSNOOZE
+  /// sooner than `until`, never extend past it.
+  /// energy3 = released as soon as a fresh check-in reports energy >= 3
+  condition String?
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, kind, refKey])
+  @@index([userId, until])
+}
+
+/// One row per ritual per day. The ritual definitions live in code
+/// (lib/navigator/rituals.ts) and are derived from the profile, so there is
+/// nothing to seed and nothing to migrate when the wording changes.
+model NavRitualLog {
+  id     String   @id @default(cuid())
+  userId String
+  date   DateTime @db.Date
+
+  ritual String // morning | midday | shutdown | weekly | monthly
+  /// Ticked step ids: ["water", "energy", ...]. The step list itself is in code.
+  steps  Json?
+
+  completedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, date, ritual])
+  @@index([userId, date])
 }
 
 model NavHabit {

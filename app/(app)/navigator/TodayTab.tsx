@@ -1,11 +1,14 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Anchor, Check, Sparkles, HelpCircle, Split, Wand2, Moon } from "lucide-react";
+import { Anchor, Check, Sparkles, HelpCircle, Split, Wand2, Moon, Shrink, AlertTriangle } from "lucide-react";
 import { Block, NavState } from "./types";
 import { api, errMsg } from "./api";
 import { Btn, Empty, Field, KIND_TONE, Panel, Pill, Scale, SectionTitle, inputClass } from "./nav-ui";
 import { MomentumCard } from "./MomentumCard";
+import { TimeDebtCard } from "./TimeDebtCard";
+import { RitualsCard } from "./RitualsCard";
+import { NudgeFeed } from "./NudgeFeed";
 
 export function TodayTab({ state, refresh }: { state: NavState; refresh: () => void }) {
   const plan = state.plan;
@@ -23,6 +26,8 @@ export function TodayTab({ state, refresh }: { state: NavState; refresh: () => v
     null
   );
   const [question, setQuestion] = useState("");
+
+  const [compressed, setCompressed] = useState<{ summary: string; dropped: number } | null>(null);
 
   const [reflection, setReflection] = useState(plan?.reflection ?? "");
   const [wins, setWins] = useState(plan?.wins ?? "");
@@ -132,6 +137,30 @@ export function TodayTab({ state, refresh }: { state: NavState; refresh: () => v
     }
   }
 
+  // 4.2 — rescue a day that's run away, without asking the model to re-plan.
+  async function compress() {
+    setBusy("compress");
+    setError(null);
+    try {
+      const out = await api<{ summary: string; dropped: unknown[] }>("/day/compress", { body: {} });
+      setCompressed({ summary: out.summary, dropped: out.dropped?.length ?? 0 });
+      refresh();
+    } catch (e) {
+      setError(errMsg(e));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function startTask(taskId: string) {
+    try {
+      await api(`/tasks/${taskId}`, { method: "PATCH", body: { status: "doing" } });
+      refresh();
+    } catch (e) {
+      setError(errMsg(e));
+    }
+  }
+
   async function quickCheckin(kind: "energy" | "overstim" | "hunger", value: number) {
     try {
       await api("/checkin", { body: { kind, value } });
@@ -147,7 +176,37 @@ export function TodayTab({ state, refresh }: { state: NavState; refresh: () => v
         <div className="rounded-xl border border-rose-400/25 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">{error}</div>
       )}
 
-      {state.momentum && <MomentumCard momentum={state.momentum} />}
+      <div className="grid gap-3 lg:grid-cols-2">
+        {state.momentum && <MomentumCard momentum={state.momentum} />}
+        {state.timeDebt && <TimeDebtCard debt={state.timeDebt} onStart={startTask} />}
+      </div>
+
+      {/* 4.2 Offered only when the plan has visibly stopped matching reality —
+          a permanent "rescue the day" button would just read as an accusation. */}
+      {state.planStale && (
+        <Panel className="p-4" glow>
+          <div className="flex flex-wrap items-center gap-3">
+            <AlertTriangle className="h-4 w-4 flex-shrink-0 text-[#ff8f5f]" />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-white">The plan has drifted</p>
+              <p className="mt-0.5 text-xs leading-snug text-slate-400">
+                Blocks came and went untouched. Squeeze what&apos;s left into the time you actually have — same order,
+                shorter, nothing moved into the past.
+              </p>
+            </div>
+            <Btn variant="flame" size="sm" loading={busy === "compress"} onClick={compress}>
+              <Shrink className="h-3.5 w-3.5" />
+              Rescue the day
+            </Btn>
+          </div>
+          {compressed && (
+            <p className="mt-3 rounded-xl border border-white/[0.08] bg-white/[0.03] px-3.5 py-2.5 text-xs leading-snug text-slate-300">
+              {compressed.summary}
+              {compressed.dropped > 0 && " Dropped work went back to your task list, not the bin."}
+            </p>
+          )}
+        </Panel>
+      )}
 
       {/* Plan builder */}
       <Panel className="p-5" glow={!plan}>
@@ -277,6 +336,19 @@ export function TodayTab({ state, refresh }: { state: NavState; refresh: () => v
           </ol>
         )}
       </Panel>
+
+      {/* 6.3 */}
+      {state.rituals?.length > 0 && (
+        <RitualsCard
+          rituals={state.rituals}
+          logs={state.ritualLogs ?? []}
+          current={state.currentRitual}
+          refresh={refresh}
+        />
+      )}
+
+      {/* 5.2 */}
+      <NudgeFeed nudges={state.recentNudges ?? []} snoozes={state.snoozes ?? []} refresh={refresh} />
 
       {/* Quick check-ins */}
       <Panel className="p-5">

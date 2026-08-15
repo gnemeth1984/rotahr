@@ -1,7 +1,7 @@
 import OpenAI from "openai";
 import { prisma } from "@/lib/db";
 import { buildSnapshot, renderSnapshot, windowForDate, renderWeekPattern, type Snapshot } from "./context";
-import { enforceShiftWindow } from "./shift";
+import { enforceShiftWindow, withShiftBuffers } from "./shift";
 import { dayFromKey, weekdayName, minutesBetween } from "./dates";
 
 const MODEL = "gpt-4o-mini";
@@ -700,7 +700,16 @@ ${renderSnapshot(snapshot, key)}`
   );
 
   // The shift is enforced in code — the model does not get to move it.
-  const blocks = enforceShiftWindow(out.blocks, shift, source);
+  // Then the pre/post-shift buffers are added on top, so the hour before service
+  // is visibly spoken for instead of quietly planned as free time (4.3).
+  const blocks = snapshot.profile.bufferShifts
+    ? withShiftBuffers(
+        enforceShiftWindow(out.blocks, shift, source),
+        shift,
+        snapshot.profile.preShiftMins,
+        snapshot.profile.postShiftMins
+      )
+    : enforceShiftWindow(out.blocks, shift, source);
 
   const plan = await upsertPlan(userId, key, {
     energy: input.energy,

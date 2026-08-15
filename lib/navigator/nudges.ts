@@ -70,6 +70,10 @@ export type NudgeCtx = {
   now: Date;
   /** Minutes since local midnight, in the user's timezone. */
   nowMins: number;
+  /** How long before a shift discretionary nudges go quiet (4.3). 0 disables it. */
+  preShiftQuietMins: number;
+  /** How long after a shift ends discretionary nudges stay quiet (4.3). */
+  postShiftQuietMins: number;
   /** YYYY-MM-DD in the user's timezone. */
   dateKey: string;
   prefs: NudgePrefs;
@@ -92,6 +96,13 @@ export type NudgeCtx = {
    * every nudge for the majority of runs.
    */
   energy: { value: number; ageMins: number } | null;
+  /**
+   * Active snoozes (5.2). A snooze suppresses one (kind, refKey) pair until a
+   * time the user chose. This is a FILTER on candidates, deliberately not a
+   * change to how candidates compete with each other — the burst cap and the
+   * priority order in finalize() are untouched.
+   */
+  snoozes: { kind: string; refKey: string; until: Date; condition: string | null }[];
 };
 
 /** A check-in older than this tells us nothing about right now. */
@@ -185,6 +196,33 @@ export function decideNudges(ctx: NudgeCtx): Nudge[] {
   // On shift: he's at work, the phone stays in the pocket.
   if (onShiftNow && !prefs.notifyDuringShift) return [];
 
+  // ── Snoozed? (5.2) ───────────────────────────────────────────────────────
+  // A conditional snooze can only be released EARLY, never extended past its
+  // hard `until` — otherwise a condition that never becomes true (an energy
+  // check-in he never files) would silence a nudge forever.
+  const isSnoozed = (kind: NudgeKind, refKey: string) => {
+    const s = ctx.snoozes.find((x) => x.kind === kind && x.refKey === refKey);
+    if (!s) return false;
+    if (ctx.now.getTime() >= s.until.getTime()) return false;
+    if (s.condition === "energy3") {
+      const recovered =
+        ctx.energy != null && ctx.energy.ageMins <= ENERGY_FRESH_MINS && ctx.energy.value >= 3;
+      if (recovered) return false;
+    }
+    return true;
+  };
+
+  // ── Shift buffer silence (4.3) ───────────────────────────────────────────
+  // The window either side of a shift is not usable time: he's getting ready, or
+  // he's wrecked. Buzzing then is the fastest way to teach someone to ignore the
+  // channel. Block nudges still fire — the pre-shift prep and decompress blocks
+  // ARE the buffers, and announcing them is the whole point.
+  const inShiftBuffer =
+    shiftStart != null &&
+    shiftEnd != null &&
+    ((nowMins >= shiftStart - ctx.preShiftQuietMins && nowMins < shiftStart) ||
+      (nowMins >= shiftEnd && nowMins < shiftEnd + ctx.postShiftQuietMins));
+
   const sentKey = new Set(ctx.sentToday.map((s) => `${s.kind}::${s.refKey}`));
   const countOf = (kind: NudgeKind) => ctx.sentToday.filter((s) => s.kind === kind).length;
   const already = (kind: NudgeKind, refKey: string) => sentKey.has(`${kind}::${refKey}`);
@@ -195,7 +233,8 @@ export function decideNudges(ctx: NudgeCtx): Nudge[] {
 
   const out: Nudge[] = [];
   const push = (n: Nudge) => {
-    if (!already(n.kind, n.refKey) && !capped(n.kind)) out.push(n);
+    if (already(n.kind, n.refKey) || capped(n.kind) || isSnoozed(n.kind, n.refKey)) return;
+    out.push(n);
   };
 
   // Running on empty? Nothing is suppressed because of it -- the same nudges
@@ -234,8 +273,9 @@ export function decideNudges(ctx: NudgeCtx): Nudge[] {
     }
   }
 
-  // Past this point every nudge is discretionary, so quiet hours win.
-  if (quietNow) return finalize(out);
+  // Past this point every nudge is discretionary, so quiet hours win — and so
+  // does the shift buffer, for the same reason.
+  if (quietNow || inShiftBuffer) return finalize(out);
 
   // ── 2. Due today (one morning summary) ───────────────────────────────────
   if (prefs.notifyDueToday) {

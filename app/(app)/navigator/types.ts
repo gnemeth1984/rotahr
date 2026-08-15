@@ -32,6 +32,10 @@ export type NavProfile = {
   breakMins: number;
   onboarded: boolean;
   coachTone: "warm" | "direct" | "drill" | "clinical";
+  bufferShifts: boolean;
+  preShiftMins: number;
+  postShiftMins: number;
+  ritualsEnabled: boolean;
   notifyEnabled: boolean;
   notifyLeadMins: number;
   notifyBlocks: boolean;
@@ -75,6 +79,7 @@ export type Task = {
   scheduledFor: string | null;
   order: number;
   completedAt: string | null;
+  archivedAt: string | null;
 };
 
 export type Meal = {
@@ -160,6 +165,54 @@ export type Momentum = {
   parts: { label: string; points: number; max: number; detail: string }[];
 };
 
+export type TimeDebtBand = "clear" | "light" | "heavy" | "buried";
+
+export type TimeDebt = {
+  mins: number;
+  label: string;
+  band: TimeDebtBand;
+  advice: string;
+  parts: { label: string; mins: number; detail: string }[];
+  firstMove: { taskId: string; title: string; mins: number; startTrigger: string | null } | null;
+};
+
+export type RitualId = "morning" | "midday" | "shutdown" | "weekly" | "monthly";
+
+export type Ritual = {
+  id: RitualId;
+  title: string;
+  at: string;
+  mins: number;
+  cadence: "daily" | "weekly" | "monthly";
+  steps: { id: string; label: string; hint?: string }[];
+};
+
+export type RitualLog = {
+  id: string;
+  date: string;
+  ritual: RitualId;
+  steps: Record<string, boolean> | null;
+  completedAt: string | null;
+};
+
+export type Nudge = {
+  id: string;
+  date: string;
+  kind: string;
+  refKey: string;
+  title: string;
+  body: string;
+  sentAt: string;
+};
+
+export type Snooze = {
+  id: string;
+  kind: string;
+  refKey: string;
+  until: string;
+  condition: string | null;
+};
+
 export type NavState = {
   today: string;
   now: string;
@@ -179,4 +232,13 @@ export type NavState = {
   checkins: Checkin[];
   weekPlans: DayPlan[];
   momentum: Momentum;
+  timeDebt: TimeDebt;
+  todayShift: DayWindow;
+  rituals: Ritual[];
+  ritualLogs: RitualLog[];
+  currentRitual: RitualId | null;
+  recentNudges: Nudge[];
+  snoozes: Snooze[];
+  planStale: boolean;
+  staleAfterMins: number;
 };

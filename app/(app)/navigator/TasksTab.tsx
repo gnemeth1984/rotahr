@@ -31,13 +31,19 @@ export function TasksTab({ state, refresh }: { state: NavState; refresh: () => v
   const [firstMove, setFirstMove] = useState<{ id: string; text: string } | null>(null);
   const [draft, setDraft] = useState("");
 
-  const { parents, childrenOf } = useMemo(() => {
-    const parents = state.tasks.filter((t) => !t.parentId);
+  const [showParked, setShowParked] = useState(false);
+
+  const { parents, childrenOf, parked } = useMemo(() => {
+    // Parked is its own place, not a priority. Left in the buckets it would look
+    // identical to live work, which makes both auto-park (5.3) and manual parking
+    // pointless — the list never actually gets shorter.
+    const parents = state.tasks.filter((t) => !t.parentId && t.status !== "parked");
+    const parked = state.tasks.filter((t) => t.status === "parked");
     const childrenOf: Record<string, Task[]> = {};
     for (const t of state.tasks) {
       if (t.parentId) (childrenOf[t.parentId] ??= []).push(t);
     }
-    return { parents, childrenOf };
+    return { parents, childrenOf, parked };
   }, [state.tasks]);
 
   async function add() {
@@ -425,6 +431,53 @@ export function TasksTab({ state, refresh }: { state: NavState; refresh: () => v
           </Panel>
         );
       })}
+
+      {/* 5.3 — parked work, collapsed. Visible and reversible: anything the app
+          moves out of the way on its own has to be one tap from coming back. */}
+      {parked.length > 0 && (
+        <Panel className="p-5">
+          <button
+            type="button"
+            onClick={() => setShowParked((v) => !v)}
+            className="flex w-full items-center gap-2 text-left"
+          >
+            {showParked ? (
+              <ChevronDown className="h-3.5 w-3.5 text-slate-500" />
+            ) : (
+              <ChevronRight className="h-3.5 w-3.5 text-slate-500" />
+            )}
+            <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Parked</span>
+            <Pill tone="slate">{parked.length}</Pill>
+          </button>
+          <p className="mt-1.5 text-xs text-slate-500">
+            Out of the way, not deleted. Anything on &quot;Later&quot; with no deadline that hasn&apos;t moved in three
+            weeks ends up here on its own.
+          </p>
+          {showParked && (
+            <ul className="mt-3 space-y-1.5">
+              {parked.map((t) => (
+                <li
+                  key={t.id}
+                  className="flex items-center gap-3 rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2"
+                >
+                  <span className="min-w-0 flex-1 truncate text-sm text-slate-400">{t.title}</span>
+                  <Btn size="sm" variant="quiet" loading={busy === t.id} onClick={() => patch(t.id, { status: "todo" })}>
+                    Bring back
+                  </Btn>
+                  <button
+                    onClick={() => remove(t.id)}
+                    disabled={busy === t.id}
+                    className="text-slate-600 transition hover:text-rose-300"
+                    aria-label="Delete task"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Panel>
+      )}
 
       {state.doneToday.length > 0 && (
         <Panel className="p-5">

@@ -79,10 +79,11 @@ export async function GET(req: NextRequest) {
     }
 
     const day = dayFromKey(dateKey);
-    const [plan, tasks, sentToday, lastEnergy] = await Promise.all([
+    const [plan, tasks, sentToday, lastEnergy, snoozes] = await Promise.all([
       prisma.navDayPlan.findFirst({ where: { userId: profile.userId, date: day } }),
       prisma.navTask.findMany({
-        where: { userId: profile.userId, status: { in: ["todo", "doing"] } },
+        // archivedAt: null keeps nightly-archived history out of the nudge input.
+        where: { userId: profile.userId, status: { in: ["todo", "doing"] }, archivedAt: null },
         orderBy: { createdAt: "asc" },
         take: 200,
       }),
@@ -96,6 +97,12 @@ export async function GET(req: NextRequest) {
         where: { userId: profile.userId, kind: "energy" },
         orderBy: { at: "desc" },
         select: { value: true, at: true },
+      }),
+      // Only snoozes that are still in force. Expired rows are harmless and get
+      // cleared by the nightly cron.
+      prisma.navSnooze.findMany({
+        where: { userId: profile.userId, until: { gt: now } },
+        select: { kind: true, refKey: true, until: true, condition: true },
       }),
     ]);
 
@@ -112,6 +119,10 @@ export async function GET(req: NextRequest) {
       now,
       nowMins,
       dateKey,
+      // A shift buffer of 0 means the user turned buffering off, which also turns
+      // off the silence — the two are the same feature.
+      preShiftQuietMins: profile.bufferShifts ? Math.min(30, profile.preShiftMins) : 0,
+      postShiftQuietMins: profile.bufferShifts ? Math.min(30, profile.postShiftMins) : 0,
       prefs: {
         notifyEnabled: profile.notifyEnabled,
         notifyLeadMins: profile.notifyLeadMins,
@@ -129,7 +140,11 @@ export async function GET(req: NextRequest) {
       },
       shift,
       isDayOff: shift === null && source === "pattern",
-      planExists: !!plan,
+      // "Has a plan" means has BLOCKS, not "a row exists". The nightly cron writes
+      // a blocks-less stub for tomorrow (anchor only), and treating that as a plan
+      // would suppress tomorrow's "no plan yet" nudge and fire "close the day"
+      // against a day that was never planned.
+      planExists: Array.isArray(plan?.blocks) && plan.blocks.length > 0,
       blocks: Array.isArray(plan?.blocks) ? (plan.blocks as unknown as NudgeBlock[]) : [],
       hasReflection: !!plan?.reflection || plan?.scoreOutOf5 != null,
       tasks: tasks as NudgeTask[],
@@ -141,6 +156,7 @@ export async function GET(req: NextRequest) {
             ageMins: Math.max(0, Math.round((now.getTime() - lastEnergy.at.getTime()) / 60000)),
           }
         : null,
+      snoozes,
     });
 
     const sent: string[] = [];
@@ -185,6 +201,7 @@ export async function GET(req: NextRequest) {
         tasks: tasks.length,
         blocks: Array.isArray(plan?.blocks) ? plan.blocks.length : 0,
         energy: lastEnergy?.value ?? null,
+        snoozed: snoozes.length,
       },
     });
   }

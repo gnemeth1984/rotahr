@@ -139,6 +139,10 @@ export function SetupTab({ state, refresh }: { state: NavState; refresh: () => v
           focusMins: Number(p.focusMins) || 50,
           breakMins: Number(p.breakMins) || 10,
           coachTone: p.coachTone || "direct",
+          bufferShifts: p.bufferShifts,
+          preShiftMins: Number(p.preShiftMins) || 0,
+          postShiftMins: Number(p.postShiftMins) || 0,
+          ritualsEnabled: p.ritualsEnabled,
           notifyEnabled: p.notifyEnabled,
           notifyLeadMins: Number(p.notifyLeadMins) || 0,
           notifyBlocks: p.notifyBlocks,
@@ -336,6 +340,67 @@ export function SetupTab({ state, refresh }: { state: NavState; refresh: () => v
             );
           })}
         </div>
+      </Panel>
+
+      {/* 4.3 shift buffers + 6.3 rituals. Both live here because both are about the
+          shape of the day rather than what's in it. */}
+      <Panel className="p-5">
+        <SectionTitle>Around your shifts</SectionTitle>
+        <p className="mb-4 text-sm text-slate-400">
+          A shift doesn&apos;t start when it starts. Navigator reserves a strip either side so the plan stops
+          scheduling real work into the twenty minutes you spend getting out the door — and stays quiet in there.
+        </p>
+
+        <label className="mb-4 flex cursor-pointer items-center gap-3">
+          <input
+            type="checkbox"
+            className="h-4 w-4 accent-[#ff6b35]"
+            checked={p.bufferShifts}
+            onChange={(e) => set("bufferShifts", e.target.checked)}
+          />
+          <span className="text-sm font-semibold text-white">Protect the time either side of a shift</span>
+        </label>
+
+        <div className={`grid gap-4 sm:grid-cols-2 ${p.bufferShifts ? "" : "pointer-events-none opacity-40"}`}>
+          <Field label="Before a shift" hint="Eat, water, kit. Skipped only if the shift starts too early to fit it.">
+            <input
+              className={inputClass}
+              type="number"
+              min={0}
+              max={120}
+              step={5}
+              value={p.preShiftMins}
+              onChange={(e) => set("preShiftMins", Number(e.target.value))}
+            />
+          </Field>
+          <Field label="After a shift" hint="Decompress. Nothing new gets started in here, and nudges hold off.">
+            <input
+              className={inputClass}
+              type="number"
+              min={0}
+              max={120}
+              step={5}
+              value={p.postShiftMins}
+              onChange={(e) => set("postShiftMins", Number(e.target.value))}
+            />
+          </Field>
+        </div>
+
+        <label className="mt-5 flex cursor-pointer items-start gap-3 border-t border-white/10 pt-4">
+          <input
+            type="checkbox"
+            className="mt-0.5 h-4 w-4 shrink-0 accent-[#ff6b35]"
+            checked={p.ritualsEnabled}
+            onChange={(e) => set("ritualsEnabled", e.target.checked)}
+          />
+          <span>
+            <span className="block text-sm font-semibold text-white">Show daily rituals</span>
+            <span className="block text-xs text-slate-400">
+              Warm-up, midday reset, evening shutdown — three short fixed lists on the Today tab, anchored to your own
+              wake time and shift rather than to clock hours. The wording never changes, on purpose.
+            </span>
+          </span>
+        </label>
       </Panel>
 
       <Panel className="p-5">
