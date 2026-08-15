@@ -5,6 +5,7 @@ import { Send, Sparkles, Trash2, Zap } from "lucide-react";
 import { ChatMessage, NavState } from "./types";
 import { api, errMsg } from "./api";
 import { Btn, Panel, Pill, SectionTitle, inputClass } from "./nav-ui";
+import { SpeakButton } from "./SpeakButton";
 
 const STARTERS = [
   "I've got 40 minutes and no idea where to start",
@@ -61,6 +62,12 @@ export function ChatTab({ state, refresh }: { state: NavState; refresh: () => vo
     }
   }
 
+  // The button always points at Navigator's most recent reply, so it means the
+  // same thing no matter where the thread is scrolled to.
+  const lastReply =
+    [...(messages ?? [])].reverse().find((m) => m.role === "assistant" && !m.id.startsWith("tmp-")) ??
+    null;
+
   async function clearThread() {
     try {
       await api("/chat", { method: "DELETE" });
@@ -79,12 +86,15 @@ export function ChatTab({ state, refresh }: { state: NavState; refresh: () => vo
               <Sparkles className="h-3.5 w-3.5" /> Talk it out
             </span>
           </SectionTitle>
-          {messages && messages.length > 0 && (
-            <Btn size="sm" variant="quiet" onClick={clearThread}>
-              <Trash2 className="h-3.5 w-3.5" />
-              Clear
-            </Btn>
-          )}
+          <div className="flex items-center gap-2">
+            <SpeakButton message={lastReply} />
+            {messages && messages.length > 0 && (
+              <Btn size="sm" variant="quiet" onClick={clearThread}>
+                <Trash2 className="h-3.5 w-3.5" />
+                Clear
+              </Btn>
+            )}
+          </div>
         </div>
 
         <div className="flex-1 space-y-4 overflow-y-auto px-5 py-4">
