@@ -1,4 +1,8 @@
-const CACHE_NAME = "rotahr-v1";
+// Bump this on any release that must reach phones immediately. The activate
+// handler deletes every cache that isn't the current name, so changing this
+// string is what evicts a stale app shell from an installed PWA — without it,
+// a phone can keep serving old JS long after a deploy.
+const CACHE_NAME = "rotahr-v2";
 const STATIC_ASSETS = [
   "/",
   "/auth/signin",
@@ -29,17 +33,23 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
   if (url.pathname.startsWith("/api/") || url.pathname.startsWith("/auth/")) return;
 
+  // An HTML document names the exact hashed JS chunks for its build, so a stale
+  // cached page pins the phone to the previous deploy. Keep a copy only as an
+  // offline fallback, and never let it win while the network is reachable.
+  const isDocument = event.request.mode === "navigate";
+
   event.respondWith(
     fetch(event.request)
       .then((res) => {
-        // Cache fresh responses
         if (res && res.status === 200) {
           const clone = res.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
         }
         return res;
       })
-      .catch(() => caches.match(event.request))
+      .catch(() =>
+        caches.match(event.request).then((hit) => hit || (isDocument ? caches.match("/") : undefined))
+      )
   );
 });
 

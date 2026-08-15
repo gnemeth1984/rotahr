@@ -86,15 +86,12 @@ export function ChatTab({ state, refresh }: { state: NavState; refresh: () => vo
               <Sparkles className="h-3.5 w-3.5" /> Talk it out
             </span>
           </SectionTitle>
-          <div className="flex items-center gap-2">
-            <SpeakButton message={lastReply} />
-            {messages && messages.length > 0 && (
-              <Btn size="sm" variant="quiet" onClick={clearThread}>
-                <Trash2 className="h-3.5 w-3.5" />
-                Clear
-              </Btn>
-            )}
-          </div>
+          {messages && messages.length > 0 && (
+            <Btn size="sm" variant="quiet" onClick={clearThread}>
+              <Trash2 className="h-3.5 w-3.5" />
+              Clear
+            </Btn>
+          )}
         </div>
 
         <div className="flex-1 space-y-4 overflow-y-auto px-5 py-4">
@@ -165,6 +162,7 @@ export function ChatTab({ state, refresh }: { state: NavState; refresh: () => vo
 
         <div className="border-t border-white/[0.06] p-3.5">
           {error && <p className="mb-2 text-xs text-rose-300">{error}</p>}
+          {lastReply && <SpeakButton message={lastReply} className="mb-2.5" />}
           <div className="flex gap-2">
             <textarea
               className={`${inputClass} max-h-32 min-h-[46px] resize-none`}

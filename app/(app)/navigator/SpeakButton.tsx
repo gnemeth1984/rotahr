@@ -19,7 +19,13 @@ const SILENT_CLIP =
 
 type Status = "idle" | "loading" | "playing";
 
-export function SpeakButton({ message }: { message: ChatMessage | null }) {
+export function SpeakButton({
+  message,
+  className = "",
+}: {
+  message: ChatMessage | null;
+  className?: string;
+}) {
   const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState<string | null>(null);
 
@@ -146,7 +152,7 @@ export function SpeakButton({ message }: { message: ChatMessage | null }) {
   const disabled = !message;
 
   return (
-    <div className="flex items-center gap-2">
+    <div className={`flex items-center gap-2 ${className}`}>
       <button
         type="button"
         onClick={handleClick}
@@ -159,20 +165,20 @@ export function SpeakButton({ message }: { message: ChatMessage | null }) {
               : "Read the last reply out loud"
         }
         title={disabled ? "Navigator hasn't replied yet" : undefined}
-        className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition ${
+        className={`inline-flex w-full items-center justify-center gap-2 rounded-lg border px-3 py-2.5 text-sm font-medium transition sm:w-auto sm:py-2 ${
           status === "playing"
             ? "border-[#ff6b35] bg-[#ff6b35]/10 text-[#ff8f5f]"
             : "border-white/10 text-slate-300 hover:border-[#ff6b35]/40 hover:text-white"
         } disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:border-white/10 disabled:hover:text-slate-300`}
       >
         {status === "loading" ? (
-          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          <Loader2 className="h-4 w-4 animate-spin" />
         ) : status === "playing" ? (
-          <Square className="h-3 w-3 fill-current" />
+          <Square className="h-3.5 w-3.5 fill-current" />
         ) : (
-          <Volume2 className="h-3.5 w-3.5" />
+          <Volume2 className="h-4 w-4" />
         )}
-        {status === "loading" ? "Loading" : status === "playing" ? "Stop" : "Read aloud"}
+        {status === "loading" ? "Loading" : status === "playing" ? "Stop" : "Read last reply"}
       </button>
       {error && <span className="text-xs text-rose-300">{error}</span>}
     </div>
