@@ -39,6 +39,7 @@ const schema = z.object({
   focusMins: z.number().int().min(10).max(180).optional(),
   breakMins: z.number().int().min(2).max(60).optional(),
   onboarded: z.boolean().optional(),
+  coachTone: z.enum(["warm", "direct", "drill", "clinical"]).optional(),
   notifyEnabled: z.boolean().optional(),
   notifyLeadMins: z.number().int().min(0).max(60).optional(),
   notifyBlocks: z.boolean().optional(),

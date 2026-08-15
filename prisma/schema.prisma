@@ -2137,6 +2137,11 @@ model NavProfile {
   breakMins  Int     @default(10)
   onboarded  Boolean @default(false)
 
+  /// How blunt Navigator is allowed to be. Only ever changes tone and length,
+  /// never the mechanics or the safety boundaries.
+  /// warm | direct | drill | clinical
+  coachTone  String  @default("direct")
+
   /// Nudge settings. Navigator's whole value is external structure, so these
   /// default ON — the quiet windows below are what stop it being noise, not the
   /// user remembering to mute it.
@@ -2208,7 +2213,9 @@ model NavTask {
   project  String? // free-text project/bucket name
   parentId String? // set on micro-steps
 
-  // todo | doing | done | parked
+  // draft | todo | doing | done | parked
+  // "draft" is an un-triaged capture: it deliberately does NOT appear in the
+  // task list, the AI context, or any nudge, so dumping a thought costs nothing.
   status String @default("todo")
   // urgent | important | quickwin | later
   priority String @default("important")

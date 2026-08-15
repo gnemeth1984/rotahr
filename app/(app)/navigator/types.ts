@@ -31,6 +31,7 @@ export type NavProfile = {
   focusMins: number;
   breakMins: number;
   onboarded: boolean;
+  coachTone: "warm" | "direct" | "drill" | "clinical";
   notifyEnabled: boolean;
   notifyLeadMins: number;
   notifyBlocks: boolean;
@@ -66,7 +67,7 @@ export type Task = {
   notes: string | null;
   project: string | null;
   parentId: string | null;
-  status: "todo" | "doing" | "done" | "parked";
+  status: "draft" | "todo" | "doing" | "done" | "parked";
   priority: "urgent" | "important" | "quickwin" | "later";
   effortMins: number | null;
   startTrigger: string | null;
@@ -149,6 +150,16 @@ export type ChatMessage = {
   createdAt: string;
 };
 
+export type MomentumBand = "stalled" | "warming" | "moving" | "flying";
+
+export type Momentum = {
+  score: number;
+  band: MomentumBand;
+  delta: number;
+  summary: string;
+  parts: { label: string; points: number; max: number; detail: string }[];
+};
+
 export type NavState = {
   today: string;
   now: string;
@@ -157,6 +168,7 @@ export type NavState = {
   plan: DayPlan | null;
   tasks: Task[];
   doneToday: Task[];
+  drafts: Task[];
   meals: Meal[];
   workouts: Workout[];
   habits: Habit[];
@@ -166,4 +178,5 @@ export type NavState = {
   lastFocus: FocusSession | null;
   checkins: Checkin[];
   weekPlans: DayPlan[];
+  momentum: Momentum;
 };

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { BatteryLow, Check, ChevronDown, ChevronRight, Play, Plus, Scissors, Trash2, Zap } from "lucide-react";
+import { BatteryLow, Check, ChevronDown, ChevronRight, Inbox, Play, Plus, Scissors, Trash2, Wand2, Zap } from "lucide-react";
 import { NavState, Task } from "./types";
 import { api, errMsg } from "./api";
 import { Btn, Empty, Field, PRIORITY_TONE, Panel, Pill, SectionTitle, inputClass } from "./nav-ui";
@@ -29,6 +29,7 @@ export function TasksTab({ state, refresh }: { state: NavState; refresh: () => v
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const [firstMove, setFirstMove] = useState<{ id: string; text: string } | null>(null);
+  const [draft, setDraft] = useState("");
 
   const { parents, childrenOf } = useMemo(() => {
     const parents = state.tasks.filter((t) => !t.parentId);
@@ -53,6 +54,40 @@ export function TasksTab({ state, refresh }: { state: NavState; refresh: () => v
       });
       setTitle("");
       setEffort("");
+      refresh();
+    } catch (e) {
+      setError(errMsg(e));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  // 2.3 Quick capture. Title only, no priority, no estimate — a thought costs
+  // one keystroke to store. It lands as a draft, invisible to the list and the
+  // nudges until it gets triaged.
+  async function capture() {
+    if (!draft.trim()) return;
+    setBusy("capture");
+    setError(null);
+    try {
+      await api("/tasks", { body: { title: draft.trim(), status: "draft" } });
+      setDraft("");
+      refresh();
+    } catch (e) {
+      setError(errMsg(e));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  // Let the model make the boring decisions (priority / effort / where to start)
+  // and promote the draft to a real task in one move.
+  async function triage(id: string) {
+    setBusy(`triage-${id}`);
+    setError(null);
+    try {
+      const out = await api<{ why: string }>(`/tasks/${id}/triage`, { method: "POST" });
+      if (out.why) setFirstMove({ id, text: out.why });
       refresh();
     } catch (e) {
       setError(errMsg(e));
@@ -125,8 +160,74 @@ export function TasksTab({ state, refresh }: { state: NavState; refresh: () => v
         <div className="rounded-xl border border-rose-400/25 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">{error}</div>
       )}
 
+      {/* 2.3 Brain dump — one field, zero decisions. Deliberately the first thing
+          on the tab, above the fuller form, because the whole point is that
+          capturing must be faster than thinking about capturing. */}
       <Panel className="p-5">
-        <SectionTitle>Get it out of your head</SectionTitle>
+        <SectionTitle
+          right={state.drafts.length ? <Pill tone="violet">{state.drafts.length} waiting</Pill> : undefined}
+        >
+          Brain dump
+        </SectionTitle>
+        <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
+          <input
+            className={inputClass}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && capture()}
+            placeholder="Dump it here — sort it out later"
+          />
+          <Btn variant="flame" loading={busy === "capture"} onClick={capture}>
+            <Inbox className="h-4 w-4" />
+            Capture
+          </Btn>
+        </div>
+        <p className="mt-2 text-[11px] leading-snug text-slate-500">
+          No priority, no estimate, no decisions. It stays out of your task list and out of your
+          notifications until you triage it.
+        </p>
+      </Panel>
+
+      {state.drafts.length > 0 && (
+        <Panel className="p-5">
+          <SectionTitle right={<Pill tone="violet">{state.drafts.length}</Pill>}>Inbox — needs triage</SectionTitle>
+          <div className="space-y-2">
+            {state.drafts.map((d) => (
+              <div
+                key={d.id}
+                className="flex flex-wrap items-center gap-2 rounded-xl border border-white/[0.07] bg-white/[0.03] px-3 py-2.5"
+              >
+                <p className="min-w-0 flex-1 text-sm leading-snug text-slate-100">{d.title}</p>
+                <Btn
+                  size="sm"
+                  variant="flame"
+                  loading={busy === `triage-${d.id}`}
+                  onClick={() => triage(d.id)}
+                  title="Let Navigator set priority, time and a start trigger"
+                >
+                  <Wand2 className="h-3.5 w-3.5" />
+                  Sort it out
+                </Btn>
+                <Btn
+                  size="sm"
+                  variant="quiet"
+                  loading={busy === d.id}
+                  onClick={() => patch(d.id, { status: "todo" })}
+                  title="Move to tasks as-is"
+                >
+                  Keep as-is
+                </Btn>
+                <Btn size="sm" variant="quiet" loading={busy === d.id} onClick={() => remove(d.id)}>
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Btn>
+              </div>
+            ))}
+          </div>
+        </Panel>
+      )}
+
+      <Panel className="p-5">
+        <SectionTitle>Add with details</SectionTitle>
         <div className="grid gap-3 sm:grid-cols-[1fr_auto_auto_auto]">
           <input
             className={inputClass}

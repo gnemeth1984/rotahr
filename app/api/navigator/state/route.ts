@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { navigatorUserId, forbidden } from "@/lib/navigator/guard";
 import { getOrCreateProfile, DEFAULT_TZ } from "@/lib/navigator/context";
 import { dayFromKey, todayKey, nowTime, weekStartKey, addDaysKey } from "@/lib/navigator/dates";
+import { momentumFor } from "@/lib/navigator/momentum";
 
 export const dynamic = "force-dynamic";
 
@@ -19,8 +20,10 @@ export async function GET() {
   const [plan, tasks, meals, workouts, habits, habitLogs, grocery, focus, checkins, weekPlans] =
     await Promise.all([
       prisma.navDayPlan.findUnique({ where: { userId_date: { userId, date: dayFromKey(today) } } }),
+      // Drafts are excluded here on purpose. An un-triaged capture must not
+      // show up in the live task list, or quick-capture just becomes clutter.
       prisma.navTask.findMany({
-        where: { userId, status: { not: "done" } },
+        where: { userId, status: { notIn: ["done", "draft"] } },
         orderBy: [{ order: "asc" }, { createdAt: "asc" }],
       }),
       prisma.navMeal.findMany({ where: { userId, date: dayFromKey(today) }, orderBy: { createdAt: "asc" } }),
@@ -45,11 +48,22 @@ export async function GET() {
       }),
     ]);
 
-  const doneToday = await prisma.navTask.findMany({
-    where: { userId, status: "done", completedAt: { gte: new Date(`${today}T00:00:00.000Z`) } },
-    orderBy: { completedAt: "desc" },
-    take: 20,
-  });
+  const [doneToday, drafts] = await Promise.all([
+    prisma.navTask.findMany({
+      where: { userId, status: "done", completedAt: { gte: new Date(`${today}T00:00:00.000Z`) } },
+      orderBy: { completedAt: "desc" },
+      take: 20,
+    }),
+    prisma.navTask.findMany({
+      where: { userId, status: "draft" },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+    }),
+  ]);
+
+  // Read-only aggregation over rows already in the DB. Cheap enough to inline
+  // here rather than making the UI do a second round trip.
+  const momentum = await momentumFor(userId, today);
 
   return NextResponse.json({
     today,
@@ -59,6 +73,7 @@ export async function GET() {
     plan,
     tasks,
     doneToday,
+    drafts,
     meals,
     workouts,
     habits,
@@ -68,5 +83,6 @@ export async function GET() {
     lastFocus: focus,
     checkins,
     weekPlans,
+    momentum,
   });
 }

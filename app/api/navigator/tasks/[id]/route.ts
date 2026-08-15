@@ -10,7 +10,7 @@ const patchSchema = z.object({
   title: z.string().min(1).max(300).optional(),
   notes: z.string().max(4000).nullish(),
   project: z.string().max(120).nullish(),
-  status: z.enum(["todo", "doing", "done", "parked"]).optional(),
+  status: z.enum(["draft", "todo", "doing", "done", "parked"]).optional(),
   priority: z.enum(["urgent", "important", "quickwin", "later"]).optional(),
   effortMins: z.number().int().min(1).max(1440).nullish(),
   startTrigger: z.string().max(500).nullish(),

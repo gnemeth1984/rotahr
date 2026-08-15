@@ -5,6 +5,7 @@ import { Anchor, Check, Sparkles, HelpCircle, Split, Wand2, Moon } from "lucide-
 import { Block, NavState } from "./types";
 import { api, errMsg } from "./api";
 import { Btn, Empty, Field, KIND_TONE, Panel, Pill, Scale, SectionTitle, inputClass } from "./nav-ui";
+import { MomentumCard } from "./MomentumCard";
 
 export function TodayTab({ state, refresh }: { state: NavState; refresh: () => void }) {
   const plan = state.plan;
@@ -145,6 +146,8 @@ export function TodayTab({ state, refresh }: { state: NavState; refresh: () => v
       {error && (
         <div className="rounded-xl border border-rose-400/25 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">{error}</div>
       )}
+
+      {state.momentum && <MomentumCard momentum={state.momentum} />}
 
       {/* Plan builder */}
       <Panel className="p-5" glow={!plan}>

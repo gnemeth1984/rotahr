@@ -38,6 +38,44 @@ Boundaries: you are not a clinician. No diagnosis, no medication advice. If they
 You have tools that change their real data. Use them rather than telling the user to do it themselves. After using tools, confirm in one line what changed.`;
 
 // --------------------------------------------------------------------------
+// Tone (6.2 Personality)
+// --------------------------------------------------------------------------
+
+export type CoachTone = "warm" | "direct" | "drill" | "clinical";
+
+export const COACH_TONES: { value: CoachTone; label: string; blurb: string }[] = [
+  { value: "warm", label: "Warm", blurb: "Kind and encouraging. Best on low days." },
+  { value: "direct", label: "Direct", blurb: "Plain and brief. The default." },
+  { value: "drill", label: "Drill sergeant", blurb: "Blunt, urgent, no coddling." },
+  { value: "clinical", label: "Clinical", blurb: "Neutral data. No feelings at all." },
+];
+
+// Layered ON TOP of the persona, never replacing it — the ADHD mechanics and the
+// "not a clinician" boundary must survive every tone.
+const TONE_OVERLAY: Record<CoachTone, string> = {
+  warm: `TONE: warm. Lead with one short line of genuine encouragement before the action. Acknowledge effort and bad days without pity or therapy-speak. Still concrete, still under 120 words.`,
+  direct: `TONE: direct. Plain, brief, neutral. No warm-up line, no sign-off. State the next action and stop.`,
+  drill: `TONE: drill sergeant. Blunt and urgent. Short imperative sentences. Name the excuse when you see one, then give the order. Push hard on starting NOW. Never cruel, never insulting, never about their worth as a person — only about the action. Hard cap 70 words.`,
+  clinical: `TONE: clinical. Report like an instrument: facts, numbers, times, no adjectives, no encouragement, no emotional language at all. Bullet points preferred. Do not ask how they feel.`,
+};
+
+export function asCoachTone(raw: unknown): CoachTone {
+  return raw === "warm" || raw === "drill" || raw === "clinical" ? raw : "direct";
+}
+
+/**
+ * The persona the model actually gets, with the user's chosen tone applied.
+ *
+ * Applied to the conversational surfaces only: chat, the weekly review, and
+ * motivation nudges. The structured JSON generators (day plan, breakdown, meals,
+ * workouts) stay on the neutral persona on purpose — the overlays carry hard word
+ * caps and formatting rules that fight a strict JSON schema.
+ */
+export function personaFor(tone: unknown): string {
+  return `${NAVIGATOR_PERSONA}\n\n${TONE_OVERLAY[asCoachTone(tone)]}`;
+}
+
+// --------------------------------------------------------------------------
 // Tools
 // --------------------------------------------------------------------------
 
@@ -535,7 +573,7 @@ export async function navigatorChat(
   const openai = client();
 
   const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
-    { role: "system", content: NAVIGATOR_PERSONA },
+    { role: "system", content: personaFor(snapshot.profile.coachTone) },
     { role: "system", content: `Current state of the user's day:\n\n${renderSnapshot(snapshot)}` },
     ...history.slice(-14).map((m) => ({ role: m.role, content: m.content }) as const),
     { role: "user", content: userMessage },
@@ -747,6 +785,64 @@ ${renderSnapshot(snapshot)}`
   return { steps: steps.length, firstMove: out.firstMove };
 }
 
+/**
+ * 2.3 Task drafts — triage one captured draft into a real task.
+ *
+ * The whole point is that the user never has to make the boring decisions
+ * (priority / how long / where do I even start). The model fills them in, the
+ * draft flips to "todo", and it becomes visible to the list, the planner and the
+ * nudges in one move. Idempotent-ish: re-running on a real task just re-triages it.
+ */
+export async function triageDraft(userId: string, taskId: string) {
+  const task = await prisma.navTask.findFirst({ where: { id: taskId, userId } });
+  if (!task) throw new Error("Task not found");
+  const snapshot = await buildSnapshot(userId);
+
+  const out = await json<{
+    title: string;
+    priority: "urgent" | "important" | "quickwin" | "later";
+    effortMins: number;
+    startTrigger: string;
+    project: string | null;
+    why: string;
+  }>(
+    `${NAVIGATOR_PERSONA}
+
+You are triaging ONE raw captured thought into an actionable task. Return JSON only:
+{ "title": string, "priority": "urgent"|"important"|"quickwin"|"later", "effortMins": number, "startTrigger": string, "project": string|null, "why": string }
+- title: rewrite as a clear action starting with a verb. Keep their words where they already work. Max 90 chars.
+- priority: urgent only if there is a real external deadline or a consequence. quickwin if under 10 minutes. Most things are important or later — do not inflate.
+- effortMins: honest estimate, inflated ~50% over what an optimist would say.
+- startTrigger: the 2-minute first physical action, zero decisions required.
+- project: reuse an existing project name from their open tasks if one clearly fits, else null.
+- why: one short line on why you set that priority. Max 100 chars.`,
+    `Raw capture: ${task.title}
+Notes: ${task.notes ?? "none"}
+
+Context:
+${renderSnapshot(snapshot)}`,
+    600
+  );
+
+  const count = await prisma.navTask.count({
+    where: { userId, parentId: null, status: { notIn: ["done", "draft"] } },
+  });
+
+  const task2 = await prisma.navTask.update({
+    where: { id: task.id },
+    data: {
+      title: (out.title || task.title).slice(0, 300),
+      status: "todo",
+      priority: out.priority ?? "important",
+      effortMins: out.effortMins ?? null,
+      startTrigger: out.startTrigger ?? null,
+      project: out.project ?? task.project,
+      order: count,
+    },
+  });
+  return { task: task2, why: out.why };
+}
+
 export async function generateMeals(
   userId: string,
   input: { dateKey?: string; mode: "day" | "week"; maxPrepMins: number }
@@ -865,7 +961,7 @@ export async function weeklyReview(userId: string) {
     nextWeek: string[];
     encouragement: string;
   }>(
-    `${NAVIGATOR_PERSONA}
+    `${personaFor(snapshot.profile.coachTone)}
 
 Return JSON only: { "patterns": string[], "wins": string[], "oneChange": string, "nextWeek": string[], "encouragement": string }
 - patterns: max 4, each one observation tied to actual data below (energy dips, times of day, task types that stall).
@@ -890,7 +986,7 @@ export async function motivationNudge(userId: string, situation: string) {
     temperature: 0.8,
     max_tokens: 220,
     messages: [
-      { role: "system", content: NAVIGATOR_PERSONA },
+      { role: "system", content: personaFor(snapshot.profile.coachTone) },
       {
         role: "system",
         content: `Reply in max 45 words. Structure: one line naming the block honestly, then the exact 2-minute action, then the payoff. No pep-talk clichés.\n\n${renderSnapshot(

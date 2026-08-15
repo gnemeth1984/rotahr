@@ -54,6 +54,15 @@ const NUDGE_KINDS: { key: keyof NavProfile; label: string; hint: string }[] = [
 // inputClass is w-full; strip it so day rows can size their own cells.
 const cellInput = inputClass.replace("w-full ", "");
 
+// Mirrors COACH_TONES in lib/navigator/ai.ts. Duplicated deliberately: that file
+// imports the OpenAI SDK, which has no business in a client bundle.
+const TONES: { value: NavProfile["coachTone"]; label: string; blurb: string }[] = [
+  { value: "warm", label: "Warm", blurb: "Kind and encouraging. Best on low days." },
+  { value: "direct", label: "Direct", blurb: "Plain and brief. The default." },
+  { value: "drill", label: "Drill sergeant", blurb: "Blunt, urgent, no coddling." },
+  { value: "clinical", label: "Clinical", blurb: "Neutral data. No feelings at all." },
+];
+
 export function SetupTab({ state, refresh }: { state: NavState; refresh: () => void }) {
   const [p, setP] = useState<NavProfile>(state.profile);
   const [week, setWeek] = useState<WeekPattern>(() => {
@@ -129,6 +138,7 @@ export function SetupTab({ state, refresh }: { state: NavState; refresh: () => v
           goals: p.goals || null,
           focusMins: Number(p.focusMins) || 50,
           breakMins: Number(p.breakMins) || 10,
+          coachTone: p.coachTone || "direct",
           notifyEnabled: p.notifyEnabled,
           notifyLeadMins: Number(p.notifyLeadMins) || 0,
           notifyBlocks: p.notifyBlocks,
@@ -215,6 +225,43 @@ export function SetupTab({ state, refresh }: { state: NavState; refresh: () => v
               onChange={(e) => set("breakMins", Number(e.target.value))}
             />
           </Field>
+        </div>
+      </Panel>
+
+      {/* 6.2 Personality. Tone only — the ADHD mechanics and the "not a clinician"
+          boundary are hard-coded and do not change with this setting. */}
+      <Panel className="p-5">
+        <SectionTitle>How Navigator talks to you</SectionTitle>
+        <p className="mb-4 text-sm text-slate-400">
+          Changes the tone of chat, nudges and the weekly review. It never changes what it actually
+          does, or the limits on what it will advise.
+        </p>
+        <div className="grid gap-2.5 sm:grid-cols-2">
+          {TONES.map((t) => {
+            const active = (p.coachTone || "direct") === t.value;
+            return (
+              <button
+                key={t.value}
+                type="button"
+                onClick={() => set("coachTone", t.value)}
+                className={`rounded-xl border px-4 py-3 text-left transition-all ${
+                  active
+                    ? "border-[#ff6b35]/60 bg-[#ff6b35]/10 shadow-[0_0_0_1px_rgba(255,107,53,0.25)]"
+                    : "border-white/10 bg-white/[0.03] hover:bg-white/[0.07]"
+                }`}
+              >
+                <span
+                  className={`flex items-center gap-2 text-sm font-semibold ${
+                    active ? "text-[#ffb08a]" : "text-slate-200"
+                  }`}
+                >
+                  {active && <Check className="h-3.5 w-3.5" />}
+                  {t.label}
+                </span>
+                <span className="mt-0.5 block text-[11px] leading-snug text-slate-500">{t.blurb}</span>
+              </button>
+            );
+          })}
         </div>
       </Panel>
 
