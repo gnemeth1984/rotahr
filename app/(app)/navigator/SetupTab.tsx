@@ -5,6 +5,7 @@ import { Check, Save } from "lucide-react";
 import { NavProfile, NavState, WeekdayKey, WeekPattern, DayWindow } from "./types";
 import { api, errMsg } from "./api";
 import { Btn, Field, Panel, SectionTitle, inputClass } from "./nav-ui";
+import PushToggle from "./PushToggle";
 
 const TIMEZONES = [
   "Europe/Dublin",
@@ -308,6 +309,10 @@ export function SetupTab({ state, refresh }: { state: NavState; refresh: () => v
         </label>
 
         <div className={p.notifyEnabled ? "" : "pointer-events-none opacity-40"}>
+          <div className="mb-4">
+            <PushToggle />
+          </div>
+
           <div className="mb-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <Field label="Warning before a block" hint="Minutes of head-start.">
               <input

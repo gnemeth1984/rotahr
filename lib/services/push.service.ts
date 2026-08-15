@@ -33,6 +33,18 @@ export async function sendPushToUser(
       JSON.stringify({ title, body, data: data ?? {} })
     );
   } catch (err) {
+    // A 404/410 means the browser threw this subscription away (permission
+    // revoked, profile cleared, app reinstalled). Keeping the dead row makes the
+    // UI claim push is on while nothing can ever arrive, so drop it and let the
+    // user re-enable.
+    const status = (err as { statusCode?: number } | null)?.statusCode;
+    if (status === 404 || status === 410) {
+      await prisma.user
+        .update({ where: { id: userId }, data: { pushSubscription: null } })
+        .catch(() => {});
+      console.warn("[push.service] Dropped expired subscription for", userId);
+      return;
+    }
     // Never let push failures break the main flow
     console.error("[push.service] Error sending push:", err);
   }

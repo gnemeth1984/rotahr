@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { prisma } from "@/lib/db";
-import { sendPushToUser, sendPushToUsers } from "./push.service";
+import { sendPushToUser } from "./push.service";
 
 export type NotifType = "message" | "shift" | "timeoff" | "booking" | "rota" | "late_checkin" | "cert_expiry" | "logbook" | "navigator";
 
@@ -32,12 +32,11 @@ export async function notifyUsers(
   userIds: string[],
   payload: { type: NotifType; title: string; body: string; link?: string }
 ) {
+  // createNotification already fires one push per user; pushing again here sent
+  // every multi-user notification twice.
   const results = await Promise.allSettled(
     userIds.map((userId) => createNotification({ userId, ...payload }))
   );
-
-  // Also batch-push
-  sendPushToUsers(userIds, payload.title, payload.body, { type: payload.type, link: payload.link }).catch(() => {});
 
   return results;
 }
