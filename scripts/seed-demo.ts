@@ -152,11 +152,21 @@ export async function main(prisma: PrismaClient = new PrismaClient()) {
       geoLng: -6.2603,
       geoRadius: 200,
       weeklyRevenueTarget: 28000,
+      // Without a plan the sidebar hides every pro/enterprise item, so the main
+      // demo was showing visitors a cut-down product: CRM, Stock & Orders,
+      // Recipe Costing, Payroll, Reports, Tips, Availability, Training, Scan
+      // and Venues were all missing, even though the seed fills them with data.
+      // The three owner-tier demos below exist to show what each plan includes;
+      // this one exists to show the whole product, so it runs on enterprise.
+      lsPlan: "enterprise",
+      lsStatus: "active",
     },
     update: {
       name: "The Anchor & Tap",
       onboardingComplete: true,
       weeklyRevenueTarget: 28000,
+      lsPlan: "enterprise",
+      lsStatus: "active",
     },
   });
 
@@ -1640,6 +1650,29 @@ export async function seedOwnerDemos(prisma: PrismaClient) {
     await prisma.reservation.create({ data: { businessId: P_BIZ, customerName: r.name, partySize: r.size, date: days(r.dayOff, 12), time: r.time, duration: 90, status: r.status, notes: r.notes, tableId: r.tableId, createdById: P_USER } });
   }
 
+  // Pro CRM — customers + notes, so the Customer CRM page isn't empty on the
+  // Pro plan demo (CRM is gated to pro/enterprise in the sidebar).
+  await prisma.crmEmail.deleteMany({ where: { customer: { businessId: P_BIZ } } });
+  await prisma.crmNote.deleteMany({ where: { customer: { businessId: P_BIZ } } });
+  await prisma.customer.deleteMany({ where: { businessId: P_BIZ } });
+  const pCust1 = "demo-p-cust-aoife";
+  const pCust2 = "demo-p-cust-declan";
+  const pCust3 = "demo-p-cust-maria";
+  const pCust4 = "demo-p-cust-eoin";
+  await prisma.customer.createMany({ data: [
+    { id: pCust1, businessId: P_BIZ, name: "Aoife Kelleher", email: "aoife.kelleher@email.ie", phone: "087 998 2211", tags: ["regular", "vip"], internalNotes: "Weekend brunch regular. Always asks for the corner banquette.", gdprConsent: true, gdprConsentAt: days(-75) },
+    { id: pCust2, businessId: P_BIZ, name: "Declan Byrne", email: "dbyrne@gmail.com", phone: "086 771 4820", tags: ["corporate"], internalNotes: "Books monthly team lunches for 10-12. Needs VAT invoices.", gdprConsent: true, gdprConsentAt: days(-140) },
+    { id: pCust3, businessId: P_BIZ, name: "Maria Kowalski", email: "m.kowalski@outlook.com", phone: "085 220 9931", tags: ["allergy"], internalNotes: "Coeliac — strict gluten free. Kitchen briefed each visit.", allergies: "Gluten", gdprConsent: true, gdprConsentAt: days(-50) },
+    { id: pCust4, businessId: P_BIZ, name: "Eoin Sheridan", email: "eoin.sheridan@live.ie", phone: "083 118 6607", tags: ["no-show"], internalNotes: "Two no-shows this year. Take a card to hold on next booking.", gdprConsent: false },
+  ]});
+  await prisma.crmNote.createMany({ data: [
+    { customerId: pCust1, authorId: P_USER, note: "Anniversary brunch booked for Sunday. Prosecco on arrival agreed.", createdAt: days(-4) },
+    { customerId: pCust2, authorId: P_USER, note: "Team lunch for 12 confirmed. Pre-set menu sent, waiting on final numbers.", createdAt: days(-2) },
+    { customerId: pCust3, authorId: P_USER, note: "GF menu worked well last visit. Kitchen kept a separate prep board.", createdAt: days(-11) },
+    { customerId: pCust4, authorId: P_USER, note: "No-show again Saturday, table of 4 held 40 mins. Flagged for deposit.", createdAt: days(-6) },
+  ]});
+  console.log("✅ Pro CRM customers + notes created");
+
   // Pro menu specials
   await prisma.menuSpecial.deleteMany({ where: { businessId: P_BIZ } });
   await prisma.menuSpecial.createMany({ data: [
@@ -1995,6 +2028,34 @@ export async function seedOwnerDemos(prisma: PrismaClient) {
   for (const r of eRes) {
     await prisma.reservation.create({ data: { businessId: E_BIZ, customerName: r.name, partySize: r.size, date: days(r.dayOff, 12), time: r.time, duration: 90, status: r.status, notes: r.notes, tableId: r.tableId, createdById: E_USER } });
   }
+
+  // Enterprise CRM — group-wide customer book across the three venues.
+  await prisma.crmEmail.deleteMany({ where: { customer: { businessId: E_BIZ } } });
+  await prisma.crmNote.deleteMany({ where: { customer: { businessId: E_BIZ } } });
+  await prisma.customer.deleteMany({ where: { businessId: E_BIZ } });
+  const eCust1 = "demo-e-cust-fergal";
+  const eCust2 = "demo-e-cust-orla";
+  const eCust3 = "demo-e-cust-hughes";
+  const eCust4 = "demo-e-cust-lucy";
+  const eCust5 = "demo-e-cust-raymond";
+  const eCust6 = "demo-e-cust-anika";
+  await prisma.customer.createMany({ data: [
+    { id: eCust1, businessId: E_BIZ, name: "Fergal Nolan", email: "fergal.nolan@email.ie", phone: "087 445 1120", tags: ["vip", "regular"], internalNotes: "Dines across all three venues. Group loyalty — comp the aperitif.", gdprConsent: true, gdprConsentAt: days(-210) },
+    { id: eCust2, businessId: E_BIZ, name: "Orla Fitzgerald", email: "ofitzgerald@gmail.com", phone: "086 332 7788", tags: ["events"], internalNotes: "Wedding coordinator — sends 4-5 private dining enquiries a year.", gdprConsent: true, gdprConsentAt: days(-160) },
+    { id: eCust3, businessId: E_BIZ, name: "Hughes & Co Solicitors", email: "office@hughesco.ie", phone: "01 442 9910", tags: ["corporate", "account"], internalNotes: "Monthly account. Invoiced 30 days. Always books the private room.", gdprConsent: true, gdprConsentAt: days(-300) },
+    { id: eCust4, businessId: E_BIZ, name: "Lucy Adeyemi", email: "lucy.adeyemi@outlook.com", phone: "085 907 3312", tags: ["allergy", "regular"], internalNotes: "Shellfish allergy. Flag on every booking across venues.", allergies: "Shellfish", gdprConsent: true, gdprConsentAt: days(-95) },
+    { id: eCust5, businessId: E_BIZ, name: "Raymond Kavanagh", email: "rkavanagh@live.ie", phone: "083 664 2201", tags: ["birthday-club"], internalNotes: "Birthday in September. Books a table of 10 every year.", gdprConsent: true, gdprConsentAt: days(-400), birthday: new Date("1972-09-08") },
+    { id: eCust6, businessId: E_BIZ, name: "Anika Petrova", email: "anika.p@email.com", phone: "089 220 5541", tags: ["no-show"], internalNotes: "One no-show, one late cancel. Card on file required.", gdprConsent: false },
+  ]});
+  await prisma.crmNote.createMany({ data: [
+    { customerId: eCust1, authorId: E_USER, note: "Visited all three venues this quarter. Send the group loyalty card.", createdAt: days(-5) },
+    { customerId: eCust2, authorId: E_USER, note: "Enquiry in for a 60-person wedding reception in spring. Quote sent.", createdAt: days(-8) },
+    { customerId: eCust3, authorId: E_USER, note: "Account invoice for last month outstanding. Chase accounts payable.", createdAt: days(-3) },
+    { customerId: eCust4, authorId: E_USER, note: "Shellfish allergy handled correctly at venue 2. Kitchen briefed at all sites.", createdAt: days(-12) },
+    { customerId: eCust5, authorId: E_USER, note: "Reach out in August for the annual birthday booking.", createdAt: days(-30) },
+    { customerId: eCust6, authorId: E_USER, note: "Late cancel on Friday, table of 6. Deposit policy applied going forward.", createdAt: days(-9) },
+  ]});
+  console.log("✅ Enterprise CRM customers + notes created");
 
   // Enterprise AI Settings
   await prisma.aISettings.upsert({
