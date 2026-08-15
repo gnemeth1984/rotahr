@@ -114,6 +114,25 @@ export function inQuietHours(mins: number, quietStart: string, quietEnd: string)
 
 const dayKey = (d: Date) => d.toISOString().slice(0, 10);
 
+/**
+ * Blocks that reserve time without committing it -- free/buffer/flex. Errands
+ * belong here. "rest" is excluded on purpose: relaxing is a real activity and a
+ * nudge to file paperwork during it is precisely the interruption to avoid.
+ */
+const OPEN_BLOCK_KINDS = new Set(["buffer", "free", "flex", "open", "spare"]);
+
+function isOpenBlock(b: NudgeBlock): boolean {
+  if (OPEN_BLOCK_KINDS.has(String(b.kind || "").toLowerCase())) return true;
+  return /\b(free|spare|buffer|open|flex)\b/i.test(b.label || "");
+}
+
+/**
+ * How long a task must exist before it can be nudged as an errand. Long enough
+ * that adding a task isn't instantly answered by a notification about it, short
+ * enough that something jotted down last night surfaces the next free hour.
+ */
+const MIN_ERRAND_AGE_HOURS = 3;
+
 /** Small, low-stakes, easily-forgotten: the passport-paperwork class of task. */
 function isErrand(t: NudgeTask): boolean {
   if (t.status !== "todo") return false;
@@ -125,12 +144,25 @@ function isErrand(t: NudgeTask): boolean {
   return small || lowStakes;
 }
 
+/** Order by importance, then cap the burst. Structure first, nagging last. */
+function finalize(out: Nudge[]): Nudge[] {
+  const priority: NudgeKind[] = ["block", "due_today", "errand", "overdue", "stuck", "evening", "idle"];
+  return out
+    .sort((a, b) => priority.indexOf(a.kind) - priority.indexOf(b.kind))
+    .slice(0, 2);
+}
+
 export function decideNudges(ctx: NudgeCtx): Nudge[] {
   const { prefs, nowMins, tasks, blocks, shift } = ctx;
   if (!prefs.notifyEnabled) return [];
 
-  // Asleep, or meant to be. Nothing is urgent enough.
-  if (inQuietHours(nowMins, prefs.quietStart, prefs.quietEnd)) return [];
+  // Asleep, or meant to be.
+  //
+  // One deliberate exception, applied in section 1: the lead-time nudge for a
+  // block that starts the moment quiet hours end. Without it the first block of
+  // every day is unreachable -- a 5-minute lead on an 07:00 block lands at 06:55,
+  // inside the quiet window, and was being dropped silently every morning.
+  const quietNow = inQuietHours(nowMins, prefs.quietStart, prefs.quietEnd);
 
   const shiftStart = shift ? toMins(shift.start) : null;
   const shiftEnd = shift ? toMins(shift.end) : null;
@@ -162,6 +194,10 @@ export function decideNudges(ctx: NudgeCtx): Nudge[] {
       const delta = bs - nowMins;
       if (delta < 0 || delta > lead) continue;
 
+      // During quiet hours only one thing may speak: the block that starts as
+      // quiet ends. Anything starting later can wait until quiet is over.
+      if (quietNow && inQuietHours(bs, prefs.quietStart, prefs.quietEnd)) continue;
+
       // Don't buzz for anything that begins inside the shift — he can't act on it.
       const insideShift =
         shiftStart != null && shiftEnd != null && bs > shiftStart && bs < shiftEnd;
@@ -178,6 +214,9 @@ export function decideNudges(ctx: NudgeCtx): Nudge[] {
       push({ kind: "block", refKey: `${b.start}-${b.label}`.slice(0, 120), title, body, link: LINK });
     }
   }
+
+  // Past this point every nudge is discretionary, so quiet hours win.
+  if (quietNow) return finalize(out);
 
   // ── 2. Due today (one morning summary) ───────────────────────────────────
   if (prefs.notifyDueToday) {
@@ -224,13 +263,19 @@ export function decideNudges(ctx: NudgeCtx): Nudge[] {
   }
 
   // Is he mid-block right now? Errand/idle nudges must not interrupt.
+  //
+  // But an open-ended holding block is not an interruption to protect. A real
+  // plan often contains one long "Free Day" / buffer block covering the whole
+  // afternoon, and treating that as busy silenced errands for the entire day --
+  // exactly the window they exist for.
   const activeBlock = blocks.find((b) => nowMins >= toMins(b.start) && nowMins < toMins(b.end));
+  const activeIsOpenEnded = activeBlock ? isOpenBlock(activeBlock) : false;
   const nextBlockStart = blocks
     .map((b) => toMins(b.start))
     .filter((s) => s > nowMins)
     .sort((a, b) => a - b)[0];
   const gapMins = nextBlockStart != null ? nextBlockStart - nowMins : 24 * 60 - nowMins;
-  const isFree = !activeBlock && gapMins >= 20;
+  const isFree = (!activeBlock || activeIsOpenEnded) && gapMins >= 20;
 
   // ── 4. Errands — the small stuff that quietly rots ───────────────────────
   // This is the one that matters: passport paperwork, checking a delivery,
@@ -246,23 +291,25 @@ export function decideNudges(ctx: NudgeCtx): Nudge[] {
     if (hoursSince >= 3) {
       const stale = tasks
         .filter(isErrand)
-        .filter((t) => (ctx.now.getTime() - t.createdAt.getTime()) / 86400000 >= 1)
+        .filter(
+          (t) => (ctx.now.getTime() - t.createdAt.getTime()) / 3600000 >= MIN_ERRAND_AGE_HOURS
+        )
         .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
 
       const pick = stale.find((t) => !already("errand", t.id));
       if (pick) {
-        const age = Math.max(
-          1,
-          Math.round((ctx.now.getTime() - pick.createdAt.getTime()) / 86400000)
-        );
+        const ageHours = (ctx.now.getTime() - pick.createdAt.getTime()) / 3600000;
+        const ageDays = Math.floor(ageHours / 24);
+        const age =
+          ageDays >= 1 ? `${ageDays} day${ageDays > 1 ? "s" : ""}` : `${Math.floor(ageHours)}h`;
         const mins = pick.effortMins ?? 15;
         push({
           kind: "errand",
           refKey: pick.id,
           title: `Free ${gapMins >= 60 ? "hour" : `${gapMins} min`} — ${pick.title}`,
           body: pick.startTrigger
-            ? `${age}d old, ~${mins} min. Start: ${pick.startTrigger}`
-            : `Sitting for ${age} days, ~${mins} min. Do it now and it's gone.`,
+            ? `${age} old, ~${mins} min. Start: ${pick.startTrigger}`
+            : `Sitting ${age} already, ~${mins} min. Do it now and it's gone.`,
           link: LINK,
         });
       }
@@ -316,9 +363,5 @@ export function decideNudges(ctx: NudgeCtx): Nudge[] {
     }
   }
 
-  // Even in chatty mode, never fire a burst — 2 per run maximum, structure first.
-  const priority: NudgeKind[] = ["block", "due_today", "errand", "overdue", "stuck", "evening", "idle"];
-  return out
-    .sort((a, b) => priority.indexOf(a.kind) - priority.indexOf(b.kind))
-    .slice(0, 2);
+  return finalize(out);
 }

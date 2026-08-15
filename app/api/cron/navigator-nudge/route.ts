@@ -64,11 +64,11 @@ export async function GET(req: NextRequest) {
     const dateKey = todayKey(tz);
     const nowMins = hour * 60 + minute;
 
-    // Cheap pre-check with this user's real quiet window — skip the reads.
-    if (inQuietHours(nowMins, profile.quietStart, profile.quietEnd)) {
-      results.push({ userId: profile.userId, skipped: "user quiet hours" });
-      continue;
-    }
+    // No blanket quiet-hours skip here on purpose. decideNudges() allows exactly
+    // one thing to speak during quiet hours -- the lead-time nudge for the block
+    // that starts as quiet ends -- and skipping the reads here would drop it.
+    // The DB is already awake from the profile query above, so the extra reads
+    // cost nothing that matters.
 
     const { window: shift, source } = windowForDate(profile, dateKey);
     const onShift =
@@ -163,7 +163,13 @@ export async function GET(req: NextRequest) {
       sent.push(`${n.kind}:${n.refKey}`);
     }
 
-    results.push({ userId: profile.userId, sent });
+    results.push({
+      userId: profile.userId,
+      sent,
+      quiet: inQuietHours(nowMins, profile.quietStart, profile.quietEnd) || undefined,
+      onShift: onShift || undefined,
+      considered: { tasks: tasks.length, blocks: Array.isArray(plan?.blocks) ? plan.blocks.length : 0 },
+    });
   }
 
   return NextResponse.json({ ok: true, at: `${hour}:${String(minute).padStart(2, "0")}`, results });

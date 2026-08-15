@@ -67,6 +67,25 @@ export function SetupTab({ state, refresh }: { state: NavState; refresh: () => v
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<string | null>(null);
+
+  async function sendTestNudge() {
+    setTesting(true);
+    setTestResult(null);
+    try {
+      const res = await fetch("/api/navigator/test-nudge", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Failed");
+      // Phone push and the in-app bell fail independently, so report both.
+      setTestResult(`Bell: sent. Phone push: ${data.push}`);
+    } catch (e) {
+      setTestResult(e instanceof Error ? e.message : "Failed to send");
+    } finally {
+      setTesting(false);
+    }
+  }
+
   function set<K extends keyof NavProfile>(key: K, value: NavProfile[K]) {
     setP((prev) => ({ ...prev, [key]: value }));
     setSaved(false);
@@ -337,6 +356,23 @@ export function SetupTab({ state, refresh }: { state: NavState; refresh: () => v
               </label>
             ))}
           </div>
+
+          <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-white/10 pt-4">
+            <button
+              type="button"
+              onClick={sendTestNudge}
+              disabled={testing}
+              className="rounded-lg border border-white/15 px-3 py-2 text-sm font-medium text-white transition hover:border-[#ff6b35] hover:text-[#ff6b35] disabled:opacity-50"
+            >
+              {testing ? "Sending..." : "Send a test nudge now"}
+            </button>
+            {testResult && <span className="text-xs text-slate-300">{testResult}</span>}
+          </div>
+          <p className="mt-2 text-xs text-slate-500">
+            Nudges are checked every 5 minutes between 06:00 and 22:00. Nothing fires during a
+            shift or inside your quiet hours, so a silent morning before 07:00 is working as
+            intended.
+          </p>
         </div>
       </Panel>
 
