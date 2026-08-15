@@ -149,9 +149,12 @@ function bullets(lines: (string | null | undefined)[]) {
 }
 
 /** Turns the snapshot into the text block the model actually reads. */
-export function renderSnapshot(s: Snapshot): string {
+export function renderSnapshot(s: Snapshot, forDate?: string): string {
   const p = s.profile;
-  const { window: todayWindow, source } = windowForDate(p, s.today);
+  const target = forDate && forDate !== s.today ? forDate : s.today;
+  const isToday = target === s.today;
+  const dayWord = isToday ? "TODAY" : `The day being planned (${target})`;
+  const { window: todayWindow, source } = windowForDate(p, target);
   const weekShape = renderWeekPattern(p);
 
   const taskLines = s.tasks.slice(0, 25).map((t) => {
@@ -188,11 +191,11 @@ export function renderSnapshot(s: Snapshot): string {
     `Local time ${s.now} (${s.tz}), date ${s.today}.`,
     `Wakes ${p.wakeTime}, sleeps ${p.sleepTime}. Preferred focus block ${p.focusMins}min / ${p.breakMins}min break.`,
     todayWindow
-      ? `TODAY is a work day: shift ${todayWindow.start}–${todayWindow.end}${
+      ? `${dayWord} is a work day: shift ${todayWindow.start}–${todayWindow.end}${
           todayWindow.note ? ` (${todayWindow.note})` : ""
-        }. Do NOT schedule anything except commute/transition inside that shift — plan around it.`
+        }. Those exact times are fixed. Do NOT schedule anything inside that shift — plan around it.`
       : source === "pattern"
-        ? `TODAY is a day OFF work. No shift. Free time is the whole day, but it is rest/family/project time — do not turn it into a work day.`
+        ? `${dayWord} is a day OFF work. There is NO shift at all — do not place a work block anywhere. Free time is the whole day, but it is rest/family/project time, not a working day.`
         : `Work window ${p.workStart}–${p.workEnd} (no weekly pattern set).`,
     weekShape ? `Weekly shape: ${weekShape}` : null,
     p.energyPattern ? `Energy pattern: ${p.energyPattern}` : null,

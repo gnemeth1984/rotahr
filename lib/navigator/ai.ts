@@ -1,6 +1,7 @@
 import OpenAI from "openai";
 import { prisma } from "@/lib/db";
 import { buildSnapshot, renderSnapshot, windowForDate, renderWeekPattern, type Snapshot } from "./context";
+import { enforceShiftWindow } from "./shift";
 import { dayFromKey, weekdayName, minutesBetween } from "./dates";
 
 const MODEL = "gpt-4o-mini";
@@ -657,8 +658,11 @@ Non-negotiable today: ${input.mustDo || "nothing stated — pick from open tasks
 ${shiftLine}
 ${weekShape ? `Weekly shape: ${weekShape}` : ""}
 
-${renderSnapshot(snapshot)}`
+${renderSnapshot(snapshot, key)}`
   );
+
+  // The shift is enforced in code — the model does not get to move it.
+  const blocks = enforceShiftWindow(out.blocks, shift, source);
 
   const plan = await upsertPlan(userId, key, {
     energy: input.energy,
@@ -666,7 +670,7 @@ ${renderSnapshot(snapshot)}`
     availableHours: input.availableHours,
     focusTheme: out.focusTheme ?? null,
     anchor: out.anchor ?? null,
-    blocks: out.blocks ?? [],
+    blocks,
   });
   return plan;
 }
