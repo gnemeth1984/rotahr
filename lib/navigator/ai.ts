@@ -647,6 +647,13 @@ async function json<T>(system: string, user: string, maxTokens = 1400): Promise<
   return JSON.parse(raw) as T;
 }
 
+/**
+ * Same helper, exported for Navigator modules that live outside this file.
+ * Kept as an alias so there is exactly one place that decides model, temperature
+ * and JSON mode.
+ */
+export const navigatorJson = json;
+
 export type GeneratedBlock = {
   start: string;
   end: string;

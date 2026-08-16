@@ -4,6 +4,10 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth/options';
 import { wrapCron } from "@/lib/cron-run";
 
+// Reads request headers for cron auth, so it must never be statically
+// evaluated at build time — doing so ran the handler during `next build`.
+export const dynamic = "force-dynamic";
+
 // Daily discovery: searches for recent Reddit/Quora threads mentioning any
 // active competitor, relevant to hospitality, and not already in the list.
 // Requires SERPER_API_KEY (serper.dev — 2,500 free queries on signup, no

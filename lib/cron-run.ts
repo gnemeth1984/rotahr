@@ -18,6 +18,12 @@ export async function recordCronRun(
   detail?: string,
   durationMs?: number
 ): Promise<void> {
+  // `next build` pre-renders route handlers to decide if they are static. Any
+  // that read headers throw during that pass, which is a build detail, not a
+  // failed job — and writing it to the database poisons the health signal
+  // Navigator reasons from.
+  if (process.env.NEXT_PHASE === "phase-production-build") return;
+
   try {
     // Imported lazily. `navigator-nudge` deliberately returns before touching
     // Prisma during quiet hours so Neon compute stays suspended — a top-level
@@ -81,6 +87,10 @@ export function wrapCron<A extends unknown[]>(
         detail = "";
       }
       if (opts?.skipWhen?.(res.status, detail)) return res;
+      // A 401 is a stranger being turned away, not our scheduler failing. These
+      // routes are public URLs; recording every unauthenticated probe as a cron
+      // failure would let any passing crawler set off the health alarm.
+      if (res.status === 401) return res;
       await recordCronRun(job, res.status < 400, `${res.status} ${detail}`.trim(), Date.now() - started);
       return res;
     } catch (err) {

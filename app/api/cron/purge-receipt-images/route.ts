@@ -13,6 +13,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { wrapCron } from "@/lib/cron-run";
 
+// Reads request headers for cron auth, so it must never be statically
+// evaluated at build time — doing so ran the handler during `next build`.
+export const dynamic = "force-dynamic";
+
 async function __cronHandler(req: NextRequest) {
   // Protect: only Vercel Cron or requests with the correct secret
   const authHeader = req.headers.get("authorization");

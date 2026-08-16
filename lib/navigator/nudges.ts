@@ -100,7 +100,7 @@ export type NudgeCtx = {
    * Active snoozes (5.2). A snooze suppresses one (kind, refKey) pair until a
    * time the user chose. This is a FILTER on candidates, deliberately not a
    * change to how candidates compete with each other — the burst cap and the
-   * priority order in finalize() are untouched.
+   * arbitration in finalize() are untouched.
    */
   snoozes: { kind: string; refKey: string; until: Date; condition: string | null }[];
 };
@@ -168,12 +168,104 @@ function isErrand(t: NudgeTask): boolean {
   return small || lowStakes;
 }
 
-/** Order by importance, then cap the burst. Structure first, nagging last. */
-function finalize(out: Nudge[]): Nudge[] {
-  const priority: NudgeKind[] = ["block", "due_today", "errand", "overdue", "stuck", "evening", "idle"];
-  return out
-    .sort((a, b) => priority.indexOf(a.kind) - priority.indexOf(b.kind))
-    .slice(0, 2);
+/**
+ * Burst arbitration (B1).
+ *
+ * At most two nudges leave in one run, and that cap is not the thing to relax:
+ * three buzzes at once is how a channel gets muted, and a muted channel is worth
+ * nothing. The question is only WHICH two, and the old fixed priority order got
+ * it wrong twice over.
+ *
+ *  1. It ranked by importance when it should rank by PERISHABILITY. A "due
+ *     today" nudge that loses a slot fires again five minutes later and costs
+ *     nothing. A block-start nudge has a five-minute lead window: lose the slot
+ *     and the block starts unannounced, permanently. Same for "close the day",
+ *     which had one 45-minute window a day and sat sixth in a list of seven --
+ *     on any evening with a block running it never fired at all.
+ *  2. It let a class that had already been heard three times today beat a class
+ *     that had not been heard once. Errands -- the entire reason this thing
+ *     exists -- lost every busy day to overdue tasks and stayed lost.
+ *
+ * So each candidate scores: base weight (cost of it never landing today) +
+ * perishability (how few chances remain) + a starvation bonus that grows
+ * through the day for any class not yet delivered. Then two budgets apply:
+ * one nudge per class, and at most one from the prodding classes, so a burst
+ * can never be two pieces of nagging stacked on each other.
+ */
+export const BURST_CAP = 2;
+
+/** Cost of this class never landing today. Not urgency -- consequence. */
+const WEIGHT: Record<NudgeKind, number> = {
+  block: 100, // the structure itself; without it there is no plan being followed
+  idle: 90, // no plan at all -- nothing else in the system works until this is fixed
+  evening: 70, // closes the loop, and tomorrow's plan is built from it
+  overdue: 60,
+  due_today: 50,
+  errand: 40,
+  stuck: 30,
+};
+
+/** How few chances are left today. High = miss it now and it is gone. */
+const PERISHABLE: Record<NudgeKind, number> = {
+  block: 45, // 5-minute lead: one run, maybe two
+  evening: 30, // one 45-minute window per day
+  idle: 10, // re-buckets every 2h
+  errand: 5, // lasts as long as the free gap does
+  due_today: 0, // retries all day
+  overdue: 0,
+  stuck: 0,
+};
+
+/**
+ * Pure prodding. Any one of these is a fair reminder; two at once is a pile-on,
+ * and a pile-on gets dismissed as a unit rather than acted on.
+ */
+const NAGGING = new Set<NudgeKind>(["overdue", "errand", "stuck"]);
+
+/**
+ * Bonus for a class that has not been delivered at all today, growing as the
+ * day burns down. This is what stops a low-weight class being starved forever
+ * by a high-weight one -- and it self-cancels the moment the class is heard,
+ * so it rotates rather than flip-flopping.
+ */
+function starvation(kind: NudgeKind, ctx: NudgeCtx): number {
+  if (ctx.sentToday.some((s) => s.kind === kind)) return 0;
+  const wake = toMins(ctx.prefs.wakeTime);
+  const end = toMins(ctx.prefs.quietStart);
+  const span = Math.max(60, end - wake);
+  const through = Math.min(1, Math.max(0, (ctx.nowMins - wake) / span));
+  return Math.round(8 + through * 22);
+}
+
+export function scoreNudge(kind: NudgeKind, ctx: NudgeCtx): number {
+  return WEIGHT[kind] + PERISHABLE[kind] + starvation(kind, ctx);
+}
+
+function finalize(out: Nudge[], ctx: NudgeCtx): Nudge[] {
+  if (out.length <= 1) return out;
+
+  const ranked = [...out].sort(
+    (a, b) => scoreNudge(b.kind, ctx) - scoreNudge(a.kind, ctx) || WEIGHT[b.kind] - WEIGHT[a.kind]
+  );
+
+  const picked: Nudge[] = [];
+  const perKind = new Map<NudgeKind, number>();
+  let nags = 0;
+
+  for (const n of ranked) {
+    if (picked.length >= BURST_CAP) break;
+    // Two blocks can legitimately start together; nothing else repeats itself.
+    const allowed = n.kind === "block" ? 2 : 1;
+    if ((perKind.get(n.kind) ?? 0) >= allowed) continue;
+    if (NAGGING.has(n.kind)) {
+      if (nags >= 1) continue;
+      nags += 1;
+    }
+    perKind.set(n.kind, (perKind.get(n.kind) ?? 0) + 1);
+    picked.push(n);
+  }
+
+  return picked;
 }
 
 export function decideNudges(ctx: NudgeCtx): Nudge[] {
@@ -275,7 +367,7 @@ export function decideNudges(ctx: NudgeCtx): Nudge[] {
 
   // Past this point every nudge is discretionary, so quiet hours win — and so
   // does the shift buffer, for the same reason.
-  if (quietNow || inShiftBuffer) return finalize(out);
+  if (quietNow || inShiftBuffer) return finalize(out, ctx);
 
   // ── 2. Due today (one morning summary) ───────────────────────────────────
   if (prefs.notifyDueToday) {
@@ -439,5 +531,5 @@ export function decideNudges(ctx: NudgeCtx): Nudge[] {
     }
   }
 
-  return finalize(out);
+  return finalize(out, ctx);
 }

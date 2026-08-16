@@ -64,6 +64,7 @@ const schema = z.object({
   // allowed to SEE the system must never imply being allowed to CHANGE it.
   systemAccess: z.boolean().optional(),
   autonomyEnabled: z.boolean().optional(),
+  ideasEnabled: z.boolean().optional(),
 });
 
 export async function GET() {

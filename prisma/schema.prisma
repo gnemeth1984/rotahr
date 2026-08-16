@@ -2173,6 +2173,11 @@ model NavProfile {
   /// and the system block is omitted from every prompt.
   systemAccess Boolean @default(true)
 
+  /// Daily grounded product ideas, dropped into the triage inbox as drafts.
+  /// Generation stops on its own once the inbox backs up, so leaving this on
+  /// cannot turn the inbox into a landfill.
+  ideasEnabled Boolean @default(true)
+
   /// Master kill switch for autonomous actions. Deliberately DEFAULT FALSE:
   /// a tool that can act on its own must be switched on by a human once,
   /// on purpose. Read access does not imply write access.
@@ -2368,6 +2373,7 @@ model NavTask {
   @@index([userId, parentId])
   @@index([userId, scheduledFor])
   @@index([userId, archivedAt])
+  @@index([userId, project, status])
 }
 
 /// A nudge the user pushed away, and until when.

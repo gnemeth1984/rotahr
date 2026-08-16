@@ -5,6 +5,10 @@ import { prisma } from '@/lib/prisma';
 import { generateCoverImage } from '@/lib/blog/cover-image';
 import { wrapCron } from "@/lib/cron-run";
 
+// Reads request headers for cron auth, so it must never be statically
+// evaluated at build time — doing so ran the handler during `next build`.
+export const dynamic = "force-dynamic";
+
 // One-off (re-runnable) backfill: generates a cover image for every published
 // post that doesn't have one yet — covers all the posts published while image
 // generation was silently broken (wrong model name). Same auth as the daily

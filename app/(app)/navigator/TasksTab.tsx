@@ -203,7 +203,23 @@ export function TasksTab({ state, refresh }: { state: NavState; refresh: () => v
                 key={d.id}
                 className="flex flex-wrap items-center gap-2 rounded-xl border border-white/[0.07] bg-white/[0.03] px-3 py-2.5"
               >
-                <p className="min-w-0 flex-1 text-sm leading-snug text-slate-100">{d.title}</p>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm leading-snug text-slate-100">
+                    {d.project === "Ideas" && (
+                      <span className="mr-1.5 rounded bg-[#ff6b35]/15 px-1.5 py-0.5 align-middle text-[10px] font-semibold uppercase tracking-wide text-[#ff9a6b]">
+                        Idea
+                      </span>
+                    )}
+                    {d.title}
+                  </p>
+                  {/* An idea without its evidence is just an opinion, and keeping
+                      or binning it blind defeats the point of generating it. */}
+                  {d.project === "Ideas" && d.notes && (
+                    <p className="mt-1 text-[11px] leading-snug text-slate-400">
+                      {d.notes.split("\n").find((l) => l.startsWith("Signal:")) ?? d.notes.split("\n")[0]}
+                    </p>
+                  )}
+                </div>
                 <Btn
                   size="sm"
                   variant="flame"

@@ -50,6 +50,7 @@ export type NavProfile = {
   quietEnd: string;
   systemAccess: boolean;
   autonomyEnabled: boolean;
+  ideasEnabled: boolean;
 };
 
 /** Mirror of SystemPulse in lib/navigator/rotahr/signals.ts. */
@@ -107,6 +108,14 @@ export type SystemPulse = {
     seoFailures7d: number;
   };
   myActivity: { action: string; count: number }[];
+};
+
+export type IdeasResult = {
+  ok: boolean;
+  created: number;
+  skipped?: string;
+  titles: string[];
+  rejected: { title: string; reason: string }[];
 };
 
 export type SystemResponse = {

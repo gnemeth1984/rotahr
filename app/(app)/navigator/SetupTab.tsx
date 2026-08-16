@@ -157,6 +157,7 @@ export function SetupTab({ state, refresh }: { state: NavState; refresh: () => v
           quietEnd: p.quietEnd,
           systemAccess: p.systemAccess,
           autonomyEnabled: p.autonomyEnabled,
+          ideasEnabled: p.ideasEnabled,
           onboarded: true,
         },
       });
@@ -422,6 +423,24 @@ export function SetupTab({ state, refresh }: { state: NavState; refresh: () => v
               refreshed a few times a day and shown to you in full on the System tab. Other businesses are numbers
               only: no customer or staff names, emails, phones or notes ever leave Rotahr, and the refresh fails
               rather than sending one.
+            </span>
+          </span>
+        </label>
+
+        <label className="mt-5 flex cursor-pointer items-start gap-3 border-t border-white/10 pt-4">
+          <input
+            type="checkbox"
+            className="mt-0.5 h-4 w-4 shrink-0 accent-[#ff6b35]"
+            checked={p.ideasEnabled}
+            onChange={(e) => set("ideasEnabled", e.target.checked)}
+          />
+          <span>
+            <span className="block text-sm font-semibold text-white">Daily ideas in the inbox</span>
+            <span className="block text-xs text-slate-400">
+              Each morning Navigator reads the numbers above and drops up to two ideas into your task inbox as
+              drafts — every one has to cite the figure it came from, or it is thrown away before you see it. It
+              never notifies you, and it stops generating entirely once six ideas are sitting untriaged, so it
+              cannot turn the inbox into a landfill.
             </span>
           </span>
         </label>

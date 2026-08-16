@@ -5,6 +5,10 @@ import { generateCoverImage, slugify } from '@/lib/blog/cover-image';
 import { publishNextArticle, harvestKeywords } from '@/lib/seo/autopilot';
 import { wrapCron } from "@/lib/cron-run";
 
+// Reads request headers for cron auth, so it must never be statically
+// evaluated at build time — doing so ran the handler during `next build`.
+export const dynamic = "force-dynamic";
+
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 export const runtime = 'nodejs';

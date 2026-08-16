@@ -120,6 +120,7 @@
       "path": "/api/cron/navigator-nightly",
       "schedule": "45 20 * * *"
     },
-    { "path": "/api/cron/navigator-pulse", "schedule": "10 6,12,18 * * *" }
+    { "path": "/api/cron/navigator-pulse", "schedule": "10 6,12,18 * * *" },
+    { "path": "/api/cron/navigator-ideas", "schedule": "25 6 * * *" }
   ]
 }

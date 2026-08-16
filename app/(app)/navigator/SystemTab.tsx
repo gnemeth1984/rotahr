@@ -1,10 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { AlertTriangle, RefreshCw, TrendingDown, TrendingUp } from "lucide-react";
+import { AlertTriangle, Lightbulb, RefreshCw, TrendingDown, TrendingUp } from "lucide-react";
 import { Btn, Empty, Panel, Pill, SectionTitle, Spinner } from "./nav-ui";
 import { api, errMsg } from "./api";
-import type { SystemPulse, SystemResponse } from "./types";
+import type { IdeasResult, SystemPulse, SystemResponse } from "./types";
 
 /**
  * What Navigator can see of Rotahr.
@@ -18,6 +18,8 @@ export function SystemTab() {
   const [res, setRes] = useState<SystemResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [thinking, setThinking] = useState(false);
+  const [ideas, setIdeas] = useState<IdeasResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -47,6 +49,21 @@ export function SystemTab() {
     }
   }
 
+  // Same code path as the daily cron, inbox limit included — this only skips
+  // the wait, it is not a way round the backpressure.
+  async function askForIdeas() {
+    setThinking(true);
+    setIdeas(null);
+    try {
+      setIdeas(await api<IdeasResult>("/ideas", { method: "POST" }));
+      setError(null);
+    } catch (e) {
+      setError(errMsg(e));
+    } finally {
+      setThinking(false);
+    }
+  }
+
   if (loading) return <Spinner label="Reading the system" />;
 
   if (res && !res.systemAccess) {
@@ -69,6 +86,9 @@ export function SystemTab() {
                 ? `updated ${res.ageMinutes != null && res.ageMinutes < 60 ? `${res.ageMinutes}m` : `${Math.floor((res.ageMinutes ?? 0) / 60)}h`} ago`
                 : "never refreshed"}
             </span>
+            <Btn size="sm" variant="ghost" onClick={askForIdeas} loading={thinking}>
+              <Lightbulb className="h-3.5 w-3.5" /> Ideas
+            </Btn>
             <Btn size="sm" onClick={refresh} loading={refreshing}>
               <RefreshCw className="h-3.5 w-3.5" /> Refresh
             </Btn>
@@ -80,6 +100,37 @@ export function SystemTab() {
 
       {error && (
         <Panel className="border-rose-400/25 bg-rose-500/[0.06] p-4 text-sm text-rose-200">{error}</Panel>
+      )}
+
+      {ideas && (
+        <Panel className="p-4">
+          <div className="flex items-start gap-2">
+            <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-[#ff6b35]" />
+            <div className="min-w-0 text-sm">
+              {ideas.created > 0 ? (
+                <>
+                  <div className="font-semibold text-white">
+                    {ideas.created} idea{ideas.created > 1 ? "s" : ""} in your task inbox
+                  </div>
+                  <ul className="mt-1.5 space-y-1 text-slate-300">
+                    {ideas.titles.map((t) => (
+                      <li key={t}>· {t}</li>
+                    ))}
+                  </ul>
+                </>
+              ) : (
+                <div className="text-slate-300">
+                  Nothing added{ideas.skipped ? ` — ${ideas.skipped}` : "."}
+                </div>
+              )}
+              {ideas.rejected.length > 0 && (
+                <div className="mt-2 text-[11px] text-slate-500">
+                  Dropped before you saw them: {ideas.rejected.map((r) => r.reason).join(", ")}.
+                </div>
+              )}
+            </div>
+          </div>
+        </Panel>
       )}
 
       {res?.lastError && (
@@ -101,7 +152,8 @@ export function SystemTab() {
       )}
 
       <p className="px-1 text-[11px] leading-relaxed text-slate-500">
-        Other businesses appear as numbers only — never a customer name, email, phone or note. That
+        Ideas run automatically each morning and land in the task inbox as drafts — never as a
+        notification. Other businesses appear as numbers only — never a customer name, email, phone or note. That
         boundary is enforced in code: if a personal identifier ever reaches this payload the refresh
         fails instead of publishing it.
       </p>
