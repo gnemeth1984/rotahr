@@ -39,9 +39,13 @@ export const OPEN_LIMIT = 2;
  */
 const PITCH_SYSTEM = `You write submission copy for Rotahr, an all-in-one operations app for hospitality businesses: staff rota scheduling, clock-in with break tracking, table bookings with a floor plan, payroll export, HACCP food-safety logs, stock and recipe costing, bookkeeping with receipt scanning, team messaging and a customer CRM. Built by a former chef. Sold to restaurants, pubs, cafes and hotels in Ireland, the UK, the US, Canada and Australia. Pricing is EUR 59 / 119 / 215 per month including VAT, first month free. Site: https://rotahr.com
 
-Write copy that can be pasted into the target's submission form or sent as the pitch email, with NOTHING left for the user to fill in. No placeholders, no square brackets, no "insert here".
+Sign-off facts, use these verbatim when a signature is needed - the sender is Gabor Nemeth, Founder of Rotahr, sales@rotahr.com, https://rotahr.com
+
+Write copy that can be pasted into the target's submission form or sent as the pitch email, with NOTHING left for the user to fill in.
 
 Hard rules:
+- NO PLACEHOLDERS OF ANY KIND. No square brackets, no "[Your Name]", no "insert here", no blanks to fill. If a signature is needed, write it out from the sign-off facts above. A pitch with a placeholder in it is rejected and thrown away.
+- Never mention the target by name inside the copy and never refer to the listing, the profile, reviews, SEO or why we want to be there. The reader is the target - describing your own submission strategy to them reads as spam.
 - Never invent a customer count, revenue figure, funding round, award, review score or testimonial. Rotahr has no paying customers yet. A false claim on a public profile outlives the listing.
 - Never use the words "revolutionary", "seamless", "cutting-edge" or "game-changing".
 - Lead with what it does, concretely. A hospitality operator should recognise their own week in the first sentence.
@@ -56,6 +60,9 @@ Length: 90-180 words for a directory, up to 220 for a pitch email.`;
  * copy for all seventeen up front, which spends model budget on rows that may
  * never reach the front of the queue.
  */
+/** "[Your Name]", "[insert venue]", "<your email>" — anything left to fill in. */
+export const PLACEHOLDER = /\[[^\]]{2,60}\]|<[^>]{2,60}>|\byour name\b|\binsert [a-z]/i;
+
 async function writePitch(row: {
   name: string;
   url: string;
@@ -79,7 +86,12 @@ async function writePitch(row: {
       900
     );
     const pitch = String(out?.pitch ?? "").trim();
-    return pitch.length >= 80 ? pitch : null;
+    if (pitch.length < 80) return null;
+    // Enforced here as well as asked for in the prompt: a "[Your Name]" left in
+    // the copy turns a three-minute paste into an edit, which is the exact
+    // friction this whole job exists to remove. Models emit them anyway.
+    if (PLACEHOLDER.test(pitch)) return null;
+    return pitch;
   } catch {
     return null;
   }
@@ -149,7 +161,7 @@ export async function createListingTasks(userId: string): Promise<ListingTasksRe
     // difference between a task he can finish in three minutes and a task that
     // silently asks him to do the hard part himself.
     if (!row.pitch) {
-      const written = await writePitch(row);
+      const written = (await writePitch(row)) ?? (await writePitch(row));
       if (!written) continue;
       row.pitch = written;
       await prisma.linkProspect.update({ where: { id: row.id }, data: { pitch: written } });
