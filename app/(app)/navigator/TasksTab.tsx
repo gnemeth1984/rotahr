@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { BatteryLow, Check, ChevronDown, ChevronRight, Inbox, Play, Plus, Scissors, Trash2, Wand2, Zap } from "lucide-react";
+import { BatteryLow, Check, ChevronDown, ChevronRight, ClipboardCheck, Copy, ExternalLink, Inbox, Play, Plus, Scissors, Trash2, Wand2, Zap } from "lucide-react";
 import { NavState, Task } from "./types";
 import { api, errMsg } from "./api";
 import { Btn, Empty, Field, PRIORITY_TONE, Panel, Pill, SectionTitle, inputClass } from "./nav-ui";
@@ -13,6 +13,27 @@ import { WarmUpButton } from "./WarmUp";
  * returns exactly one move, for when even a list feels like too much.
  */
 type BreakdownMode = "steps" | "low_energy" | "smallest";
+
+/**
+ * Tasks written by the visibility job carry their whole payload in `notes`: a
+ * few lines of context, then the submission copy fenced between markers.
+ *
+ * The list deliberately does not render raw notes - most tasks have none and a
+ * wall of text under every row would ruin the page. But a task whose entire
+ * point is "paste this somewhere" is useless if the thing to paste is invisible,
+ * which is exactly how these two sat unnoticed. So: parse the fence, show the
+ * copy behind a disclosure with a real copy button, and surface the target URL.
+ */
+const PASTE_FENCE = /--- PASTE THIS ---\n([\s\S]*?)\n--- END ---/;
+
+function parseNotes(notes: string | null) {
+  if (!notes) return null;
+  const paste = notes.match(PASTE_FENCE)?.[1]?.trim() ?? null;
+  const target = notes.match(/^Target:\s*(https?:\/\/\S+)/m)?.[1] ?? null;
+  const sendTo = notes.match(/^Send to:\s*(\S+@\S+)/m)?.[1] ?? null;
+  if (!paste && !target) return null;
+  return { paste, target, sendTo };
+}
 
 const BUCKETS = [
   { id: "urgent", label: "Urgent", blurb: "Real deadlines, real consequences" },
@@ -30,6 +51,14 @@ export function TasksTab({ state, refresh }: { state: NavState; refresh: () => v
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const [firstMove, setFirstMove] = useState<{ id: string; text: string } | null>(null);
   const [draft, setDraft] = useState("");
+  const [copied, setCopied] = useState<string | null>(null);
+  const [showPaste, setShowPaste] = useState<Record<string, boolean>>({});
+
+  function copyPaste(id: string, text: string) {
+    void navigator.clipboard.writeText(text);
+    setCopied(id);
+    setTimeout(() => setCopied((c) => (c === id ? null : c)), 1600);
+  }
 
   const [showParked, setShowParked] = useState(false);
 
@@ -321,6 +350,7 @@ export function TasksTab({ state, refresh }: { state: NavState; refresh: () => v
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-center gap-2">
                             <p className="font-semibold leading-snug text-white">{t.title}</p>
+                            {t.project && <Pill tone="violet">{t.project}</Pill>}
                             {t.status === "doing" && <Pill tone="flame">In progress</Pill>}
                             {t.effortMins && <Pill tone="slate">{t.effortMins}m</Pill>}
                             {kids.length > 0 && (
@@ -335,6 +365,76 @@ export function TasksTab({ state, refresh }: { state: NavState; refresh: () => v
                               {t.startTrigger}
                             </p>
                           )}
+
+                          {(() => {
+                            const n = parseNotes(t.notes ?? null);
+                            if (!n) return null;
+                            const isOpen = showPaste[t.id] ?? false;
+                            return (
+                              <div className="mt-2 rounded-lg border border-white/[0.08] bg-white/[0.02] p-2.5">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  {n.target && (
+                                    <a
+                                      href={n.target}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-flex items-center gap-1 text-xs text-sky-300 hover:underline"
+                                    >
+                                      <ExternalLink className="h-3 w-3 flex-shrink-0" />
+                                      Open the form
+                                    </a>
+                                  )}
+                                  {n.sendTo && (
+                                    <button
+                                      onClick={() => copyPaste(`${t.id}:to`, n.sendTo!)}
+                                      className="inline-flex items-center gap-1 rounded border border-white/10 px-1.5 py-0.5 text-[11px] text-slate-300 hover:bg-white/[0.06]"
+                                    >
+                                      {copied === `${t.id}:to` ? (
+                                        <ClipboardCheck className="h-3 w-3" />
+                                      ) : (
+                                        <Copy className="h-3 w-3" />
+                                      )}
+                                      {n.sendTo}
+                                    </button>
+                                  )}
+                                  {n.paste && (
+                                    <>
+                                      <Btn
+                                        size="sm"
+                                        variant="flame"
+                                        onClick={() => copyPaste(t.id, n.paste!)}
+                                      >
+                                        {copied === t.id ? (
+                                          <>
+                                            <ClipboardCheck className="h-3.5 w-3.5" />
+                                            Copied
+                                          </>
+                                        ) : (
+                                          <>
+                                            <Copy className="h-3.5 w-3.5" />
+                                            Copy the text
+                                          </>
+                                        )}
+                                      </Btn>
+                                      <button
+                                        onClick={() =>
+                                          setShowPaste((o) => ({ ...o, [t.id]: !isOpen }))
+                                        }
+                                        className="text-[11px] text-slate-400 underline-offset-2 hover:text-slate-200 hover:underline"
+                                      >
+                                        {isOpen ? "Hide it" : "Read it first"}
+                                      </button>
+                                    </>
+                                  )}
+                                </div>
+                                {isOpen && n.paste && (
+                                  <p className="mt-2 max-h-64 overflow-y-auto whitespace-pre-wrap rounded bg-black/25 p-2 text-[11px] leading-relaxed text-slate-300">
+                                    {n.paste}
+                                  </p>
+                                )}
+                              </div>
+                            );
+                          })()}
                           <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
                             {kids.length === 0 ? (
                               <>
