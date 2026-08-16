@@ -15,6 +15,7 @@ import {
   type NudgeBlock,
   type NudgeTask,
 } from "@/lib/navigator/nudges";
+import { wrapCron } from "@/lib/cron-run";
 
 // Widest possible quiet window across all users — checked BEFORE Prisma so the
 // DB compute can stay suspended. Per-user quiet hours are enforced properly
@@ -22,7 +23,7 @@ import {
 const HARD_QUIET_START = 23; // 23:00 Dublin
 const HARD_QUIET_END = 6; //  06:00 Dublin
 
-export async function GET(req: NextRequest) {
+async function __cronHandler(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
   const secret =
     req.headers.get("x-cron-secret") || new URL(req.url).searchParams.get("secret");
@@ -208,3 +209,9 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({ ok: true, at: `${hour}:${String(minute).padStart(2, "0")}`, results });
 }
+
+// skipWhen keeps the quiet-hours exit truly free: no CronRun row, therefore no
+// Prisma import, therefore Neon compute stays asleep overnight.
+export const GET = wrapCron("navigator-nudge", __cronHandler as any, {
+  skipWhen: (status, body) => status === 200 && body.includes("hard quiet hours"),
+});

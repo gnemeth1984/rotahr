@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireRole, isResponse } from "@/lib/auth/middleware";
 import { timeOffService, timeOffRequestSchema } from "@/lib/services/timeoff.service";
+import { logActivity } from "@/lib/services/activity.service";
 
 export async function POST(req: NextRequest) {
   const session = await requireRole("ADMIN", "MANAGER");
@@ -19,6 +20,15 @@ export async function POST(req: NextRequest) {
 
   try {
     const request = await timeOffService.request(parsed.data, session.user.businessId);
+
+    logActivity({
+      businessId: session.user.businessId,
+      userId: session.user.id,
+      userName: session.user.name,
+      action: "timeoff_requested",
+      details: { type: request?.type ?? null },
+    });
+
     return NextResponse.json({ request }, { status: 201 });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 400 });

@@ -18,6 +18,7 @@ import {
   dublinWallClockToUtc,
   dublinDayStartUtc,
 } from "@/lib/cron/service-hours";
+import { wrapCron } from "@/lib/cron-run";
 
 // Quiet window: 01:00-05:00 Dublin. Deliberately starts at 01:00 rather than
 // midnight so late-night venues still get their closing-checks reminder.
@@ -40,7 +41,7 @@ const CHECK_LABELS: Record<string, string> = {
   corrective_action: "Corrective Action Log",
 };
 
-export async function GET(req: NextRequest) {
+async function __cronHandler(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
   const secret = req.headers.get("x-cron-secret") || new URL(req.url).searchParams.get("secret");
   const authed = authHeader === `Bearer ${process.env.CRON_SECRET}` || secret === process.env.CRON_SECRET;
@@ -150,3 +151,5 @@ export async function GET(req: NextRequest) {
     timestamp: now.toISOString(),
   });
 }
+
+export const GET = wrapCron("haccp-reminder", __cronHandler as any);

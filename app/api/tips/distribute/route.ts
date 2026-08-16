@@ -8,6 +8,7 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { requirePermission, isResponse } from "@/lib/auth/middleware";
 import { prisma } from "@/lib/db";
+import { logActivity } from "@/lib/services/activity.service";
 
 export async function POST(req: NextRequest) {
   const session = await requirePermission("tips");
@@ -44,7 +45,7 @@ export async function POST(req: NextRequest) {
   } else if (pool.method === "equal") {
     const shifts = await prisma.shift.findMany({
       where: {
-        businessId,
+        employee: { businessId },
         startTime: { gte: pool.periodStart },
         endTime: { lte: pool.periodEnd },
         employeeId: { not: null },
@@ -62,7 +63,7 @@ export async function POST(req: NextRequest) {
     // Default: pro-rata by hours worked
     const shifts = await prisma.shift.findMany({
       where: {
-        businessId,
+        employee: { businessId },
         startTime: { gte: pool.periodStart },
         endTime: { lte: pool.periodEnd },
         employeeId: { not: null },
@@ -109,6 +110,14 @@ export async function POST(req: NextRequest) {
         include: { employee: { select: { id: true, firstName: true, lastName: true } } },
       },
     },
+  });
+
+  logActivity({
+    businessId,
+    userId: session.user.id,
+    userName: session.user.name,
+    action: "tips_distributed",
+    details: { method: pool.method, recipients: distributions.length, total: pool.totalAmount },
   });
 
   return NextResponse.json({ pool: result });

@@ -155,6 +155,8 @@ export function SetupTab({ state, refresh }: { state: NavState; refresh: () => v
           notifyDuringShift: p.notifyDuringShift,
           quietStart: p.quietStart,
           quietEnd: p.quietEnd,
+          systemAccess: p.systemAccess,
+          autonomyEnabled: p.autonomyEnabled,
           onboarded: true,
         },
       });
@@ -398,6 +400,47 @@ export function SetupTab({ state, refresh }: { state: NavState; refresh: () => v
             <span className="block text-xs text-slate-400">
               Warm-up, midday reset, evening shutdown — three short fixed lists on the Today tab, anchored to your own
               wake time and shift rather than to clock hours. The wording never changes, on purpose.
+            </span>
+          </span>
+        </label>
+      </Panel>
+
+      <Panel className="p-5">
+        <SectionTitle>Rotahr access</SectionTitle>
+
+        <label className="flex cursor-pointer items-start gap-3">
+          <input
+            type="checkbox"
+            className="mt-0.5 h-4 w-4 shrink-0 accent-[#ff6b35]"
+            checked={p.systemAccess}
+            onChange={(e) => set("systemAccess", e.target.checked)}
+          />
+          <span>
+            <span className="block text-sm font-semibold text-white">Let Navigator see Rotahr</span>
+            <span className="block text-xs text-slate-400">
+              Adoption, MRR, module usage, your own venue&apos;s open jobs, SEO, outreach, shipping and cron health —
+              refreshed a few times a day and shown to you in full on the System tab. Other businesses are numbers
+              only: no customer or staff names, emails, phones or notes ever leave Rotahr, and the refresh fails
+              rather than sending one.
+            </span>
+          </span>
+        </label>
+
+        <label className="mt-5 flex cursor-pointer items-start gap-3 border-t border-white/10 pt-4 opacity-60">
+          <input
+            type="checkbox"
+            className="mt-0.5 h-4 w-4 shrink-0 accent-[#ff6b35]"
+            checked={p.autonomyEnabled}
+            disabled
+            onChange={(e) => set("autonomyEnabled", e.target.checked)}
+          />
+          <span>
+            <span className="block text-sm font-semibold text-white">
+              Let Navigator act on its own <span className="text-slate-500">— not built yet</span>
+            </span>
+            <span className="block text-xs text-slate-400">
+              Separate switch on purpose: being allowed to see the system must never quietly mean being allowed to
+              change it. It stays off until the reversible-action whitelist and the undo log are in place.
             </span>
           </span>
         </label>

@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth/options";
 import { prisma } from "@/lib/prisma";
 import { UserRole as Role } from "@/types/roles";
+import { logActivity } from "@/lib/services/activity.service";
 
 function canEdit(role: string, permissions: string[]) {
   return (
@@ -49,6 +50,14 @@ export async function POST(req: NextRequest) {
       costPrice: costPrice ? parseFloat(costPrice) : null,
       imageUrl,
     },
+  });
+
+  logActivity({
+    businessId: session.user.businessId,
+    userId: session.user.id,
+    userName: session.user.name,
+    action: "recipe_added",
+    details: { category: dish.category, hasCost: dish.costPrice != null },
   });
 
   return NextResponse.json({ dish }, { status: 201 });

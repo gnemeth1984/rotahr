@@ -4,6 +4,7 @@ export const maxDuration = 300;
 import { NextRequest, NextResponse } from "next/server";
 import { runBatch, DEFAULT_DAILY_LIMIT } from "@/lib/outreach/sender";
 import { isBrevoConfigured } from "@/lib/outreach/brevo";
+import { wrapCron } from "@/lib/cron-run";
 
 /**
  * Weekday cold-outreach batch.
@@ -15,7 +16,7 @@ import { isBrevoConfigured } from "@/lib/outreach/brevo";
  * `runBatch()` is awaited — a serverless function is frozen when it responds,
  * so anything not awaited is silently dropped in production.
  */
-export async function GET(req: NextRequest) {
+async function __cronHandler(req: NextRequest) {
   const auth = req.headers.get("authorization");
   if (!process.env.CRON_SECRET || auth !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -62,3 +63,5 @@ export async function GET(req: NextRequest) {
     reason: result.reason,
   });
 }
+
+export const GET = wrapCron("outreach-batch", __cronHandler as any);

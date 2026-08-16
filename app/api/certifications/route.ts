@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { requirePermission, isResponse } from "@/lib/auth/middleware";
 import { prisma } from "@/lib/db";
+import { logActivity } from "@/lib/services/activity.service";
 
 function certStatus(expiryDate: Date | null): string {
   if (!expiryDate) return "NO_EXPIRY";
@@ -70,6 +71,14 @@ export async function POST(req: NextRequest) {
       documentUrl: documentUrl ?? null,
       notes: notes ?? null,
     },
+  });
+
+  logActivity({
+    businessId,
+    userId: session.user.id,
+    userName: session.user.name,
+    action: "cert_added",
+    details: { category: cert.category, hasExpiry: Boolean(cert.expiryDate) },
   });
 
   return NextResponse.json({ certification: { ...cert, status: certStatus(cert.expiryDate) } }, { status: 201 });

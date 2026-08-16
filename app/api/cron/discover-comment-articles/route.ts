@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth/options';
+import { wrapCron } from "@/lib/cron-run";
 
 // Daily discovery: searches for recent Reddit/Quora threads mentioning any
 // active competitor, relevant to hospitality, and not already in the list.
@@ -69,7 +70,7 @@ async function serperSearch(query: string): Promise<{ title: string; link: strin
   return (data.organic || []).map((i: any) => ({ title: i.title, link: i.link, snippet: i.snippet || '' }));
 }
 
-export async function GET(req: Request) {
+async function __cronHandler(req: Request) {
   const authHeader = req.headers.get('authorization');
   const secret = req.headers.get('x-cron-secret') || new URL(req.url).searchParams.get('secret');
   const cronAuthed =
@@ -145,3 +146,5 @@ export async function GET(req: Request) {
 
   return NextResponse.json({ checked: toCheck.map((c) => c.name), added: added.length, articles: added, errors });
 }
+
+export const GET = wrapCron("discover-comment-articles", __cronHandler as any);

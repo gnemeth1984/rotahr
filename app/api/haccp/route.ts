@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth/options";
 import { prisma } from "@/lib/prisma";
+import { logActivity } from "@/lib/services/activity.service";
 
 export async function GET(req: NextRequest) {
   try {
@@ -63,6 +64,14 @@ export async function POST(req: NextRequest) {
         notes: notes || null,
       },
       include: { checkedBy: { select: { name: true, email: true } } },
+    });
+
+    logActivity({
+      businessId: session.user.businessId,
+      userId: session.user.id,
+      userName: session.user.name,
+      action: "haccp_logged",
+      details: { checkType, status: record.status },
     });
 
     return NextResponse.json({ record });

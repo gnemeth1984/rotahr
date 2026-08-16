@@ -3,6 +3,7 @@ export const maxDuration = 300;
 
 import { NextRequest, NextResponse } from "next/server";
 import { buildQueue, autopilotEnabled } from "@/lib/outreach/listing-autopilot";
+import { wrapCron } from "@/lib/cron-run";
 
 /**
  * Overnight build phase of the listing autopilot.
@@ -15,7 +16,7 @@ import { buildQueue, autopilotEnabled } from "@/lib/outreach/listing-autopilot";
  * fetch plus a model call — fourteen of them will not fit in the same 300s
  * function as the sends.
  */
-export async function GET(req: NextRequest) {
+async function __cronHandler(req: NextRequest) {
   const auth = req.headers.get("authorization");
   if (!process.env.CRON_SECRET || auth !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -43,3 +44,5 @@ export async function GET(req: NextRequest) {
     outcomes: result.outcomes,
   });
 }
+
+export const GET = wrapCron("listing-build", __cronHandler as any);

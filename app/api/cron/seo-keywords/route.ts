@@ -9,6 +9,7 @@
 import { NextResponse } from "next/server";
 import { harvestKeywords } from "@/lib/seo/autopilot";
 import { canRunSeo } from "@/lib/seo/auth";
+import { wrapCron } from "@/lib/cron-run";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -27,5 +28,6 @@ async function run(req: Request) {
   }
 }
 
-export const GET = run;
-export const POST = run;
+const __wrapped = wrapCron("seo-keywords", run as any);
+export const GET = __wrapped;
+export const POST = __wrapped;

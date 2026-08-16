@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import OpenAI from 'openai';
 import { generateCoverImage, slugify } from '@/lib/blog/cover-image';
 import { publishNextArticle, harvestKeywords } from '@/lib/seo/autopilot';
+import { wrapCron } from "@/lib/cron-run";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -207,7 +208,7 @@ async function repairMissingCovers(limit = 1) {
   return repaired;
 }
 
-export async function GET(req: Request) {
+async function __cronHandler(req: Request) {
   const authHeader = req.headers.get('authorization');
   const secret = req.headers.get('x-cron-secret') || new URL(req.url).searchParams.get('secret');
   const authed =
@@ -354,3 +355,5 @@ Write the article now:`;
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
+
+export const GET = wrapCron("generate-blog", __cronHandler as any);

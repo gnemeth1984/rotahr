@@ -12,6 +12,7 @@
 import { NextResponse } from "next/server";
 import { runVisibilityCheck } from "@/lib/seo/ai-visibility";
 import { canRunSeo } from "@/lib/seo/auth";
+import { wrapCron } from "@/lib/cron-run";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -34,5 +35,6 @@ async function run(req: Request) {
   }
 }
 
-export const GET = run;
-export const POST = run;
+const __wrapped = wrapCron("ai-visibility", run as any);
+export const GET = __wrapped;
+export const POST = __wrapped;

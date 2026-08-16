@@ -3,13 +3,14 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth/options';
 import { prisma } from '@/lib/prisma';
 import { generateCoverImage } from '@/lib/blog/cover-image';
+import { wrapCron } from "@/lib/cron-run";
 
 // One-off (re-runnable) backfill: generates a cover image for every published
 // post that doesn't have one yet — covers all the posts published while image
 // generation was silently broken (wrong model name). Same auth as the daily
 // blog cron, OR a logged-in platform admin session. Processes a few at a time
 // per call to stay within request limits.
-export async function GET(req: Request) {
+async function __cronHandler(req: Request) {
   const authHeader = req.headers.get('authorization');
   const secret = req.headers.get('x-cron-secret') || new URL(req.url).searchParams.get('secret');
   const cronAuthed =
@@ -45,3 +46,5 @@ export async function GET(req: Request) {
 
   return NextResponse.json({ processed: results.length, results, remaining });
 }
+
+export const GET = wrapCron("backfill-blog-images", __cronHandler as any);

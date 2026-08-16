@@ -48,6 +48,74 @@ export type NavProfile = {
   notifyDuringShift: boolean;
   quietStart: string;
   quietEnd: string;
+  systemAccess: boolean;
+  autonomyEnabled: boolean;
+};
+
+/** Mirror of SystemPulse in lib/navigator/rotahr/signals.ts. */
+export type SystemPulse = {
+  generatedAt: string;
+  founder: {
+    realBusinesses: number;
+    listingShells: number;
+    payingCustomers: number;
+    byPlan: { plan: string; count: number }[];
+    mrrEur: number;
+    signups: { now: number; prev: number; change: number };
+    activeBusinesses7d: number;
+    atRisk: number;
+  };
+  usage: { module: string; total: number; delta: number; tenants: number }[];
+  myVenue: {
+    bookingsToday: number;
+    coversToday: number;
+    haccpOverdue: number;
+    lowStock: number;
+    pendingTimeOff: number;
+    expiringCerts: number;
+    openRepairs: number;
+    unfiledExpenses30d: number;
+  };
+  growth: {
+    blogPosts: number;
+    blogPublished7d: number;
+    siteScore: number | null;
+    siteIssues: number | null;
+    siteCritical: number | null;
+    auditAgeDays: number | null;
+    gscClicks28d: number;
+    gscImpressions28d: number;
+    gscClicksPrev28d: number;
+    leads: number;
+    sends30d: number;
+    opened30d: number;
+    openRate: number;
+    unreadInbound: number;
+    demandGaps: { query: string; impressions: number; position: number }[];
+  };
+  build: {
+    commits7d: number;
+    deploys7d: number;
+    lastDeployStatus: string | null;
+    daysSinceLastShip: number | null;
+    recent: { label: string; status: string | null; at: string }[];
+  };
+  health: {
+    cronRuns24h: number;
+    cronFailures24h: number;
+    failingJobs: { job: string; fails: number }[];
+    seoFailures7d: number;
+  };
+  myActivity: { action: string; count: number }[];
+};
+
+export type SystemResponse = {
+  systemAccess: boolean;
+  data?: SystemPulse | null;
+  refreshedAt?: string | null;
+  lastError?: string | null;
+  durationMs?: number | null;
+  ageMinutes?: number | null;
 };
 
 export type DayPlan = {

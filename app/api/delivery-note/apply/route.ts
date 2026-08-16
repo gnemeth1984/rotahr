@@ -12,6 +12,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requirePermission, isResponse } from "@/lib/auth/middleware";
 import { prisma } from "@/lib/db";
+import { logActivity } from "@/lib/services/activity.service";
 
 export const maxDuration = 30;
 
@@ -178,6 +179,17 @@ export async function POST(req: NextRequest) {
     });
     results.haccp = { id: haccp.id };
   }
+
+  logActivity({
+    businessId,
+    userId,
+    action: "delivery_scanned",
+    details: {
+      expense: Boolean(results.expense),
+      stock: Boolean(results.stock),
+      haccp: Boolean(results.haccp),
+    },
+  });
 
   return NextResponse.json({ success: true, results });
   } catch (err: any) {

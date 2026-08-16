@@ -5,6 +5,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth/options";
 import { prisma } from "@/lib/db";
 import { z } from "zod";
+import { logActivity } from "@/lib/services/activity.service";
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -76,6 +77,14 @@ export async function POST(req: NextRequest) {
       sourceMessageId: parsed.data.sourceMessageId || null,
       createdById: session.user.id,
     },
+  });
+
+  logActivity({
+    businessId,
+    userId: session.user.id,
+    userName: session.user.name,
+    action: "ops_task_created",
+    details: { frequency: task.frequency, requirePhoto: task.requirePhoto },
   });
 
   return NextResponse.json({ task }, { status: 201 });

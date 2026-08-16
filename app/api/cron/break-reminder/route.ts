@@ -15,6 +15,7 @@ import {
   dublinDayStartUtc,
   dublinDayEndUtc,
 } from "@/lib/cron/service-hours";
+import { wrapCron } from "@/lib/cron-run";
 
 // Break entitlement is a legal obligation, so the quiet window here is kept
 // deliberately narrow (03:00-05:00 Dublin) — even late bars are closed down by
@@ -22,7 +23,7 @@ import {
 const QUIET_START = 3;
 const QUIET_END = 5;
 
-export async function GET(req: NextRequest) {
+async function __cronHandler(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
   const secret = req.headers.get("x-cron-secret") || new URL(req.url).searchParams.get("secret");
   const authed = authHeader === `Bearer ${process.env.CRON_SECRET}` || secret === process.env.CRON_SECRET;
@@ -105,3 +106,5 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({ checked, alerts: alertCount, timestamp: now.toISOString() });
 }
+
+export const GET = wrapCron("break-reminder", __cronHandler as any);

@@ -5,6 +5,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth/options";
 import { prisma } from "@/lib/db";
 import { z } from "zod";
+import { logActivity } from "@/lib/services/activity.service";
 
 const patchSchema = z.object({
   completed: z.boolean().optional(),
@@ -54,6 +55,16 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       completedById: parsed.data.completed === true ? session.user.id : parsed.data.completed === false ? null : undefined,
     },
   });
+
+  if (parsed.data.completed === true && existing.completed !== true) {
+    logActivity({
+      businessId,
+      userId: session.user.id,
+      userName: session.user.name,
+      action: "ops_task_completed",
+      details: { frequency: task.frequency },
+    });
+  }
 
   return NextResponse.json({ task });
 }

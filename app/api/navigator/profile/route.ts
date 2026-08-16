@@ -59,6 +59,11 @@ const schema = z.object({
   notifyDuringShift: z.boolean().optional(),
   quietStart: time.optional(),
   quietEnd: time.optional(),
+  // Bridge. systemAccess controls whether Rotahr telemetry reaches the prompt
+  // at all; autonomyEnabled is its own switch and defaults off, because being
+  // allowed to SEE the system must never imply being allowed to CHANGE it.
+  systemAccess: z.boolean().optional(),
+  autonomyEnabled: z.boolean().optional(),
 });
 
 export async function GET() {

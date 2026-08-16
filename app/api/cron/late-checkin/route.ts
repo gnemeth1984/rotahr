@@ -8,13 +8,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { createNotification } from "@/lib/services/appNotification.service";
 import { isQuietHours, quietHoursResponse } from "@/lib/cron/service-hours";
+import { wrapCron } from "@/lib/cron-run";
 
 // Quiet window 01:00-05:00 Dublin — no shifts start in that window, and a
 // manager is not going to action a no-show alert at 3am anyway.
 const QUIET_START = 1;
 const QUIET_END = 5;
 
-export async function GET(req: NextRequest) {
+async function __cronHandler(req: NextRequest) {
   // Verify cron secret
   const authHeader = req.headers.get("authorization");
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -122,3 +123,5 @@ export async function GET(req: NextRequest) {
     timestamp: now.toISOString(),
   });
 }
+
+export const GET = wrapCron("late-checkin", __cronHandler as any);

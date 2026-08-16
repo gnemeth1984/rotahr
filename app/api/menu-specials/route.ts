@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth/options";
 import { prisma } from "@/lib/db";
 import { UserRole as Role } from "@/types/roles";
+import { logActivity } from "@/lib/services/activity.service";
 
 // GET — list all (non-archived) specials for the business
 export async function GET(req: NextRequest) {
@@ -58,6 +59,14 @@ export async function POST(req: NextRequest) {
       imageDataUri: imageDataUri || null,
     },
     include: { createdBy: { select: { name: true } } },
+  });
+
+  logActivity({
+    businessId: session.user.businessId,
+    userId: session.user.id,
+    userName: session.user.name,
+    action: "special_posted",
+    details: { category: special.category, pinned: special.pinned },
   });
 
   return NextResponse.json(special, { status: 201 });

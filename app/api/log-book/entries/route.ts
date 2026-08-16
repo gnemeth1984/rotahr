@@ -6,6 +6,7 @@ import { authOptions } from "@/lib/auth/options";
 import { prisma } from "@/lib/db";
 import { z } from "zod";
 import { notifyUsers } from "@/lib/services/appNotification.service";
+import { logActivity } from "@/lib/services/activity.service";
 
 // Any authenticated staff member can view/log entries (matches Messages/Shift
 // Swaps — this is a "core, all roles" feature, not manager/admin-gated).
@@ -99,6 +100,14 @@ export async function POST(req: NextRequest) {
       ).catch(() => {});
     }
   }
+
+  logActivity({
+    businessId,
+    userId: session.user.id,
+    userName: session.user.name,
+    action: "log_entry_created",
+    details: { type: entry.type },
+  });
 
   return NextResponse.json({ entry }, { status: 201 });
 }

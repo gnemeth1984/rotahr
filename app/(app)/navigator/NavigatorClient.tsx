@@ -11,6 +11,7 @@ import {
   Timer,
   MessageCircle,
   SlidersHorizontal,
+  Gauge,
   RefreshCw,
 } from "lucide-react";
 import { NavState } from "./types";
@@ -23,6 +24,7 @@ import { HabitsTab } from "./HabitsTab";
 import { FocusTab } from "./FocusTab";
 import { ChatTab } from "./ChatTab";
 import { SetupTab } from "./SetupTab";
+import { SystemTab } from "./SystemTab";
 
 const TABS = [
   { id: "today", label: "Today", icon: Sun },
@@ -32,6 +34,7 @@ const TABS = [
   { id: "habits", label: "Habits", icon: Repeat },
   { id: "focus", label: "Focus", icon: Timer },
   { id: "chat", label: "Chat", icon: MessageCircle },
+  { id: "system", label: "System", icon: Gauge },
   { id: "setup", label: "Setup", icon: SlidersHorizontal },
 ] as const;
 
@@ -152,6 +155,7 @@ export function NavigatorClient({ firstName }: { firstName: string }) {
           {tab === "habits" && <HabitsTab state={state} refresh={refresh} />}
           {tab === "focus" && <FocusTab state={state} refresh={refresh} />}
           {tab === "chat" && <ChatTab state={state} refresh={refresh} />}
+          {tab === "system" && <SystemTab />}
           {tab === "setup" && <SetupTab state={state} refresh={refresh} />}
         </>
       )}

@@ -5,8 +5,9 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { createNotification } from "@/lib/services/appNotification.service";
+import { wrapCron } from "@/lib/cron-run";
 
-export async function GET(req: NextRequest) {
+async function __cronHandler(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -93,3 +94,5 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({ checked: certs.length, alerts: alertCount });
 }
+
+export const GET = wrapCron("cert-expiry", __cronHandler as any);

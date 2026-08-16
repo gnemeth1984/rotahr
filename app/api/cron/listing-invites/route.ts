@@ -4,6 +4,7 @@ export const maxDuration = 300;
 import { NextRequest, NextResponse } from "next/server";
 import { sendQueue, autopilotEnabled } from "@/lib/outreach/listing-autopilot";
 import { isBrevoConfigured } from "@/lib/outreach/brevo";
+import { wrapCron } from "@/lib/cron-run";
 
 /**
  * Morning send phase: up to LISTING_INVITE_DAILY_LIMIT listing invites, oldest
@@ -12,7 +13,7 @@ import { isBrevoConfigured } from "@/lib/outreach/brevo";
  * Weekdays only. A cold email that lands on a Sunday to a venue in the middle
  * of service is read late or not at all.
  */
-export async function GET(req: NextRequest) {
+async function __cronHandler(req: NextRequest) {
   const auth = req.headers.get("authorization");
   if (!process.env.CRON_SECRET || auth !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -43,3 +44,5 @@ export async function GET(req: NextRequest) {
     outcomes: result.outcomes,
   });
 }
+
+export const GET = wrapCron("listing-invites", __cronHandler as any);

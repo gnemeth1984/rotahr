@@ -16,6 +16,7 @@ export const maxDuration = 60;
 
 import { NextRequest, NextResponse } from "next/server";
 import { dublinNow } from "@/lib/cron/service-hours";
+import { wrapCron } from "@/lib/cron-run";
 
 /** A done task stays visible this long, so ticking things off still feels like something. */
 const ARCHIVE_AFTER_HOURS = 20;
@@ -27,7 +28,7 @@ const ARCHIVE_AFTER_HOURS = 20;
  */
 const PARK_AFTER_DAYS = 21;
 
-export async function GET(req: NextRequest) {
+async function __cronHandler(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
   const secret =
     req.headers.get("x-cron-secret") || new URL(req.url).searchParams.get("secret");
@@ -140,3 +141,7 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({ ok: true, results });
 }
+
+export const GET = wrapCron("navigator-nightly", __cronHandler as any, {
+  skipWhen: (status, body) => status === 200 && body.includes("hard quiet hours"),
+});

@@ -3,6 +3,7 @@ import { requireRole, isResponse } from "@/lib/auth/middleware";
 import { timeOffService } from "@/lib/services/timeoff.service";
 import { prisma } from "@/lib/db";
 import { createNotification } from "@/lib/services/appNotification.service";
+import { logActivity } from "@/lib/services/activity.service";
 
 export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await requireRole("ADMIN", "MANAGER");
@@ -29,6 +30,14 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
         link: `/timeoff?id=${params.id}`,
       }).catch(() => {});
     }
+
+    logActivity({
+      businessId: session.user.businessId,
+      userId: session.user.id,
+      userName: session.user.name,
+      action: "timeoff_decided",
+      details: { decision: "REJECTED" },
+    });
 
     return NextResponse.json({ request });
   } catch (e: any) {

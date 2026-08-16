@@ -2169,8 +2169,127 @@ model NavProfile {
   quietStart        String  @default("22:00")
   quietEnd          String  @default("07:00")
 
+  /// Rotahr bridge. When off, Navigator sees nothing about the business at all
+  /// and the system block is omitted from every prompt.
+  systemAccess Boolean @default(true)
+
+  /// Master kill switch for autonomous actions. Deliberately DEFAULT FALSE:
+  /// a tool that can act on its own must be switched on by a human once,
+  /// on purpose. Read access does not imply write access.
+  autonomyEnabled Boolean @default(false)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+/// Cached digest of the Rotahr system that Navigator is allowed to see.
+///
+/// Cached rather than computed per message for two reasons. ~20 aggregate
+/// queries on every chat turn is slow, and it would keep the Neon compute awake
+/// around the clock — which fights the suspend window the nudge cron is
+/// carefully built to respect. One row, refreshed by cron inside the same
+/// 06:00-22:00 Dublin envelope as everything else, plus a manual refresh.
+///
+/// LEGAL BOUNDARY: `data` holds AGGREGATES ONLY for tenants that are not
+/// Gabor's own business. No customer names, emails, phone numbers or any other
+/// personal data may ever be written here — this row is fed to an external AI
+/// model, so anything in it has left the building. See lib/navigator/rotahr/redact.ts,
+/// which is the single enforcement point.
+model NavSystemPulse {
+  id     String @id @default(cuid())
+  userId String @unique
+
+  /// The SystemPulse object. Aggregates + own-business detail only.
+  data Json
+
+  /// Null when the last refresh failed; the previous data is kept and served stale.
+  refreshedAt DateTime?
+  /// Last failure message, so a silently broken pulse is visible in the UI.
+  lastError   String?   @db.Text
+  /// How long the refresh took, to catch it growing into a problem.
+  durationMs  Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// What Gabor actually shipped. The database knows what customers did; it has no
+/// idea what he built, and "what did I get done this week" is unanswerable
+/// without it. Fed by deploy webhook / cron, read by the weekly review.
+model NavShipLog {
+  id     String @id @default(cuid())
+  userId String
+
+  /// "deploy" | "commit"
+  kind    String
+  sha     String?
+  message String  @db.Text
+  /// Vercel readyState for deploys: READY | ERROR | CANCELED
+  status  String?
+  url     String?
+
+  at DateTime @default(now())
+
+  @@unique([userId, kind, sha])
+  @@index([userId, at])
+}
+
+/// Every cron outcome, not just SEO. SeoRun already proved the need — it caught
+/// 5 failed refreshes and a failed publish in one week that nobody ever saw,
+/// because nothing was reading it. This generalises that to all scheduled jobs
+/// so Navigator can report "3 crons failed overnight" instead of silence.
+model CronRun {
+  id   String @id @default(cuid())
+  /// Route name, e.g. "navigator-nudge", "generate-blog".
+  job  String
+  ok   Boolean @default(true)
+  /// Short human summary or the error message.
+  detail String? @db.Text
+  durationMs Int?
+
+  createdAt DateTime @default(now())
+
+  @@index([job, createdAt])
+  @@index([createdAt])
+  @@index([ok, createdAt])
+}
+
+/// Audit trail for anything Navigator does on Gabor's behalf inside Rotahr.
+///
+/// Written BEFORE the action runs, updated after. Every autonomous action must
+/// carry an undo payload — if it cannot be undone, it does not qualify for the
+/// autonomous tier. This table is the thing that makes autonomy defensible:
+/// there is always a record of what the machine did, why, and how to reverse it.
+model NavAction {
+  id     String @id @default(cuid())
+  userId String
+
+  /// Registry id from lib/navigator/rotahr/actions.ts
+  action String
+  /// "auto" | "confirmed" — whether a human tapped for this one.
+  tier   String  @default("auto")
+  /// Why Navigator decided to do this, in plain words, for the audit trail.
+  reason String? @db.Text
+
+  /// Arguments the action ran with.
+  input  Json?
+  /// What came back, including ids of anything created.
+  result Json?
+  /// Everything needed to reverse it. Null once undone or when expired.
+  undo   Json?
+
+  /// "pending" | "done" | "failed" | "undone"
+  status String  @default("pending")
+  error  String? @db.Text
+
+  /// Business the action touched, for the audit trail. Normally Gabor's own.
+  businessId String?
+
+  createdAt DateTime  @default(now())
+  undoneAt  DateTime?
+
+  @@index([userId, createdAt])
+  @@index([status])
 }
 
 /// One row per nudge actually sent. Exists purely so a 5-minute cron cannot

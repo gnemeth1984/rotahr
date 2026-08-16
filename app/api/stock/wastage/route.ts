@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth/options";
 import { prisma } from "@/lib/prisma";
+import { logActivity } from "@/lib/services/activity.service";
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -58,6 +59,14 @@ export async function POST(req: NextRequest) {
       recordedBy: session.user.id,
       date: date ? new Date(date) : new Date(),
     },
+  });
+
+  logActivity({
+    businessId: session.user.businessId,
+    userId: session.user.id,
+    userName: session.user.name,
+    action: "wastage_logged",
+    details: { reason: record.reason, totalCost: record.totalCost ?? 0 },
   });
 
   return NextResponse.json(record, { status: 201 });

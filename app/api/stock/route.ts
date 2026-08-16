@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requirePermission, isResponse } from "@/lib/auth/middleware";
 import { prisma } from "@/lib/db";
 import { z } from "zod";
+import { logActivity } from "@/lib/services/activity.service";
 
 const stockSchema = z.object({
   name: z.string().min(1),
@@ -56,6 +57,14 @@ export async function POST(req: NextRequest) {
   const item = await prisma.stockItem.create({
     data: { businessId, ...result.data },
     include: { supplier: { select: { id: true, name: true } } },
+  });
+
+  logActivity({
+    businessId,
+    userId: session.user.id,
+    userName: session.user.name,
+    action: "stock_item_added",
+    details: { category: item.category, hasSupplier: Boolean(item.supplierId) },
   });
 
   return NextResponse.json({ item }, { status: 201 });

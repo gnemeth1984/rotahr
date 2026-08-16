@@ -11,8 +11,9 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { wrapCron } from "@/lib/cron-run";
 
-export async function GET(req: NextRequest) {
+async function __cronHandler(req: NextRequest) {
   // Protect: only Vercel Cron or requests with the correct secret
   const authHeader = req.headers.get("authorization");
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -38,3 +39,5 @@ export async function GET(req: NextRequest) {
     note: "receiptDataUrl cleared; financial records retained per TCA 1997 s.886",
   });
 }
+
+export const GET = wrapCron("purge-receipt-images", __cronHandler as any);

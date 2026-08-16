@@ -124,8 +124,23 @@ export async function buildSnapshot(userId: string) {
       }),
     ]);
 
+  // Rotahr telemetry. Read from the cached pulse row — never computed here, or
+  // every chat message would fire ~20 aggregate queries and hold Neon awake.
+  // Empty string when the switch is off, so the renderer needs no branch.
+  let systemPulse = "";
+  if (profile.systemAccess) {
+    try {
+      const { pulseBlock } = await import("./rotahr/pulse");
+      systemPulse = await pulseBlock(userId);
+    } catch (err) {
+      // Telemetry must never take the assistant down with it.
+      console.error("[navigator/context] pulse unavailable:", err);
+    }
+  }
+
   return {
     profile,
+    systemPulse,
     tz,
     today,
     now: nowTime(tz),
@@ -245,5 +260,9 @@ export function renderSnapshot(s: Snapshot, forDate?: string): string {
     s.lastFocus && !s.lastFocus.endedAt
       ? `\n## LIVE: a focus session "${s.lastFocus.label}" (${s.lastFocus.plannedMins}min) is running since ${s.lastFocus.startedAt.toISOString().slice(11, 16)}.`
       : null,
+    // LAST on purpose. Navigator is a tool for getting Gabor through his day;
+    // the business telemetry is a supporting character. Anything that has to be
+    // dropped for length should be dropped from here, never from his plan.
+    s.systemPulse ? `\n${s.systemPulse}` : null,
   ]);
 }
