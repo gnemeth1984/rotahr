@@ -65,6 +65,7 @@ export type SystemPulse = {
     signups: { now: number; prev: number; change: number };
     activeBusinesses7d: number;
     atRisk: number;
+    unmeasured?: number;
   };
   usage: { module: string; total: number; delta: number; tenants: number }[];
   myVenue: {

@@ -30,7 +30,10 @@ export type SystemPulse = {
     mrrEur: number;
     signups: Delta;
     activeBusinesses7d: number;
+    /** Instrumented customers that have gone quiet. A real churn signal. */
     atRisk: number;
+    /** Customers that have never logged anything, so quietness says nothing. */
+    unmeasured: number;
   };
   usage: { module: string; total: number; delta: number; tenants: number }[];
   myVenue: {
@@ -110,15 +113,33 @@ export async function buildSystemPulse(): Promise<SystemPulse> {
   const mrrEur = byPlan.reduce((sum, r) => sum + (PLAN_PRICE[r.plan] ?? 0) * r.count, 0);
   const payingCustomers = byPlan.reduce((s, r) => s + r.count, 0);
 
-  // At risk: a real customer with no recorded activity in a fortnight. Only
-  // meaningful once phase-0 instrumentation is in — until then it over-reports,
-  // which is why the UI labels it against the activity coverage figure.
+  // At risk vs unmeasured.
+  //
+  // This used to be "every customer with no activity in 7 days", which
+  // over-reported badly: instrumentation coverage is partial, so a tenant with
+  // no ActivityLog rows looks identical to a tenant that has left. Those are
+  // opposite conclusions and lumping them together produced a scary number that
+  // meant nothing.
+  //
+  // Split by whether we have EVER heard from them:
+  //   - never logged anything  -> unmeasured. We cannot tell. Not a risk signal.
+  //   - logged before, silent now -> atRisk. That is a real behaviour change.
   const activeIds = new Set(activeRows.map((r) => r.businessId).filter(Boolean) as string[]);
   const customers = await prisma.business.findMany({
     where: REAL_CUSTOMER_WHERE,
     select: { id: true },
   });
-  const atRisk = customers.filter((c) => !activeIds.has(c.id)).length;
+
+  const everSeenRows = await prisma.activityLog.groupBy({
+    by: ["businessId"],
+    _count: true,
+    where: { businessId: { in: customers.map((c) => c.id) } },
+  });
+  const everSeenIds = new Set(everSeenRows.map((r) => r.businessId).filter(Boolean) as string[]);
+
+  const quiet = customers.filter((c) => !activeIds.has(c.id));
+  const atRisk = quiet.filter((c) => everSeenIds.has(c.id)).length;
+  const unmeasured = quiet.filter((c) => !everSeenIds.has(c.id)).length;
 
   // ── Product usage across all real tenants ─────────────────────────────────
   const usage = await moduleUsage();
@@ -163,6 +184,7 @@ export async function buildSystemPulse(): Promise<SystemPulse> {
       signups: delta(signups30, signupsPrev30),
       activeBusinesses7d: activeIds.size,
       atRisk,
+      unmeasured,
     },
     usage,
     myVenue,
@@ -400,7 +422,7 @@ export function renderPulse(p: SystemPulse, maxChars = 2600): string {
   const lines: string[] = [
     `## The system (Rotahr, refreshed ${p.generatedAt.slice(0, 16).replace("T", " ")})`,
     `Real tenant businesses ${f.realBusinesses} (plus ${f.listingShells} empty listing shells — never count these as customers).`,
-    `Paying ${f.payingCustomers}, MRR ~EUR${f.mrrEur}. Signups 30d ${f.signups.now} (${arrow(f.signups.change)} vs prior 30d). Active 7d ${f.activeBusinesses7d}. Quiet 7d+ ${f.atRisk}.`,
+    `Paying ${f.payingCustomers}, MRR ~EUR${f.mrrEur}. Signups 30d ${f.signups.now} (${arrow(f.signups.change)} vs prior 30d). Active 7d ${f.activeBusinesses7d}. Gone quiet ${f.atRisk}${f.unmeasured ? ` (plus ${f.unmeasured} never instrumented - unknown, do not treat as churn)` : ""}.`,
   ];
 
   const moving = p.usage.filter((u) => u.delta > 0).sort((a, b) => b.delta - a.delta);

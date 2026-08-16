@@ -185,7 +185,17 @@ function PulseView({ p }: { p: SystemPulse }) {
           <Stat label="Real businesses" value={f.realBusinesses} hint={`${f.listingShells} empty listing shells`} />
           <Stat label="Paying" value={f.payingCustomers} hint={f.byPlan.map((b) => `${b.count} ${b.plan}`).join(", ")} />
           <Stat label="MRR" value={`€${f.mrrEur}`} />
-          <Stat label="Active 7d" value={f.activeBusinesses7d} hint={f.atRisk ? `${f.atRisk} quiet 7d+` : undefined} />
+          <Stat
+            label="Active 7d"
+            value={f.activeBusinesses7d}
+            hint={
+              f.atRisk
+                ? `${f.atRisk} gone quiet`
+                : f.unmeasured
+                  ? `${f.unmeasured} never instrumented`
+                  : undefined
+            }
+          />
         </div>
         <div className="mt-3 flex items-center gap-2 text-xs text-slate-400">
           {f.signups.change >= 0 ? (

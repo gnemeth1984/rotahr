@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth/options";
 import { isSuperAdminEmail } from "@/lib/auth/super-admins";
 import { prisma } from "@/lib/db";
+import { REAL_BUSINESS_WHERE } from "@/lib/tenancy/real-business";
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -54,19 +55,35 @@ export async function GET(req: NextRequest) {
     prisma.user.count({ where }),
   ]);
 
-  // Stats
-  const [totalUsers, totalBusinesses, last7days, last30days] = await Promise.all([
-    prisma.user.count(),
-    prisma.business.count(),
-    prisma.user.count({ where: { createdAt: { gte: new Date(Date.now() - 7 * 86400000) } } }),
-    prisma.user.count({ where: { createdAt: { gte: new Date(Date.now() - 30 * 86400000) } } }),
-  ]);
+  // Stats.
+  //
+  // `totalBusinesses` used to be a bare prisma.business.count(), which read 110
+  // when there were 6 actual tenants — the other 104 are listing shells created
+  // behind the public /v/... venue pages. An 18x overstatement on the founder
+  // dashboard is worse than showing nothing, so the count is now scoped and the
+  // shells are reported separately instead of being hidden.
+  const [totalUsers, totalBusinesses, listingPages, payingBusinesses, last7days, last30days] =
+    await Promise.all([
+      prisma.user.count(),
+      prisma.business.count({ where: REAL_BUSINESS_WHERE }),
+      prisma.business.count({ where: { users: { none: {} } } }),
+      prisma.business.count({ where: { ...REAL_BUSINESS_WHERE, lsStatus: "active" } }),
+      prisma.user.count({ where: { createdAt: { gte: new Date(Date.now() - 7 * 86400000) } } }),
+      prisma.user.count({ where: { createdAt: { gte: new Date(Date.now() - 30 * 86400000) } } }),
+    ]);
 
   return NextResponse.json({
     users,
     total,
     page,
     pages: Math.ceil(total / limit),
-    stats: { totalUsers, totalBusinesses, last7days, last30days },
+    stats: {
+      totalUsers,
+      totalBusinesses,
+      listingPages,
+      payingBusinesses,
+      last7days,
+      last30days,
+    },
   });
 }
