@@ -463,6 +463,33 @@ export function SetupTab({ state, refresh }: { state: NavState; refresh: () => v
             </span>
           </span>
         </label>
+
+        <div className="mt-4 rounded-xl border border-white/10 bg-black/20 p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-[#ff6b35]">
+            Red list — approved 16 Aug 2026
+          </p>
+          <p className="mt-2 text-xs text-slate-400">
+            Navigator can draft and propose all of these. It can never run one without you tapping first,
+            every single time — there is no “remember this choice” and no setting that upgrades them.
+          </p>
+          <ul className="mt-3 space-y-1.5 text-xs text-slate-300">
+            {[
+              "HACCP records — never auto-log a temperature or a check",
+              "Anything touching money — invoices, payouts, pricing, subscriptions, payroll",
+              "Deleting records, or any overwrite that cannot be undone",
+              "Changing roles, permissions or auth",
+              "Emailing or messaging real customers and leads",
+            ].map((item) => (
+              <li key={item} className="flex gap-2">
+                <span className="mt-[3px] h-1.5 w-1.5 shrink-0 rounded-full bg-[#e8365d]" />
+                <span>{item}</span>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-3 text-xs text-slate-500">
+            Anything Navigator cannot classify is treated as red too — it asks rather than guesses.
+          </p>
+        </div>
       </Panel>
 
       <Panel className="p-5">

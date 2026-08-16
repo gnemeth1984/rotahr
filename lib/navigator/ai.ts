@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { buildSnapshot, renderSnapshot, windowForDate, renderWeekPattern, type Snapshot } from "./context";
 import { enforceShiftWindow, withShiftBuffers } from "./shift";
 import { dayFromKey, weekdayName, minutesBetween } from "./dates";
+import { redListPromptBlock } from "./redlist";
 
 const MODEL = "gpt-4o-mini";
 
@@ -72,7 +73,10 @@ export function asCoachTone(raw: unknown): CoachTone {
  * caps and formatting rules that fight a strict JSON schema.
  */
 export function personaFor(tone: unknown): string {
-  return `${NAVIGATOR_PERSONA}\n\n${TONE_OVERLAY[asCoachTone(tone)]}`;
+  // The red list is appended last so it is the final thing in the system
+  // prompt, and it is appended unconditionally — there is no tone, no setting
+  // and no caller that can drop it. See lib/navigator/redlist.ts.
+  return `${NAVIGATOR_PERSONA}\n\n${TONE_OVERLAY[asCoachTone(tone)]}\n\n${redListPromptBlock()}`;
 }
 
 // --------------------------------------------------------------------------
