@@ -11,9 +11,11 @@
 import { prisma } from "../lib/db";
 import {
   REAL_BUSINESS_WHERE,
+  REAL_CUSTOMER_WHERE,
   PAYING_CUSTOMER_WHERE,
   DEMO_BUSINESS_IDS,
 } from "../lib/tenancy/real-business";
+import { buildSystemPulse } from "../lib/navigator/rotahr/signals";
 
 let pass = 0;
 let fail = 0;
@@ -120,6 +122,43 @@ async function main() {
     "demo tenants keep their display status but are excluded from paying",
     demoMarkedPaying > 0 ? paying === withSub : true,
     `${demoMarkedPaying} demos show active for feature-gating`,
+  );
+
+  // ── At risk needs a usage baseline ────────────────────────────────────────
+  // A tenant with a handful of events never built a habit, so its silence is
+  // not evidence of churn. Guard the threshold so nobody quietly lowers it and
+  // starts firing churn alerts at tenants that were never onboarded.
+  const pulse = await buildSystemPulse();
+  const customers = await prisma.business.findMany({
+    where: REAL_CUSTOMER_WHERE,
+    select: { id: true },
+  });
+  const logs = await prisma.activityLog.findMany({
+    where: { businessId: { in: customers.map((c) => c.id) } },
+    select: { businessId: true, createdAt: true },
+  });
+  const byBiz = new Map<string, Set<string>>();
+  const counts = new Map<string, number>();
+  for (const l of logs) {
+    if (!l.businessId) continue;
+    counts.set(l.businessId, (counts.get(l.businessId) ?? 0) + 1);
+    if (!byBiz.has(l.businessId)) byBiz.set(l.businessId, new Set());
+    byBiz.get(l.businessId)!.add(l.createdAt.toISOString().slice(0, 10));
+  }
+  const withBaseline = customers.filter(
+    (c) => (counts.get(c.id) ?? 0) >= 10 && (byBiz.get(c.id)?.size ?? 0) >= 3,
+  ).length;
+
+  ok(
+    "at risk never exceeds the number of tenants with a usage baseline",
+    pulse.founder.atRisk <= withBaseline,
+    `atRisk=${pulse.founder.atRisk} baseline=${withBaseline} of ${customers.length} customers`,
+  );
+
+  ok(
+    "quiet tenants are all accounted for as either at risk or unmeasured",
+    pulse.founder.atRisk + pulse.founder.unmeasured <= customers.length,
+    `atRisk=${pulse.founder.atRisk} unmeasured=${pulse.founder.unmeasured}`,
   );
 
   console.log(`\n${pass} passed, ${fail} failed\n`);

@@ -205,7 +205,7 @@ function PulseView({ p }: { p: SystemPulse }) {
               f.atRisk
                 ? `${f.atRisk} gone quiet`
                 : f.unmeasured
-                  ? `${f.unmeasured} never instrumented`
+                  ? `${f.unmeasured} not enough history`
                   : undefined
             }
           />

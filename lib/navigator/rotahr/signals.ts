@@ -23,6 +23,15 @@ import { SUPER_ADMINS } from "@/lib/auth/super-admins";
 
 const OWN_BUSINESS_ID = "admin-test-biz";
 
+/**
+ * How much history a tenant needs before "gone quiet" is allowed to mean
+ * anything. Below this we have no habit to compare against, so silence is
+ * unmeasured rather than at risk. Deliberately conservative: a false "at risk"
+ * sends Gabor chasing a customer who was never really onboarded.
+ */
+const BASELINE_MIN_EVENTS = 10;
+const BASELINE_MIN_DAYS = 3;
+
 export type Delta = { now: number; prev: number; change: number };
 
 export type SystemPulse = {
@@ -41,7 +50,7 @@ export type SystemPulse = {
     activeBusinesses7d: number;
     /** Instrumented customers that have gone quiet. A real churn signal. */
     atRisk: number;
-    /** Customers that have never logged anything, so quietness says nothing. */
+    /** Customers with too little history to judge, so quietness says nothing. */
     unmeasured: number;
   };
   usage: { module: string; total: number; delta: number; tenants: number }[];
@@ -140,25 +149,47 @@ export async function buildSystemPulse(): Promise<SystemPulse> {
   // opposite conclusions and lumping them together produced a scary number that
   // meant nothing.
   //
-  // Split by whether we have EVER heard from them:
-  //   - never logged anything  -> unmeasured. We cannot tell. Not a risk signal.
-  //   - logged before, silent now -> atRisk. That is a real behaviour change.
+  // Split by whether we ever had a USAGE BASELINE for them:
+  //   - no baseline            -> unmeasured. We cannot tell. Not a risk signal.
+  //   - had a baseline, silent -> atRisk. That is a real behaviour change.
+  //
+  // "Ever logged anything" was too weak a bar. A tenant with two events in its
+  // whole lifetime never had a habit to break, so going quiet says nothing about
+  // churn -- it just means we never measured them properly. A tenant is only
+  // measurable once it has used the product on several separate days.
   const activeIds = new Set(activeRows.map((r) => r.businessId).filter(Boolean) as string[]);
   const customers = await prisma.business.findMany({
     where: REAL_CUSTOMER_WHERE,
     select: { id: true },
   });
 
-  const everSeenRows = await prisma.activityLog.groupBy({
-    by: ["businessId"],
-    _count: true,
+  const baselineEvents = await prisma.activityLog.findMany({
     where: { businessId: { in: customers.map((c) => c.id) } },
+    select: { businessId: true, createdAt: true },
   });
-  const everSeenIds = new Set(everSeenRows.map((r) => r.businessId).filter(Boolean) as string[]);
+
+  // businessId -> { events, distinct calendar days (UTC) }
+  const seen = new Map<string, { events: number; days: Set<string> }>();
+  for (const e of baselineEvents) {
+    if (!e.businessId) continue;
+    let row = seen.get(e.businessId);
+    if (!row) {
+      row = { events: 0, days: new Set<string>() };
+      seen.set(e.businessId, row);
+    }
+    row.events += 1;
+    row.days.add(e.createdAt.toISOString().slice(0, 10));
+  }
+
+  const hasBaseline = (id: string) => {
+    const row = seen.get(id);
+    if (!row) return false;
+    return row.events >= BASELINE_MIN_EVENTS && row.days.size >= BASELINE_MIN_DAYS;
+  };
 
   const quiet = customers.filter((c) => !activeIds.has(c.id));
-  const atRisk = quiet.filter((c) => everSeenIds.has(c.id)).length;
-  const unmeasured = quiet.filter((c) => !everSeenIds.has(c.id)).length;
+  const atRisk = quiet.filter((c) => hasBaseline(c.id)).length;
+  const unmeasured = quiet.filter((c) => !hasBaseline(c.id)).length;
 
   // ── Product usage across all real tenants ─────────────────────────────────
   const usage = await moduleUsage();
@@ -443,7 +474,7 @@ export function renderPulse(p: SystemPulse, maxChars = 2600): string {
   const lines: string[] = [
     `## The system (Rotahr, refreshed ${p.generatedAt.slice(0, 16).replace("T", " ")})`,
     `Real tenant businesses ${f.realBusinesses} (plus ${f.listingShells} empty listing shells — never count these as customers).`,
-    `Paying ${f.payingCustomers}, MRR ~EUR${f.mrrEur}. Signups 30d ${f.signups.now} (${arrow(f.signups.change)} vs prior 30d). Active 7d ${f.activeBusinesses7d}. Gone quiet ${f.atRisk}${f.unmeasured ? ` (plus ${f.unmeasured} never instrumented - unknown, do not treat as churn)` : ""}.`,
+    `Paying ${f.payingCustomers}, MRR ~EUR${f.mrrEur}. Signups 30d ${f.signups.now} (${arrow(f.signups.change)} vs prior 30d). Active 7d ${f.activeBusinesses7d}. Gone quiet ${f.atRisk}${f.unmeasured ? ` (plus ${f.unmeasured} too little history to judge - unknown, do not treat as churn)` : ""}.`,
   ];
 
   const moving = p.usage.filter((u) => u.delta > 0).sort((a, b) => b.delta - a.delta);
