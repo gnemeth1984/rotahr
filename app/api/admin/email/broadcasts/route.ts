@@ -42,7 +42,11 @@ export async function POST(req: Request) {
       previewText,
       html,
       audienceId,
-      from: "Gabor from Rotahr <sales@rotahr.com>",
+      // Same named sender as the cold outreach, so a lead who receives both sees
+      // one person rather than two unrelated addresses. gabornemeth@ is an alias
+      // forwarding into the sales@ mailbox, so replies are not lost.
+      from: process.env.BROADCAST_FROM || "Gabor Nemeth <gabornemeth@rotahr.com>",
+      replyTo: process.env.BROADCAST_REPLY_TO || "gabornemeth@rotahr.com",
     });
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
     return NextResponse.json(data);

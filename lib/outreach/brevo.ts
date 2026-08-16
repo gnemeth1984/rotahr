@@ -12,8 +12,17 @@ import { unsubscribeUrl } from "@/lib/email/suppression";
 
 const BREVO_ENDPOINT = "https://api.brevo.com/v3/smtp/email";
 
-const FROM_EMAIL = process.env.OUTREACH_FROM_EMAIL || "sales@rotahr.com";
-const FROM_NAME = process.env.OUTREACH_FROM_NAME || "Gabor at Rotahr";
+// Cold outreach sends from the founder's own alias, not the sales@ role address.
+// A message from a named person gets opened and answered; sales@ reads as a
+// mailing list before the first line has been read. gabornemeth@ is an alias
+// forwarding into the sales@ mailbox (SMTP RCPT verified 16 Aug 2026), so replies
+// still land in the one inbox the assistant reads - nothing downstream changes.
+const FROM_EMAIL = process.env.OUTREACH_FROM_EMAIL || "gabornemeth@rotahr.com";
+const FROM_NAME = process.env.OUTREACH_FROM_NAME || "Gabor Nemeth";
+// Replies go back to the visible sender. A From and Reply-To that disagree is a
+// known spam signal, and there is nothing to gain here because both addresses
+// deliver to the same mailbox.
+const REPLY_TO_EMAIL = process.env.OUTREACH_REPLY_TO || FROM_EMAIL;
 // Deliberately the same mailbox we send from. The Launch Email plan provisions a
 // single mailbox (sales@), and an unsubscribe address that bounces is worse than
 // no mailto at all — a stranger replying "remove me" must reach a real inbox.
@@ -124,6 +133,7 @@ export async function sendOutreachEmail(opts: {
 
   const payload = {
     sender: { email: FROM_EMAIL, name: FROM_NAME },
+    replyTo: { email: REPLY_TO_EMAIL, name: FROM_NAME },
     to: [{ email: opts.to, name: opts.toName || opts.to }],
     subject: opts.subject,
     htmlContent: opts.html,
