@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import bcrypt from "bcryptjs";
 import { isRateLimited } from "@/lib/auth/rate-limit";
 import { provisionPublicPageForBusiness } from "@/lib/public-page/provision";
+import { newTrialEndsAt } from "@/lib/billing/access";
 
 export async function POST(req: NextRequest) {
   try {
@@ -37,6 +38,9 @@ export async function POST(req: NextRequest) {
         data: {
           name: businessName.trim(),
           onboardingComplete: false,
+          // Start the trial clock. Only businesses created from here on get a
+          // deadline; existing ones stay NULL and are never restricted.
+          trialEndsAt: newTrialEndsAt(),
         },
       });
 

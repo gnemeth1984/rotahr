@@ -10,6 +10,8 @@ declare module "next-auth" {
       businessId: string | null;
       permissions: string[];
       lsPlan: string | null;
+      lsStatus: string | null;
+      trialEndsAt: string | null;
       isPlatformAdmin: boolean;
     } & DefaultSession["user"];
   }
@@ -22,6 +24,8 @@ declare module "next-auth/jwt" {
     businessId: string | null;
     permissions: string[];
     lsPlan: string | null;
+    lsStatus: string | null;
+    trialEndsAt: string | null;
     isPlatformAdmin: boolean;
   }
 }

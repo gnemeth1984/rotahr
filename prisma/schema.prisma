@@ -132,6 +132,10 @@ model Business {
   lsPlan           String?   @default("none") // "none" | "starter" | "pro" | "enterprise"
   lsStatus         String?   @default("none") // "active" | "cancelled" | "past_due" | "none"
   lsRenewsAt       DateTime?
+  // Trial deadline. NULL means no deadline -> never restricted. Every business
+  // that predates this column is backfilled to NULL deliberately, so shipping
+  // read-only mode cannot lock out anyone already trading. See lib/billing/access.ts
+  trialEndsAt      DateTime?
   lsEndsAt         DateTime?
 }
 

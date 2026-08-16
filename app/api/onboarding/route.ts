@@ -6,6 +6,7 @@ import { authOptions } from "@/lib/auth/options";
 import { prisma } from "@/lib/db";
 import { triggerWelcomeEmail } from "@/lib/email/marketing";
 import { provisionPublicPageForBusiness } from "@/lib/public-page/provision";
+import { newTrialEndsAt } from "@/lib/billing/access";
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -77,7 +78,11 @@ export async function POST(req: NextRequest) {
   if (!businessId && name) {
     const result = await prisma.$transaction(async (tx) => {
       const business = await tx.business.create({
-        data: { name: name.trim(), onboardingComplete: false },
+        data: {
+          name: name.trim(),
+          onboardingComplete: false,
+          trialEndsAt: newTrialEndsAt(),
+        },
       });
       await tx.venue.create({
         data: {

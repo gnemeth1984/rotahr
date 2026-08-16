@@ -6,6 +6,7 @@ import { authOptions } from "@/lib/auth/options";
 import { prisma } from "@/lib/db";
 import { computeShiftState, getBreakEntitlement } from "@/lib/services/clock.service";
 import { logActivity } from "@/lib/services/activity.service";
+import { computeAccess, readOnlyPayload } from "@/lib/billing/access";
 
 // GET — current clock status + today's events
 export async function GET(req: NextRequest) {
@@ -93,6 +94,27 @@ export async function POST(req: NextRequest) {
 
   if (!["in", "out", "break_start", "break_end"].includes(type)) {
     return NextResponse.json({ error: "type must be 'in', 'out', 'break_start' or 'break_end'" }, { status: 400 });
+  }
+
+  // Read-only gate, handled here rather than in middleware because the whole
+  // decision is in the body: this one route covers both clock in and clock out.
+  //
+  // Clocking IN starts new work, so an expired trial blocks it. Clocking OUT,
+  // and ending a break, must ALWAYS work — someone is standing in a kitchen
+  // right now and their pay depends on this timestamp. A paywall that strands
+  // an open timesheet is a payroll problem, not a conversion tactic.
+  if (type === "in") {
+    const biz = await prisma.business.findUnique({
+      where: { id: businessId },
+      select: { lsStatus: true, trialEndsAt: true },
+    });
+    const access = computeAccess({
+      lsStatus: biz?.lsStatus,
+      trialEndsAt: biz?.trialEndsAt,
+    });
+    if (access.mode === "readonly") {
+      return NextResponse.json(readOnlyPayload(access), { status: 402 });
+    }
   }
 
   const me = await prisma.employee.findFirst({ where: { userId: session.user.id } });

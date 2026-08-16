@@ -326,6 +326,61 @@ export const competitors: Competitor[] = [
       },
     ],
   },
+  {
+    slug: "ordio",
+    name: "Ordio",
+    short: "Ordio",
+    positioning:
+      "German workforce platform for shift-based teams — scheduling, time tracking, employee file and payroll, sold per location.",
+    pricingModel: "per-location",
+    pricingSummary:
+      "Published per location, per month on annual billing: Starter €89, Plus €129, Pro €169, Enterprise from €344. Time tracking is not in Starter — it begins at Plus. Checklists begin at Pro. Net payroll is a €15 add-on.",
+    pricingSource: "https://www.ordio.com/en/pricing",
+    pricingChecked: "2026-08-16",
+    exampleCost12:
+      "€89/month for one venue on Starter, but without time tracking. With clock-in you are on Plus at €129/month. Headcount does not change either figure.",
+    whereTheyWin: [
+      "Founder-led hospitality credibility — David Keuenhof built it while running rotas and payroll for 125 staff across three Sushi Ninja sites in Cologne.",
+      "Payroll is calculated in the product rather than only prepared for an accountant, with a paid add-on for net pay.",
+      "A real integration surface: a public REST JSON API, partner integrations and their own app store. Rotahr has fewer published integrations today.",
+      "Hardware-grade time tracking on the upper tiers — tablet team terminal, optional GPS check, digital signature verification and documented late arrivals.",
+      "Documents and e-signature, plus a document generator on Enterprise.",
+      "Scale and breadth: they state 2,500+ businesses across more than 72 industries, so the product is well proven outside hospitality too.",
+    ],
+    gaps: [
+      "Priced per location, so the bill multiplies with venues. Three sites on Plus is €387/month before add-ons.",
+      "Time tracking is withheld from the entry tier, so the realistic hospitality price is the €129 Plus plan rather than the €89 headline.",
+      "Nothing for front of house. No table reservations, no floor plan and no customer list, so the diary stays in a second system.",
+      "No food safety module in the core product — HACCP temperature and cleaning records are not what it is built to hold.",
+      "Built for German rules and marketed to teams in Germany; their own scheduling page still offers a free start “when Ordio launches in your region”, so Irish and UK availability should be confirmed before you plan around it.",
+    ],
+    verdict:
+      "A strong, well-built workforce platform that happens to serve hospitality, rather than a hospitality system. If you only need staff operations and you are in Germany, they are a genuinely good product.",
+    pickThemIf:
+      "You operate in Germany, want payroll calculated rather than prepared, need an open API to plug into existing systems, and you already have reservations and food safety handled elsewhere.",
+    faqs: [
+      {
+        q: "Is Rotahr cheaper than Ordio?",
+        a: "For a single venue that needs clock-in, yes. Ordio puts time tracking on its Plus plan at €129 per location per month; Rotahr Starter is €59 a month including VAT with clock-in and break tracking in the box. The gap widens with venues, because Ordio charges per location and Rotahr Enterprise is €215 flat for unlimited sites.",
+      },
+      {
+        q: "What does Rotahr do that Ordio does not?",
+        a: "Front of house and food safety. Table bookings with a visual floor plan, a customer list built from reservations, and HACCP temperature, delivery and cleaning records with PDF export for inspections. Ordio is a workforce platform, so those stay in separate tools.",
+      },
+      {
+        q: "What does Ordio do that Rotahr does not?",
+        a: "It calculates payroll rather than preparing it, publishes a REST API with an app store of integrations, and offers e-signature and a tablet clock-in terminal. If those matter more to you than reservations and HACCP, Ordio is the better fit.",
+      },
+      {
+        q: "Is Ordio available in Ireland and the UK?",
+        a: "Ordio markets itself to teams in Germany and its site refers to a free start when Ordio launches in your region, so availability outside the German-speaking market is worth confirming with them directly. Rotahr is built around Irish and UK rules — statutory break entitlements, VAT and Form 46G — and also supports USD, GBP, CAD and AUD.",
+      },
+      {
+        q: "There seem to be two products called ordio — which is which?",
+        a: "There are. ordio.com is the German workforce platform described on this page. getordio.com is a separate, unrelated vendor aimed at US restaurants, selling a single plan at $125 per location per month for up to 25 users, with prep lists, inventory and invoice processing. If you are comparing quotes, check which one you are actually talking to.",
+      },
+    ],
+  },
 ];
 
 export function getCompetitor(slug: string) {

@@ -36,6 +36,16 @@ export async function generateMetadata({
   };
 }
 
+// The opening line claims how the competitor charges, so it has to follow the
+// data rather than assume per-user. Getting a rival's pricing model wrong in
+// the first sentence is the fastest way to lose a reader who already uses them.
+const PRICING_PHRASE: Record<string, string> = {
+  "per-user": "priced per user",
+  "per-location": "priced per location",
+  flat: "sold at a flat rate",
+  "on-request": "priced on request",
+};
+
 const CHECK = <span className="text-emerald-400 font-bold">✓</span>;
 const CROSS = <span className="text-rose-400 font-bold">✕</span>;
 
@@ -104,8 +114,9 @@ export default async function ComparePage({
           Rotahr and {c.name} both handle staff scheduling, but they solve
           different problems: Rotahr is one flat-priced app that also covers
           bookings, food safety records, stock and payroll for a single venue,
-          while {c.name} is a dedicated workforce platform priced per user and
-          bolted to other tools for the rest.
+          while {c.name} is a dedicated workforce platform{" "}
+          {PRICING_PHRASE[c.pricingModel]} and bolted to other tools for the
+          rest.
         </p>
         <p className="text-base text-slate-400 mb-4 max-w-2xl">
           {c.positioning}

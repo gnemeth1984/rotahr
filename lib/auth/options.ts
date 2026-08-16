@@ -85,11 +85,21 @@ export const authOptions: NextAuthOptions = {
           if (dbUser.businessId) {
             const biz = await prisma.business.findUnique({
               where: { id: dbUser.businessId },
-              select: { lsPlan: true },
+              select: { lsPlan: true, lsStatus: true, trialEndsAt: true },
             });
             token.lsPlan = biz?.lsPlan ?? null;
+            // Ride along on the query we were already making, so middleware can
+            // decide read-only vs full without its own DB round trip on every
+            // write. See lib/billing/access.ts — this fails open, so a stale
+            // token can only ever grant access, never wrongly revoke it.
+            token.lsStatus = biz?.lsStatus ?? null;
+            token.trialEndsAt = biz?.trialEndsAt
+              ? biz.trialEndsAt.toISOString()
+              : null;
           } else {
             token.lsPlan = null;
+            token.lsStatus = null;
+            token.trialEndsAt = null;
           }
 
           // Fetch employee permissions (additive grants for non-managers)
@@ -138,6 +148,8 @@ export const authOptions: NextAuthOptions = {
         session.user.businessId = token.businessId as string | null;
         session.user.permissions = (token.permissions as string[]) ?? [];
         session.user.lsPlan = (token.lsPlan as string | null) ?? null;
+        session.user.lsStatus = (token.lsStatus as string | null) ?? null;
+        session.user.trialEndsAt = (token.trialEndsAt as string | null) ?? null;
         session.user.isPlatformAdmin = Boolean(token.isPlatformAdmin);
       }
       return session;
