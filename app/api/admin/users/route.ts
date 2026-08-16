@@ -4,7 +4,11 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth/options";
 import { isSuperAdminEmail } from "@/lib/auth/super-admins";
 import { prisma } from "@/lib/db";
-import { REAL_BUSINESS_WHERE } from "@/lib/tenancy/real-business";
+import {
+  REAL_BUSINESS_WHERE,
+  PAYING_CUSTOMER_WHERE,
+  DEMO_BUSINESS_IDS,
+} from "@/lib/tenancy/real-business";
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -62,12 +66,21 @@ export async function GET(req: NextRequest) {
   // behind the public /v/... venue pages. An 18x overstatement on the founder
   // dashboard is worse than showing nothing, so the count is now scoped and the
   // shells are reported separately instead of being hidden.
-  const [totalUsers, totalBusinesses, listingPages, payingBusinesses, last7days, last30days] =
-    await Promise.all([
+  const [
+    totalUsers,
+    totalBusinesses,
+    listingPages,
+    payingBusinesses,
+    internalBusinesses,
+    last7days,
+    last30days,
+  ] = await Promise.all([
       prisma.user.count(),
       prisma.business.count({ where: REAL_BUSINESS_WHERE }),
       prisma.business.count({ where: { users: { none: {} } } }),
-      prisma.business.count({ where: { ...REAL_BUSINESS_WHERE, lsStatus: "active" } }),
+      // PAYING_CUSTOMER_WHERE, not lsStatus alone — see lib/tenancy/real-business.
+      prisma.business.count({ where: PAYING_CUSTOMER_WHERE }),
+      prisma.business.count({ where: { id: { in: DEMO_BUSINESS_IDS } } }),
       prisma.user.count({ where: { createdAt: { gte: new Date(Date.now() - 7 * 86400000) } } }),
       prisma.user.count({ where: { createdAt: { gte: new Date(Date.now() - 30 * 86400000) } } }),
     ]);
@@ -82,6 +95,7 @@ export async function GET(req: NextRequest) {
       totalBusinesses,
       listingPages,
       payingBusinesses,
+      internalBusinesses,
       last7days,
       last30days,
     },

@@ -23,10 +23,24 @@ export const REAL_BUSINESS_WHERE: Prisma.BusinessWhereInput = {
 };
 
 /**
- * Demo tenants are real (they have users, they get used) but they are not
- * customers, so revenue and adoption reporting must be able to exclude them.
+ * Demo and internal tenants are real (they have users, they get used) but they
+ * are not customers, so revenue and adoption reporting must exclude them.
+ *
+ * This list was previously missing the three owner-perspective demos, which are
+ * deliberately named like real venues — "The Corner Café", "Bloom Bistro",
+ * "Harrington Group". Because they don't contain the word "demo" they slipped
+ * past the name filter below and were reported as three paying customers on
+ * €393 MRR. They have never paid a cent. Seed IDs are the only reliable handle
+ * on them, so the IDs are the source of truth and the name filter is a backstop.
  */
-export const DEMO_BUSINESS_IDS = ["demo-anchor-tap-biz", "admin-test-biz"];
+export const DEMO_BUSINESS_IDS = [
+  "demo-anchor-tap-biz",
+  "demo-owner-starter-biz",
+  "demo-owner-pro-biz",
+  "demo-owner-ent-biz",
+  // Gabor's own account. Internal, not a customer.
+  "admin-test-biz",
+];
 
 export const REAL_CUSTOMER_WHERE: Prisma.BusinessWhereInput = {
   users: { some: {} },
@@ -34,6 +48,25 @@ export const REAL_CUSTOMER_WHERE: Prisma.BusinessWhereInput = {
   // NOT(contains) rather than a nested `not: { contains, mode }`, which Prisma
   // does not type for a nested string filter.
   NOT: { name: { contains: "demo", mode: "insensitive" } },
+};
+
+/**
+ * What counts as PAYING.
+ *
+ * `lsStatus: "active"` is NOT sufficient and must never be used alone. The demo
+ * seed script writes it directly so the demo accounts can show plan-gated
+ * features, and it is a plain string column that anything can set. It is a
+ * display flag, not evidence of money.
+ *
+ * `lsSubscriptionId` is only ever written by the Lemon Squeezy webhook
+ * (app/api/webhooks/lemonsqueezy), and it is nulled on expiry. A non-null value
+ * means Lemon Squeezy created a real subscription against a real card. That is
+ * the only claim strong enough to put on a revenue figure.
+ */
+export const PAYING_CUSTOMER_WHERE: Prisma.BusinessWhereInput = {
+  ...REAL_CUSTOMER_WHERE,
+  lsStatus: "active",
+  lsSubscriptionId: { not: null },
 };
 
 /** True when this business is a listing shell rather than a tenant. */

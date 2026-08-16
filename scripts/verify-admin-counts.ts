@@ -9,7 +9,11 @@
  * Run: export $(grep -E '^DATABASE_URL=' .env | xargs); bun run scripts/verify-admin-counts.ts
  */
 import { prisma } from "../lib/db";
-import { REAL_BUSINESS_WHERE, DEMO_BUSINESS_IDS } from "../lib/tenancy/real-business";
+import {
+  REAL_BUSINESS_WHERE,
+  PAYING_CUSTOMER_WHERE,
+  DEMO_BUSINESS_IDS,
+} from "../lib/tenancy/real-business";
 
 let pass = 0;
 let fail = 0;
@@ -30,7 +34,7 @@ async function main() {
     prisma.business.count({ where: REAL_BUSINESS_WHERE }),
     prisma.business.count({ where: { users: { none: {} } } }),
     prisma.business.count({ where: { publicProspect: true } }),
-    prisma.business.count({ where: { ...REAL_BUSINESS_WHERE, lsStatus: "active" } }),
+    prisma.business.count({ where: PAYING_CUSTOMER_WHERE }),
     prisma.user.count(),
   ]);
 
@@ -72,6 +76,51 @@ async function main() {
   const demoPresent = await prisma.business.count({ where: { id: { in: DEMO_BUSINESS_IDS } } });
   ok("demo tenants still exist and are excludable", demoPresent === DEMO_BUSINESS_IDS.length,
     `${demoPresent}/${DEMO_BUSINESS_IDS.length}`);
+
+  // ---------------------------------------------------------------------
+  // Revenue honesty. The demo seed sets lsStatus:"active" directly, which
+  // once produced 3 phantom paying customers and EUR393 of MRR that had
+  // never existed. Money must be backed by a Lemon Squeezy subscription id.
+  // ---------------------------------------------------------------------
+  const statusOnly = await prisma.business.count({
+    where: { ...REAL_BUSINESS_WHERE, lsStatus: "active" },
+  });
+  const withSub = await prisma.business.count({
+    where: { ...REAL_BUSINESS_WHERE, lsStatus: "active", lsSubscriptionId: { not: null } },
+  });
+
+  console.log(`\n  lsStatus=active:            ${statusOnly}`);
+  console.log(`  ...of those with a real sub: ${withSub}`);
+  console.log(`  PAYING_CUSTOMER_WHERE:       ${paying}\n`);
+
+  ok(
+    "no demo tenant is ever counted as paying",
+    paying <= withSub,
+    `paying=${paying} withSub=${withSub}`,
+  );
+
+  ok(
+    "every paying customer has a Lemon Squeezy subscription id",
+    (await prisma.business.count({
+      where: { ...PAYING_CUSTOMER_WHERE, lsSubscriptionId: null },
+    })) === 0,
+  );
+
+  const fakeActive = statusOnly - withSub;
+  ok(
+    "lsStatus alone is not treated as revenue",
+    fakeActive === 0 || paying < statusOnly,
+    `${fakeActive} tenants have active status with no subscription`,
+  );
+
+  const demoMarkedPaying = await prisma.business.count({
+    where: { id: { in: DEMO_BUSINESS_IDS }, ...{ lsStatus: "active" } },
+  });
+  ok(
+    "demo tenants keep their display status but are excluded from paying",
+    demoMarkedPaying > 0 ? paying === withSub : true,
+    `${demoMarkedPaying} demos show active for feature-gating`,
+  );
 
   console.log(`\n${pass} passed, ${fail} failed\n`);
   if (fail > 0) process.exitCode = 1;

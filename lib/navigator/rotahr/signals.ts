@@ -1,5 +1,10 @@
 import { prisma } from "@/lib/db";
-import { REAL_BUSINESS_WHERE, REAL_CUSTOMER_WHERE, DEMO_BUSINESS_IDS } from "@/lib/tenancy/real-business";
+import {
+  REAL_BUSINESS_WHERE,
+  REAL_CUSTOMER_WHERE,
+  PAYING_CUSTOMER_WHERE,
+  DEMO_BUSINESS_IDS,
+} from "@/lib/tenancy/real-business";
 import { sealPulse, scrubText } from "./redact";
 import { SUPER_ADMINS } from "@/lib/auth/super-admins";
 
@@ -25,6 +30,10 @@ export type SystemPulse = {
   founder: {
     realBusinesses: number;
     listingShells: number;
+    /** Demo + Gabor's own account. Tenants, but never customers. */
+    internalBusinesses: number;
+    /** Tenants that are neither demo nor internal. The real top of funnel. */
+    externalBusinesses: number;
     payingCustomers: number;
     byPlan: { plan: string; count: number }[];
     mrrEur: number;
@@ -93,10 +102,13 @@ export async function buildSystemPulse(): Promise<SystemPulse> {
   const [realBusinesses, allBusinesses, planRows, signups30, signupsPrev30, activeRows] = await Promise.all([
     prisma.business.count({ where: REAL_BUSINESS_WHERE }),
     prisma.business.count(),
+    // PAYING_CUSTOMER_WHERE requires a Lemon Squeezy subscription id, not just
+    // lsStatus. The demo seed writes lsStatus directly, so the old filter
+    // reported the three owner demos as paying and invented EUR393 of MRR.
     prisma.business.groupBy({
       by: ["lsPlan"],
       _count: true,
-      where: { ...REAL_CUSTOMER_WHERE, lsStatus: "active" },
+      where: PAYING_CUSTOMER_WHERE,
     }),
     prisma.business.count({ where: { ...REAL_BUSINESS_WHERE, createdAt: { gte: d(30) } } }),
     prisma.business.count({
@@ -112,6 +124,13 @@ export async function buildSystemPulse(): Promise<SystemPulse> {
 
   const mrrEur = byPlan.reduce((sum, r) => sum + (PLAN_PRICE[r.plan] ?? 0) * r.count, 0);
   const payingCustomers = byPlan.reduce((s, r) => s + r.count, 0);
+
+  // "6 tenants" reads like traction until you know 5 of them are demos and
+  // Gabor's own login. Split it so the honest number is the visible one.
+  const internalBusinesses = await prisma.business.count({
+    where: { id: { in: DEMO_BUSINESS_IDS } },
+  });
+  const externalBusinesses = Math.max(0, realBusinesses - internalBusinesses);
 
   // At risk vs unmeasured.
   //
@@ -178,6 +197,8 @@ export async function buildSystemPulse(): Promise<SystemPulse> {
     founder: {
       realBusinesses,
       listingShells: allBusinesses - realBusinesses,
+      internalBusinesses,
+      externalBusinesses,
       payingCustomers,
       byPlan,
       mrrEur,

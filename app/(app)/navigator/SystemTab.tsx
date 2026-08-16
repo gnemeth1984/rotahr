@@ -182,9 +182,22 @@ function PulseView({ p }: { p: SystemPulse }) {
       <Panel className="p-4">
         <SectionTitle>The business</SectionTitle>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <Stat label="Real businesses" value={f.realBusinesses} hint={`${f.listingShells} empty listing shells`} />
-          <Stat label="Paying" value={f.payingCustomers} hint={f.byPlan.map((b) => `${b.count} ${b.plan}`).join(", ")} />
-          <Stat label="MRR" value={`€${f.mrrEur}`} />
+          <Stat
+            label="Tenants"
+            value={f.realBusinesses}
+            hint={
+              f.internalBusinesses
+                ? `${f.internalBusinesses} demo/internal, ${f.externalBusinesses ?? 0} outside`
+                : `${f.listingShells} empty listing shells`
+            }
+          />
+          <Stat
+            label="Paying"
+            value={f.payingCustomers}
+            hint={f.payingCustomers ? f.byPlan.map((b) => `${b.count} ${b.plan}`).join(", ") : "no subscriptions yet"}
+            muted={!f.payingCustomers}
+          />
+          <Stat label="MRR" value={`€${f.mrrEur}`} muted={!f.mrrEur} />
           <Stat
             label="Active 7d"
             value={f.activeBusinesses7d}

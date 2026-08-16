@@ -58,6 +58,8 @@ export type SystemPulse = {
   generatedAt: string;
   founder: {
     realBusinesses: number;
+    internalBusinesses?: number;
+    externalBusinesses?: number;
     listingShells: number;
     payingCustomers: number;
     byPlan: { plan: string; count: number }[];

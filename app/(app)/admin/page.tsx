@@ -63,6 +63,8 @@ interface UserStats {
   /** Listing shells behind the public /v/... pages. Never tenants. */
   listingPages?: number;
   payingBusinesses?: number;
+  /** Demo + Gabor's own account. Tenants, never customers. */
+  internalBusinesses?: number;
   last7days: number;
   last30days: number;
 }
@@ -635,19 +637,29 @@ export default function AdminPage() {
               </div>
             </div>
             <div className="bg-white border border-slate-200 rounded-xl p-4">
-              <p className="text-xs text-slate-500 uppercase tracking-wide mb-1">Tenants</p>
-              <p className="text-2xl font-bold text-slate-900">{stats?.totalBusinesses ?? "—"}</p>
+              <p className="text-xs text-slate-500 uppercase tracking-wide mb-1">Paying customers</p>
+              <p
+                className={`text-2xl font-bold ${
+                  stats?.payingBusinesses ? "text-slate-900" : "text-slate-400"
+                }`}
+              >
+                {stats?.payingBusinesses ?? "—"}
+              </p>
               <div className="flex items-center gap-1 mt-1">
                 <Building2 className="h-3.5 w-3.5 text-slate-400" />
                 <span className="text-xs text-slate-400">
-                  {stats?.payingBusinesses != null ? `${stats.payingBusinesses} paying` : "with a real account"}
+                  {stats?.payingBusinesses
+                    ? "live subscriptions"
+                    : "no live subscriptions yet"}
                 </span>
               </div>
-              {stats?.listingPages ? (
-                <p className="mt-1 text-[11px] leading-tight text-slate-400">
-                  + {stats.listingPages} listing pages (no account — not tenants)
-                </p>
-              ) : null}
+              <p className="mt-1 text-[11px] leading-tight text-slate-400">
+                {stats?.totalBusinesses ?? "—"} tenants
+                {stats?.internalBusinesses != null
+                  ? ` (${stats.internalBusinesses} demo/internal)`
+                  : ""}
+                {stats?.listingPages ? ` · ${stats.listingPages} listing pages` : ""}
+              </p>
             </div>
             <div className="bg-white border border-slate-200 rounded-xl p-4">
               <p className="text-xs text-slate-500 uppercase tracking-wide mb-1">Last 7 Days</p>
