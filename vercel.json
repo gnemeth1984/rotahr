@@ -41,6 +41,12 @@
     },
     "app/api/admin/listings/route.ts": {
       "maxDuration": 300
+    },
+    "app/api/cron/listing-discovery/route.ts": {
+      "maxDuration": 300
+    },
+    "app/api/cron/listing-monitor/route.ts": {
+      "maxDuration": 300
     }
   },
   "crons": [
@@ -106,7 +112,7 @@
     },
     {
       "path": "/api/cron/listing-build",
-      "schedule": "50 3 * * *"
+      "schedule": "50 3,7 * * *"
     },
     {
       "path": "/api/cron/listing-invites",
@@ -121,6 +127,8 @@
       "schedule": "45 20 * * *"
     },
     { "path": "/api/cron/navigator-pulse", "schedule": "10 6,12,18 * * *" },
-    { "path": "/api/cron/navigator-ideas", "schedule": "25 6 * * *" }
+    { "path": "/api/cron/navigator-ideas", "schedule": "25 6 * * *" },
+    { "path": "/api/cron/listing-discovery", "schedule": "15 4 * * 2" },
+    { "path": "/api/cron/listing-monitor", "schedule": "15 4 * * 6" }
   ]
 }

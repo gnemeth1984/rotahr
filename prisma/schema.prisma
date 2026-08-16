@@ -2023,6 +2023,36 @@ model LinkProspect {
   /// The URL of the mention once it exists — the whole point of the row.
   liveUrl String?
 
+  /// seed | discovered. Seeded rows were checked by a human; discovered rows
+  /// came from the weekly hunt and were vetted by a model, which is a weaker
+  /// guarantee. Worth being able to tell them apart when one turns out to be junk.
+  source String @default("seed")
+
+  /// The exact search that surfaced it. Kept so a query that only ever returns
+  /// rubbish can be found and dropped instead of quietly wasting the budget.
+  discoveredVia String?
+
+  /// Where the submission actually happens, when it is not the homepage.
+  /// Saves re-hunting for the "add your product" link at submission time.
+  submitUrl String?
+
+  /// The paste-ready submission copy, written per target. Generated once and
+  /// stored, so the model is not re-run every time the queue is opened.
+  pitch String? @db.Text
+
+  /// Monitoring. A directory listing is not a one-off: profiles get pruned,
+  /// sites get redesigned, and a link that quietly disappears is indistinguishable
+  /// from one that was never built unless something checks.
+  lastCheckedAt DateTime?
+  lastCheckOk   Boolean?
+  /// Consecutive failed checks. One failure is usually the target being down;
+  /// the row is only demoted after several, so a blip does not undo real work.
+  checkFailures Int       @default(0)
+
+  /// When this row was last handed to Gabor as a Navigator task, so the same
+  /// two targets are not proposed again next week while they sit in his list.
+  taskedAt DateTime?
+
   sentAt     DateTime?
   liveAt     DateTime?
   followUpAt DateTime?
@@ -2033,6 +2063,7 @@ model LinkProspect {
 
   @@index([status, weight])
   @@index([kind])
+  @@index([status, lastCheckedAt])
 }
 
 /// A venue that has no website of its own, sourced from OpenStreetMap.
