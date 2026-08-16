@@ -22,6 +22,7 @@ import {
   CheckCircle2,
   Copy,
   Check,
+  AlertTriangle,
 } from "lucide-react";
 
 type Row = {
@@ -41,6 +42,14 @@ type Row = {
   liveAt: string | null;
   followUpAt: string | null;
   notes: string | null;
+  source: string | null;
+  discoveredVia: string | null;
+  submitUrl: string | null;
+  pitch: string | null;
+  lastCheckedAt: string | null;
+  lastCheckOk: boolean | null;
+  checkFailures: number;
+  taskedAt: string | null;
 };
 
 type Payload = {
@@ -50,6 +59,8 @@ type Payload = {
     byStatus: Record<string, number>;
     live: number;
     dueFollowUps: number;
+    checksFailing: number;
+    handedToYou: number;
   };
 };
 
@@ -131,20 +142,34 @@ export function LinksTab() {
     <div className="space-y-5">
       {/* Why this tab exists — the numbers that justify the manual work. */}
       <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-        <p className="font-medium">This is the gap the automation can&apos;t close.</p>
+        <p className="font-medium">Every free placement, and whether it is still up.</p>
         <p className="mt-1 text-amber-800">
-          144 indexable pages, 71 published articles, and 5 pages have ever earned a Google
-          impression. That&apos;s an authority problem, not a content problem — more posts
-          won&apos;t move it. Each row here is one real person or platform, contacted by hand.
+          Discovery adds new targets every Tuesday. Two a week are pushed to you as Navigator
+          tasks under <span className="font-medium">Visibility</span> with the copy already
+          written — that is where you do them. This tab is the ledger: what was submitted, what
+          went live, and which live links have quietly stopped pointing at rotahr.com. The
+          liveness check runs every Saturday.
         </p>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Stat label="Targets" value={data.stats.total} />
         <Stat label="Links live" value={data.stats.live} tone="emerald" />
-        <Stat label="Awaiting reply" value={data.stats.byStatus.sent ?? 0} tone="amber" />
-        <Stat label="Follow-ups due" value={data.stats.dueFollowUps} tone={data.stats.dueFollowUps ? "red" : "slate"} />
+        <Stat
+          label="Handed to you"
+          value={data.stats.handedToYou}
+          tone={data.stats.handedToYou ? "amber" : "slate"}
+        />
+        <Stat
+          label="Follow-ups due"
+          value={data.stats.dueFollowUps}
+          tone={data.stats.dueFollowUps ? "red" : "slate"}
+        />
+        <Stat
+          label="Live links broken"
+          value={data.stats.checksFailing}
+          tone={data.stats.checksFailing ? "red" : "slate"}
+        />
       </div>
 
       {/* Filter */}
@@ -194,6 +219,24 @@ export function LinksTab() {
                   )}
                   <span className="shrink-0 text-[11px] text-slate-400">w{r.weight}</span>
                 </button>
+
+                {r.taskedAt && r.status !== "live" && (
+                  <span
+                    className="shrink-0 rounded bg-indigo-100 px-1.5 py-0.5 text-[11px] font-medium text-indigo-700"
+                    title={`Handed to you as a Navigator task on ${new Date(r.taskedAt).toLocaleDateString()}`}
+                  >
+                    in your queue
+                  </span>
+                )}
+
+                {r.lastCheckOk === false && (
+                  <span
+                    className="flex shrink-0 items-center gap-1 rounded bg-red-100 px-1.5 py-0.5 text-[11px] font-medium text-red-700"
+                    title="The page no longer returns 200 with a rotahr mention"
+                  >
+                    <AlertTriangle className="h-3 w-3" /> link gone? ({r.checkFailures})
+                  </span>
+                )}
 
                 {overdue && (
                   <span className="flex shrink-0 items-center gap-1 rounded bg-red-100 px-1.5 py-0.5 text-[11px] font-medium text-red-700">
@@ -266,6 +309,49 @@ export function LinksTab() {
                     </div>
                   )}
 
+                  {r.submitUrl && (
+                    <div>
+                      <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                        Submission form
+                      </p>
+                      <a
+                        href={r.submitUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 break-all text-xs text-blue-700 hover:underline"
+                      >
+                        <ExternalLink className="h-3 w-3 shrink-0" /> {r.submitUrl}
+                      </a>
+                    </div>
+                  )}
+
+                  {r.pitch && (
+                    <div>
+                      <div className="mb-1 flex items-center gap-2">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                          Copy to paste
+                        </p>
+                        <button
+                          onClick={() => copy(r.pitch!, `${r.id}:pitch`)}
+                          className="flex items-center gap-1 rounded border border-slate-200 px-2 py-0.5 text-[11px] text-slate-600 hover:bg-slate-50"
+                        >
+                          {copied === `${r.id}:pitch` ? (
+                            <>
+                              <Check className="h-3 w-3" /> copied
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="h-3 w-3" /> copy
+                            </>
+                          )}
+                        </button>
+                      </div>
+                      <p className="whitespace-pre-wrap rounded bg-slate-50 p-2 text-xs leading-relaxed text-slate-700">
+                        {r.pitch}
+                      </p>
+                    </div>
+                  )}
+
                   {/* Status control */}
                   <div className="flex flex-wrap items-center gap-1.5">
                     {STATUSES.map((s) => (
@@ -288,14 +374,27 @@ export function LinksTab() {
                   {/* Live URL — the only outcome that counts. */}
                   <LiveUrlField row={r} onSave={(v) => patch(r.id, { liveUrl: v, status: v ? "live" : r.status })} />
 
-                  {r.sentAt && (
-                    <p className="text-xs text-slate-400">
-                      sent {new Date(r.sentAt).toLocaleDateString()}
-                      {r.followUpAt &&
-                        ` · follow up ${new Date(r.followUpAt).toLocaleDateString()}`}
-                      {r.liveAt && ` · live ${new Date(r.liveAt).toLocaleDateString()}`}
-                    </p>
-                  )}
+                  <p className="text-xs text-slate-400">
+                    {r.sentAt && <>sent {new Date(r.sentAt).toLocaleDateString()}</>}
+                    {r.sentAt && r.followUpAt && (
+                      <> · follow up {new Date(r.followUpAt).toLocaleDateString()}</>
+                    )}
+                    {r.liveAt && <> · live {new Date(r.liveAt).toLocaleDateString()}</>}
+                    {r.lastCheckedAt && (
+                      <>
+                        {" "}
+                        · checked {new Date(r.lastCheckedAt).toLocaleDateString()}{" "}
+                        <span className={r.lastCheckOk === false ? "text-red-600" : "text-emerald-600"}>
+                          {r.lastCheckOk === false
+                            ? `failed ${r.checkFailures}×`
+                            : "still pointing at rotahr.com"}
+                        </span>
+                      </>
+                    )}
+                    {r.source === "discovery" && (
+                      <> · found automatically{r.discoveredVia ? ` (${r.discoveredVia})` : ""}</>
+                    )}
+                  </p>
                 </div>
               )}
             </div>

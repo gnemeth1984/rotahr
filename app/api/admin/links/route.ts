@@ -20,9 +20,15 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const rows = await prisma.linkProspect.findMany({
+  const all = await prisma.linkProspect.findMany({
     orderBy: [{ status: "asc" }, { weight: "desc" }, { name: "asc" }],
   });
+
+  // Weekly discovery writes its rejections to the table on purpose, so the next
+  // run doesn't pay model cost to re-reject the same domain. They are bookkeeping,
+  // not work, and showing them would bury the handful of rows that need a human.
+  const rows = all.filter((r) => !(r.status === "rejected" && r.source === "discovery"));
+  const autoRejected = all.length - rows.length;
 
   const byStatus: Record<string, number> = {};
   for (const s of STATUSES) byStatus[s] = 0;
@@ -35,6 +41,15 @@ export async function GET() {
     (r) => r.status === "sent" && r.followUpAt && r.followUpAt.getTime() <= now,
   ).length;
 
+  // A live listing that stopped mentioning rotahr.com is the failure mode a bare
+  // uptime check misses, and the only one worth interrupting him for.
+  const checksFailing = rows.filter((r) => r.lastCheckOk === false).length;
+
+  // Already sitting in his Navigator queue with the copy written.
+  const handedToYou = rows.filter(
+    (r) => r.taskedAt && r.status !== "live" && r.status !== "rejected",
+  ).length;
+
   return NextResponse.json({
     rows,
     stats: {
@@ -42,6 +57,9 @@ export async function GET() {
       byStatus,
       live: byStatus.live ?? 0,
       dueFollowUps,
+      checksFailing,
+      handedToYou,
+      autoRejected,
       // The only number that matters: links actually earned.
       liveUrls: rows.filter((r) => r.status === "live" && r.liveUrl).map((r) => r.liveUrl),
     },
