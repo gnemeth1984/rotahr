@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { isSuperAdminEmail } from "@/lib/auth/super-admins";
 import { Resend } from "resend";
 import { isUnroutableAddress } from "@/lib/email/send";
+import { purgeUnroutableContacts } from "@/lib/email/audience";
 
 const resend = new Resend(process.env.RESEND_API_KEY!);
 
@@ -55,6 +56,49 @@ export async function POST(req: Request) {
     const { data, error } = await resend.contacts.create(payload as Parameters<typeof resend.contacts.create>[0]);
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
     return NextResponse.json(data);
+  } catch (e: unknown) {
+    return NextResponse.json({ error: String(e) }, { status: 500 });
+  }
+}
+
+/**
+ * Remove contacts from an audience.
+ *
+ * Two modes:
+ *   ?id=<contactId>              remove one contact
+ *   ?audienceId=<id>&purge=demo  remove every unroutable address in the audience
+ *
+ * The purge exists because the create guard only stops NEW bad addresses. An
+ * audience is reused by every future broadcast, and a broadcast sends to the
+ * whole audience in one API call - it never passes through sendEmail(), so the
+ * unroutable filter there cannot protect it. Any demo address added before the
+ * guard would therefore bounce again on every single broadcast.
+ */
+export async function DELETE(req: Request) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user || !isSuperAdminEmail(session.user.email)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const { searchParams } = new URL(req.url);
+  const id = searchParams.get("id");
+  const audienceId = searchParams.get("audienceId");
+  const purge = searchParams.get("purge");
+
+  try {
+    if (id) {
+      const { error } = await resend.contacts.remove(id);
+      if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+      return NextResponse.json({ removed: 1 });
+    }
+
+    if (purge === "demo" && audienceId) {
+      const result = await purgeUnroutableContacts(audienceId);
+      if (result.error) return NextResponse.json({ error: result.error }, { status: 400 });
+      return NextResponse.json(result);
+    }
+
+    return NextResponse.json({ error: "Pass ?id= or ?audienceId=&purge=demo" }, { status: 400 });
   } catch (e: unknown) {
     return NextResponse.json({ error: String(e) }, { status: 500 });
   }

@@ -229,6 +229,21 @@ function fmtDate(iso: string | null) {
   });
 }
 
+/**
+ * Mirror of isUnroutableAddress() in lib/email/send.ts, for labelling rows the
+ * client already holds. The server stays the authority on what actually sends -
+ * this only decides what to grey out or hide.
+ */
+function isDemoAddress(email: string): boolean {
+  const addr = (email || "").trim().toLowerCase();
+  const domain = addr.split("@")[1];
+  if (!domain) return true;
+  const reserved = ["demo", "test", "example", "invalid", "localhost", "local", "internal"];
+  const tld = domain.split(".").pop() ?? "";
+  if (reserved.includes(tld)) return true;
+  return ["example.com", "example.org", "example.net"].includes(domain);
+}
+
 // ─── Contacts Panel ────────────────────────────────────────────────────────
 
 function ContactsPanel({ segmentId }: { segmentId: string }) {
@@ -240,6 +255,8 @@ function ContactsPanel({ segmentId }: { segmentId: string }) {
   const [newLast, setNewLast] = useState("");
   const [err, setErr] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [purging, setPurging] = useState(false);
+  const [purgeMsg, setPurgeMsg] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -251,6 +268,29 @@ function ContactsPanel({ segmentId }: { segmentId: string }) {
       setLoading(false);
     }
   }, [segmentId]);
+
+  // Addresses on a demo or reserved domain can never receive mail. A broadcast
+  // goes to the whole audience in one call, so one of these bounces on every
+  // campaign until it is removed from the audience itself.
+  const demoContacts = contacts.filter((c) => isDemoAddress(c.email));
+
+  const purgeDemo = async () => {
+    setPurging(true);
+    setPurgeMsg(null);
+    try {
+      const r = await fetch(`/api/admin/email/contacts?audienceId=${segmentId}&purge=demo`, {
+        method: "DELETE",
+      });
+      const d = await r.json();
+      if (d.error) { setPurgeMsg(d.error); return; }
+      setPurgeMsg(`Removed ${d.removed} address${d.removed === 1 ? "" : "es"} that could never be delivered.`);
+      await load();
+    } catch {
+      setPurgeMsg("Could not clean the audience \— try again.");
+    } finally {
+      setPurging(false);
+    }
+  };
 
   useEffect(() => { load(); }, [load]);
 
@@ -280,10 +320,28 @@ function ContactsPanel({ segmentId }: { segmentId: string }) {
         <p className="text-xs font-medium text-slate-600 flex items-center gap-1.5">
           <Users className="h-3.5 w-3.5" /> Contacts ({contacts.length})
         </p>
-        <Button size="sm" variant="outline" className="h-6 text-xs gap-1" onClick={() => setAdding(!adding)}>
-          <UserPlus className="h-3 w-3" /> Add
-        </Button>
+        <div className="flex items-center gap-2">
+          {demoContacts.length > 0 && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-6 text-xs gap-1 border-red-200 text-red-600 hover:bg-red-50"
+              onClick={purgeDemo}
+              disabled={purging}
+            >
+              {purging ? <Loader2 className="h-3 w-3 animate-spin" /> : <Ban className="h-3 w-3" />}
+              Remove {demoContacts.length} demo
+            </Button>
+          )}
+          <Button size="sm" variant="outline" className="h-6 text-xs gap-1" onClick={() => setAdding(!adding)}>
+            <UserPlus className="h-3 w-3" /> Add
+          </Button>
+        </div>
       </div>
+
+      {purgeMsg && (
+        <p className="px-3 py-2 text-xs text-slate-600 bg-amber-50 border-b border-amber-100">{purgeMsg}</p>
+      )}
 
       {adding && (
         <div className="px-3 py-3 bg-emerald-50 border-b border-emerald-100 flex flex-wrap gap-2 items-end">
@@ -328,8 +386,15 @@ function ContactsPanel({ segmentId }: { segmentId: string }) {
             </thead>
             <tbody className="divide-y divide-slate-50">
               {contacts.map((c) => (
-                <tr key={c.id} className="hover:bg-slate-50">
-                  <td className="px-3 py-2 text-slate-700">{c.email}</td>
+                <tr key={c.id} className={isDemoAddress(c.email) ? "bg-red-50/60" : "hover:bg-slate-50"}>
+                  <td className="px-3 py-2 text-slate-700">
+                    {c.email}
+                    {isDemoAddress(c.email) && (
+                      <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-red-100 text-red-700 font-medium">
+                        can&apos;t be delivered
+                      </span>
+                    )}
+                  </td>
                   <td className="px-3 py-2 text-slate-600">{[c.first_name, c.last_name].filter(Boolean).join(" ") || "—"}</td>
                   <td className="px-3 py-2">
                     {c.unsubscribed
@@ -793,6 +858,9 @@ interface SentEmail {
   subject: string;
   created_at: string;
   last_event: EmailEvent;
+  /** Set by /api/admin/email/sent: every recipient is on a demo or reserved
+   *  domain, so the row is dead history rather than a live delivery problem. */
+  demo?: boolean;
 }
 
 function EventBadge({ event }: { event: EmailEvent }) {
@@ -823,6 +891,18 @@ function SentEmailsSection() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [limit, setLimit] = useState(50);
+  /**
+   * Demo-domain rows are hidden by default.
+   *
+   * The seed gives every fake staff member an address on a made-up domain
+   * (.demo is not a real TLD), so the daily shift-reminder cron used to mail
+   * them and every one hard-bounced. Those sends are blocked at source now, but
+   * Resend keeps the history forever, and the bounced rows sat mixed in with
+   * real outreach - making the campaign screen read as "everything bounced"
+   * when nothing real had. They are hidden rather than deleted because the
+   * history is still evidence of what the domain has sent.
+   */
+  const [showDemo, setShowDemo] = useState(false);
 
   const load = useCallback(async (lim = limit) => {
     setLoading(true);
@@ -841,13 +921,19 @@ function SentEmailsSection() {
 
   useEffect(() => { load(); }, [load]);
 
+  // Demo rows are excluded from the stats: a bounce rate that counts addresses
+  // which can never be delivered to tells you nothing about real deliverability.
+  const realEmails = emails.filter((e) => !e.demo);
+  const demoEmails = emails.filter((e) => e.demo);
+  const visible = showDemo ? emails : realEmails;
+
   // Stats summary
-  const counts = emails.reduce<Record<string, number>>((acc, e) => {
+  const counts = realEmails.reduce<Record<string, number>>((acc, e) => {
     acc[e.last_event] = (acc[e.last_event] ?? 0) + 1;
     return acc;
   }, {});
 
-  const total     = emails.length;
+  const total     = realEmails.length;
   const opened    = (counts.opened ?? 0) + (counts.clicked ?? 0);
   const delivered = counts.delivered ?? 0;
   const bounced   = (counts.bounced ?? 0) + (counts.failed ?? 0);
@@ -859,10 +945,31 @@ function SentEmailsSection() {
         <p className="font-semibold text-slate-800 flex items-center gap-2 text-sm">
           <Inbox className="h-4 w-4 text-slate-400" /> Sent Emails ({total})
         </p>
-        <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => load(limit)}>
-          <RefreshCw className="h-3 w-3" /> Refresh
-        </Button>
+        <div className="flex items-center gap-2">
+          {demoEmails.length > 0 && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 text-xs gap-1 text-slate-500"
+              onClick={() => setShowDemo((v) => !v)}
+            >
+              <Ban className="h-3 w-3" />
+              {showDemo ? "Hide" : "Show"} {demoEmails.length} demo
+            </Button>
+          )}
+          <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => load(limit)}>
+            <RefreshCw className="h-3 w-3" /> Refresh
+          </Button>
+        </div>
       </div>
+
+      {demoEmails.length > 0 && (
+        <p className="px-4 py-2 text-xs text-slate-600 bg-amber-50 border-b border-amber-100">
+          {demoEmails.length} of the last {emails.length} are old sends to demo staff addresses
+          (@rotahr.demo and similar). Those bounce because the domain is not real. They are
+          blocked before sending now and are left out of the numbers below.
+        </p>
+      )}
 
       {/* Summary stats */}
       {total > 0 && (
@@ -887,7 +994,7 @@ function SentEmailsSection() {
         </div>
       ) : error ? (
         <p className="text-center py-10 text-sm text-red-500">{error}</p>
-      ) : emails.length === 0 ? (
+      ) : visible.length === 0 ? (
         <p className="text-center py-10 text-slate-400 text-sm">No sent emails found</p>
       ) : (
         <>
@@ -902,10 +1009,15 @@ function SentEmailsSection() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
-                {emails.map((e) => (
-                  <tr key={e.id} className="hover:bg-slate-50 transition-colors">
+                {visible.map((e) => (
+                  <tr key={e.id} className={e.demo ? "bg-slate-50/80 text-slate-400" : "hover:bg-slate-50 transition-colors"}>
                     <td className="px-4 py-2.5 text-slate-700">
                       {Array.isArray(e.to) ? e.to.join(", ") : e.to}
+                      {e.demo && (
+                        <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-slate-200 text-slate-600 font-medium">
+                          demo address
+                        </span>
+                      )}
                     </td>
                     <td className="px-4 py-2.5 text-slate-600 max-w-xs truncate" title={e.subject}>
                       {e.subject}
@@ -922,7 +1034,10 @@ function SentEmailsSection() {
             </table>
           </div>
           <div className="px-4 py-3 border-t border-slate-100 flex items-center justify-between">
-            <p className="text-xs text-slate-400">Showing last {emails.length} emails</p>
+            <p className="text-xs text-slate-400">
+              Showing last {visible.length} emails
+              {demoEmails.length > 0 && !showDemo ? ` (${demoEmails.length} demo hidden)` : ""}
+            </p>
             {emails.length === limit && (
               <Button
                 size="sm"
