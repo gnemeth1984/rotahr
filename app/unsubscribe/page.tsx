@@ -1,13 +1,8 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { headers } from "next/headers";
-import {
-  isSuppressed,
-  normaliseEmail,
-  suppress,
-  verifyUnsubscribeToken,
-} from "@/lib/email/suppression";
+import { isSuppressed, normaliseEmail } from "@/lib/email/suppression";
+import { ConfirmUnsubscribeButton } from "./ConfirmUnsubscribeButton";
 import { ResubscribeButton } from "./ResubscribeButton";
 
 export const metadata: Metadata = {
@@ -19,11 +14,17 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 /**
- * The opt-out is recorded on load, not behind a confirm button. A link that
- * needs a second click is a link some people never finish, and the law is on
- * the side of the easy opt-out. The trade-off is that a mail scanner
- * prefetching the link can opt someone out by accident, so the page always
- * offers an undo.
+ * Loading this page opts nobody out. It reads, it never writes.
+ *
+ * It used to record the opt-out on GET so the link took one click. That handed
+ * the decision to whatever fetched the link first, and on a list of hotels and
+ * restaurants that is almost always a corporate mail security gateway: 80 of
+ * 123 recorded opt-outs were addresses that had never been on our list at all —
+ * the gateway re-requesting the link with a scrambled address to see whether we
+ * validate input — and 37 of the 43 real ones landed inside 60 seconds of the
+ * send. The write now lives behind a button, which no scanner clicks, and the
+ * `List-Unsubscribe-Post` header still gives Gmail and Outlook a true one-click
+ * opt-out that never touches this page.
  */
 export default async function UnsubscribePage({
   searchParams,
@@ -33,33 +34,24 @@ export default async function UnsubscribePage({
   const raw = searchParams.email?.trim();
   const email = raw ? normaliseEmail(raw) : "";
   const valid = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email);
-
-  // Idempotent, and deliberately doesn't distinguish "just unsubscribed" from
-  // "was already unsubscribed" — the difference means nothing to the reader, and
-  // a prefetching mail client shouldn't make the first real click look odd.
-  let state: "done" | "missing" = "missing";
-
-  if (valid) {
-    if (!(await isSuppressed(email))) {
-      await suppress({
-        email,
-        source: "unsubscribe_link",
-        reason: verifyUnsubscribeToken(email, searchParams.t) ? "signed link" : "unsigned link",
-        userAgent: headers().get("user-agent"),
-      });
-    }
-    state = "done";
-  }
+  const already = valid ? await isSuppressed(email) : false;
 
   return (
     <main className="min-h-screen bg-[#0F1C35] text-white flex items-center justify-center px-6 py-16">
       <div className="w-full max-w-md">
         <div className="flex justify-center mb-8">
-          <Image src="/logo-white-trans.png" alt="Rotahr" width={180} height={67} className="h-9 w-auto" priority />
+          <Image
+            src="/logo-white-trans.png"
+            alt="Rotahr"
+            width={180}
+            height={67}
+            className="h-9 w-auto"
+            priority
+          />
         </div>
 
         <div className="rounded-2xl bg-white/[0.04] border border-white/10 p-7">
-          {state === "missing" ? (
+          {!valid ? (
             <>
               <h1 className="text-xl font-semibold mb-2">We need your email address</h1>
               <p className="text-sm text-white/60 leading-relaxed">
@@ -71,25 +63,34 @@ export default async function UnsubscribePage({
                 and we&apos;ll take you off the list by hand.
               </p>
             </>
-          ) : (
+          ) : already ? (
             <>
-              <h1 className="text-xl font-semibold mb-2">Done — you&apos;re unsubscribed</h1>
+              <h1 className="text-xl font-semibold mb-2">You&apos;re already unsubscribed</h1>
               <p className="text-sm text-white/60 leading-relaxed">
-                We won&apos;t send any more marketing emails to{" "}
-                <span className="text-white/90 font-medium break-all">{email}</span>. It takes effect
-                immediately.
+                We&apos;re not sending marketing emails to{" "}
+                <span className="text-white/90 font-medium break-all">{email}</span>. Nothing more to
+                do.
               </p>
-              <p className="text-sm text-white/60 leading-relaxed mt-3">
-                If you have a Rotahr account, this doesn&apos;t touch the emails your account needs —
-                rota changes, shift alerts, receipts. Only the marketing.
-              </p>
-
               <div className="mt-6 pt-5 border-t border-white/10">
                 <p className="text-xs text-white/40 mb-3">
-                  Clicked by mistake, or your mail app opened it for you?
+                  Off the list by mistake, or your mail app opened this for you?
                 </p>
                 <ResubscribeButton email={email} />
               </div>
+            </>
+          ) : (
+            <>
+              <h1 className="text-xl font-semibold mb-2">Unsubscribe from Rotahr emails?</h1>
+              <p className="text-sm text-white/60 leading-relaxed mb-6">
+                One tap and we stop sending marketing emails to{" "}
+                <span className="text-white/90 font-medium break-all">{email}</span>. No form, no
+                reason needed.
+              </p>
+              <ConfirmUnsubscribeButton email={email} />
+              <p className="text-xs text-white/35 leading-relaxed mt-4">
+                We ask because mail security scanners open every link in a message before you see
+                it, and we&apos;d rather not take someone off the list who never asked.
+              </p>
             </>
           )}
         </div>
