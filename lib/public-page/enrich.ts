@@ -84,10 +84,22 @@ const CANDIDATE_PATHS = [
 const MERCH_URL =
   /\/(shop|shops|store|stores|product|products|collections|merch|merchandise|gift|gifts|gift-?cards?|gift-?vouchers?|vouchers?|hampers?|basket|cart|checkout|subscri)/i;
 
+/**
+ * Hostnames are compared with "www." stripped. A live test found a hotel whose
+ * pages were fetched as www.example.ie while every link in its own nav pointed
+ * at example.ie, so a strict hostname match discarded all 210 links - including
+ * the food menu PDF - and the venue reported zero dishes despite publishing a
+ * full menu. Only the www prefix is ignored; a different domain is still
+ * refused, so the crawl never wanders off the venue's own site.
+ */
+function canonicalHost(hostname: string): string {
+  return hostname.toLowerCase().replace(/^www\./, "");
+}
+
 function sameOrigin(base: string, path: string): string | null {
   try {
     const u = new URL(path, base);
-    if (new URL(base).hostname !== u.hostname) return null;
+    if (canonicalHost(new URL(base).hostname) !== canonicalHost(u.hostname)) return null;
     return u.toString();
   } catch {
     return null;
@@ -112,12 +124,81 @@ export function linksFromHtml(html: string, base: string): string[] {
     // A "shop" link leads to product listings — nothing there belongs on a
     // venue's food page.
     if (MERCH_URL.test(href)) continue;
-    // Skip obvious downloads the text extractor cannot read.
+    // Skip obvious downloads the text extractor cannot read. PDFs are excluded
+    // here on purpose: they are collected separately by menuPdfLinks and read
+    // with a PDF parser, and leaving them in the HTML crawl fetched the same
+    // menu twice and spent a model call on an unreadable byte stream.
     if (/\.(jpg|jpeg|png|gif|webp|zip|doc|docx)$/i.test(href)) continue;
+    if (/\.pdf(\?|#|$)/i.test(href)) continue;
     const abs = sameOrigin(base, href);
     if (abs) out.add(abs.split("#")[0]);
   }
   return [...out];
+}
+
+/**
+ * A PDF worth opening. Most hospitality PDFs on a hotel site are not menus -
+ * gender pay gap reports, spa brochures, safety leaflets, conference planners -
+ * and each one opened is a fetch and a model call spent on nothing. So the URL
+ * or link text has to look like food and must not look like paperwork.
+ */
+const MENU_PDF =
+  /(menu|a-?la-?carte|carte|food|lunch|dinner|brunch|breakfast|tasting|early-?bird|specials?|wine-?list|drinks?|cocktail|bar-?list)/i;
+const NOT_MENU_PDF =
+  /(pay-?gap|policy|policies|privacy|terms|gdpr|cert|certificate|eco-?label|newsletter|timetable|directory|brochure|conference|meeting|wedding|safety|leaflet|report|charges|accessibility|sustainab|planner|guide|tariff|christmas-?party|corporate)/i;
+
+/** Menu PDFs linked from a page, most promising first. */
+export function menuPdfLinks(html: string, base: string): string[] {
+  const out = new Set<string>();
+  const re = /<a[^>]+href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(html))) {
+    const href = m[1];
+    if (!/\.pdf(\?|#|$)/i.test(href)) continue;
+    const label = htmlToText(m[2]).toLowerCase();
+    const blob = `${href.toLowerCase()} ${label}`;
+    if (!MENU_PDF.test(blob)) continue;
+    if (NOT_MENU_PDF.test(blob)) continue;
+    if (MERCH_URL.test(href)) continue;
+    const abs = sameOrigin(base, href);
+    if (abs) out.add(abs.split("#")[0]);
+  }
+  return [...out];
+}
+
+/**
+ * Read a menu PDF as text.
+ *
+ * Why this exists: sampling the venues with no menu found their food lives in a
+ * PDF, not in HTML, so the honest answer was zero dishes on pages whose menu is
+ * published in plain sight. unpdf is used rather than shelling out to poppler
+ * because this also has to run on Vercel, where there is no pdftotext.
+ */
+export async function fetchPdfText(url: string): Promise<string | null> {
+  try {
+    const res = await fetch(url, {
+      redirect: "follow",
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; RotahrBot/1.0; +https://rotahr.com)" },
+      signal: AbortSignal.timeout(20000),
+    });
+    if (!res.ok) return null;
+    const len = Number(res.headers.get("content-length") ?? 0);
+    // A menu is a few pages. Anything enormous is a brochure or a scan.
+    if (len > 8_000_000) return null;
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    if (bytes.byteLength > 8_000_000) return null;
+    // Trust the bytes, not the extension: plenty of ".pdf" links 404 to HTML.
+    if (new TextDecoder().decode(bytes.slice(0, 5)) !== "%PDF-") return null;
+    const { extractText, getDocumentProxy } = await import("unpdf");
+    const pdf = await getDocumentProxy(bytes);
+    const { text } = await extractText(pdf, { mergePages: true });
+    const flat = String(text ?? "").replace(/[ \t]+/g, " ").trim();
+    // A scanned menu extracts to almost nothing. There is no OCR here, and a
+    // guess is worse than a gap.
+    return flat.length > 200 ? flat.slice(0, 18000) : null;
+  } catch {
+    return null;
+  }
 }
 
 const SYSTEM = `You read the text of a hospitality venue's OWN website and report only what it actually says.
@@ -159,6 +240,43 @@ interface ModelOut {
 }
 
 const CATEGORIES = new Set(["starter", "main", "dessert", "sides", "drinks", "other"]);
+
+/**
+ * PDF menus are typeset in capitals, so a dish arrives as "ROASTED VINE PLUM
+ * TOMATO SOUP". Shouting on someone else's public page looks broken, so an
+ * all-caps name is title-cased. Real acronyms (IPA, BBQ, GF) and words holding a
+ * digit (6OZ, 250ML) are left as they are, and a name that already has mixed
+ * case is never touched - that one was typed deliberately.
+ */
+const KEEP_CAPS = new Set([
+  "BBQ", "IPA", "GF", "DF", "VAT", "DIY", "PK", "XO", "BLT", "IRL", "NY", "US", "UK",
+  "IE", "EU", "DOP", "IGP", "PDO", "MSC", "AAA",
+]);
+const SMALL_WORDS = new Set([
+  "of", "the", "and", "with", "a", "an", "in", "on", "or", "at", "to", "for",
+  "de", "du", "la", "le", "aux", "sur", "alla", "con", "e",
+]);
+
+export function tidyDishName(name: string): string {
+  const trimmed = name.replace(/\s+/g, " ").trim();
+  const letters = trimmed.replace(/[^A-Za-z]/g, "");
+  // Nothing to fix unless every letter in the name is a capital.
+  if (!letters || letters !== letters.toUpperCase()) return trimmed;
+  return trimmed
+    .split(" ")
+    .map((word, i) => {
+      const bare = word.replace(/[^A-Za-z0-9]/g, "");
+      if (!bare) return word;
+      if (KEEP_CAPS.has(bare)) return word;
+      if (/\d/.test(bare)) return word;
+      const lower = word.toLowerCase();
+      if (i > 0 && SMALL_WORDS.has(bare.toLowerCase())) return lower;
+      // Capitalise the start and anything after a hyphen or slash, so
+      // "SLOW-COOKED" reads "Slow-Cooked" rather than "Slow-cooked".
+      return lower.replace(/(^|[-/])([a-z])/g, (_m, sep, ch) => sep + ch.toUpperCase());
+    })
+    .join(" ");
+}
 
 /** Keep only well-formed, non-invented hour entries. */
 function sanitiseHours(
@@ -272,6 +390,59 @@ export function isRetailPage(url: string): boolean {
   }
 }
 
+/**
+ * A URL that really is a menu: the food menu page, or the menu PDF a lot of
+ * venues link instead of publishing the dishes in HTML.
+ *
+ * Split into strong and weak signals because a bare meal word is not enough on
+ * its own - "/conference-dublin/gala-dinners/" contains "dinner" but is an event
+ * package page, so the strong words are the ones allowed to overrule a package
+ * path below.
+ */
+const STRONG_MENU = /(menus?|a-?la-?carte|carte|food|dishes|wine-?list|tasting|early-?bird)/i;
+const WEAK_MENU = /(dining|drinks?|cocktails?|breakfast|brunch|lunch|dinner|specials?)/i;
+
+function isPdfPath(url: string): boolean {
+  try {
+    return /\.pdf(\?|$)/i.test(new URL(url).pathname);
+  } catch {
+    return /\.pdf(\?|#|$)/i.test(url);
+  }
+}
+
+export function isMenuSource(url: string): boolean {
+  // An event or stay package is never a menu, whatever meal word is in the slug.
+  if (isPackagePage(url)) return false;
+  try {
+    const path = new URL(url).pathname;
+    return STRONG_MENU.test(path) || WEAK_MENU.test(path) || isPdfPath(url);
+  } catch {
+    return STRONG_MENU.test(url) || WEAK_MENU.test(url);
+  }
+}
+
+/**
+ * Package and event pages. A live test pulled "Gourmet 3 course Dinner" off a
+ * /special-offers/ page and offered it as a dish - that is a hotel package
+ * inclusion, not something a diner can order, and listing it as a dish on the
+ * venue's public page is filler. Real menus win instead, and these pages are
+ * skipped for dishes unless the URL also looks like an actual menu (an
+ * "early-bird" or "set-menu" offer page genuinely is one).
+ */
+const PACKAGE_URL =
+  /\/(special-?offers?|offers?|packages?|deals?|weddings?|christmas|gala|conference|corporate|team-?building|events?|occasions?|stay|residential|breaks?|spa-?days?)/i;
+
+export function isPackagePage(url: string): boolean {
+  try {
+    const path = new URL(url).pathname;
+    // Only a strong menu word rescues a package path: "/special-offers/early-bird-menu/"
+    // is a genuine menu, "/special-offers/castle-fairytale/" is a hotel package.
+    return PACKAGE_URL.test(path) && !STRONG_MENU.test(path);
+  } catch {
+    return false;
+  }
+}
+
 /** Physical goods a venue sells but does not serve at a table. */
 const MERCH_WORDS = [
   "snood", "hat", "cap", "beanie", "t-shirt", "tshirt", "t shirt", "tee shirt",
@@ -363,6 +534,18 @@ const GENERIC_ITEM = new Set([
 ]);
 
 /** A bare buffet or section word, with nothing to make it a real menu item. */
+/**
+ * Package wording that describes a deal rather than a plate: "3 course dinner",
+ * "overnight stay", "bed & breakfast package". Kept deliberately narrow -
+ * "afternoon tea" and "sunday roast" are real menu items and must survive.
+ */
+const PACKAGE_ITEM =
+  /(\b\d+\s*[- ]?\s*course\b|\bpackage\b|\bovernight\b|\bbed (?:and|&) breakfast\b|\bb\s*&\s*b\b|\bper (?:room|night)\b|\bnights?\s+stay\b|\bmidweek (?:break|escape)\b)/i;
+
+export function isPackageItem(d: EnrichedDish): boolean {
+  return PACKAGE_ITEM.test(`${d.name} ${d.description ?? ""}`);
+}
+
 export function isGenericItem(d: EnrichedDish): boolean {
   const name = d.name.toLowerCase().replace(/[^a-z& ]/g, " ").replace(/\s+/g, " ").trim();
   if (!name) return true;
@@ -569,14 +752,30 @@ export async function enrichFromWebsite(opts: {
   }
 
   const texts: { url: string; text: string }[] = [{ url: base, text: home.text }];
+  // Menu PDFs found anywhere in the crawl, since a menu page usually just links
+  // to the PDF rather than repeating it in HTML.
+  const pdfCandidates = new Set<string>(home.html ? menuPdfLinks(home.html, base) : []);
+
   for (const url of queue) {
     const page = await fetchPage(url);
     if (!page.ok || page.text.length < 200) continue;
     result.pagesFetched.push(url);
     texts.push({ url, text: page.text });
+    if (page.html) for (const pdf of menuPdfLinks(page.html, url)) pdfCandidates.add(pdf);
+  }
+
+  // Read at most two PDFs: enough for "food menu" plus "specials", without one
+  // hotel's document library eating the run.
+  for (const pdfUrl of [...pdfCandidates].slice(0, 2)) {
+    const pdfText = await fetchPdfText(pdfUrl);
+    if (!pdfText) continue;
+    result.pagesFetched.push(pdfUrl);
+    texts.push({ url: pdfUrl, text: pdfText });
   }
 
   const now = new Date().toISOString();
+  // Whether the dishes currently held came from a genuine menu source.
+  let dishesFromMenu = false;
 
   // 2. Read each page, keeping the first well-corroborated answer per field.
   for (const { url, text } of texts) {
@@ -649,15 +848,21 @@ export async function enrichFromWebsite(opts: {
       }
     }
 
+    // Dishes: first usable source wins, EXCEPT that a real menu outranks a page
+    // that merely mentioned food. A live run read a hotel's /special-offers/
+    // page before its food-menu PDF and published two package lines while the
+    // actual menu sat unused, so a menu source is allowed to replace them.
+    const menuSource = isMenuSource(url);
     if (
-      result.dishes.length === 0 &&
+      (result.dishes.length === 0 || (menuSource && !dishesFromMenu)) &&
       !isRetailPage(url) &&
+      !isPackagePage(url) &&
       Array.isArray(out.dishes) &&
       out.dishes.length
     ) {
       const cleaned: EnrichedDish[] = out.dishes
         .map((d) => ({
-          name: String(d?.name ?? "").trim(),
+          name: tidyDishName(String(d?.name ?? "")),
           description: d?.description?.toString().trim() || null,
           price:
             typeof d?.price === "number" && Number.isFinite(d.price) && d.price > 0
@@ -667,7 +872,9 @@ export async function enrichFromWebsite(opts: {
         }))
         .filter((d) => d.name.length > 2 && d.name.length < 120);
 
-      const food = cleaned.filter((d) => !isRetailItem(d) && !isGenericItem(d));
+      const food = cleaned.filter(
+        (d) => !isRetailItem(d) && !isGenericItem(d) && !isPackageItem(d)
+      );
       if (food.length < cleaned.length) {
         result.warnings.push(
           `${url}: dropped ${cleaned.length - food.length} shop product(s) offered as dishes`
@@ -682,6 +889,7 @@ export async function enrichFromWebsite(opts: {
       }
       if (corroborated.length) {
         result.dishes = corroborated.slice(0, 60);
+        dishesFromMenu = menuSource;
         result.provenance.dishes = { sourceUrl: url, fetchedAt: now, needsReview: true };
       }
     }
