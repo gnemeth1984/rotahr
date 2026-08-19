@@ -59,6 +59,42 @@ export function normaliseOpeningHours(raw: unknown): OpeningHoursEntry[] {
 }
 
 /**
+ * Opening hours for the PUBLIC page.
+ *
+ * Unlike `normaliseOpeningHours` — which back-fills a sensible Mon-Sat
+ * 12:00-23:00 week so the settings form has something to render — this never
+ * invents a time. Most public pages are prospect pages for venues we do not
+ * run, and the old fallback meant 84 of them published fabricated trading hours
+ * as schema.org fact. A day only survives here when it is explicitly marked
+ * closed, or carries both an open and a close time.
+ *
+ * Returns [] when there is nothing publishable, which the page treats as
+ * "hours not confirmed" rather than guessing.
+ */
+export function parsePublicOpeningHours(raw: unknown): OpeningHoursEntry[] {
+  if (!Array.isArray(raw)) return [];
+
+  const byDay = new Map<number, OpeningHoursEntry>();
+  for (const item of raw) {
+    if (!item || typeof item !== "object") continue;
+    const o = item as Record<string, unknown>;
+    const day = Number(o.day);
+    if (!Number.isInteger(day) || day < 0 || day > 6) continue;
+
+    const closed = Boolean(o.closed);
+    const open = typeof o.open === "string" && /^\d{2}:\d{2}$/.test(o.open) ? o.open : null;
+    const close = typeof o.close === "string" && /^\d{2}:\d{2}$/.test(o.close) ? o.close : null;
+    if (!closed && (!open || !close)) continue;
+
+    byDay.set(day, { day, closed, open: open ?? "", close: close ?? "" });
+  }
+
+  const entries = [...byDay.values()].sort((a, b) => a.day - b.day);
+  // An all-closed week is missing data far more often than a shut venue.
+  return entries.some((e) => !e.closed) ? entries : [];
+}
+
+/**
  * Categories of MenuSpecial that may appear publicly.
  *
  * ONLY "special" is guest-facing. Everything else on the Menu Specials board is

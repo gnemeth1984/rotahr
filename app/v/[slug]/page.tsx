@@ -9,6 +9,12 @@ import {
   publicImageSrc,
   formatPrice,
 } from "@/lib/public-page/types";
+import {
+  localityFromAddress,
+  usableTagline,
+  buildTitle,
+  buildDescription,
+} from "@/lib/public-page/seo";
 import { BookingForm } from "./_booking-form";
 import { ClaimBanner } from "./_claim-banner";
 
@@ -31,19 +37,36 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   const venue = await getPublicVenue(params.slug);
   if (!venue) return { title: "Not found" };
 
-  const descBits = [venue.tagline, venue.cuisine, venue.address].filter(Boolean);
-  const description =
-    venue.about?.slice(0, 155) ||
-    descBits.join(" · ").slice(0, 155) ||
-    `${venue.name} — menu, opening hours and table bookings.`;
+  // Search Console shows these pages surface for "<venue> menu",
+  // "<venue> opening hours" and "<venue> <town>" at position 8-19. The title
+  // now carries those intent words plus the town, and never promises a menu or
+  // hours the page cannot actually show.
+  const locality = localityFromAddress(venue.address);
+  const facts = {
+    name: venue.name,
+    locality,
+    hasMenu: venue.dishes.length > 0,
+    hasHours: venue.openingHours.length > 0,
+    hasPhone: Boolean(venue.phone),
+  };
+
+  const title = buildTitle(facts);
+  const description = buildDescription({
+    ...facts,
+    venueType: venue.venueType,
+    cuisine: venue.cuisine,
+    phone: venue.phone,
+    about: usableTagline(venue.name, venue.tagline) ?? venue.about,
+    canBook: venue.showBooking || Boolean(venue.bookingUrl),
+  });
 
   return {
-    title: `${venue.name}${venue.tagline ? ` — ${venue.tagline}` : ""}`,
+    title,
     description,
     alternates: { canonical: `${SITE}/v/${venue.slug}` },
     robots: venue.noIndex ? { index: false, follow: false } : { index: true, follow: true },
     openGraph: {
-      title: venue.name,
+      title: locality ? `${venue.name}, ${locality}` : venue.name,
       description,
       url: `${SITE}/v/${venue.slug}`,
       type: "website",
@@ -51,7 +74,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
     },
     twitter: {
       card: venue.heroImage ? "summary_large_image" : "summary",
-      title: venue.name,
+      title: locality ? `${venue.name}, ${locality}` : venue.name,
       description,
     },
   };
@@ -90,14 +113,21 @@ export default async function PublicVenuePage({ params }: { params: { slug: stri
       ? { geo: { "@type": "GeoCoordinates", latitude: venue.geoLat, longitude: venue.geoLng } }
       : {}),
     ...(venue.showBooking ? { acceptsReservations: `${SITE}/v/${venue.slug}#book` } : {}),
-    openingHoursSpecification: venue.openingHours
-      .filter((h) => !h.closed)
-      .map((h) => ({
-        "@type": "OpeningHoursSpecification",
-        dayOfWeek: SCHEMA_DAYS[h.day],
-        opens: h.open,
-        closes: h.close,
-      })),
+    // Omitted entirely when hours were never supplied. Publishing a guessed
+    // week as structured data told Google that invented trading hours were
+    // fact, for venues that never asked for the page.
+    ...(venue.openingHours.some((h) => !h.closed)
+      ? {
+          openingHoursSpecification: venue.openingHours
+            .filter((h) => !h.closed)
+            .map((h) => ({
+              "@type": "OpeningHoursSpecification",
+              dayOfWeek: SCHEMA_DAYS[h.day],
+              opens: h.open,
+              closes: h.close,
+            })),
+        }
+      : {}),
     ...(venue.website || venue.instagram || venue.facebook
       ? { sameAs: [venue.website, venue.instagram, venue.facebook].filter(Boolean) }
       : {}),
@@ -268,19 +298,39 @@ export default async function PublicVenuePage({ params }: { params: { slug: stri
         <div className="mx-auto grid max-w-4xl gap-10 px-5 sm:grid-cols-2">
           <div>
             <h2 className="text-2xl font-bold">Opening hours</h2>
-            <ul className="mt-5 space-y-2">
-              {venue.openingHours.map((h) => (
-                <li
-                  key={h.day}
-                  className={`flex justify-between rounded-lg px-3 py-2 text-sm ${
-                    h.day === todayIdx ? "bg-white font-semibold shadow-sm" : "text-slate-600"
-                  }`}
-                >
-                  <span>{DAY_NAMES[h.day]}</span>
-                  <span>{h.closed ? "Closed" : `${h.open} – ${h.close}`}</span>
-                </li>
-              ))}
-            </ul>
+            {venue.openingHours.length > 0 ? (
+              <ul className="mt-5 space-y-2">
+                {venue.openingHours.map((h) => (
+                  <li
+                    key={h.day}
+                    className={`flex justify-between rounded-lg px-3 py-2 text-sm ${
+                      h.day === todayIdx ? "bg-white font-semibold shadow-sm" : "text-slate-600"
+                    }`}
+                  >
+                    <span>{DAY_NAMES[h.day]}</span>
+                    <span>{h.closed ? "Closed" : `${h.open} – ${h.close}`}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              /* Say so rather than showing a guessed week. Most searchers who
+                 land here typed "<venue> opening hours", so the phone number is
+                 the genuinely useful answer. */
+              <div className="mt-5 rounded-lg bg-white px-4 py-4 text-sm text-slate-600 shadow-sm">
+                <p>Opening hours haven&apos;t been confirmed for this venue yet.</p>
+                {venue.phone && (
+                  <p className="mt-2">
+                    <a
+                      className="font-semibold underline decoration-slate-300 underline-offset-4"
+                      href={`tel:${venue.phone.replace(/\s+/g, "")}`}
+                    >
+                      Call {venue.phone}
+                    </a>{" "}
+                    to check before you travel.
+                  </p>
+                )}
+              </div>
+            )}
           </div>
           <div>
             <h2 className="text-2xl font-bold">Find us</h2>

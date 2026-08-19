@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import {
-  normaliseOpeningHours,
+  parsePublicOpeningHours,
   PUBLIC_SPECIAL_CATEGORIES,
   type OpeningHoursEntry,
 } from "./types";
@@ -178,7 +178,7 @@ export async function getPublicVenue(slug: string): Promise<PublicVenueData | nu
     cuisine: venue?.cuisine ?? null,
     geoLat: venue?.geoLat ?? null,
     geoLng: venue?.geoLng ?? null,
-    openingHours: normaliseOpeningHours(business.publicOpeningHours),
+    openingHours: parsePublicOpeningHours(business.publicOpeningHours),
     noIndex: business.publicNoIndex,
     isProspect: business.publicProspect === true,
     showBooking: business.publicShowBooking,
