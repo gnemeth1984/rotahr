@@ -113,7 +113,7 @@ export function buildDescription(
   const kind = [cuisine, venueType].filter(Boolean).join(" ") || null;
   const lead = [
     name,
-    kind ? `is a ${kind}` : null,
+    kind ? `is ${article(kind)} ${kind}` : null,
     locality ? `in ${locality}` : null,
   ]
     .filter(Boolean)
@@ -140,6 +140,11 @@ export function buildDescription(
     out = `${out} Call ${phone} to confirm opening times.`;
   }
   return clamp(out, 158);
+}
+
+/** "a" / "an" — cuisines like "Irish" and "Asian street food" read wrong with "a". */
+function article(word: string): string {
+  return /^[aeiou]/i.test(word.trim()) ? "an" : "a";
 }
 
 /** Ensure a fragment ends in a full stop so clauses do not run together. */
