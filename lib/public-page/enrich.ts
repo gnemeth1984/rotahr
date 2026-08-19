@@ -308,6 +308,73 @@ const REAL_DRINK_UNIT =
   /\b(bottle|wine|carafe|magnum|jug|pitcher|cocktail|pint|glass of|irish coffee|martini|affogato|liqueur|afternoon tea|high tea|cream tea)\b/i;
 
 /**
+ * Buffet component words. A hotel breakfast page lists what is on the buffet -
+ * "Juices", "Yoghurts", "Toppings", "Fresh fruit" - and the model dutifully
+ * reports each line as a dish. Publishing "Toppings" as a menu item on a real
+ * hotel's page is not a false fact, but it is embarrassing filler, so a bare
+ * component word with no description and no price is dropped. The same word
+ * inside a real dish name ("Fruit Scone with Clotted Cream") survives because the
+ * test is on the WHOLE name.
+ */
+const GENERIC_ITEM = new Set([
+  "juices",
+  "juice",
+  "yoghurts",
+  "yogurts",
+  "yoghurt",
+  "toppings",
+  "condiments",
+  "preserves",
+  "jams",
+  "cereals",
+  "cereal",
+  "fresh fruit",
+  "fruit",
+  "fruits",
+  "breads",
+  "bread",
+  "freshly baked breads",
+  "pastries",
+  "crisp pastries",
+  "hot drinks",
+  "cold drinks",
+  "soft drinks",
+  "teas",
+  "coffees",
+  "tea and coffee",
+  "tea & coffee",
+  "sides",
+  "extras",
+  "salads",
+  "cheeses",
+  "starters",
+  "mains",
+  "desserts",
+  "buffet",
+  "breakfast buffet",
+  "continental breakfast",
+  "hot food",
+  "food",
+  "drinks",
+  "wine",
+  "beer",
+  "cocktails",
+  "spirits",
+]);
+
+/** A bare buffet or section word, with nothing to make it a real menu item. */
+export function isGenericItem(d: EnrichedDish): boolean {
+  const name = d.name.toLowerCase().replace(/[^a-z& ]/g, " ").replace(/\s+/g, " ").trim();
+  if (!name) return true;
+  if (d.price !== null) return false;
+  if ((d.description ?? "").trim().length > 12) return false;
+  if (GENERIC_ITEM.has(name)) return true;
+  // "100 item breakfast", "selection of teas" - a count or a selection is not a dish.
+  if (/^(a )?(selection|choice|assortment|range|variety) of /.test(name)) return true;
+  return false;
+}
+
+/**
  * Reject shop products masquerading as menu items. Erring towards dropping a
  * borderline item is the right trade: a missing dish is a gap, a snood on a food
  * menu is a public embarrassment published under someone else's business name.
@@ -600,7 +667,7 @@ export async function enrichFromWebsite(opts: {
         }))
         .filter((d) => d.name.length > 2 && d.name.length < 120);
 
-      const food = cleaned.filter((d) => !isRetailItem(d));
+      const food = cleaned.filter((d) => !isRetailItem(d) && !isGenericItem(d));
       if (food.length < cleaned.length) {
         result.warnings.push(
           `${url}: dropped ${cleaned.length - food.length} shop product(s) offered as dishes`

@@ -11,7 +11,13 @@
 // which would cost the pages that actually sell Rotahr.
 
 import { prisma } from "@/lib/prisma";
-import { enrichFromWebsite, type EnrichmentResult, type EnrichedDish } from "./enrich";
+import {
+  enrichFromWebsite,
+  isGenericItem,
+  isRetailItem,
+  type EnrichmentResult,
+  type EnrichedDish,
+} from "./enrich";
 import type { OpeningHoursEntry } from "./types";
 
 /** Which fields a reviewer approved. Anything absent stays unpublished. */
@@ -242,7 +248,9 @@ export async function enrichmentQueue(status: string, limit = 60): Promise<Queue
         openingHours: proposed?.openingHours ?? null,
         about: proposed?.about ?? null,
         cuisine: proposed?.cuisine ?? null,
-        dishes: proposed?.dishes ?? [],
+        // Filtered on read as well as on extraction, so rows queued before a
+        // filter existed are cleaned up for the reviewer too.
+        dishes: (proposed?.dishes ?? []).filter((d) => !isRetailItem(d) && !isGenericItem(d)),
         pagesFetched: proposed?.pagesFetched ?? [],
         provenance: proposed?.provenance ?? {},
         warnings: proposed?.warnings ?? [],
@@ -280,7 +288,9 @@ export async function publishEnrichment(
   }
 
   const keepNames = new Set(approved.dishes ?? []);
-  const dishes = (found.dishes ?? []).filter((d) => keepNames.has(d.name));
+  const dishes = (found.dishes ?? []).filter(
+    (d) => keepNames.has(d.name) && !isRetailItem(d) && !isGenericItem(d)
+  );
 
   await prisma.$transaction(async (tx) => {
     if (Object.keys(businessUpdate).length) {
