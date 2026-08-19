@@ -757,6 +757,57 @@ export async function thickenPost(post: {
   };
 }
 
+/**
+ * Buyer terms that a published article is *supposed* to own but which rank
+ * nowhere near the first page.
+ *
+ * These fall through a gap between the two jobs and can never be worked on:
+ *
+ *  - publishNextArticle() marks a keyword "skipped — covered by /blog/x" as
+ *    soon as an existing post's keyword is 70% similar, so no new article will
+ *    ever be written for it.
+ *  - refreshDecaying() only looks at strikingDistance(28, 20), which is
+ *    positions 4-20, so a term sitting at position 29 is invisible to it.
+ *
+ * "haccp app" is the live example: 23 impressions, position 29.4, the single
+ * strongest commercial term the site has, marked covered by the HACCP article
+ * and therefore permanently unreachable by either job. "Covered" is a claim
+ * about our intent; position 29 is Google's verdict on whether we delivered.
+ *
+ * Ordered by intent first, not impressions: a commercial term with 20
+ * impressions is worth more than a diner query with 200, because only one of
+ * them can become a customer.
+ */
+async function stalledCoveredTerms(minImpressions = 3): Promise<
+  { keyword: string; page: string; clicks: number; impressions: number; position: number }[]
+> {
+  const rows = await prisma.seoKeyword.findMany({
+    where: {
+      status: "skipped",
+      note: { startsWith: "covered by /blog/" },
+      impressions: { gte: minImpressions },
+      position: { gt: 20 },
+    },
+    select: { keyword: true, note: true, clicks: true, impressions: true, position: true, intent: true },
+  });
+
+  const weight = (intent: string | null) =>
+    intent === "transactional" ? 3 : intent === "commercial" ? 2 : 1;
+
+  return rows
+    .sort(
+      (a, b) =>
+        weight(b.intent) - weight(a.intent) || b.impressions - a.impressions,
+    )
+    .map((r) => ({
+      keyword: r.keyword,
+      page: `${SITE}/blog/${r.note!.replace("covered by /blog/", "").trim()}`,
+      clicks: r.clicks,
+      impressions: r.impressions,
+      position: r.position ?? 99,
+    }));
+}
+
 export async function refreshDecaying(): Promise<
   | { refreshed: false; reason: string }
   | { refreshed: true; slug: string; addedFor: string[] }
@@ -775,30 +826,39 @@ export async function refreshDecaying(): Promise<
     };
   }
 
+  // Two independent signals, both worth acting on:
+  //   striking  — ranks 4-20, one good pass from real clicks.
+  //   stalled   — a buyer term we claim to cover but rank 20+ for.
+  // Stalled terms go last in the list but are never dropped, because the old
+  // code returned early whenever striking was empty and then spent the slot
+  // thickening whatever page happened to be shortest. That is how a refresh
+  // budget ended up improving a diner-intent page about someone else's menu
+  // while "haccp app" sat at position 29.
   const striking = await strikingDistance(28, 20);
-  if (striking.length === 0) {
-    // "Nothing in striking distance" has been the answer five weeks running,
-    // and the job just burned its slot each time. Nothing ranks 4-20 because
-    // the back catalogue is too thin to rank at all, so when there's no ranking
-    // signal to act on, go fix the thinnest page instead of returning nothing.
+  const stalled = await stalledCoveredTerms();
+
+  if (striking.length === 0 && stalled.length === 0) {
     const thickened = await thickenThinnestPost();
     if (thickened) return thickened;
     await log(
       "refresh",
       false,
-      "nothing in striking distance, no thin posts left",
+      "no ranking signal to act on, no thin posts left",
     );
     return {
       refreshed: false,
       reason:
-        "Nothing ranks 4-20 yet and every article is above the length floor.",
+        "Nothing ranks 4-20, nothing is stalled outside it, and every article is above the length floor.",
     };
   }
 
   // Group the opportunities by the page that owns them, biggest first.
-  const byPage = new Map<string, typeof striking>();
-  for (const row of striking) {
+  type Opportunity = { keyword: string; page: string; clicks: number; impressions: number; position: number };
+  const byPage = new Map<string, Opportunity[]>();
+  for (const row of [...striking, ...stalled] as Opportunity[]) {
     const list = byPage.get(row.page) ?? [];
+    // The same keyword can arrive from both signals; keep one copy.
+    if (list.some((r) => r.keyword === row.keyword)) continue;
     list.push(row);
     byPage.set(row.page, list);
   }
@@ -827,7 +887,7 @@ export async function refreshDecaying(): Promise<
       continue;
 
     const queries = target.rows.slice(0, 6);
-    const prompt = `Below is a published article from Rotahr's blog. Search Console shows it already ranks at position 4-20 for these queries, meaning Google thinks it is nearly the right answer:
+    const prompt = `Below is a published article from Rotahr's blog. Search Console shows real people reach this page with these queries, but it is not winning them:
 
 ${queries.map((q) => `- "${q.keyword}" — position ${q.position.toFixed(1)}, ${q.impressions} impressions, ${q.clicks} clicks`).join("\n")}
 
@@ -909,10 +969,10 @@ Return ONLY JSON, no fences:
     return { refreshed: true, slug: post.slug, addedFor };
   }
 
-  await log("refresh", false, "all striking-distance pages refreshed recently");
+  await log("refresh", false, "every candidate page was refreshed recently");
   return {
     refreshed: false,
-    reason: "Every striking-distance page was refreshed in the last 3 weeks.",
+    reason: "Every page with a ranking signal was refreshed in the last 3 weeks.",
   };
 }
 
