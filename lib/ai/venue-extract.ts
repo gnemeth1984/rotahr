@@ -74,11 +74,31 @@ export function htmlToText(html: string): string {
     .replace(/<style[\s\S]*?<\/style>/gi, " ")
     .replace(/<noscript[\s\S]*?<\/noscript>/gi, " ")
     .replace(/<[^>]+>/g, " ")
-    .replace(/&nbsp;/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/&#39;|&apos;|&rsquo;/g, "'")
-    .replace(/&quot;/g, '"')
-    .replace(/&ndash;|&mdash;/g, "-")
+    .replace(/&nbsp;|&#160;|&#xa0;/gi, " ")
+    .replace(/&#39;|&apos;|&rsquo;|&lsquo;|&#8216;|&#8217;/gi, "'")
+    .replace(/&quot;|&ldquo;|&rdquo;|&#8220;|&#8221;/gi, '"')
+    .replace(/&ndash;|&mdash;|&#8211;|&#8212;/gi, "-")
+    .replace(/&hellip;|&#8230;/gi, "...")
+    .replace(/&euro;|&#8364;/gi, "€")
+    .replace(/&pound;|&#163;/gi, "£")
+    .replace(/&times;|&#215;/gi, "x")
+    // Anything left over. WordPress sites in particular ship numeric entities
+    // for punctuation, and leaving "&#8211;" in the text broke opening-hours
+    // extraction: the model never saw the dash between two times.
+    .replace(/&#(\d{2,5});/g, (_, d: string) => {
+      const code = Number(d);
+      return code > 31 && code < 1114112 ? String.fromCodePoint(code) : " ";
+    })
+    .replace(/&#x([0-9a-f]{2,5});/gi, (_, h: string) => {
+      const code = parseInt(h, 16);
+      return code > 31 && code < 1114112 ? String.fromCodePoint(code) : " ";
+    })
+    // Last, so a decoded "&amp;#39;" cannot turn into a stray entity.
+    .replace(/&amp;/gi, "&")
+    // Soft hyphens and zero-width spaces are used for typographic line breaking
+    // ("Wednes<soft-hyphen>day", "5 pm-<zero-width-space> 10 pm") and would
+    // otherwise break every word and every time match.
+    .replace(/[\­\​-\‍\﻿]/g, "")
     .replace(/\s+/g, " ")
     .trim();
 }

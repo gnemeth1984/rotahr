@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
 import { isRateLimited } from "@/lib/auth/rate-limit";
 import { sendEmail } from "@/lib/email/send";
 import { findClaimable, issueClaimToken, claimEmailHtml } from "@/lib/public-page/claim";
@@ -43,6 +44,20 @@ export async function POST(req: NextRequest) {
     console.warn("[claim] no contact email on file for", business.slug);
     return uniform;
   }
+
+  // Record the attempt before sending. Without this there was no way to tell
+  // whether the claim funnel converted at all — the whole point of moving the
+  // prompt to the top of the page is to compare before/after.
+  await prisma.activityLog
+    .create({
+      data: {
+        businessId: business.id,
+        action: "claim_requested",
+        userName: business.name,
+        details: { slug: business.slug },
+      },
+    })
+    .catch((e) => console.error("[claim] activity log failed", e));
 
   const token = await issueClaimToken(business.id);
   const result = await sendEmail({

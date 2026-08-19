@@ -60,17 +60,25 @@ export function ClaimBanner({
   }
 
   return (
-    <aside className="border-t border-slate-200 bg-slate-50">
-      <div className="max-w-4xl mx-auto px-6 py-8">
-        <h2 className="font-semibold text-slate-900 mb-2">Is this your venue?</h2>
-        <p className="text-sm text-slate-600 mb-4 max-w-2xl">
+    /* scroll-mt keeps the heading clear of the top prompt when jumped to. */
+    <aside id="claim" className="scroll-mt-4 border-t border-slate-200 bg-slate-50">
+      <div className="max-w-4xl mx-auto px-6 py-10">
+        <h2 className="text-2xl font-bold text-slate-900 mb-3">Is this your venue?</h2>
+        <p className="text-sm text-slate-600 mb-4 max-w-2xl leading-relaxed">
           We built this page for {venueName} from publicly available information —
-          we don&apos;t run the venue. If it&apos;s yours, you can claim it and
-          edit everything on it: hours, menu, photos and bookings.{" "}
+          we don&apos;t run the venue. Claiming it is free and takes a minute, and
+          you get to correct anything that&apos;s wrong: opening hours, menu,
+          photos, and taking bookings straight from the page.{" "}
           {hasContact
-            ? "We'll email a claim link to the contact address we have on file."
+            ? "We'll email a claim link to the contact address we have on file, so only you can take it over."
             : "We don't have a contact address for you on file, so email us from the venue's address and we'll hand it over."}
         </p>
+        <ul className="mb-5 grid gap-x-6 gap-y-1.5 text-sm text-slate-700 sm:grid-cols-2">
+          <li>· Fix your hours and menu yourself, any time</li>
+          <li>· Take table bookings with no commission</li>
+          <li>· Free to claim — no card, no contract</li>
+          <li>· Or ask us to take it down, no questions</li>
+        </ul>
 
         {!hasContact ? (
           <a

@@ -123,5 +123,19 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // The conversion event that actually matters. Logged outside the transaction
+  // for the same reason as the consent row: never roll back a real account over
+  // a bookkeeping write.
+  await prisma.activityLog
+    .create({
+      data: {
+        businessId: business.id,
+        action: "claim_completed",
+        userName: name.trim(),
+        details: { slug: business.slug },
+      },
+    })
+    .catch((e) => console.error("[claim:complete] activity log failed", e));
+
   return NextResponse.json({ ok: true, slug: business.slug, email: normalisedEmail });
 }

@@ -17,6 +17,7 @@ import {
 } from "@/lib/public-page/seo";
 import { BookingForm } from "./_booking-form";
 import { ClaimBanner } from "./_claim-banner";
+import { ClaimPrompt } from "./_claim-prompt";
 
 export const revalidate = 300; // 5 min — venue edits appear quickly, DB stays quiet
 
@@ -139,6 +140,11 @@ export default async function PublicVenuePage({ params }: { params: { slug: stri
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
+
+      {/* Owner prompt sits ABOVE the hero: the likeliest visitor to a page
+          that ranks for the venue's own name is the owner, and the claim
+          route used to be buried at the very bottom of the page. */}
+      {venue.isProspect && <ClaimPrompt venueName={venue.name} />}
 
       {/* ── Hero ─────────────────────────────────────────────────────── */}
       <header className="relative overflow-hidden bg-slate-900">
@@ -300,17 +306,29 @@ export default async function PublicVenuePage({ params }: { params: { slug: stri
             <h2 className="text-2xl font-bold">Opening hours</h2>
             {venue.openingHours.length > 0 ? (
               <ul className="mt-5 space-y-2">
-                {venue.openingHours.map((h) => (
-                  <li
-                    key={h.day}
-                    className={`flex justify-between rounded-lg px-3 py-2 text-sm ${
-                      h.day === todayIdx ? "bg-white font-semibold shadow-sm" : "text-slate-600"
-                    }`}
-                  >
-                    <span>{DAY_NAMES[h.day]}</span>
-                    <span>{h.closed ? "Closed" : `${h.open} – ${h.close}`}</span>
-                  </li>
-                ))}
+                {/* Grouped by day because a venue can trade two sessions in one
+                    day (lunch, then dinner). Flattening them into one range
+                    would claim it is open through the afternoon break. */}
+                {[...new Set(venue.openingHours.map((h) => h.day))].map((day) => {
+                  const rows = venue.openingHours.filter((h) => h.day === day);
+                  const label = rows.every((h) => h.closed)
+                    ? "Closed"
+                    : rows
+                        .filter((h) => !h.closed)
+                        .map((h) => `${h.open} – ${h.close}`)
+                        .join(", ");
+                  return (
+                    <li
+                      key={day}
+                      className={`flex justify-between gap-3 rounded-lg px-3 py-2 text-sm ${
+                        day === todayIdx ? "bg-white font-semibold shadow-sm" : "text-slate-600"
+                      }`}
+                    >
+                      <span>{DAY_NAMES[day]}</span>
+                      <span className="text-right">{label}</span>
+                    </li>
+                  );
+                })}
               </ul>
             ) : (
               /* Say so rather than showing a guessed week. Most searchers who

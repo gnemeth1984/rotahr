@@ -70,11 +70,22 @@ export function normaliseOpeningHours(raw: unknown): OpeningHoursEntry[] {
  *
  * Returns [] when there is nothing publishable, which the page treats as
  * "hours not confirmed" rather than guessing.
+ *
+ * SPLIT SERVICE
+ * More than one session a day is normal in Irish hospitality — Pad Thai in
+ * Listowel serves lunch 12:30-15:00 then dinner 16:00-22:00. Keeping one row per
+ * day would have to collapse that to 12:30-22:00, which tells a diner the place
+ * is open at 15:30 when it is shut. So several sessions per day are preserved
+ * here, deduplicated and ordered, and the page renders them as separate ranges.
+ * The settings form still uses `normaliseOpeningHours` and its one row per day.
  */
 export function parsePublicOpeningHours(raw: unknown): OpeningHoursEntry[] {
   if (!Array.isArray(raw)) return [];
 
-  const byDay = new Map<number, OpeningHoursEntry>();
+  const seen = new Set<string>();
+  const sessions: OpeningHoursEntry[] = [];
+  const closedDays = new Set<number>();
+
   for (const item of raw) {
     if (!item || typeof item !== "object") continue;
     const o = item as Record<string, unknown>;
@@ -84,14 +95,33 @@ export function parsePublicOpeningHours(raw: unknown): OpeningHoursEntry[] {
     const closed = Boolean(o.closed);
     const open = typeof o.open === "string" && /^\d{2}:\d{2}$/.test(o.open) ? o.open : null;
     const close = typeof o.close === "string" && /^\d{2}:\d{2}$/.test(o.close) ? o.close : null;
-    if (!closed && (!open || !close)) continue;
 
-    byDay.set(day, { day, closed, open: open ?? "", close: close ?? "" });
+    if (closed) {
+      closedDays.add(day);
+      continue;
+    }
+    if (!open || !close) continue;
+
+    const key = `${day}|${open}|${close}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    // A stated session beats a "closed" flag for the same day; the flag is
+    // usually a stale default row rather than a real statement.
+    closedDays.delete(day);
+    if (sessions.filter((x) => x.day === day).length >= 3) continue;
+    sessions.push({ day, closed: false, open, close });
   }
 
-  const entries = [...byDay.values()].sort((a, b) => a.day - b.day);
   // An all-closed week is missing data far more often than a shut venue.
-  return entries.some((e) => !e.closed) ? entries : [];
+  if (sessions.length === 0) return [];
+
+  for (const day of closedDays) {
+    if (!sessions.some((x) => x.day === day)) {
+      sessions.push({ day, closed: true, open: "", close: "" });
+    }
+  }
+
+  return sessions.sort((a, b) => a.day - b.day || a.open.localeCompare(b.open));
 }
 
 /**
