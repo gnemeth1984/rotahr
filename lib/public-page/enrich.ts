@@ -130,7 +130,7 @@ ABSOLUTE RULES
 - If the text shows hours for only some days, return only those days. Never complete the week.
 - A day the site explicitly says is closed => {"closed": true}. A day not mentioned at all => omit it entirely.
 - Times must be 24-hour "HH:MM". Convert "5pm" -> "17:00", "12 noon" -> "12:00".
-- Ignore hours that clearly belong to something other than the venue's main trading: kitchen-only times are fine to report as trading hours ONLY if no separate venue hours are given, and then flag it.
+- Say WHAT the hours are for, in "hoursScope". A large property publishes hours for its spa, its golf desk, its breakfast service and its restaurant, and none of those are the venue's own opening hours. Use "venue" only when the text gives hours for the whole place. Otherwise name the department: "restaurant", "bar", "cafe", "breakfast", "kitchen", "spa", "leisure", "golf", "shop", "reception", "other".
 - For dishes: only real, currently-listed FOOD AND DRINK items served to a customer at the venue. Never invent a price. Skip section headers, allergen notes and marketing lines.
 - NEVER report an online-shop or gift-shop product as a dish. Not dishes: clothing and merchandise (hats, caps, snoods, t-shirts, hoodies, aprons, tote bags), homeware (mugs, tumblers, keep cups, flasks, tea towels, candles), gift cards, gift vouchers, hampers, cookbooks, subscriptions, and retail packages sold to take home (a 250g/1kg bag of coffee beans, a box of teabags, a jar of jam). If the surrounding text is a product listing with an "add to cart", a stock status, a weight or a grind option, it is retail, not a menu.
 - If the page is a cookie wall, a holding page, or has no usable content, say so via "unusable": true.
@@ -140,6 +140,7 @@ OUTPUT JSON ONLY:
   "unusable": boolean,
   "openingHours": null | [{"day": 0-6 (0=Sunday), "closed": boolean, "open": "HH:MM", "close": "HH:MM"}],
   "hoursQuote": null | "the exact sentence(s) from the text stating the hours",
+  "hoursScope": null | "venue"|"restaurant"|"bar"|"cafe"|"breakfast"|"kitchen"|"spa"|"leisure"|"golf"|"shop"|"reception"|"other",
   "dishes": [{"name": string, "description": string|null, "price": number|null, "category": "starter"|"main"|"dessert"|"sides"|"drinks"|"other"}],
   "about": null | "1-3 factual sentences drawn ONLY from the text",
   "cuisine": null | "short label e.g. Modern Irish, Thai, Seafood",
@@ -150,6 +151,7 @@ interface ModelOut {
   unusable?: boolean;
   openingHours?: { day: number; closed?: boolean; open?: string; close?: string }[] | null;
   hoursQuote?: string | null;
+  hoursScope?: string | null;
   dishes?: { name?: string; description?: string | null; price?: number | null; category?: string }[];
   about?: string | null;
   cuisine?: string | null;
@@ -398,6 +400,18 @@ function quoteIsPresent(quote: string, sourceText: string): boolean {
   return hits / q.length >= 0.7;
 }
 
+/**
+ * Which departments' hours may stand in for the venue's own.
+ *
+ * A live batch had The Harbour Hotel proposing 07:00-10:30 (its breakfast
+ * service) and Druids Glen proposing 10:00-18:30 (its spa) as opening hours. A
+ * hotel is not shut at 11am. Publishing a department's times as the venue's is
+ * the same class of error as inventing them.
+ */
+const SCOPE_USABLE = new Set(["venue", "restaurant", "bar", "cafe", "pub"]);
+/** Only "venue" is the whole place; the rest need saying out loud. */
+const SCOPE_NEEDS_LABEL = new Set(["restaurant", "bar", "cafe", "pub"]);
+
 /** Dishes must be traceable to the page text too. */
 function corroborateDishes(dishes: EnrichedDish[], sourceText: string): EnrichedDish[] {
   const hay = sourceText.toLowerCase().replace(/\s+/g, " ");
@@ -498,6 +512,13 @@ export async function enrichFromWebsite(opts: {
 
     if (!result.openingHours) {
       let hours = sanitiseHours(out.openingHours);
+      const scope = (out.hoursScope ?? "").trim().toLowerCase();
+      if (hours && scope && !SCOPE_USABLE.has(scope)) {
+        result.warnings.push(
+          `${url}: ignored ${scope} hours — those belong to one part of the property, not to the venue`
+        );
+        hours = null;
+      }
       if (hours) {
         const check = hoursAreCorroborated(hours, out.hoursQuote, text);
         if (check.ok) {
@@ -518,6 +539,11 @@ export async function enrichFromWebsite(opts: {
           result.openingHours = hours;
           result.provenance.openingHours = { sourceUrl: url, fetchedAt: now, needsReview: true };
           if (check.warning) result.warnings.push(`${url}: ${check.warning}`);
+          if (SCOPE_NEEDS_LABEL.has(scope)) {
+            result.warnings.push(
+              `${url}: these are the ${scope}'s hours, which may not be the whole venue's — check before publishing`
+            );
+          }
           const days = new Set(hours.map((h) => h.day)).size;
           if (days < 7) {
             result.warnings.push(
