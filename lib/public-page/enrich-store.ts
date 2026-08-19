@@ -76,13 +76,14 @@ export async function enrichmentTargets(limit: number) {
     },
   });
 
+  // Every venue already attempted is done for this pass, including the ones that
+  // yielded nothing: leaving those out made a repeating batch re-read the same
+  // ten sites forever and never reach the rest of the queue. Deleting the row in
+  // the review screen is what puts a venue back in line.
   const done = new Set(
-    (
-      await prisma.venueEnrichment.findMany({
-        where: { status: { in: ["pending", "published"] } },
-        select: { businessId: true },
-      })
-    ).map((r) => r.businessId)
+    (await prisma.venueEnrichment.findMany({ select: { businessId: true } })).map(
+      (r) => r.businessId
+    )
   );
 
   // A page with no hours is the one costing us a real answer to a real search,

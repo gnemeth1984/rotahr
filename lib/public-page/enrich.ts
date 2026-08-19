@@ -133,7 +133,7 @@ ABSOLUTE RULES
 - Say WHAT the hours are for, in "hoursScope". A large property publishes hours for its spa, its golf desk, its breakfast service and its restaurant, and none of those are the venue's own opening hours. Use "venue" only when the text gives hours for the whole place. Otherwise name the department: "restaurant", "bar", "cafe", "breakfast", "kitchen", "spa", "leisure", "golf", "shop", "reception", "other".
 - For dishes: only real, currently-listed FOOD AND DRINK items served to a customer at the venue. Never invent a price. Skip section headers, allergen notes and marketing lines.
 - NEVER report an online-shop or gift-shop product as a dish. Not dishes: clothing and merchandise (hats, caps, snoods, t-shirts, hoodies, aprons, tote bags), homeware (mugs, tumblers, keep cups, flasks, tea towels, candles), gift cards, gift vouchers, hampers, cookbooks, subscriptions, and retail packages sold to take home (a 250g/1kg bag of coffee beans, a box of teabags, a jar of jam). If the surrounding text is a product listing with an "add to cart", a stock status, a weight or a grind option, it is retail, not a menu.
-- If the page is a cookie wall, a holding page, or has no usable content, say so via "unusable": true.
+- "unusable" means the TEXT ITSELF cannot be read: a cookie wall, a holding page, a login screen, an error page, or a page whose text is only navigation and boilerplate. A page that reads fine but simply does not state opening hours or a menu is NOT unusable — set "unusable": false and return null for the fields it does not state. Most pages are usable.
 
 OUTPUT JSON ONLY:
 {
@@ -435,6 +435,10 @@ async function readOne(url: string, text: string): Promise<ModelOut | null> {
     });
     const raw = res.choices[0]?.message?.content;
     if (!raw) return null;
+    // ENRICH_DEBUG lets a human see exactly what the model claimed for a page,
+    // which is the only way to tell "the site says nothing" apart from "we read
+    // it badly".
+    if (process.env.ENRICH_DEBUG) console.log("[enrich:debug]", url, raw.slice(0, 1200));
     return JSON.parse(raw) as ModelOut;
   } catch (e) {
     console.error("[enrich] model call failed for", url, e);
@@ -486,9 +490,16 @@ export async function enrichFromWebsite(opts: {
   const guessed = CANDIDATE_PATHS.map((p) => sameOrigin(base, p)).filter(Boolean) as string[];
   // Discovered links first — they are real. Cap the crawl so one venue cannot
   // burn the whole budget.
-  const queue = [...new Set([...discovered, ...guessed])]
-    .filter((u) => u !== base)
-    .slice(0, 6);
+  const canon = (u: string) => u.replace(/\/+$/, "").toLowerCase();
+  const seenUrls = new Set<string>([canon(base)]);
+  const queue: string[] = [];
+  for (const u of [...discovered, ...guessed]) {
+    const key = canon(u);
+    if (seenUrls.has(key)) continue;
+    seenUrls.add(key);
+    queue.push(u);
+    if (queue.length >= 6) break;
+  }
 
   const texts: { url: string; text: string }[] = [{ url: base, text: home.text }];
   for (const url of queue) {
@@ -503,7 +514,17 @@ export async function enrichFromWebsite(opts: {
   // 2. Read each page, keeping the first well-corroborated answer per field.
   for (const { url, text } of texts) {
     const out = await readOne(url, text);
-    if (!out || out.unusable) continue;
+    if (!out) continue;
+    // "unusable" is advisory, not a verdict. A live run found the model marking
+    // readable pages unusable purely because they listed no hours, which threw
+    // away the about text and cuisine it had just extracted from the same page.
+    // So it only skips a page that yielded nothing anyway.
+    const gaveSomething =
+      (Array.isArray(out.openingHours) && out.openingHours.length > 0) ||
+      (Array.isArray(out.dishes) && out.dishes.length > 0) ||
+      Boolean(out.about?.trim()) ||
+      Boolean(out.cuisine?.trim());
+    if (out.unusable && !gaveSomething) continue;
     if (Array.isArray(out.flags)) {
       for (const f of out.flags) {
         if (typeof f === "string" && f.trim()) result.warnings.push(`${url}: ${f.trim()}`);
