@@ -14,6 +14,7 @@ import { prisma } from "@/lib/prisma";
 import {
   enrichFromWebsite,
   isGenericItem,
+  isPackageItem,
   isRetailItem,
   type EnrichmentResult,
   type EnrichedDish,
@@ -250,7 +251,9 @@ export async function enrichmentQueue(status: string, limit = 60): Promise<Queue
         cuisine: proposed?.cuisine ?? null,
         // Filtered on read as well as on extraction, so rows queued before a
         // filter existed are cleaned up for the reviewer too.
-        dishes: (proposed?.dishes ?? []).filter((d) => !isRetailItem(d) && !isGenericItem(d)),
+        dishes: (proposed?.dishes ?? []).filter(
+          (d) => !isRetailItem(d) && !isGenericItem(d) && !isPackageItem(d),
+        ),
         pagesFetched: proposed?.pagesFetched ?? [],
         provenance: proposed?.provenance ?? {},
         warnings: proposed?.warnings ?? [],
@@ -289,7 +292,7 @@ export async function publishEnrichment(
 
   const keepNames = new Set(approved.dishes ?? []);
   const dishes = (found.dishes ?? []).filter(
-    (d) => keepNames.has(d.name) && !isRetailItem(d) && !isGenericItem(d)
+    (d) => keepNames.has(d.name) && !isRetailItem(d) && !isGenericItem(d) && !isPackageItem(d)
   );
 
   await prisma.$transaction(async (tx) => {
