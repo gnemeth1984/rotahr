@@ -36,6 +36,7 @@ import { OutreachTab } from "@/components/admin/outreach-tab";
 import { InboxTab } from "@/components/admin/inbox-tab";
 import { ListingsTab } from "@/components/admin/listings-tab";
 import { LinksTab } from "@/components/admin/links-tab";
+import { VenueEnrichmentTab } from "@/components/admin/venue-enrichment-tab";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
@@ -108,6 +109,7 @@ const ADMIN_TABS = [
   "outreach",
   "listings",
   "links",
+  "venues",
   "inbox",
   "seo",
   "audit",
@@ -468,6 +470,8 @@ export default function AdminPage() {
             ? "Paste a venue's email, build them a live page, then send the invite once you've looked at it"
             : activeTab === "links"
             ? "Off-site visibility — directories, trade press and associations, contacted by hand"
+            : activeTab === "venues"
+            ? "Read each venue's own website, then tick the facts you believe before anything goes live"
             : activeTab === "inbox"
             ? "Incoming mail to sales@rotahr.com — AI drafts a reply, you review and send"
             : "Email marketing campaigns & audiences"}
@@ -585,6 +589,18 @@ export default function AdminPage() {
           </span>
         </button>
         <button
+          onClick={() => setActiveTab("venues")}
+          className={`shrink-0 whitespace-nowrap px-3 py-2.5 text-sm font-medium border-b-2 transition-colors sm:px-4 sm:py-2 ${
+            activeTab === "venues"
+              ? "border-emerald-600 text-emerald-700"
+              : "border-transparent text-slate-500 hover:text-slate-700"
+          }`}
+        >
+          <span className="flex items-center gap-1.5">
+            <Store className="h-3.5 w-3.5" /> Venue pages
+          </span>
+        </button>
+        <button
           onClick={() => setActiveTab("inbox")}
           className={`shrink-0 whitespace-nowrap px-3 py-2.5 text-sm font-medium border-b-2 transition-colors sm:px-4 sm:py-2 ${
             activeTab === "inbox"
@@ -621,6 +637,8 @@ export default function AdminPage() {
       {activeTab === "links" && <LinksTab />}
 
       {/* AI inbox assistant tab */}
+      {activeTab === "venues" && <VenueEnrichmentTab />}
+
       {activeTab === "inbox" && <InboxTab />}
 
       {/* Users tab */}

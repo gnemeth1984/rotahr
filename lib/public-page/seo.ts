@@ -42,15 +42,50 @@ export function localityFromAddress(address?: string | null): string | null {
 
   // A bare county name ("Baltimore, Cork, Ireland") is a weaker locality than
   // the town before it — drop it, but only while something better survives.
+  // "3-4 Dock Road, Limerick" is the opposite case: the name doubles as a city,
+  // and a street is not a locality, so it stays.
   const trimmed = [...parts];
-  while (trimmed.length > 1 && COUNTIES.has(trimmed[trimmed.length - 1].toLowerCase())) {
+  while (
+    trimmed.length > 1 &&
+    COUNTIES.has(trimmed[trimmed.length - 1].toLowerCase()) &&
+    !looksLikeStreet(trimmed[trimmed.length - 2])
+  ) {
     trimmed.pop();
   }
 
   const town = trimmed[trimmed.length - 1];
-  // Guard against a street sneaking through on a one-line address.
+  // A Dublin postal district is a locality people search with, so keep it even
+  // though it carries a digit.
+  if (/^dublin\s*\d{1,2}$/i.test(town.trim())) return tidyLocality(town);
+  // Otherwise guard against a street sneaking through on a one-line address.
   if (/\d/.test(town) && trimmed.length === 1) return null;
-  return town || null;
+  return tidyLocality(town);
+}
+
+/** A street is never the locality, so it must not push a city name off the end. */
+function looksLikeStreet(part: string): boolean {
+  return (
+    /\d/.test(part) ||
+    /\b(st|street|rd|road|ave|avenue|lane|ln|quay|square|sq|terrace|parade|walk|row|hill|place|pl)\b\.?$/i.test(
+      part.trim()
+    )
+  );
+}
+
+/**
+ * Census and OSM boundary names leak into scraped addresses, and they read as
+ * nonsense in a title: "Pad Thai Restaurant — Contact | Listowel Urban ED".
+ * Nobody searches for an electoral division, so strip the administrative tail.
+ */
+function tidyLocality(town: string): string | null {
+  const cleaned = town
+    .replace(/\b(urban|rural)\s+(ed|electoral\s+division|district)\b/gi, "")
+    .replace(/\b(ed|electoral\s+division|municipal\s+district|county\s+council)\b/gi, "")
+    .replace(/\b(the\s+)?municipal\s+borough\b/gi, "")
+    .replace(/\s{2,}/g, " ")
+    .replace(/[\s,-]+$/, "")
+    .trim();
+  return cleaned || null;
 }
 
 /**
