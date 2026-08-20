@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
 import ReactMarkdown from 'react-markdown';
 import ShareButtons from '@/components/blog/ShareButtons';
+import { suggestTemplates } from '@/lib/templates/suggest';
 
 export const revalidate = 3600;
 
@@ -58,6 +59,13 @@ export default async function BlogPostPage({ params }: Props) {
       faq = [];
     }
   }
+
+  // Templates worth offering under this specific article. Returns nothing when
+  // nothing genuinely matches — a block of unrelated downloads reads as filler
+  // and is a worse internal link than none.
+  const templates = suggestTemplates(
+    `${post.title} ${post.excerpt ?? ""} ${post.content ?? ""}`
+  );
 
   const related = await prisma.blogPost.findMany({
     where: { published: true, category: post.category, slug: { not: post.slug } },
@@ -151,6 +159,63 @@ export default async function BlogPostPage({ params }: Props) {
                 </details>
               ))}
             </div>
+          </section>
+        )}
+
+        {/* Free templates. When nothing genuinely matches this article the
+            block collapses to a single line rather than showing three
+            unrelated downloads — but the link to the library stays, so every
+            article is a crawl path to /templates, not just the 25 that
+            happen to match. */}
+        {templates.length === 0 ? (
+          <p className="mt-12 text-sm text-gray-500">
+            Free printable{" "}
+            <Link href="/templates" className="text-emerald-700 hover:underline">
+              hospitality templates
+            </Link>{" "}
+            — rotas, temperature logs, cleaning schedules and more, in PDF and
+            Excel. No email needed.
+          </p>
+        ) : (
+          <section className="mt-12 rounded-2xl border border-gray-200 bg-gray-50 p-6">
+            <h3 className="font-bold text-gray-900 text-lg mb-1">
+              Free templates for this
+            </h3>
+            <p className="text-gray-600 text-sm mb-4">
+              Printable PDF and editable Excel. No email address, no sign-up.
+            </p>
+            <ul className="space-y-3">
+              {templates.map((t) => (
+                <li key={t.slug} className="flex flex-wrap items-center gap-3">
+                  <Link
+                    href={`/templates/${t.slug}`}
+                    className="font-semibold text-sm text-gray-900 hover:text-emerald-700"
+                  >
+                    {t.name}
+                  </Link>
+                  <a
+                    href={`/templates/${t.slug}.pdf`}
+                    download
+                    className="text-xs font-semibold text-emerald-700 hover:underline"
+                  >
+                    PDF
+                  </a>
+                  <a
+                    href={`/templates/${t.slug}.xlsx`}
+                    download
+                    className="text-xs font-semibold text-emerald-700 hover:underline"
+                  >
+                    Excel
+                  </a>
+                </li>
+              ))}
+            </ul>
+            <Link
+              href="/templates"
+              className="mt-4 inline-block text-sm text-gray-500 hover:text-emerald-700"
+            >
+              All free templates →
+            </Link>
           </section>
         )}
 
