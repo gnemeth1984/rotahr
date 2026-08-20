@@ -212,6 +212,37 @@ async function repairMissingCovers(limit = 1) {
   return repaired;
 }
 
+/**
+ * Publish a hand-written article that was queued for today.
+ *
+ * Some articles have to be written by hand rather than generated — anything
+ * that states real product detail (the template library, pricing, features)
+ * needs facts the model does not have and must not invent. Queue those as
+ * `published: false` with a `createdAt` on the day they should go out, and
+ * this publishes the due one instead of generating an article that day.
+ */
+async function publishScheduledArticle() {
+  const due = await prisma.blogPost.findFirst({
+    where: { published: false, createdAt: { lte: new Date() } },
+    orderBy: { createdAt: 'asc' },
+    select: { id: true, slug: true, title: true, category: true, coverImage: true },
+  });
+  if (!due) return null;
+
+  let coverImage = due.coverImage;
+  if (!coverImage) {
+    coverImage = await generateCoverImage(due.title, due.category).catch(() => null);
+  }
+
+  await prisma.blogPost.update({
+    where: { id: due.id },
+    data: { published: true, ...(coverImage ? { coverImage } : {}) },
+  });
+
+  console.log('[Blog] Published queued article: %s', due.slug);
+  return { slug: due.slug, title: due.title, coverImage: !!coverImage };
+}
+
 async function __cronHandler(req: Request) {
   const authHeader = req.headers.get('authorization');
   const secret = req.headers.get('x-cron-secret') || new URL(req.url).searchParams.get('secret');
@@ -227,6 +258,20 @@ async function __cronHandler(req: Request) {
     // it can fail for one run; without this, that post stays coverless forever
     // (which is exactly how a Pollinations outage left a published post blank).
     const coverlessRepaired = await repairMissingCovers();
+
+    // A hand-written article queued for today wins over anything generated —
+    // it was queued precisely because a model should not write it.
+    const scheduled = await publishScheduledArticle();
+    if (scheduled) {
+      return NextResponse.json({
+        success: true,
+        source: 'scheduled',
+        slug: scheduled.slug,
+        title: scheduled.title,
+        coverImage: scheduled.coverImage,
+        coversRepaired: coverlessRepaired,
+      });
+    }
 
     // Keyword-driven publishing (SEO autopilot). Every article is written for a
     // specific query harvested from Google Suggest / Search Console rather than
