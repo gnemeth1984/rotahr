@@ -37,6 +37,7 @@ import { InboxTab } from "@/components/admin/inbox-tab";
 import { ListingsTab } from "@/components/admin/listings-tab";
 import { LinksTab } from "@/components/admin/links-tab";
 import { VenueEnrichmentTab } from "@/components/admin/venue-enrichment-tab";
+import { TemplatesTab } from "@/components/admin/templates-tab";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
@@ -111,6 +112,7 @@ const ADMIN_TABS = [
   "links",
   "venues",
   "inbox",
+  "templates",
   "seo",
   "audit",
 ] as const;
@@ -474,6 +476,8 @@ export default function AdminPage() {
             ? "Read each venue's own website, then tick the facts you believe before anything goes live"
             : activeTab === "inbox"
             ? "Incoming mail to sales@rotahr.com — AI drafts a reply, you review and send"
+            : activeTab === "templates"
+            ? "Free template library — what people asked for, and what they actually download"
             : "Email marketing campaigns & audiences"}
         </p>
       </div>
@@ -612,6 +616,18 @@ export default function AdminPage() {
             <Inbox className="h-3.5 w-3.5" /> Inbox
           </span>
         </button>
+        <button
+          onClick={() => setActiveTab("templates")}
+          className={`shrink-0 whitespace-nowrap px-3 py-2.5 text-sm font-medium border-b-2 transition-colors sm:px-4 sm:py-2 ${
+            activeTab === "templates"
+              ? "border-emerald-600 text-emerald-700"
+              : "border-transparent text-slate-500 hover:text-slate-700"
+          }`}
+        >
+          <span className="flex items-center gap-1.5">
+            <FileText className="h-3.5 w-3.5" /> Templates
+          </span>
+        </button>
       </div>
 
       {/* Analytics tab */}
@@ -640,6 +656,9 @@ export default function AdminPage() {
       {activeTab === "venues" && <VenueEnrichmentTab />}
 
       {activeTab === "inbox" && <InboxTab />}
+
+      {/* Free template library: request queue + download counts */}
+      {activeTab === "templates" && <TemplatesTab />}
 
       {/* Users tab */}
       {activeTab === "users" && (

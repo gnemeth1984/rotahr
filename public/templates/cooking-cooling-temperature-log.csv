@@ -1,0 +1,27 @@
+Cooking & cooling temperature log
+Venue / site,
+Date,
+Chef on duty,
+
+Item / batch,Step,Start time,Start temp,End time,Core / end temp,Elapsed,Pass?,Use-by date,Initials
+,,,,,,,,,
+,,,,,,,,,
+,,,,,,,,,
+,,,,,,,,,
+,,,,,,,,,
+,,,,,,,,,
+,,,,,,,,,
+,,,,,,,,,
+,,,,,,,,,
+,,,,,,,,,
+,,,,,,,,,
+,,,,,,,,,
+,,,,,,,,,
+,,,,,,,,,
+,,,,,,,,,
+,,,,,,,,,
+
+"Probe the thickest part of the item, and sanitise the probe between items."
+A cooling record without a start time cannot be verified — write it down before you walk away.
+"Failed items need a corrective action entry: reheat, extend cooling in a shallower tray, or discard."
+Free template from Rotahr — rotahr.com/templates

@@ -1,0 +1,32 @@
+Stock count sheet
+Venue / site,
+Count date and time,
+Counted by,
+Checked by,
+
+Storage area,Item,Unit,Opening count,Closing count,Unit cost,Value,Purchases in period,Usage,Par level,Order qty
+,,,,,,,,,,
+,,,,,,,,,,
+,,,,,,,,,,
+,,,,,,,,,,
+,,,,,,,,,,
+,,,,,,,,,,
+,,,,,,,,,,
+,,,,,,,,,,
+,,,,,,,,,,
+,,,,,,,,,,
+,,,,,,,,,,
+,,,,,,,,,,
+,,,,,,,,,,
+,,,,,,,,,,
+,,,,,,,,,,
+,,,,,,,,,,
+,,,,,,,,,,
+,,,,,,,,,,
+,,,,,,,,,,
+,,,,,,,,,,
+
+"List items in the order you walk the site, not alphabetically. The sheet should follow the shelves."
+"Set the unit to match the unit your supplier invoices in, so cost and value need no conversion."
+"Count at the same point in the cycle every period — after close, before any delivery — or your usage figures mean nothing."
+Free template from Rotahr — rotahr.com/templates

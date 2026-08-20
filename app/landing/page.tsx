@@ -211,6 +211,9 @@ export default function LandingPage() {
             <Link href="/features" className="hover:text-slate-900 transition-colors">Features</Link>
             <a href="#pricing" className="hover:text-slate-900 transition-colors">Pricing</a>
             <Link href="/compare" className="hover:text-slate-900 transition-colors">Compare</Link>
+            <Link href="/templates" className="hover:text-slate-900 transition-colors">
+              Templates <span className="text-emerald-600 font-medium">free</span>
+            </Link>
             <Link href="/list" className="hover:text-slate-900 transition-colors">
               List your venue <span className="text-emerald-600 font-medium">free</span>
             </Link>
@@ -528,6 +531,10 @@ export default function LandingPage() {
             <h3 className="font-semibold text-slate-900 mb-3">More</h3>
             <ul className="space-y-2 text-slate-500">
               <li><Link href="/blog" className="hover:text-slate-900">Blog</Link></li>
+              {/* Sitewide link to the template library. Its 27 pages are the
+                  top of the funnel — a visitor downloading a temperature log is
+                  the exact person who later needs the HACCP module. */}
+              <li><Link href="/templates" className="hover:text-slate-900">Free templates</Link></li>
               <li><Link href="/list" className="hover:text-slate-900">List your venue — free</Link></li>
               {/* Sitewide link to the directory, so the 81 venue pages it links
                   are two clicks from the landing page instead of unreachable. */}

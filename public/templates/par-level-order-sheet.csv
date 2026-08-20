@@ -1,0 +1,32 @@
+Par level order sheet
+Venue / site,
+Order date,
+Ordered by,
+Delivery expected,
+
+Supplier,Item,Unit,Par level,On hand,Order qty,Unit cost,Line total,Weekend par,Order day / cut-off,Minimum order value,Notes
+,,,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+
+"Order quantity is par minus on hand. If you are regularly overriding it, the par is wrong — change the par, not the order."
+Write each supplier's order day and cut-off time on the sheet. Most late orders are late because nobody knew the cut-off.
+Review pars monthly and after every menu change.
+Free template from Rotahr — rotahr.com/templates

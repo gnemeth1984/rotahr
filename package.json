@@ -10,6 +10,7 @@
     "dev": "next dev",
     "build": "prisma generate && next build",
     "start": "next start",
+    "templates:build": "bun run scripts/dump-templates.ts > /tmp/templates.json && python3 scripts/build_templates.py",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "postinstall": "prisma generate"

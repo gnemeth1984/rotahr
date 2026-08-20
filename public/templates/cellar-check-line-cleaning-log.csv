@@ -1,0 +1,32 @@
+Cellar check & line cleaning log
+Venue / site,
+Month,
+Cellar manager,
+Line clean interval per supplier,
+
+Date,Cellar temp,Gas level / spare connected,Next kegs in position,Lines cleaned today,Chemical and dilution,Rinsed and tested,First pint to waste,Initials,Next clean due,Cask ullage / waste recorded,Issues found
+,,,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+
+"Record a cellar temperature every day, including days you clean nothing."
+"Follow the line cleaning interval, chemical and dilution specified by your dispense supplier and brewery for your own system."
+"Rinse until the water runs clear, test the pour, and put the first pint to waste. Record all three."
+Free template from Rotahr — rotahr.com/templates

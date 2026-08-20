@@ -2188,11 +2188,11 @@ model NavProfile {
   id     String @id @default(cuid())
   userId String @unique
 
-  wakeTime   String  @default("07:00")
-  sleepTime  String  @default("23:00")
-  workStart  String  @default("09:00")
-  workEnd    String  @default("18:00")
-  timezone   String  @default("Europe/Dublin")
+  wakeTime  String @default("07:00")
+  sleepTime String @default("23:00")
+  workStart String @default("09:00")
+  workEnd   String @default("18:00")
+  timezone  String @default("Europe/Dublin")
 
   /// Per-weekday shape, because a single work window is a lie for shift workers.
   /// { mon: { start: "11:00", end: "19:30", note?: string } | null, ... sun: null }
@@ -2201,19 +2201,19 @@ model NavProfile {
 
   /// When the brain is actually sharp vs when it reliably crashes, in the user's words.
   energyPattern String? @db.Text
-  dietary    String? @db.Text // allergies, preferences, what he actually eats
-  kitchen    String? @db.Text // equipment / time available for cooking
-  exercise   String? @db.Text // current activity, injuries, goals
-  derailers  String? @db.Text // what usually blows the day up
-  goals      String? @db.Text // what "a good week" looks like
-  focusMins  Int     @default(50) // preferred hyperfocus block length
-  breakMins  Int     @default(10)
-  onboarded  Boolean @default(false)
+  dietary       String? @db.Text // allergies, preferences, what he actually eats
+  kitchen       String? @db.Text // equipment / time available for cooking
+  exercise      String? @db.Text // current activity, injuries, goals
+  derailers     String? @db.Text // what usually blows the day up
+  goals         String? @db.Text // what "a good week" looks like
+  focusMins     Int     @default(50) // preferred hyperfocus block length
+  breakMins     Int     @default(10)
+  onboarded     Boolean @default(false)
 
   /// How blunt Navigator is allowed to be. Only ever changes tone and length,
   /// never the mechanics or the safety boundaries.
   /// warm | direct | drill | clinical
-  coachTone  String  @default("direct")
+  coachTone String @default("direct")
 
   /// Nudge settings. Navigator's whole value is external structure, so these
   /// default ON — the quiet windows below are what stop it being noise, not the
@@ -2239,8 +2239,8 @@ model NavProfile {
 
   /// The three fixed daily rituals (warm-up / midday reset / shutdown).
   ritualsEnabled Boolean @default(true)
-  quietStart        String  @default("22:00")
-  quietEnd          String  @default("07:00")
+  quietStart     String  @default("22:00")
+  quietEnd       String  @default("07:00")
 
   /// Rotahr bridge. When off, Navigator sees nothing about the business at all
   /// and the system block is omitted from every prompt.
@@ -2317,12 +2317,12 @@ model NavShipLog {
 /// because nothing was reading it. This generalises that to all scheduled jobs
 /// so Navigator can report "3 crons failed overnight" instead of silence.
 model CronRun {
-  id   String @id @default(cuid())
+  id         String  @id @default(cuid())
   /// Route name, e.g. "navigator-nudge", "generate-blog".
-  job  String
-  ok   Boolean @default(true)
+  job        String
+  ok         Boolean @default(true)
   /// Short human summary or the error message.
-  detail String? @db.Text
+  detail     String? @db.Text
   durationMs Int?
 
   createdAt DateTime @default(now())
@@ -2380,7 +2380,7 @@ model NavNudge {
   kind   String // block | due_today | overdue | errand | stuck | idle | evening
   refKey String // block start, task id, or the date — whatever makes it unique
   title  String
-  body   String @db.Text
+  body   String   @db.Text
 
   sentAt DateTime @default(now())
 
@@ -2393,7 +2393,7 @@ model NavDayPlan {
   userId String
   date   DateTime @db.Date
 
-  energy         Int?    // 1-5 self-reported at plan time
+  energy         Int? // 1-5 self-reported at plan time
   mood           String?
   availableHours Float?
   focusTheme     String? // the one thing that makes today a win
@@ -2423,16 +2423,16 @@ model NavTask {
   // draft | todo | doing | done | parked
   // "draft" is an un-triaged capture: it deliberately does NOT appear in the
   // task list, the AI context, or any nudge, so dumping a thought costs nothing.
-  status String @default("todo")
+  status   String @default("todo")
   // urgent | important | quickwin | later
   priority String @default("important")
 
-  effortMins  Int? // honest time estimate (time-blindness compensation)
-  startTrigger String? @db.Text // the exact first physical action
-  dueDate     DateTime?
+  effortMins   Int? // honest time estimate (time-blindness compensation)
+  startTrigger String?   @db.Text // the exact first physical action
+  dueDate      DateTime?
   scheduledFor DateTime? @db.Date
-  order       Int       @default(0)
-  completedAt DateTime?
+  order        Int       @default(0)
+  completedAt  DateTime?
 
   /// Set by the nightly cron once a finished task is old enough to stop being
   /// visible. Archived is NOT deleted: history still drives momentum and time
@@ -2567,13 +2567,13 @@ model NavWorkout {
   userId String
   date   DateTime @db.Date
 
-  title       String
-  kind        String  @default("movement") // strength | cardio | mobility | walk | movement
-  durationMins Int    @default(10)
-  intensity   String  @default("easy") // easy | moderate | hard
-  steps       Json? // string[] — the actual exercises
-  completed   Boolean @default(false)
-  notes       String? @db.Text
+  title        String
+  kind         String  @default("movement") // strength | cardio | mobility | walk | movement
+  durationMins Int     @default(10)
+  intensity    String  @default("easy") // easy | moderate | hard
+  steps        Json? // string[] — the actual exercises
+  completed    Boolean @default(false)
+  notes        String? @db.Text
 
   createdAt DateTime @default(now())
 
@@ -2584,15 +2584,15 @@ model NavFocusSession {
   id     String @id @default(cuid())
   userId String
 
-  label       String
-  taskId      String?
-  plannedMins Int      @default(50)
-  startedAt   DateTime @default(now())
-  endedAt     DateTime?
-  actualMins  Int?
-  distractions Int     @default(0)
-  outcome     String?  @db.Text
-  completed   Boolean  @default(false)
+  label        String
+  taskId       String?
+  plannedMins  Int       @default(50)
+  startedAt    DateTime  @default(now())
+  endedAt      DateTime?
+  actualMins   Int?
+  distractions Int       @default(0)
+  outcome      String?   @db.Text
+  completed    Boolean   @default(false)
 
   @@index([userId, startedAt])
 }
@@ -2617,10 +2617,36 @@ model NavChatMessage {
 
   // user | assistant
   role    String
-  content String  @db.Text
+  content String @db.Text
   actions Json? // what the assistant actually did, for transparency
 
   createdAt DateTime @default(now())
 
   @@index([userId, createdAt])
+}
+
+// ── Free template library ────────────────────────────────────────────────────
+// Public requests from /templates. No auth — anyone can ask for a template.
+// Email is optional: the request is still useful as a signal of what paperwork
+// operators are missing even when nobody wants a reply.
+model TemplateRequest {
+  id        String  @id @default(cuid())
+  request   String  @db.Text
+  email     String?
+  venueType String?
+
+  // new | planned | shipped | rejected
+  status      String    @default("new")
+  // slug of the template that answered this request, once one exists
+  fulfilledBy String?
+  notifiedAt  DateTime?
+  adminNote   String?   @db.Text
+
+  ipHash    String? // coarse rate limiting, not identification
+  userAgent String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
 }

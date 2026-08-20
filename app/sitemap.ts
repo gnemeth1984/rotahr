@@ -4,6 +4,7 @@ import { listPublicVenueSlugs } from '@/lib/public-page/data';
 import { competitors } from '@/lib/seo/competitors';
 import { locations } from '@/lib/seo/locations';
 import { features } from '@/lib/seo/features';
+import { freeTemplates } from '@/lib/templates';
 
 // Canonical production domain. Must stay rotahr.com — the Vercel subdomain
 // would split ranking signals across two hostnames.
@@ -56,6 +57,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // is the page that actually links them.
     { url: `${baseUrl}/venues-directory`, lastModified: new Date(), changeFrequency: 'daily', priority: 0.7 },
     { url: `${baseUrl}/compare`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.7 },
+    // Free template library. Top-of-funnel: "free HACCP temperature log
+    // template" style queries have real volume and no commercial intent, and
+    // every page links back to the module that replaces the paperwork.
+    { url: `${baseUrl}/templates`, lastModified: new Date(), changeFrequency: 'weekly', priority: 0.8 },
+    ...freeTemplates.map(t => ({
+      url: `${baseUrl}/templates/${t.slug}`,
+      lastModified: new Date(),
+      changeFrequency: 'monthly' as const,
+      priority: 0.75,
+    })),
     { url: `${baseUrl}/features`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.8 },
     // Screenshot tour of the signed-in app. Public on purpose: buyers want to
     // see inside before they sign up, and software-directory reviewers cannot

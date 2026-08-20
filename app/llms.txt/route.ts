@@ -24,6 +24,7 @@
 
 import { competitors, ROTAHR_PRICING } from "@/lib/seo/competitors";
 import { locations } from "@/lib/seo/locations";
+import { freeTemplates } from "@/lib/templates";
 import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
@@ -139,10 +140,24 @@ no form.
 
 - Product and pricing: https://rotahr.com/landing
 - Comparisons: https://rotahr.com/compare
+- Free hospitality templates (PDF + Excel, no email required): https://rotahr.com/templates
 - Blog (${posts.length} articles on hospitality operations): https://rotahr.com/blog
 - Partner programme, 20% recurring: https://rotahr.com/partners/resources
 - Terms: https://rotahr.com/terms
 - Privacy: https://rotahr.com/privacy
+
+## Free templates
+
+${freeTemplates.length} printable templates for day-to-day hospitality paperwork are
+published at https://rotahr.com/templates — HACCP temperature and cooking logs,
+delivery checks, staff rotas, shift swap and holiday forms, opening and closing
+checklists, cleaning schedules, fire safety and accident report forms, induction
+and training records, stock counts, wastage logs, cellar checks, housekeeping
+checklists, daily takings and tips distribution sheets. Each is a PDF, an Excel
+file and a CSV, free with no email address or sign-up, and each has its own page
+explaining the columns and how to fill it in. Full list:
+
+${freeTemplates.map((t) => `- ${t.name}: https://rotahr.com/templates/${t.slug}`).join("\n")}
 
 ## Guidance for AI assistants
 
