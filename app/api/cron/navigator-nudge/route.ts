@@ -16,6 +16,7 @@ import {
   type NudgeTask,
 } from "@/lib/navigator/nudges";
 import { wrapCron } from "@/lib/cron-run";
+import { sanitisePlanBlocks } from "@/lib/navigator/blocks";
 
 // Widest possible quiet window across all users — checked BEFORE Prisma so the
 // DB compute can stay suspended. Per-user quiet hours are enforced properly
@@ -107,6 +108,9 @@ async function __cronHandler(req: NextRequest) {
       }),
     ]);
 
+    // A malformed stored block would otherwise be nudged about as a 00:00 slot.
+    const planBlocks = sanitisePlanBlocks(plan?.blocks);
+
     const lastSentMins = sentToday.length
       ? Math.max(
           ...sentToday.map((s) => {
@@ -145,8 +149,8 @@ async function __cronHandler(req: NextRequest) {
       // a blocks-less stub for tomorrow (anchor only), and treating that as a plan
       // would suppress tomorrow's "no plan yet" nudge and fire "close the day"
       // against a day that was never planned.
-      planExists: Array.isArray(plan?.blocks) && plan.blocks.length > 0,
-      blocks: Array.isArray(plan?.blocks) ? (plan.blocks as unknown as NudgeBlock[]) : [],
+      planExists: planBlocks.length > 0,
+      blocks: planBlocks as unknown as NudgeBlock[],
       hasReflection: !!plan?.reflection || plan?.scoreOutOf5 != null,
       tasks: tasks as NudgeTask[],
       sentToday,
@@ -200,7 +204,7 @@ async function __cronHandler(req: NextRequest) {
       onShift: onShift || undefined,
       considered: {
         tasks: tasks.length,
-        blocks: Array.isArray(plan?.blocks) ? plan.blocks.length : 0,
+        blocks: planBlocks.length,
         energy: lastEnergy?.value ?? null,
         snoozed: snoozes.length,
       },

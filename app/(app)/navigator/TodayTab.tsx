@@ -10,9 +10,31 @@ import { TimeDebtCard } from "./TimeDebtCard";
 import { RitualsCard } from "./RitualsCard";
 import { NudgeFeed } from "./NudgeFeed";
 
+const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+/** A block with no real time window has nothing to render and breaks the maths. */
+function isRenderableBlock(b: unknown): b is Block {
+  if (!b || typeof b !== "object") return false;
+  const r = b as Record<string, unknown>;
+  return (
+    typeof r.start === "string" &&
+    HHMM.test(r.start) &&
+    typeof r.end === "string" &&
+    HHMM.test(r.end) &&
+    typeof r.label === "string" &&
+    !!r.label.trim()
+  );
+}
+
 export function TodayTab({ state, refresh }: { state: NavState; refresh: () => void }) {
   const plan = state.plan;
-  const blocks: Block[] = (plan?.blocks as Block[] | null) ?? [];
+  // Defensive on purpose. Every block here gets arithmetic done on its start and
+  // end, so one malformed entry used to throw during render and take the whole
+  // page down. The API sanitises too; this is the second lock on the same door.
+  const blocks: Block[] = useMemo(() => {
+    const raw = (plan?.blocks as Block[] | null) ?? [];
+    return Array.isArray(raw) ? raw.filter(isRenderableBlock) : [];
+  }, [plan?.blocks]);
 
   const [energy, setEnergy] = useState<number | null>(plan?.energy ?? null);
   const [hours, setHours] = useState<string>(String(plan?.availableHours ?? 6));
@@ -35,13 +57,13 @@ export function TodayTab({ state, refresh }: { state: NavState; refresh: () => v
   const [score, setScore] = useState<number | null>(plan?.scoreOutOf5 ?? null);
 
   const nowMins = useMemo(() => {
-    const [h, m] = state.now.split(":").map(Number);
-    return h * 60 + m;
+    const [h, m] = String(state.now ?? "").split(":").map(Number);
+    return (Number.isFinite(h) ? h : 0) * 60 + (Number.isFinite(m) ? m : 0);
   }, [state.now]);
 
   const toMins = (t: string) => {
-    const [h, m] = t.split(":").map(Number);
-    return (h || 0) * 60 + (m || 0);
+    const [h, m] = String(t ?? "").split(":").map(Number);
+    return (Number.isFinite(h) ? h : 0) * 60 + (Number.isFinite(m) ? m : 0);
   };
 
   const currentIdx = blocks.findIndex((b) => toMins(b.start) <= nowMins && nowMins < toMins(b.end));

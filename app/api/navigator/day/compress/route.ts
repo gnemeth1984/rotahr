@@ -5,6 +5,7 @@ import { getOrCreateProfile, DEFAULT_TZ, windowForDate } from "@/lib/navigator/c
 import { todayKey, dayFromKey, nowTime } from "@/lib/navigator/dates";
 import { compressDay, planIsStale } from "@/lib/navigator/compress";
 import { z } from "zod";
+import { sanitisePlanBlocks } from "@/lib/navigator/blocks";
 
 export const dynamic = "force-dynamic";
 
@@ -56,7 +57,7 @@ export async function POST(req: NextRequest) {
 
   const { window: shift } = windowForDate(profile, key);
 
-  const result = compressDay(plan.blocks, nowMins, dayEndMins, shift);
+  const result = compressDay(sanitisePlanBlocks(plan.blocks), nowMins, dayEndMins, shift);
 
   if (parsed.data.dryRun) {
     return NextResponse.json({ ...result, saved: false, wasStale: planIsStale(plan.blocks, nowMins) });
@@ -64,7 +65,7 @@ export async function POST(req: NextRequest) {
 
   const saved = await prisma.navDayPlan.update({
     where: { userId_date: { userId, date } },
-    data: { blocks: result.blocks as any },
+    data: { blocks: sanitisePlanBlocks(result.blocks) as any },
   });
 
   // Dropped work is not silently deleted. Anything that had a task behind it goes

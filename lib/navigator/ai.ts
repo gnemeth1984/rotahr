@@ -2,6 +2,7 @@ import OpenAI from "openai";
 import { prisma } from "@/lib/db";
 import { buildSnapshot, renderSnapshot, windowForDate, renderWeekPattern, type Snapshot } from "./context";
 import { enforceShiftWindow, withShiftBuffers } from "./shift";
+import { sanitisePlanBlocks } from "./blocks";
 import { dayFromKey, weekdayName, minutesBetween } from "./dates";
 import { redListPromptBlock } from "./redlist";
 
@@ -431,14 +432,22 @@ async function runTool(
 
     case "set_day_plan": {
       const key = args.date ?? today;
+      // The model occasionally emits a half-finished block. Storing one used to
+      // break the whole Navigator page on every later load, so nothing that
+      // isn't a real HH:mm window with a label is allowed into the day.
+      const blocks = sanitisePlanBlocks(args.blocks);
+      const dropped = (Array.isArray(args.blocks) ? args.blocks.length : 0) - blocks.length;
       await upsertPlan(userId, key, {
         focusTheme: args.focusTheme ?? null,
         anchor: args.anchor ?? null,
-        blocks: args.blocks ?? [],
+        blocks,
       });
       return {
-        result: { blocks: args.blocks?.length ?? 0 },
-        action: { tool: name, summary: `Day plan set for ${key} (${args.blocks?.length ?? 0} blocks)` },
+        result: { blocks: blocks.length, dropped },
+        action: {
+          tool: name,
+          summary: `Day plan set for ${key} (${blocks.length} blocks${dropped ? `, ${dropped} malformed dropped` : ""})`,
+        },
       };
     }
 

@@ -7,6 +7,7 @@ import { momentumFor } from "@/lib/navigator/momentum";
 import { timeDebtFor } from "@/lib/navigator/timedebt";
 import { ritualsForDay, currentRitual } from "@/lib/navigator/rituals";
 import { planIsStale, STALE_AFTER_MINS } from "@/lib/navigator/compress";
+import { sanitisePlanBlocks } from "@/lib/navigator/blocks";
 
 export const dynamic = "force-dynamic";
 
@@ -109,12 +110,17 @@ export async function GET() {
       )
     : [];
 
+  // Rows written before blocks were validated can still hold a malformed entry.
+  // The UI does arithmetic on every start/end, so clean the plan on the way out
+  // rather than trusting what is already stored.
+  const safePlan = plan ? { ...plan, blocks: sanitisePlanBlocks(plan.blocks) } : plan;
+
   return NextResponse.json({
     today,
     now: nowStr,
     weekStart,
     profile,
-    plan,
+    plan: safePlan,
     tasks,
     doneToday,
     drafts,
@@ -137,7 +143,7 @@ export async function GET() {
     snoozes,
     // Offered, not forced: the UI only shows the rescue button when the plan has
     // demonstrably stopped matching reality.
-    planStale: planIsStale(plan?.blocks, nowMins),
+    planStale: planIsStale(safePlan?.blocks, nowMins),
     staleAfterMins: STALE_AFTER_MINS,
   });
 }

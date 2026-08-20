@@ -32,9 +32,11 @@ const patchSchema = z.object({
   blocks: z
     .array(
       z.object({
-        start: z.string(),
-        end: z.string(),
-        label: z.string(),
+        // HH:mm enforced here, not just "a string" — the UI does arithmetic on
+        // both ends of every block, and a junk time breaks the whole page.
+        start: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
+        end: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
+        label: z.string().min(1),
         kind: z.string(),
         why: z.string().optional(),
         taskId: z.string().optional(),
