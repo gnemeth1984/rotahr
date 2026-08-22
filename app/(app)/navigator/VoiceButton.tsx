@@ -55,6 +55,9 @@ export function VoiceButton({
 }) {
   const [phase, setPhase] = useState<Phase>("idle");
   const [error, setError] = useState<string | null>(null);
+  // Shown only after a failure. A dead mic button is impossible to diagnose
+  // from a phone over text — this line puts the actual cause on screen.
+  const [diag, setDiag] = useState<string | null>(null);
   const [seconds, setSeconds] = useState(0);
 
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -109,15 +112,44 @@ export function VoiceButton({
 
     // Unlock playback inside the tap, before any await. Everything after this
     // point is too late to count as a user gesture on iOS.
+    //
+    // Deliberately NOT awaited. On some Android builds play() on a zero-length
+    // data URI settles very late or not at all, and awaiting it meant
+    // getUserMedia was never reached — the button looked completely dead with
+    // no error and no permission prompt. Calling play() synchronously inside
+    // the tap is what iOS needs; waiting for it is not.
     const audio = audioRef.current;
     if (audio) {
       try {
         audio.src = SILENT_CLIP;
-        await audio.play();
-        audio.pause();
+        const played = audio.play();
+        if (played && typeof played.then === "function") {
+          played.then(() => audio.pause()).catch(() => {});
+        }
       } catch {
         // Not fatal — the browser-voice fallback still works.
       }
+    }
+
+    // Android (and desktop Chrome) will tell us up front if the user or the OS
+    // already said no. Without this the only symptom is an instant, silent
+    // NotAllowedError that reads like a broken button.
+    let permState = "unknown";
+    try {
+      const status = await navigator.permissions?.query?.({
+        name: "microphone" as PermissionName,
+      });
+      if (status) permState = status.state;
+    } catch {
+      // Safari doesn't expose the microphone descriptor. Not an error.
+    }
+
+    if (permState === "denied") {
+      setError(
+        "Your browser is blocking the microphone for rotahr.com. Tap the padlock in the address bar → Permissions → Microphone → Allow. If it's already allowed there, check Android Settings → Apps → Chrome (or Rotahr) → Permissions → Microphone."
+      );
+      setDiag(envLine(permState, "permission-denied"));
+      return;
     }
 
     let stream: MediaStream;
@@ -126,14 +158,17 @@ export function VoiceButton({
         audio: { echoCancellation: true, noiseSuppression: true },
       });
     } catch (e) {
-      const name = e instanceof Error ? e.name : "";
+      const name = e instanceof Error ? e.name : "unknown";
       setError(
         name === "NotAllowedError" || name === "SecurityError"
-          ? "Microphone blocked. Allow mic access for rotahr.com in your browser settings, then try again."
+          ? "Microphone blocked. Allow mic access for rotahr.com (padlock in the address bar → Permissions), and check Android Settings → Apps → Chrome (or Rotahr) → Permissions → Microphone is on."
           : name === "NotFoundError"
             ? "No microphone found on this device."
-            : "Couldn't start the microphone."
+            : name === "NotReadableError" || name === "AbortError"
+              ? "Another app is holding the microphone. Close it and try again."
+              : `Couldn't start the microphone (${name}).`
       );
+      setDiag(envLine(permState, name));
       return;
     }
 
@@ -316,8 +351,31 @@ export function VoiceButton({
         {label}
       </button>
       {error && <p className="mt-1.5 text-xs text-rose-300">{error}</p>}
+      {diag && <p className="mt-1 text-[11px] leading-snug text-slate-500">{diag}</p>}
     </div>
   );
+}
+
+/**
+ * One line of environment truth, shown under an error only.
+ *
+ * A mic that does nothing is undiagnosable over text from a phone, so put the
+ * facts on screen: secure context, recorder support, permission state, and the
+ * exact DOMException name.
+ */
+function envLine(permission: string, err: string) {
+  const parts = [
+    `secure=${typeof window !== "undefined" && window.isSecureContext ? "yes" : "NO"}`,
+    `installed=${
+      typeof window !== "undefined" && window.matchMedia?.("(display-mode: standalone)").matches
+        ? "yes"
+        : "no"
+    }`,
+    `recorder=${typeof MediaRecorder === "undefined" ? "missing" : pickMimeType() || "no-format"}`,
+    `mic=${permission}`,
+    `err=${err}`,
+  ];
+  return parts.join(" · ");
 }
 
 function formatClock(total: number) {
