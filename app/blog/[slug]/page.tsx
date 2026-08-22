@@ -16,9 +16,17 @@ interface Props {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const post = await prisma.blogPost.findUnique({
     where: { slug: params.slug, published: true },
-    select: { metaTitle: true, metaDesc: true, title: true },
+    select: { metaTitle: true, metaDesc: true, title: true, coverImage: true },
   });
   if (!post) return { title: 'Not Found' };
+
+  // Covers live in a private blob store, so the public proxy route is the only
+  // URL a crawler can fetch. Absolute, because LinkedIn and Facebook ignore
+  // relative og:image values even with metadataBase set.
+  const cover = post.coverImage
+    ? `https://rotahr.com/api/blog/cover-image?url=${encodeURIComponent(post.coverImage)}`
+    : null;
+
   return {
     title: post.metaTitle || post.title,
     description: post.metaDesc,
@@ -28,6 +36,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       title: post.metaTitle || post.title,
       description: post.metaDesc || '',
       url: `/blog/${params.slug}`,
+      ...(cover ? { images: [{ url: cover, width: 1200, height: 630, alt: post.title }] } : {}),
+    },
+    twitter: {
+      card: cover ? 'summary_large_image' : 'summary',
+      title: post.metaTitle || post.title,
+      description: post.metaDesc || '',
+      ...(cover ? { images: [cover] } : {}),
     },
   };
 }
