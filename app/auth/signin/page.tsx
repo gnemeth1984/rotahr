@@ -1,163 +1,54 @@
 "use client";
 
+/**
+ * Sign in.
+ *
+ * Light theme on purpose. This page used to be dark navy while the landing page
+ * is white, so clicking a marketing CTA handed the visitor into what looked like
+ * a different product.
+ *
+ * The big one-click demo panel that used to live at the top of this page is gone —
+ * it now has a page of its own at /try (the demo chooser), which is where the
+ * landing CTA points. A page that says "Sign in" is the wrong place to browse a
+ * demo from, and the analytics said so: 128 anonymous views on this page against
+ * 2 on /auth/register in the same 30 days. What's left here is one line pointing
+ * at /try for anyone who arrived by accident.
+ *
+ * Hand-typed @rotahr.demo logins still route via /demo/preparing, so they get the
+ * same protection against landing mid-reset.
+ */
+
 import { Suspense, useState } from "react";
 import { signIn } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Briefcase, Lock, Loader2, Eye, EyeOff, ChevronDown, ChevronUp, FlaskConical } from "lucide-react";
+import { Lock, Loader2, Eye, EyeOff, FlaskConical, ArrowRight } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 
-const DEMO_STAFF_ACCOUNTS = [
-  { role: "General Manager", email: "sarah.connolly@rotahr.demo", password: "Demo1234!", color: "bg-purple-500/20 text-purple-300 border-purple-500/30" },
-  { role: "Operations Mgr",  email: "tony.brennan@rotahr.demo",   password: "Demo1234!", color: "bg-blue-500/20 text-blue-300 border-blue-500/30" },
-  { role: "Head Chef",       email: "marco.deluca@rotahr.demo",   password: "Demo1234!", color: "bg-green-500/20 text-green-300 border-green-500/30" },
-  { role: "Bar Manager",     email: "fiona.mccarthy@rotahr.demo", password: "Demo1234!", color: "bg-amber-500/20 text-amber-300 border-amber-500/30" },
-  { role: "Bartender",       email: "tommy.ryan@rotahr.demo",     password: "Demo1234!", color: "bg-slate-500/20 text-slate-300 border-slate-500/30" },
-];
-
-const DEMO_OWNER_ACCOUNTS = [
-  {
-    plan: "Starter",
-    business: "The Corner Café",
-    detail: "4 staff · 1 venue · €59/mo",
-    email: "owner.starter@rotahr.demo",
-    password: "Demo1234!",
-    badge: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
-    dot: "bg-emerald-400",
-  },
-  {
-    plan: "Pro",
-    business: "Bloom Bistro",
-    detail: "18 staff · 1 venue · €119/mo",
-    email: "owner.pro@rotahr.demo",
-    password: "Demo1234!",
-    badge: "bg-blue-500/20 text-blue-300 border-blue-500/30",
-    dot: "bg-blue-400",
-  },
-  {
-    plan: "Enterprise",
-    business: "Harrington Group",
-    detail: "20+ staff · 3 venues · €215/mo",
-    email: "owner.enterprise@rotahr.demo",
-    password: "Demo1234!",
-    badge: "bg-violet-500/20 text-violet-300 border-violet-500/30",
-    dot: "bg-violet-400",
-  },
-];
-
-function DemoPanel({ onSelect }: { onSelect: (email: string, password: string) => void }) {
-  const [open, setOpen] = useState(true);
-  const [tab, setTab] = useState<"owner" | "staff">("owner");
-
+function DemoNudge() {
   return (
-    <div className="mb-4 rounded-2xl border border-orange-500/30 bg-orange-500/5 overflow-hidden">
-      <button
-        type="button"
-        onClick={() => setOpen(!open)}
-        className="w-full flex items-center justify-between px-5 py-3.5 text-left"
-      >
-        <div className="flex items-center gap-2">
-          <FlaskConical className="h-4 w-4 text-orange-400" />
-          <span className="text-sm font-semibold text-orange-300">Try the Demo</span>
+    <Link
+      href="/try"
+      className="group mb-5 flex items-center justify-between gap-3 rounded-2xl border border-orange-200 bg-orange-50/70 px-5 py-4 transition-all hover:border-orange-300 hover:bg-orange-50"
+    >
+      <div className="flex items-start gap-3">
+        <FlaskConical className="mt-0.5 h-4 w-4 shrink-0" style={{ color: "#F97316" }} />
+        <div>
+          <p className="text-sm font-semibold" style={{ color: "#C2410C" }}>
+            Just looking? Try the live demo
+          </p>
+          <p className="mt-0.5 text-xs text-slate-600">
+            A real venue with staff, rotas and bookings in it. No signup, no card.
+          </p>
         </div>
-        {open ? (
-          <ChevronUp className="h-4 w-4 text-orange-400/60" />
-        ) : (
-          <ChevronDown className="h-4 w-4 text-orange-400/60" />
-        )}
-      </button>
-
-      {open && (
-        <div className="px-5 pb-4">
-          {/* Tab switcher */}
-          <div className="flex rounded-lg bg-slate-800/60 p-0.5 mb-4 gap-0.5">
-            <button
-              type="button"
-              onClick={() => setTab("owner")}
-              className={`flex-1 text-xs font-medium py-1.5 rounded-md transition-all ${
-                tab === "owner"
-                  ? "bg-orange-500/20 text-orange-300 shadow-sm"
-                  : "text-slate-400 hover:text-slate-300"
-              }`}
-            >
-              Owner view
-            </button>
-            <button
-              type="button"
-              onClick={() => setTab("staff")}
-              className={`flex-1 text-xs font-medium py-1.5 rounded-md transition-all ${
-                tab === "staff"
-                  ? "bg-orange-500/20 text-orange-300 shadow-sm"
-                  : "text-slate-400 hover:text-slate-300"
-              }`}
-            >
-              Staff view
-            </button>
-          </div>
-
-          {tab === "owner" && (
-            <div className="space-y-2">
-              <p className="text-xs text-slate-400 mb-3 leading-relaxed">
-                Log in as a business owner on each plan tier. See exactly what your customers see.
-              </p>
-              {DEMO_OWNER_ACCOUNTS.map((account) => (
-                <button
-                  key={account.email}
-                  type="button"
-                  onClick={() => onSelect(account.email, account.password)}
-                  className="w-full rounded-lg px-3 py-3 border transition-all hover:scale-[1.01] active:scale-[0.99] hover:border-orange-500/50 hover:bg-orange-500/10 bg-slate-800/40 border-slate-700/50 group text-left"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                      <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full border ${account.badge}`}>
-                        {account.plan}
-                      </span>
-                      <span className="text-xs font-medium text-slate-200">{account.business}</span>
-                    </div>
-                    <span className="text-[11px] text-orange-400 font-medium opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                      Login →
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-slate-500 mt-1 ml-0.5">{account.detail}</p>
-                </button>
-              ))}
-            </div>
-          )}
-
-          {tab === "staff" && (
-            <div className="space-y-2">
-              <p className="text-xs text-slate-400 mb-3 leading-relaxed">
-                The Anchor &amp; Tap — one-click login as any staff role.
-              </p>
-              {DEMO_STAFF_ACCOUNTS.map((account) => (
-                <button
-                  key={account.email}
-                  type="button"
-                  onClick={() => onSelect(account.email, account.password)}
-                  className="w-full flex items-center justify-between rounded-lg px-3 py-2.5 border transition-all hover:scale-[1.01] active:scale-[0.99] hover:border-orange-500/50 hover:bg-orange-500/10 bg-slate-800/40 border-slate-700/50 group"
-                >
-                  <div className="flex items-center gap-2.5">
-                    <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${account.color}`}>
-                      {account.role}
-                    </span>
-                    <span className="text-xs text-slate-400 group-hover:text-slate-300 transition-colors truncate max-w-[160px]">
-                      {account.email}
-                    </span>
-                  </div>
-                  <span className="text-[11px] text-orange-400 font-medium opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap ml-2">
-                    Login →
-                  </span>
-                </button>
-              ))}
-            </div>
-          )}
-
-          <p className="text-[11px] text-slate-500 pt-3">All passwords: <code className="text-slate-400">Demo1234!</code></p>
-        </div>
-      )}
-    </div>
+      </div>
+      <ArrowRight
+        className="h-4 w-4 shrink-0 text-orange-400 transition-transform group-hover:translate-x-0.5"
+      />
+    </Link>
   );
 }
 
@@ -186,7 +77,8 @@ function SignInForm() {
       if (result?.error) {
         setError("Invalid email or password.");
       } else if (result?.url) {
-        // Demo accounts typed in by hand get the same treatment as the one-click panel.
+        // A demo account typed in by hand gets the same interstitial as /try: it
+        // forwards immediately unless a scheduled reset is mid-flight.
         if (email.trim().toLowerCase().endsWith("@rotahr.demo")) {
           window.location.href = `/demo/preparing?next=${encodeURIComponent(
             new URL(result.url, window.location.origin).pathname
@@ -207,44 +99,15 @@ function SignInForm() {
     await signIn("google", { callbackUrl });
   };
 
-  const handleDemoSelect = async (demoEmail: string, demoPassword: string) => {
-    setEmail(demoEmail);
-    setPassword(demoPassword);
-    setLoading(true);
-    setError("");
-    try {
-      const result = await signIn("credentials", {
-        email: demoEmail,
-        password: demoPassword,
-        callbackUrl,
-        redirect: false,
-      });
-      if (result?.error) {
-        setError("Demo login failed — please try again.");
-      } else if (result?.url) {
-        // Always go via the interstitial: it decides whether a reset is due, runs
-        // it, and only then forwards on. It exits straight away when the data is
-        // already fresh, so this costs a fast redirect, not a wait.
-        window.location.href = `/demo/preparing?next=${encodeURIComponent(
-          new URL(result.url, window.location.origin).pathname
-        )}`;
-      }
-    } catch {
-      setError("Something went wrong. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
     <>
-      <DemoPanel onSelect={handleDemoSelect} />
+      <DemoNudge />
 
-      <div className="bg-slate-800/60 backdrop-blur border border-slate-700/50 rounded-2xl p-8">
+      <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
         {/* Google */}
         <Button
           variant="outline"
-          className="w-full border-slate-600 text-slate-300 hover:text-white hover:border-slate-500 bg-slate-700/50 gap-2 mb-6"
+          className="mb-6 w-full gap-2 border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
           onClick={handleGoogleSignIn}
           disabled={googleLoading}
         >
@@ -263,21 +126,21 @@ function SignInForm() {
 
         <div className="relative mb-6">
           <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-slate-700" />
+            <div className="w-full border-t border-slate-200" />
           </div>
           <div className="relative flex justify-center text-xs">
-            <span className="bg-slate-800 px-2 text-slate-500">or sign in with email</span>
+            <span className="bg-white px-2 text-slate-400">or sign in with email</span>
           </div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
-            <p className="text-red-400 text-sm text-center bg-red-900/20 p-3 rounded-lg">
+            <p className="rounded-lg border border-red-100 bg-red-50 p-3 text-center text-sm text-red-700">
               {error}
             </p>
           )}
           <div className="space-y-2">
-            <Label htmlFor="email" className="text-slate-300">Email address</Label>
+            <Label htmlFor="email" className="text-slate-700">Email address</Label>
             <Input
               id="email"
               type="email"
@@ -285,13 +148,18 @@ function SignInForm() {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@company.com"
               required
-              className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-500 focus-visible:ring-blue-500"
+              className="border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus-visible:ring-orange-400"
             />
           </div>
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label htmlFor="password" className="text-slate-300">Password</Label>
-              <Link href="/auth/forgot-password" className="text-xs text-blue-400 hover:text-blue-300">Forgot password?</Link>
+              <Label htmlFor="password" className="text-slate-700">Password</Label>
+              <Link
+                href="/auth/forgot-password"
+                className="text-xs text-slate-500 underline hover:text-slate-800"
+              >
+                Forgot password?
+              </Link>
             </div>
             <div className="relative">
               <Input
@@ -301,12 +169,12 @@ function SignInForm() {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
                 required
-                className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-500 focus-visible:ring-blue-500 pr-10"
+                className="border-slate-200 bg-white pr-10 text-slate-900 placeholder:text-slate-400 focus-visible:ring-orange-400"
               />
               <button
                 type="button"
                 onClick={() => setShowPw(!showPw)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-300"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
               >
                 {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
@@ -314,7 +182,8 @@ function SignInForm() {
           </div>
           <Button
             type="submit"
-            className="w-full bg-blue-600 hover:bg-blue-700 gap-2"
+            className="w-full gap-2 text-white hover:opacity-90"
+            style={{ background: "linear-gradient(135deg, #F97316, #EC4899)" }}
             disabled={loading}
           >
             {loading ? (
@@ -332,35 +201,43 @@ function SignInForm() {
 
 export default function SignInPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex items-start justify-center p-6 py-10">
+    <div className="flex min-h-screen items-start justify-center bg-slate-50 p-6 py-10">
       <div className="w-full max-w-md">
-        <div className="text-center mb-8">
+        <div className="mb-8 text-center">
           <Link href="/" className="inline-flex items-center gap-2">
-            <Briefcase className="h-8 w-8 text-blue-400" />
-            <span className="text-2xl font-bold text-white">Rotahr</span>
+            <Image
+              src="/logo-light.png"
+              alt="Rotahr"
+              width={120}
+              height={38}
+              className="h-9 w-auto object-contain"
+              priority
+            />
           </Link>
-          <h1 className="text-slate-400 mt-2 text-sm font-normal">Sign in to your workspace</h1>
+          <h1 className="mt-3 text-sm font-normal text-slate-500">
+            Sign in to your workspace
+          </h1>
         </div>
         <Suspense
           fallback={
-            <div className="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-8 text-center text-slate-400">
+            <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-slate-500">
               Loading...
             </div>
           }
         >
           <SignInForm />
         </Suspense>
-        <p className="text-center text-sm text-slate-400 mt-4">
+        <p className="mt-4 text-center text-sm text-slate-600">
           Don&apos;t have an account?{" "}
-          <Link href="/auth/register" className="text-blue-400 hover:text-blue-300 font-medium">
-            Start free trial
+          <Link href="/auth/register" className="font-medium underline" style={{ color: "#C2410C" }}>
+            Start your first month free
           </Link>
         </p>
-        <p className="text-center text-xs text-slate-500 mt-3">
+        <p className="mt-3 text-center text-xs text-slate-400">
           By signing in, you agree to our{" "}
-          <a href="/terms" className="underline hover:text-slate-400">Terms of Service</a>{" "}
+          <a href="/terms" className="underline hover:text-slate-600">Terms of Service</a>{" "}
           and{" "}
-          <a href="/privacy" className="underline hover:text-slate-400">Privacy Policy</a>.
+          <a href="/privacy" className="underline hover:text-slate-600">Privacy Policy</a>.
         </p>
       </div>
     </div>

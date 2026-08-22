@@ -91,7 +91,12 @@ const plans = [
     desc: "Perfect for small cafés and independent restaurants.",
     staff: "Up to 15 staff",
     highlight: false,
-    cta: "Get Started",
+    // Risk reversal, approved by Gabor Aug 2026. The page previously anchored
+    // EUR59/month with nothing to soften it: plain "Get Started" CTAs and no
+    // trial. With no customer logos to lean on, the first month is the only
+    // thing that lets someone say yes without a decision.
+    offer: "First month free",
+    cta: "Start your first month free",
     features: [
       "Rota scheduling & publishing",
       "Clock in/out with geofencing",
@@ -114,7 +119,8 @@ const plans = [
     desc: "For busy restaurants and bars with larger teams.",
     staff: "Up to 30 staff",
     highlight: true,
-    cta: "Get Started",
+    offer: "First month free",
+    cta: "Start your first month free",
     features: [
       "Everything in Starter",
       "Up to 30 staff members",
@@ -134,6 +140,7 @@ const plans = [
     desc: "For multi-venue groups, hotel F&B, and franchises.",
     staff: "Unlimited staff",
     highlight: false,
+    offer: null, // custom-priced, handled in conversation
     cta: "Talk to Us",
     features: [
       "Everything in Pro",
@@ -260,7 +267,8 @@ export default function LandingPage() {
           Rotas, clock-in, reservations, bookkeeping, payroll, team messaging and more — all in one place.
         </p>
         <p className="text-base text-slate-600 max-w-xl mx-auto mb-10">
-          Replace 4 separate tools with one. Starting at <strong className="text-slate-600">€59/month</strong> incl. VAT.
+          Replace 4 separate tools with one. Starting at <strong className="text-slate-600">€59/month</strong> incl. VAT —{" "}
+          <strong className="text-emerald-700">first month free</strong>, cancel anytime.
         </p>
 
         {/*
@@ -273,8 +281,9 @@ export default function LandingPage() {
           without signing up" is the strongest thing this page can offer, so it
           sits next to the primary CTA instead of at the bottom of the footer.
 
-          /try redirects to /auth/signin, which opens with the one-click demo
-          panel expanded — no typing, no card, no account.
+          /try is now a real demo chooser page (app/try/page.tsx): venue cards,
+          one click to enter, no sign-in form anywhere on it. It used to redirect
+          to /auth/signin, which meant this CTA landed on a page headed "Sign in".
         */}
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
           <Link
@@ -351,6 +360,10 @@ export default function LandingPage() {
           <div className="text-center mb-16">
             <h2 className="text-3xl font-extrabold mb-4">Simple, transparent pricing</h2>
             <p className="text-slate-500 text-lg">All prices include VAT/tax. No setup fees. Cancel anytime.</p>
+            <p className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-4 py-1.5 text-sm font-semibold text-emerald-700">
+              <Check className="w-4 h-4" />
+              First month free on Starter and Pro
+            </p>
           </div>
 
           <div className="grid md:grid-cols-3 gap-8 items-start">
@@ -376,7 +389,15 @@ export default function LandingPage() {
                   <span className="text-4xl font-extrabold">{plan.price}</span>
                   <span className="text-slate-500 text-sm ml-1">{plan.period}</span>
                 </div>
-                <div className="text-sm text-slate-600 mb-6">{plan.staff}</div>
+                <div className="text-sm text-slate-600">{plan.staff}</div>
+                {plan.offer ? (
+                  <div className="mt-3 mb-6 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+                    <Check className="w-3.5 h-3.5" />
+                    {plan.offer} · no card needed
+                  </div>
+                ) : (
+                  <div className="mb-6" />
+                )}
                 <Link
                   href={plan.name === "Enterprise" ? "/auth/signin" : "/auth/register"}
                   className={`block text-center py-3 rounded-xl text-sm font-semibold transition-all mb-8 ${

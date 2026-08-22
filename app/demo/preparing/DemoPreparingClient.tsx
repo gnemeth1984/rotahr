@@ -99,24 +99,24 @@ export default function DemoPreparingClient() {
   const pct = Math.min(96, Math.round((elapsed / SEED_MS) * 100) + 4);
 
   return (
-    <div className="min-h-screen bg-[#0F1C35] flex items-center justify-center px-6">
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center px-6">
       <div className="w-full max-w-md text-center">
         <Image
-          src="/logo-white-trans.png"
+          src="/logo-light.png"
           alt="Rotahr"
           width={150}
           height={56}
-          className="mx-auto mb-10 h-12 w-auto"
+          className="mx-auto mb-10 h-12 w-auto object-contain"
           priority
         />
 
-        <h1 className="text-2xl font-semibold text-white">Setting up your demo</h1>
-        <p className="mt-3 text-sm leading-relaxed text-slate-400">
+        <h1 className="text-2xl font-semibold text-slate-900">Setting up your demo</h1>
+        <p className="mt-3 text-sm leading-relaxed text-slate-600">
           You caught us mid-refresh — we rebuild the demo venue a few times a day
           so it always looks like a real trading week. Nearly there.
         </p>
 
-        <div className="mt-8 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+        <div className="mt-8 h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
           <div
             className="h-full rounded-full transition-all duration-500"
             style={{
@@ -128,7 +128,7 @@ export default function DemoPreparingClient() {
 
         <p className="mt-4 text-sm font-medium text-[#FF6B35]">{STEPS[step]}…</p>
 
-        <p className="mt-10 text-xs text-slate-500">
+        <p className="mt-10 text-xs text-slate-400">
           Built by a chef who got tired of paper rotas.
         </p>
       </div>

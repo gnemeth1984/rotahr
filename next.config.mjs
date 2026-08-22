@@ -56,9 +56,10 @@ const nextConfig = {
   },
   async redirects() {
     return [
-      // Short, memorable URL for print material and QR codes. Lands on the
-      // sign-in page, which has the one-click demo panel open by default.
-      { source: "/try", destination: "/auth/signin", permanent: false },
+      // NOTE: /try is a real page now (app/try/page.tsx — the demo chooser), not
+      // a redirect to /auth/signin. It's the destination of the landing page's
+      // co-primary CTA, and sending "Explore the live demo" to a page whose
+      // dominant element was a sign-in form was costing us the click.
 
       // `/landing` used to render the same component as `/`, so the marketing
       // page existed on two URLs and split its own traffic (142 views on `/`

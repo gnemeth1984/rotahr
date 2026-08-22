@@ -47,7 +47,7 @@ export default async function DemoPreparingPage({
   if (!running) redirect(next);
 
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[#0F1C35]" />}>
+    <Suspense fallback={<div className="min-h-screen bg-slate-50" />}>
       <DemoPreparingClient />
     </Suspense>
   );
