@@ -68,7 +68,12 @@ export function demoDayData(date: Date, scale = 1): DemoDaySnapshot {
 
   const totalRevenue = Math.round(hourlyData.reduce((s, h) => s + h.revenue, 0) * 100) / 100;
   const totalTransactions = hourlyData.reduce((s, h) => s + h.transactions, 0);
-  const totalCovers = Math.round(totalTransactions * (1.7 + seed * 0.5));
+  // Covers must fall out of revenue, not out of transaction count. Multiplying
+  // transactions by a party-size factor implied ~€16 a head against a menu with
+  // €32 steaks on it, and left the dashboard showing 861 covers next to a
+  // 4-cover booking sheet. Average spend per head for this menu is €34-38.
+  const spendPerHead = 34 + seed * 4;
+  const totalCovers = Math.max(1, Math.round(totalRevenue / spendPerHead));
 
   // Top items are ordered by revenue and sum to roughly 55% of the day's take,
   // which is about what a real top-10 report looks like.

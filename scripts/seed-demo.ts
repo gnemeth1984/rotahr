@@ -58,6 +58,234 @@ async function seedDemoPos(prisma: PrismaClient, businessId: string, scale: numb
   await prisma.posSnapshot.createMany({ data: snapshots });
 }
 
+/**
+ * Clock in today's shifts that have already started.
+ *
+ * The seed never created any ClockEvent rows, so the late/no-show cron flagged
+ * every single scheduled employee — the demo dashboard read "Late / No-show: 11"
+ * on Bloom Bistro and 17 on Harrington's, which looks like a venue in freefall
+ * rather than a working feature. One employee is deliberately left unclocked so
+ * the alert still demonstrates itself, at 1.
+ */
+async function seedDemoClockEvents(prisma: PrismaClient, businessId: string) {
+  await prisma.clockEvent.deleteMany({ where: { businessId } });
+
+  // Stale alerts point at shift ids this reseed just deleted.
+  const bizUsers = await prisma.user.findMany({ where: { businessId }, select: { id: true } });
+  const bizUserIds = bizUsers.map((u) => u.id);
+  if (bizUserIds.length) {
+    await prisma.appNotification.deleteMany({
+      where: { userId: { in: bizUserIds }, type: "late_checkin" },
+    });
+  }
+
+  const now = new Date();
+  const dayStart = new Date(now); dayStart.setHours(0, 0, 0, 0);
+  const dayEnd = new Date(dayStart); dayEnd.setDate(dayEnd.getDate() + 1);
+
+  const todays = await prisma.shift.findMany({
+    where: {
+      published: true,
+      employeeId: { not: null },
+      employee: { businessId },
+      startTime: { gte: dayStart, lt: dayEnd, lte: now },
+    },
+    orderBy: { startTime: "asc" },
+    select: { id: true, employeeId: true, startTime: true, endTime: true },
+  });
+
+  if (todays.length === 0) return;
+
+  // The most recently started shift stays unclocked — that is the one a manager
+  // would plausibly still be chasing.
+  const late = todays[todays.length - 1];
+  const clocked = todays.slice(0, todays.length - 1);
+
+  const rows: {
+    employeeId: string; businessId: string; type: string;
+    timestamp: Date; shiftId: string; note?: string | null;
+  }[] = [];
+
+  clocked.forEach((sh, i) => {
+    // A believable spread: mostly a few minutes early, occasionally a few late.
+    const offsetMin = [-6, -3, 2, -1, 4, -8, 1, -4, 7, -2][i % 10];
+    rows.push({
+      employeeId: sh.employeeId as string,
+      businessId,
+      type: "in",
+      timestamp: new Date(sh.startTime.getTime() + offsetMin * 60_000),
+      shiftId: sh.id,
+    });
+    if (sh.endTime <= now) {
+      rows.push({
+        employeeId: sh.employeeId as string,
+        businessId,
+        type: "out",
+        timestamp: new Date(sh.endTime.getTime() + [3, 8, 1, 12, 5][i % 5] * 60_000),
+        shiftId: sh.id,
+      });
+    }
+  });
+
+  if (rows.length) await prisma.clockEvent.createMany({ data: rows });
+
+  // Seed the single matching alert so the dashboard card shows 1 straight away
+  // instead of waiting for the next */30 cron tick.
+  const managers = await prisma.user.findMany({
+    where: { businessId, role: { in: ["ADMIN", "MANAGER"] } },
+    select: { id: true },
+  });
+  const lateEmp = await prisma.employee.findUnique({
+    where: { id: late.employeeId as string },
+    select: { firstName: true, lastName: true },
+  });
+  if (managers.length && lateEmp) {
+    const shiftTime = late.startTime.toLocaleTimeString("en-IE", {
+      hour: "2-digit", minute: "2-digit", hour12: false,
+    });
+    const minsLate = Math.max(1, Math.round((now.getTime() - late.startTime.getTime()) / 60_000));
+    await prisma.appNotification.createMany({
+      data: managers.map((m) => ({
+        userId: m.id,
+        type: "late_checkin",
+        title: `${lateEmp.firstName} ${lateEmp.lastName} hasn't clocked in`,
+        body: `Shift started at ${shiftTime} (${minsLate} min ago). No clock-in recorded.`,
+        link: "/clock",
+        referenceId: late.id,
+      })),
+    });
+  }
+}
+
+// Surnames for generated covers. Irish book, plausible mix.
+const BOOK_SURNAMES = [
+  "Murphy", "Kelly", "O'Sullivan", "Walsh", "Smith", "O'Brien", "Byrne", "Ryan",
+  "O'Connor", "O'Neill", "Reilly", "Doyle", "McCarthy", "Gallagher", "O'Doherty",
+  "Kennedy", "Lynch", "Murray", "Quinn", "Moore", "McLoughlin", "O'Carroll",
+  "Connolly", "Daly", "O'Connell", "Wilson", "Dunne", "Brennan", "Burke",
+  "Collins", "Campbell", "Clarke", "Johnston", "Hughes", "Farrell", "Fitzgerald",
+  "Brown", "Martin", "Maguire", "Nolan", "Flynn", "Thompson", "O'Callaghan",
+  "O'Donnell", "Duffy", "Mahony", "Boyle", "Healy", "Shine", "Kavanagh",
+];
+const BOOK_FIRSTS = [
+  "Aoife", "Cian", "Saoirse", "Conor", "Niamh", "Eoin", "Ciara", "Darragh",
+  "Roisin", "Padraig", "Grainne", "Fergal", "Orla", "Ruairi", "Sinead", "Colm",
+];
+
+/**
+ * Generate a full day's booking sheet for today.
+ *
+ * The dashboard used to show "Today's Bookings 1 · 4 covers" right beside a
+ * revenue card reporting hundreds of covers — the two numbers came from
+ * different places and openly contradicted each other. This fills the book to a
+ * share of the day's POS covers (the rest read as walk-ins) so the header, the
+ * bookings page and the revenue card tell one story.
+ *
+ * Statuses follow the clock: turns that have finished are completed, the turn in
+ * service is seated, later turns are still confirmed.
+ */
+async function seedTodayBook(
+  prisma: PrismaClient,
+  opts: {
+    businessId: string;
+    createdById: string;
+    tables: Array<{ id: string; cap: number }>;
+    targetCovers: number;
+    openHour?: number;
+    closeHour?: number;
+    nameOffset?: number;
+  },
+) {
+  const { businessId, createdById, tables, targetCovers } = opts;
+  const openHour = opts.openHour ?? 12;
+  const closeHour = opts.closeHour ?? 22;
+  if (!tables.length || targetCovers <= 0) return 0;
+
+  // Deterministic per-day jitter — the book should look the same all day rather
+  // than reshuffling on every demo reset.
+  let state = (Math.floor(Date.now() / 86_400_000) * 2654435761 + businessId.length * 97) >>> 0;
+  const rand = () => {
+    state = (state + 0x6d2b79f5) >>> 0;
+    let t = state;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  const pick = <T,>(arr: T[]) => arr[Math.floor(rand() * arr.length)];
+
+  const now = new Date();
+  const nowMins = now.getHours() * 60 + now.getMinutes();
+  const freeAt = new Map<string, number>(tables.map((t) => [t.id, openHour * 60]));
+
+  const rows: Array<{
+    businessId: string; customerName: string; customerPhone: string | null;
+    partySize: number; date: Date; time: string; duration: number;
+    status: string; notes: string | null; occasion: string | null;
+    tableId: string; createdById: string;
+  }> = [];
+
+  let covers = 0;
+  let nameN = opts.nameOffset ?? 0;
+
+  // Walk the service in half-hour waves so the day fills evenly across the room
+  // instead of packing table 1 and leaving the rest empty.
+  for (let mins = openHour * 60; mins < closeHour * 60 && covers < targetCovers; mins += 30) {
+    // Evening trades harder than mid-afternoon.
+    const hour = Math.floor(mins / 60);
+    const pressure = hour >= 18 ? 0.85 : hour >= 12 && hour <= 14 ? 0.7 : 0.35;
+
+    for (const t of tables) {
+      if (covers >= targetCovers) break;
+      if ((freeAt.get(t.id) ?? 0) > mins) continue;
+      if (rand() > pressure) continue;
+
+      const size =
+        t.cap >= 6 ? t.cap - Math.floor(rand() * 3)
+        : t.cap >= 4 ? 2 + Math.floor(rand() * 3)
+        : 2;
+      const duration = size >= 6 ? 120 : 90;
+      const endMins = mins + duration;
+
+      let status: string;
+      if (endMins <= nowMins) {
+        const roll = rand();
+        status = roll < 0.04 ? "no_show" : roll < 0.07 ? "cancelled" : "completed";
+      } else if (mins <= nowMins) {
+        status = "seated";
+      } else {
+        status = "confirmed";
+      }
+
+      const surname = BOOK_SURNAMES[nameN % BOOK_SURNAMES.length];
+      nameN += 1;
+      const name = size >= 5 ? `${surname} Party x${size}` : `${surname}, ${pick(BOOK_FIRSTS)}`;
+      const occasion = rand() < 0.08 ? pick(["birthday", "anniversary", "other"]) : null;
+
+      rows.push({
+        businessId,
+        customerName: name,
+        customerPhone: rand() < 0.75 ? `08${6 + Math.floor(rand() * 4)} ${100 + Math.floor(rand() * 899)} ${1000 + Math.floor(rand() * 8999)}` : null,
+        partySize: size,
+        date: days(0, 12),
+        time: `${String(Math.floor(mins / 60)).padStart(2, "0")}:${String(mins % 60).padStart(2, "0")}`,
+        duration,
+        status,
+        notes: occasion === "birthday" ? "Birthday — cake at dessert" : null,
+        occasion,
+        tableId: t.id,
+        createdById,
+      });
+
+      // No-shows and cancellations free the table straight back up.
+      freeAt.set(t.id, status === "no_show" || status === "cancelled" ? mins + 30 : endMins + 15);
+      if (status !== "cancelled" && status !== "no_show") covers += size;
+    }
+  }
+
+  if (rows.length) await prisma.reservation.createMany({ data: rows });
+  return rows.length;
+}
+
 // NOTE: No top-level PrismaClient instantiation here — each caller creates its own instance.
 // This prevents Next.js from running DB connections at build time when this file is imported.
 
@@ -465,7 +693,8 @@ export async function main(prisma: PrismaClient = new PrismaClient()) {
       },
     });
   }
-  console.log("✅ Shifts created");
+  await seedDemoClockEvents(prisma, BIZ);
+  console.log("✅ Shifts created (+ clock-ins for today)");
 
   // ── 8. Reservations ─────────────────────────────────────────────────────────
   await prisma.reservation.deleteMany({ where: { businessId: BIZ } });
@@ -505,7 +734,11 @@ export async function main(prisma: PrismaClient = new PrismaClient()) {
     { name: "Tech Startup Dinner", email: "ceo@startupco.ie",      phone: "0879012341", size: 5, dayOff: 10, time: "19:30", tableId: TABLES.t5, status: "confirmed", notes: "Investor dinner", occasion: null, dietary: null },
   ];
 
+  // Today's book is generated below by seedTodayBook so the "Today's Bookings"
+  // header agrees with the revenue card. These curated rows cover the rest of
+  // the week, where nothing has to reconcile against a till feed.
   for (const r of resDefs) {
+    if (r.dayOff === 0) continue;
     const dt = days(r.dayOff, 12);
     await prisma.reservation.create({
       data: {
@@ -526,7 +759,16 @@ export async function main(prisma: PrismaClient = new PrismaClient()) {
       },
     });
   }
-  console.log("✅ Reservations created");
+  // ~55% of today's till covers arrive as reservations; the rest read as walk-ins.
+  const bizBookRows = await seedTodayBook(prisma, {
+    businessId: BIZ,
+    createdById: USERS.sarah,
+    tables: tableDefs.map((t) => ({ id: t.id, cap: t.capacity })),
+    targetCovers: Math.round(demoDayData(new Date(), 1).totalCovers * 0.55),
+    openHour: 12,
+    closeHour: 23,
+  });
+  console.log(`✅ Reservations created (+${bizBookRows} generated for today)`);
 
   // ── 9. Expenses / Bookkeeping ───────────────────────────────────────────────
   await prisma.expense.deleteMany({ where: { businessId: BIZ } });
@@ -1448,6 +1690,7 @@ export async function seedOwnerDemos(prisma: PrismaClient) {
     const end   = shiftDate(0, dow, eh);
     await prisma.shift.create({ data: { employeeId: empId, venueId: S_VENUE, date: new Date(start.getFullYear(), start.getMonth(), start.getDate()), startTime: start, endTime: end, role, published: pub } });
   }
+  await seedDemoClockEvents(prisma, S_BIZ);
 
   // A handful of expenses
   await prisma.expense.deleteMany({ where: { businessId: S_BIZ } });
@@ -1596,6 +1839,7 @@ export async function seedOwnerDemos(prisma: PrismaClient) {
     const end   = shiftDate(0, dow, eh);
     await prisma.shift.create({ data: { employeeId: empId, venueId: P_VENUE, date: new Date(start.getFullYear(), start.getMonth(), start.getDate()), startTime: start, endTime: end, role, published: pub } });
   }
+  await seedDemoClockEvents(prisma, P_BIZ);
 
   // More expenses for Pro
   await prisma.expense.deleteMany({ where: { businessId: P_BIZ } });
@@ -1619,20 +1863,32 @@ export async function seedOwnerDemos(prisma: PrismaClient) {
 
   // Pro reservations
   await prisma.reservation.deleteMany({ where: { businessId: P_BIZ } });
-  const pTables = ["demo-p-t1","demo-p-t2","demo-p-t3","demo-p-t4","demo-p-t5"];
-  const pTablePos = [
-    { posX: 40,  posY: 40,  shape: "circle" },
-    { posX: 160, posY: 40,  shape: "square" },
-    { posX: 280, posY: 40,  shape: "square" },
-    { posX: 40,  posY: 160, shape: "rect" },
-    { posX: 200, posY: 160, width: 180, height: 55, shape: "counter" },
+  // Bloom Bistro had 5 tables / 24 seats, which cannot physically produce the
+  // covers its till feed reports — the dashboard said 861 covers next to a book
+  // of one table. A bistro trading at this level has roughly this room (14
+  // tables, 64 seats), so the book and the revenue card can tell one story.
+  const pTableDefs = [
+    { id: "demo-p-t1",  name: "Table 1",  cap: 2, loc: "Window",       posX: 40,  posY: 40,  shape: "circle" },
+    { id: "demo-p-t2",  name: "Table 2",  cap: 4, loc: "Main Floor",   posX: 150, posY: 40,  shape: "square" },
+    { id: "demo-p-t3",  name: "Table 3",  cap: 4, loc: "Main Floor",   posX: 260, posY: 40,  shape: "square" },
+    { id: "demo-p-t4",  name: "Table 4",  cap: 6, loc: "Booth",        posX: 370, posY: 40,  shape: "rect" },
+    { id: "demo-p-t5",  name: "Bar",      cap: 8, loc: "Bar",          posX: 40,  posY: 160, width: 200, height: 55, shape: "counter" },
+    { id: "demo-p-t6",  name: "Table 6",  cap: 2, loc: "Window",       posX: 280, posY: 160, shape: "circle" },
+    { id: "demo-p-t7",  name: "Table 7",  cap: 4, loc: "Main Floor",   posX: 380, posY: 160, shape: "square" },
+    { id: "demo-p-t8",  name: "Table 8",  cap: 4, loc: "Main Floor",   posX: 40,  posY: 270, shape: "square" },
+    { id: "demo-p-t9",  name: "Table 9",  cap: 4, loc: "Main Floor",   posX: 150, posY: 270, shape: "square" },
+    { id: "demo-p-t10", name: "Table 10", cap: 6, loc: "Booth",        posX: 260, posY: 270, shape: "rect" },
+    { id: "demo-p-t11", name: "Table 11", cap: 2, loc: "Terrace",      posX: 400, posY: 270, shape: "circle" },
+    { id: "demo-p-t12", name: "Table 12", cap: 4, loc: "Terrace",      posX: 40,  posY: 380, shape: "square" },
+    { id: "demo-p-t13", name: "Table 13", cap: 6, loc: "Terrace",      posX: 160, posY: 380, shape: "rect" },
+    { id: "demo-p-t14", name: "Table 14", cap: 8, loc: "Private Room", posX: 300, posY: 380, shape: "rect" },
   ];
-  for (const tid of pTables) {
-    const i = pTables.indexOf(tid);
+  for (const t of pTableDefs) {
+    const { id, name, cap, loc, ...pos } = t;
     await prisma.table.upsert({
-      where: { id: tid },
-      create: { id: tid, businessId: P_BIZ, name: `Table ${i+1}`, capacity: [2,4,4,6,8][i], location: "Main Floor", ...pTablePos[i] },
-      update: { ...pTablePos[i] },
+      where: { id },
+      create: { id, businessId: P_BIZ, name, capacity: cap, location: loc, ...pos },
+      update: { name, capacity: cap, location: loc, ...pos },
     });
   }
   const pRes = [
@@ -1647,8 +1903,20 @@ export async function seedOwnerDemos(prisma: PrismaClient) {
     { name: "Startup Dinner x5",   size: 5, dayOff: 5, time: "19:30", status: "confirmed", notes: "Investor dinner", tableId: "demo-p-t4" },
   ];
   for (const r of pRes) {
+    // Today's book is generated (seedTodayBook) so it matches the revenue card.
+    if (r.dayOff === 0) continue;
     await prisma.reservation.create({ data: { businessId: P_BIZ, customerName: r.name, partySize: r.size, date: days(r.dayOff, 12), time: r.time, duration: 90, status: r.status, notes: r.notes, tableId: r.tableId, createdById: P_USER } });
   }
+  const pBookRows = await seedTodayBook(prisma, {
+    businessId: P_BIZ,
+    createdById: P_USER,
+    tables: pTableDefs.map((t) => ({ id: t.id, cap: t.cap })),
+    targetCovers: Math.round(demoDayData(new Date(), 1.4).totalCovers * 0.55),
+    openHour: 12,
+    closeHour: 23,
+    nameOffset: 17,
+  });
+  console.log(`✅ Pro reservations created (+${pBookRows} generated for today)`);
 
   // Pro CRM — customers + notes, so the Customer CRM page isn't empty on the
   // Pro plan demo (CRM is gated to pro/enterprise in the sidebar).
@@ -1973,6 +2241,7 @@ export async function seedOwnerDemos(prisma: PrismaClient) {
     const end   = shiftDate(0, dow, eh);
     await prisma.shift.create({ data: { employeeId: empId, venueId, date: new Date(start.getFullYear(), start.getMonth(), start.getDate()), startTime: start, endTime: end, role, published: pub } });
   }
+  await seedDemoClockEvents(prisma, E_BIZ);
 
   // Enterprise expenses — high volume across all venues
   await prisma.expense.deleteMany({ where: { businessId: E_BIZ } });
@@ -1997,21 +2266,32 @@ export async function seedOwnerDemos(prisma: PrismaClient) {
 
   // Enterprise reservations across venues
   await prisma.reservation.deleteMany({ where: { businessId: E_BIZ } });
-  const entTables = [
-    { id: "demo-e-t1", cap: 2, loc: "Main Floor", posX: 40,  posY: 40,  shape: "circle" },
-    { id: "demo-e-t2", cap: 4, loc: "Main Floor", posX: 160, posY: 40,  shape: "square" },
-    { id: "demo-e-t3", cap: 4, loc: "Booth",      posX: 280, posY: 40,  shape: "rect" },
-    { id: "demo-e-t4", cap: 6, loc: "Private",    posX: 40,  posY: 160, shape: "rect" },
-    { id: "demo-e-t5", cap: 8, loc: "Private",    posX: 200, posY: 160, shape: "rect" },
-    { id: "demo-e-t6", cap: 4, loc: "Main Floor", posX: 40,  posY: 280, width: 180, height: 55, shape: "counter" },
+  // Six shared tables could never carry the covers a three-venue group's till
+  // feed reports, so each venue gets its own block on the canvas. t1-t6 keep
+  // their original capacities, because the curated rows below reference them.
+  const entVenueBlocks = [
+    { label: "Temple Bar",    y0: 40 },
+    { label: "Dawson St",     y0: 260 },
+    { label: "Dún Laoghaire", y0: 480 },
   ];
+  const entCaps = [2, 4, 4, 6, 8, 4, 2, 6];
+  const entTables = entVenueBlocks.flatMap((b, bi) =>
+    entCaps.map((cap, i) => ({
+      id: `demo-e-t${bi * entCaps.length + i + 1}`,
+      name: `${b.label} T${i + 1}`,
+      cap,
+      loc: `${b.label} — ${cap >= 6 ? "Private" : "Main Floor"}`,
+      posX: 40 + (i % 4) * 110,
+      posY: b.y0 + Math.floor(i / 4) * 90,
+      shape: cap >= 6 ? "rect" : cap === 2 ? "circle" : "square",
+    })),
+  );
   for (const t of entTables) {
-    const i = entTables.indexOf(t);
-    const { id, cap, loc, ...pos } = t;
+    const { id, name, cap, loc, ...pos } = t;
     await prisma.table.upsert({
       where: { id },
-      create: { id, businessId: E_BIZ, name: `Table ${i+1}`, capacity: cap, location: loc, ...pos },
-      update: { ...pos },
+      create: { id, businessId: E_BIZ, name, capacity: cap, location: loc, ...pos },
+      update: { name, capacity: cap, location: loc, ...pos },
     });
   }
   const eRes = [
@@ -2026,8 +2306,22 @@ export async function seedOwnerDemos(prisma: PrismaClient) {
     { name: "Dunne Christening x8",     size: 8, dayOff: 10,time: "14:00", status: "confirmed", notes: "Christening reception",tableId: "demo-e-t5", venue: E_VENUE3 },
   ];
   for (const r of eRes) {
+    // Today's book is generated (seedTodayBook) so it matches the revenue card.
+    if (r.dayOff === 0) continue;
     await prisma.reservation.create({ data: { businessId: E_BIZ, customerName: r.name, partySize: r.size, date: days(r.dayOff, 12), time: r.time, duration: 90, status: r.status, notes: r.notes, tableId: r.tableId, createdById: E_USER } });
   }
+  // The group's till feed is large; the generator fills what the three floors can
+  // physically turn, so the book lands close to the revenue card rather than exact.
+  const eBookRows = await seedTodayBook(prisma, {
+    businessId: E_BIZ,
+    createdById: E_USER,
+    tables: entTables.map((t) => ({ id: t.id, cap: t.cap })),
+    targetCovers: Math.round(demoDayData(new Date(), 4.2).totalCovers * 0.45),
+    openHour: 12,
+    closeHour: 23,
+    nameOffset: 31,
+  });
+  console.log(`✅ Enterprise reservations created (+${eBookRows} generated for today)`);
 
   // Enterprise CRM — group-wide customer book across the three venues.
   await prisma.crmEmail.deleteMany({ where: { customer: { businessId: E_BIZ } } });

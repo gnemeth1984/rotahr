@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { PartyPopper, ChefHat, Bell } from "lucide-react";
+import { ChefHat } from "lucide-react";
 
 interface Holiday {
   name: string;
@@ -72,21 +72,16 @@ function getEmoji(name: string): string {
   if (n.includes("bbq") || n.includes("barbecue") || n.includes("smoke") || n.includes("grill")) return "🔥";
   if (n.includes("chef") || n.includes("cook") || n.includes("kitchen") || n.includes("restaurant") || n.includes("dining") || n.includes("recipe")) return "👨‍🍳";
   if (n.includes("food") || n.includes("eat") || n.includes("feast") || n.includes("meal")) return "🍽️";
-  // non-food fallbacks
-  if (n.includes("dog") || n.includes("puppy")) return "🐶";
-  if (n.includes("cat") || n.includes("kitten")) return "🐱";
-  if (n.includes("music") || n.includes("song") || n.includes("jazz")) return "🎵";
-  if (n.includes("book") || n.includes("read") || n.includes("librar")) return "📚";
-  if (n.includes("run") || n.includes("walk") || n.includes("hike") || n.includes("marathon")) return "🏃";
-  if (n.includes("sun") || n.includes("summer") || n.includes("beach") || n.includes("picnic") || n.includes("camp")) return "☀️";
-  if (n.includes("birthday") || n.includes("anniversar") || n.includes("celebrat")) return "🎂";
-  if (n.includes("love") || n.includes("heart") || n.includes("marriage") || n.includes("married") || n.includes("wedding")) return "❤️";
-  if (n.includes("sunglass")) return "😎";
-  if (n.includes("smurf")) return "🔵";
-  if (n.includes("worker") || n.includes("labor") || n.includes("labour")) return "⚒️";
-  return "🎉";
+  return "🍴";
 }
 
+/**
+ * One card, not two. This used to render an amber "coming up" block above a
+ * violet "Today's National Days" card, and with the API returning every
+ * observance it went ~14 rows deep and pushed the real dashboard content below
+ * the fold. The API now returns food/drink days only, so `holidays` is already
+ * filtered and the per-row isFoodDrink styling is redundant.
+ */
 export default function NationalDaysWidget() {
   const [holidays, setHolidays] = useState<Holiday[]>([]);
   const [upcoming, setUpcoming] = useState<UpcomingHoliday[]>([]);
@@ -103,85 +98,70 @@ export default function NationalDaysWidget() {
       .finally(() => setLoading(false));
   }, []);
 
+  const hasAnything = holidays.length > 0 || upcoming.length > 0;
+
   return (
-    <div className="space-y-3">
-      {/* Upcoming food/drink alert — shown only when there's something */}
-      {!loading && upcoming.length > 0 && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <Bell className="h-4 w-4 text-amber-600 shrink-0" />
-            <span className="text-sm font-semibold text-amber-800">
-              🍽️ Food &amp; Drink Days Coming Up — Plan Your Specials!
-            </span>
+    <Card className="border bg-gradient-to-br from-orange-50 to-white">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base flex items-center gap-2">
+          <ChefHat className="h-4 w-4 text-orange-500" />
+          Food &amp; Drink Days
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        {loading ? (
+          <div className="space-y-2">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="h-6 bg-slate-100 rounded animate-pulse" />
+            ))}
           </div>
+        ) : !hasAnything ? (
+          <p className="text-sm text-slate-400 py-1">
+            No food or drink days in the next few days — a good week to run your own.
+          </p>
+        ) : (
           <ul className="space-y-1.5">
+            {holidays.map((h, i) => (
+              <li key={`t-${i}`} className="flex items-center gap-2">
+                <span className="text-[11px] font-bold text-orange-700 bg-orange-100 border border-orange-200 rounded px-1.5 py-0.5 shrink-0">
+                  Today
+                </span>
+                <a
+                  href={h.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-orange-900 font-medium hover:text-orange-600 hover:underline underline-offset-2 flex items-center gap-1.5"
+                >
+                  <span className="leading-none">{getEmoji(h.name)}</span>
+                  <span>{h.name}</span>
+                </a>
+              </li>
+            ))}
             {upcoming.map((h, i) => (
-              <li key={i} className="flex items-center gap-2">
-                <span className="text-xs font-bold text-amber-700 bg-amber-100 border border-amber-200 rounded px-1.5 py-0.5 shrink-0">
+              <li key={`u-${i}`} className="flex items-center gap-2">
+                <span className="text-[11px] font-semibold text-slate-500 bg-slate-100 border border-slate-200 rounded px-1.5 py-0.5 shrink-0">
                   {h.label}
                 </span>
                 <a
                   href={h.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-sm text-amber-900 hover:text-amber-700 hover:underline underline-offset-2 flex items-center gap-1.5"
+                  className="text-sm text-slate-700 hover:text-orange-600 hover:underline underline-offset-2 flex items-center gap-1.5"
                 >
-                  <span>{getEmoji(h.name)}</span>
+                  <span className="leading-none">{getEmoji(h.name)}</span>
                   <span>{h.name}</span>
                 </a>
               </li>
             ))}
           </ul>
-          <p className="text-[11px] text-amber-500 mt-2">
+        )}
+        {!loading && hasAnything && (
+          <p className="text-[11px] text-slate-400 mt-2.5">
             💡 Post a special on the Menu Specials board to match the day
           </p>
-        </div>
-      )}
-
-      {/* Today's national days */}
-      <Card className="border bg-gradient-to-br from-violet-50 to-white">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base flex items-center gap-2">
-            <PartyPopper className="h-4 w-4 text-violet-500" />
-            Today&apos;s National Days
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="space-y-2">
-              {[...Array(4)].map((_, i) => (
-                <div key={i} className="h-6 bg-slate-100 rounded animate-pulse" />
-              ))}
-            </div>
-          ) : holidays.length === 0 ? (
-            <p className="text-sm text-slate-400 py-2">Nothing special today — make your own!</p>
-          ) : (
-            <ul className="space-y-1.5">
-              {holidays.map((h, i) => (
-                <li key={i}>
-                  <a
-                    href={h.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={`flex items-center gap-2 text-sm transition-colors group ${
-                      h.isFoodDrink
-                        ? "text-orange-700 font-medium hover:text-orange-500"
-                        : "text-slate-700 hover:text-violet-600"
-                    }`}
-                  >
-                    <span className="text-base leading-none">{getEmoji(h.name)}</span>
-                    <span className="group-hover:underline underline-offset-2">{h.name}</span>
-                    {h.isFoodDrink && (
-                      <ChefHat className="h-3.5 w-3.5 text-orange-400 shrink-0 ml-auto" />
-                    )}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          )}
-          <p className="text-[10px] text-slate-300 mt-3">via checkiday.com</p>
-        </CardContent>
-      </Card>
-    </div>
+        )}
+        <p className="text-[10px] text-slate-300 mt-2">via checkiday.com</p>
+      </CardContent>
+    </Card>
   );
 }

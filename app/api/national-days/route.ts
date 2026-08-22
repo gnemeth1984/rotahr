@@ -68,8 +68,13 @@ export async function GET() {
       fetchDay(day2),
     ]);
 
-    // Today: top 6 all
-    const holidays = todayHols.slice(0, 6);
+    // Today: food/drink days only. Checkiday returns a dozen-odd observances a
+    // day and most of them ("European Day of Remembrance for Victims of
+    // Stalinism and Nazism") are nothing a venue can put on a specials board —
+    // they pushed the real dashboard content below the fold.
+    const holidays = todayHols
+      .filter((h: { isFoodDrink: boolean }) => h.isFoodDrink)
+      .slice(0, 6);
 
     // Upcoming food/drink only (next 2 days)
     const upcoming: { name: string; url: string; isFoodDrink: boolean; daysAhead: number; label: string }[] = [];

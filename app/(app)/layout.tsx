@@ -19,6 +19,12 @@ export default async function AppLayout({
     redirect("/auth/signin");
   }
 
+  // Demo visitors are looking around, not installing anything. The install nag
+  // fires 3s after landing and covers the revenue chart on the dashboard and the
+  // middle of the shift list on a phone — the first thing a visitor touches is a
+  // dismiss button. Real signed-up accounts still get it.
+  const isDemoAccount = (session.user?.email ?? "").endsWith("@rotahr.demo");
+
   return (
     <CurrencyProvider>
       <FeatureFlagsProvider>
@@ -32,7 +38,7 @@ export default async function AppLayout({
             </div>
           </main>
           <HelpAssistant />
-          <InstallBanner />
+          {!isDemoAccount && <InstallBanner />}
         </div>
       </FeatureFlagsProvider>
     </CurrencyProvider>

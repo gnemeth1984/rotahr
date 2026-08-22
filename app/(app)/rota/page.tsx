@@ -155,16 +155,23 @@ const DEFAULT_FORM = { startTime: "09:00", endTime: "17:00", role: "", published
 
 // ─── Compliance Panel ─────────────────────────────────────────────────────────
 
-interface ComplianceAlertItem { empId: string; empName: string; message: string; type: "rest" | "hours" }
+// "break" is not a breach — every shift over 4.5h carries a rest-break
+// entitlement, so treating those as alerts made a perfectly legal 42-shift week
+// show a red "42" against the Working Time Act. Breaches (rest gaps, 48h cap,
+// weekly rest) are counted; entitlements are summarised at the bottom instead.
+interface ComplianceAlertItem { empId: string; empName: string; message: string; type: "rest" | "hours" | "break" }
 
 function CompliancePanel({ alerts }: { alerts: ComplianceAlertItem[] }) {
   const [open, setOpen] = useState(false);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
+  const breaches = useMemo(() => alerts.filter((a) => a.type !== "break"), [alerts]);
+  const breakNotes = useMemo(() => alerts.filter((a) => a.type === "break"), [alerts]);
+
   // Group by employee
   const grouped = useMemo(() => {
     const map: Record<string, { name: string; alerts: string[] }> = {};
-    for (const a of alerts) {
+    for (const a of breaches) {
       if (!map[a.empId]) map[a.empId] = { name: a.empName, alerts: [] };
       // Strip the employee name prefix from message for cleaner display
       const msg = a.message.replace(/^[^:]+:\s*/, "");
@@ -173,8 +180,8 @@ function CompliancePanel({ alerts }: { alerts: ComplianceAlertItem[] }) {
     return Object.entries(map);
   }, [alerts]);
 
-  const restCount = alerts.filter(a => a.type === "rest").length;
-  const hoursCount = alerts.filter(a => a.type === "hours").length;
+  const restCount = breaches.filter(a => a.type === "rest").length;
+  const hoursCount = breaches.filter(a => a.type === "hours").length;
 
   return (
     <div className="border border-amber-200 bg-amber-50 rounded-xl overflow-hidden">
@@ -189,7 +196,7 @@ function CompliancePanel({ alerts }: { alerts: ComplianceAlertItem[] }) {
             Working Time Act 1997
           </span>
           <span className="bg-amber-200 text-amber-800 text-xs font-bold px-2 py-0.5 rounded-full">
-            {alerts.length}
+            {breaches.length}
           </span>
         </div>
         <div className="flex items-center gap-3">
@@ -228,6 +235,12 @@ function CompliancePanel({ alerts }: { alerts: ComplianceAlertItem[] }) {
               )}
             </div>
           ))}
+          {breakNotes.length > 0 && (
+            <p className="px-4 py-2.5 text-xs text-amber-700">
+              {breakNotes.length} shift{breakNotes.length > 1 ? "s" : ""} this week run long enough to carry a paid
+              rest-break entitlement (15 min over 4.5h, 30 min over 6h). Not a breach — just schedule the breaks into service.
+            </p>
+          )}
         </div>
       )}
     </div>
@@ -537,14 +550,14 @@ function RotaInner() {
             empId,
             empName,
             message: `${empName}: shift ${fmtTime(s.startTime)}–${fmtTime(s.endTime)} (${hrs.toFixed(1)}h) — employee is entitled to a 30-min rest break (OWT Act 1997 s.12)`,
-            type: "rest",
+            type: "break",
           });
         } else if (hrs > 4.5) {
           alerts.push({
             empId,
             empName,
             message: `${empName}: shift ${fmtTime(s.startTime)}–${fmtTime(s.endTime)} (${hrs.toFixed(1)}h) — employee is entitled to a 15-min rest break (OWT Act 1997 s.12)`,
-            type: "rest",
+            type: "break",
           });
         }
       }
@@ -1172,7 +1185,7 @@ function RotaInner() {
       )}
 
       {/* ── Working Time Compliance Alerts (WTA 1997) ── */}
-      {isManager && complianceAlerts.length > 0 && (
+      {isManager && complianceAlerts.some((a) => a.type !== "break") && (
         <CompliancePanel alerts={complianceAlerts} />
       )}
 
