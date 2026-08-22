@@ -58,6 +58,9 @@ export function VoiceButton({
   // Shown only after a failure. A dead mic button is impossible to diagnose
   // from a phone over text — this line puts the actual cause on screen.
   const [diag, setDiag] = useState<string | null>(null);
+  // True only when the browser itself refused. Drives the step-by-step
+  // unblock panel, because a one-line error is not enough to find the setting.
+  const [blocked, setBlocked] = useState(false);
   const [seconds, setSeconds] = useState(0);
 
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -104,6 +107,8 @@ export function VoiceButton({
 
   async function start() {
     setError(null);
+    setDiag(null);
+    setBlocked(false);
 
     if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
       setError("This browser can't record audio.");
@@ -131,9 +136,11 @@ export function VoiceButton({
       }
     }
 
-    // Android (and desktop Chrome) will tell us up front if the user or the OS
-    // already said no. Without this the only symptom is an instant, silent
-    // NotAllowedError that reads like a broken button.
+    // Read the permission state for the error message ONLY — never to decide
+    // whether to try. The Permissions API is advisory: Chrome can report
+    // "denied" (a stale entry, a master toggle it later ignores) in cases where
+    // getUserMedia would still raise the prompt. Bailing out on it meant the
+    // browser was never asked at all, which is worse than the bug it replaced.
     let permState = "unknown";
     try {
       const status = await navigator.permissions?.query?.({
@@ -142,14 +149,6 @@ export function VoiceButton({
       if (status) permState = status.state;
     } catch {
       // Safari doesn't expose the microphone descriptor. Not an error.
-    }
-
-    if (permState === "denied") {
-      setError(
-        "Your browser is blocking the microphone for rotahr.com. Tap the padlock in the address bar → Permissions → Microphone → Allow. If it's already allowed there, check Android Settings → Apps → Chrome (or Rotahr) → Permissions → Microphone."
-      );
-      setDiag(envLine(permState, "permission-denied"));
-      return;
     }
 
     let stream: MediaStream;
@@ -168,6 +167,7 @@ export function VoiceButton({
               ? "Another app is holding the microphone. Close it and try again."
               : `Couldn't start the microphone (${name}).`
       );
+      if (name === "NotAllowedError" || name === "SecurityError") setBlocked(true);
       setDiag(envLine(permState, name));
       return;
     }
