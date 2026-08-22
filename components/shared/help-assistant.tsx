@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { usePathname } from "next/navigation";
-import DOMPurify from "isomorphic-dompurify";
+import { sanitizeInlineHtml } from "@/lib/sanitize-inline";
 import {
   HelpCircle,
   X,
@@ -40,7 +40,7 @@ function formatMessage(text: string) {
     .replace(/\n\n/g, "<br/><br/>")
     .replace(/\n(\d+)\./g, "<br/>$1.")
     .replace(/\n/g, "<br/>");
-  return DOMPurify.sanitize(raw, { ALLOWED_TAGS: ["strong", "em", "br", "b"], ALLOWED_ATTR: [] });
+  return sanitizeInlineHtml(raw);
 }
 
 export function HelpAssistant() {

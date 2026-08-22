@@ -6,7 +6,7 @@ import { MessageCircle, X, Send, Bot, User, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import DOMPurify from "isomorphic-dompurify";
+import { sanitizeInlineHtml } from "@/lib/sanitize-inline";
 
 interface Message {
   role: "user" | "assistant";
@@ -20,7 +20,7 @@ function formatMessage(text: string) {
     .replace(/\n\n/g, "<br/><br/>")
     .replace(/\n/g, "<br/>");
   // Sanitize to prevent XSS from AI-generated content
-  return DOMPurify.sanitize(raw, { ALLOWED_TAGS: ["strong", "em", "br", "b"], ALLOWED_ATTR: [] });
+  return sanitizeInlineHtml(raw);
 }
 
 export function AIChat() {
