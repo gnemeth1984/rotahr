@@ -32,9 +32,18 @@ const FOOD_DRINK_KEYWORDS = [
   "toffee","caramel","fudge","liquorice","licorice",
 ];
 
+// Match on word starts, not bare substrings. Plain `includes` let "EuroPEAn Day of
+// Remembrance for Victims of Stalinism and Nazism" through on the keyword "pea",
+// which is exactly the kind of row that has no business on a venue dashboard.
+// The trailing [a-z]{0,3} still catches plurals and inflections (peas, grilled,
+// baking) without matching a keyword buried mid-word.
+const FOOD_DRINK_RE = new RegExp(
+  `\\b(?:${FOOD_DRINK_KEYWORDS.map((kw) => kw.replace(/[^a-z0-9 ]/gi, (c) => "\\" + c)).join("|")})[a-z]{0,3}\\b`,
+  "i",
+);
+
 function isFoodOrDrink(name: string): boolean {
-  const n = name.toLowerCase();
-  return FOOD_DRINK_KEYWORDS.some((kw) => n.includes(kw));
+  return FOOD_DRINK_RE.test(name);
 }
 
 async function fetchDay(date: Date) {
