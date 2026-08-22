@@ -23,8 +23,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   // Covers live in a private blob store, so the public proxy route is the only
   // URL a crawler can fetch. Absolute, because LinkedIn and Facebook ignore
   // relative og:image values even with metadataBase set.
+  //
+  // NOTE: coverImage is ALREADY stored as the proxy path
+  // ("/api/blog/cover-image?url=<encoded blob url>"), so it must only be
+  // prefixed with the origin — wrapping it in the proxy again double-encodes
+  // the URL and the crawler gets a 400 back.
   const cover = post.coverImage
-    ? `https://rotahr.com/api/blog/cover-image?url=${encodeURIComponent(post.coverImage)}`
+    ? post.coverImage.startsWith('http')
+      ? post.coverImage
+      : `https://rotahr.com${post.coverImage.startsWith('/') ? '' : '/'}${post.coverImage}`
     : null;
 
   return {
