@@ -36,10 +36,12 @@ export const authOptions: NextAuthOptions = {
         const valid = await bcrypt.compare(credentials.password, user.password);
         if (!valid) return null;
 
-        // Demo data is reset by the interstitial (/demo/preparing calls
-        // POST /api/demo/prepare), NOT here. A login request cannot host the
-        // ~2 minute seed: Vercel freezes the function the moment it responds, so
-        // starting the seed here left the demo half wiped. See lib/demo/reset.ts.
+        // Demo data is NOT reset here, and no longer reset by a visitor's request
+        // at all. A login request cannot host the ~2 minute seed (Vercel freezes
+        // the function the moment it responds, leaving the demo half wiped), and
+        // making the visitor wait for it on an interstitial meant the landing
+        // page's main demo CTA led to a two-minute progress bar. Resets now run
+        // on a schedule — vercel.json → /api/demo/reset. See lib/demo/reset.ts.
 
         return { id: user.id, email: user.email, name: user.name };
       },

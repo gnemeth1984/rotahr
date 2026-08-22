@@ -12,7 +12,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { seedAll } from "@/scripts/seed-demo";
+import { runDemoReset } from "@/lib/demo/reset";
 
 export const runtime = "nodejs";
 export const maxDuration = 180; // Pro plan allows up to 300s; measured ~124s for a full reset, buffered
@@ -29,8 +29,15 @@ function isAuthed(req: NextRequest) {
 
 async function runReset() {
   console.log("[api/demo/reset] Reset triggered");
-  await seedAll();
-  console.log("[api/demo/reset] Reset complete");
+  // Go through runDemoReset (force = bypass the cooldown, this is a scheduled
+  // run) rather than calling the seed directly. It's what writes DemoResetState,
+  // and /api/demo/status reads that row to decide whether a visitor landing
+  // mid-reset should be held on the interstitial. Calling seedAll() straight
+  // meant a cron reset was invisible: status reported "ready" while the venue
+  // was half deleted, which is the exact thing the interstitial exists to stop.
+  const outcome = await runDemoReset(true);
+  console.log(`[api/demo/reset] Reset complete (${outcome})`);
+  return outcome;
 }
 
 export async function GET(req: NextRequest) {

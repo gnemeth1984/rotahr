@@ -68,7 +68,7 @@
     },
     {
       "path": "/api/demo/reset",
-      "schedule": "2 5 * * *"
+      "schedule": "2 5,9,13,17,21 * * *"
     },
     {
       "path": "/api/cron/discover-comment-articles",

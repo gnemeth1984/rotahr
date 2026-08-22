@@ -4,20 +4,24 @@
  * Demo interstitial.
  *
  * The demo reset wipes and rebuilds every section in turn and takes about two
- * minutes. Anyone dropped straight onto the dashboard during that window sees a
- * gutted venue — no shifts today, no bookings, no expenses — which reads as "this
- * product is empty" rather than "the data is rebuilding". So demo logins land
- * here first and only continue once the rebuild has finished.
+ * minutes. Anyone dropped onto the dashboard during that window sees a gutted
+ * venue — no shifts today, no bookings, no expenses — which reads as "this
+ * product is empty" rather than "the data is rebuilding".
  *
- * This page also *drives* the reset: it POSTs /api/demo/prepare and keeps that
- * request open for the life of the seed. The login request can't do that job —
- * Vercel freezes a function the moment it responds, so a seed started there is
- * killed a few seconds in. If /api/demo/prepare reports the data is already
- * fresh, or another visitor's run is in flight, we fall through to polling
- * /api/demo/status and forward as soon as it's ready.
+ * This page NO LONGER starts the reset. It used to POST /api/demo/prepare and
+ * hold that request open for the whole seed, which meant the first demo visitor
+ * after each cooldown window paid ~127 seconds on this screen. At Rotahr's
+ * traffic that was most visitors, and the landing page's main "Explore the live
+ * demo" CTA led straight here. Resets now run on a schedule instead (vercel.json
+ * → /api/demo/reset), so no visitor ever pays for one.
+ *
+ * What's left: the narrow case where a scheduled reset is genuinely mid-flight
+ * when someone logs in. The server component already redirected everyone else
+ * before this component shipped, so if you are reading this screen a reset really
+ * is running. We poll /api/demo/status and forward the moment it's done.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 
@@ -32,55 +36,54 @@ const STEPS = [
 /** Never trap anyone here — go through anyway after this long. */
 const MAX_WAIT_MS = 210_000;
 
+/** Full seed, measured. Used to turn real elapsed time into a progress bar. */
+const SEED_MS = 140_000;
+
 export default function DemoPreparingClient() {
   const router = useRouter();
   const params = useSearchParams();
-  const next = params.get("next") || "/dashboard";
+  const next = params.get("next") || "/rota";
 
   const [elapsed, setElapsed] = useState(0);
   const [step, setStep] = useState(0);
 
+  // When the reset actually began, per the server. Progress is measured from
+  // there, not from page load, so someone arriving 90s into a reset sees ~90s of
+  // progress and a short wait instead of a bar that restarts from zero.
+  const resetStartedAt = useRef<number | null>(null);
+
   useEffect(() => {
     let cancelled = false;
-    const startedAt = Date.now();
+    const arrivedAt = Date.now();
 
     const tick = setInterval(() => {
       if (cancelled) return;
-      const ms = Date.now() - startedAt;
+      const base = resetStartedAt.current ?? arrivedAt;
+      const ms = Date.now() - base;
       setElapsed(ms);
-      setStep(Math.min(STEPS.length - 1, Math.floor(ms / 30_000)));
+      setStep(Math.min(STEPS.length - 1, Math.floor(ms / (SEED_MS / STEPS.length))));
     }, 500);
 
     async function run() {
-      // Hold this request open for the whole seed. Resolves immediately when no
-      // reset is due, or when someone else already owns the run.
-      let outcome: string | null = null;
-      try {
-        const res = await fetch("/api/demo/prepare", {
-          method: "POST",
-          cache: "no-store",
-        });
-        if (res.ok) outcome = (await res.json()).outcome ?? null;
-      } catch {
-        // Connection dropped (or the function timed out) — fall through to polling.
-      }
-      if (cancelled) return;
-
-      if (outcome !== "ran") {
-        // Either nothing to do, or another instance is mid-seed. Wait it out.
-        while (!cancelled) {
-          try {
-            const res = await fetch("/api/demo/status", { cache: "no-store" });
-            if (res.ok) {
-              const { ready } = await res.json();
-              if (ready) break;
+      while (!cancelled) {
+        let ready = true; // fail open: never strand a visitor on a status error
+        try {
+          const res = await fetch("/api/demo/status", { cache: "no-store" });
+          if (res.ok) {
+            const data = await res.json();
+            ready = !!data.ready;
+            if (data.startedAt) {
+              const t = Date.parse(data.startedAt);
+              if (!Number.isNaN(t)) resetStartedAt.current = t;
             }
-          } catch {
-            // Network blip — keep waiting, the cap below still applies.
           }
-          if (Date.now() - startedAt > MAX_WAIT_MS) break;
-          await new Promise((r) => setTimeout(r, 2000));
+        } catch {
+          // Network blip — treat as still running, the cap below still applies.
+          ready = false;
         }
+        if (ready) break;
+        if (Date.now() - arrivedAt > MAX_WAIT_MS) break;
+        await new Promise((r) => setTimeout(r, 2000));
       }
 
       if (!cancelled) router.replace(next);
@@ -93,7 +96,7 @@ export default function DemoPreparingClient() {
     };
   }, [next, router]);
 
-  const pct = Math.min(96, Math.round((elapsed / 140_000) * 100) + 4);
+  const pct = Math.min(96, Math.round((elapsed / SEED_MS) * 100) + 4);
 
   return (
     <div className="min-h-screen bg-[#0F1C35] flex items-center justify-center px-6">
@@ -109,8 +112,8 @@ export default function DemoPreparingClient() {
 
         <h1 className="text-2xl font-semibold text-white">Setting up your demo</h1>
         <p className="mt-3 text-sm leading-relaxed text-slate-400">
-          We wipe and rebuild the demo venue so you always get a fresh, fully
-          populated business. Takes about two minutes.
+          You caught us mid-refresh — we rebuild the demo venue a few times a day
+          so it always looks like a real trading week. Nearly there.
         </p>
 
         <div className="mt-8 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
