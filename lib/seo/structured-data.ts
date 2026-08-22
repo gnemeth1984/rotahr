@@ -94,7 +94,7 @@ export function softwareApplicationSchema() {
       price: o.price,
       priceCurrency: "EUR",
       description: o.description,
-      url: `${SITE_URL}/landing#pricing`,
+      url: `${SITE_URL}/#pricing`,
       availability: "https://schema.org/InStock",
     })),
   };

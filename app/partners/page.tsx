@@ -62,7 +62,7 @@ export default function PartnersPage() {
       `}</style>
 
       <header>
-        <a className="logo" href="/landing">
+        <a className="logo" href="/">
           <svg width="32" height="32" viewBox="0 0 40 40" fill="none">
             <circle cx="20" cy="20" r="20" fill="#0f172a" />
             <path d="M20 8C15 8 11 13 13 18C15 23 20 24 20 32C20 24 25 23 27 18C29 13 25 8 20 8Z" fill="url(#pg)" />
@@ -213,7 +213,7 @@ export default function PartnersPage() {
       <footer>
         <p>© 2026 Rotahr. Built for hospitality.</p>
         <div style={{ display: "flex", gap: "20px" }}>
-          <a href="/landing">Home</a>
+          <a href="/">Home</a>
           <a href="/privacy">Privacy</a>
           <a href="/terms">Terms</a>
         </div>

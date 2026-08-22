@@ -29,7 +29,7 @@ export default async function ClaimPage({
             the page itself.
           </p>
           <Link
-            href="/landing"
+            href="/"
             className="inline-block border border-white/15 px-6 py-3 rounded-xl hover:bg-white/5 transition-colors"
           >
             Back to Rotahr

@@ -49,7 +49,7 @@ export default function TemplatesHubPage() {
           softwareApplicationSchema(),
           itemList,
           breadcrumbSchema([
-            { name: "Rotahr", path: "/landing" },
+            { name: "Rotahr", path: "/" },
             { name: "Free templates", path: "/templates" },
           ]),
         ])}
@@ -57,7 +57,7 @@ export default function TemplatesHubPage() {
 
       <div className="max-w-5xl mx-auto px-6 py-16">
         <nav className="text-sm text-slate-400 mb-8">
-          <Link href="/landing" className="hover:text-white">
+          <Link href="/" className="hover:text-white">
             Rotahr
           </Link>
           <span className="mx-2">/</span>
@@ -185,7 +185,7 @@ export default function TemplatesHubPage() {
           </ul>
           <div className="flex flex-wrap gap-3">
             <Link
-              href="/landing#pricing"
+              href="/#pricing"
               className="rounded-xl bg-gradient-to-r from-[#ff6b35] to-[#e8365d] px-5 py-2.5 font-semibold text-white"
             >
               See pricing

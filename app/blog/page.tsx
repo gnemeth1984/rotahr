@@ -97,7 +97,7 @@ export default async function BlogPage() {
       {/* Header */}
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-5xl mx-auto px-4 py-16 text-center">
-          <Link href="/landing" className="inline-flex items-center gap-2 text-emerald-600 font-bold text-xl mb-8 hover:text-emerald-700">
+          <Link href="/" className="inline-flex items-center gap-2 text-emerald-600 font-bold text-xl mb-8 hover:text-emerald-700">
             ← Rotahr
           </Link>
           <h1 className="text-4xl font-bold text-gray-900 mt-4 mb-3">Hospitality Management Blog</h1>

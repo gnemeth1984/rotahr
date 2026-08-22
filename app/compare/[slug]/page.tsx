@@ -87,7 +87,7 @@ export default async function ComparePage({
         {...jsonLdProps([
           faqSchema,
           breadcrumbSchema([
-            { name: "Rotahr", path: "/landing" },
+            { name: "Rotahr", path: "/" },
             { name: "Compare", path: "/compare" },
             { name: `vs ${c.name}`, path: `/compare/${c.slug}` },
           ]),
@@ -96,7 +96,7 @@ export default async function ComparePage({
 
       <div className="max-w-4xl mx-auto px-6 py-16">
         <nav className="text-sm text-slate-400 mb-8">
-          <Link href="/landing" className="hover:text-white">Rotahr</Link>
+          <Link href="/" className="hover:text-white">Rotahr</Link>
           <span className="mx-2">/</span>
           <Link href="/compare" className="hover:text-white">Compare</Link>
           <span className="mx-2">/</span>

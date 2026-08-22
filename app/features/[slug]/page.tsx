@@ -64,7 +64,7 @@ export default async function FeaturePage({
           },
           faqSchema(f.faq),
           breadcrumbSchema([
-            { name: "Rotahr", path: "/landing" },
+            { name: "Rotahr", path: "/" },
             { name: "Features", path: "/features" },
             { name: f.name, path: `/features/${f.slug}` },
           ]),
@@ -73,7 +73,7 @@ export default async function FeaturePage({
 
       <div className="max-w-4xl mx-auto px-6 py-16">
         <nav className="text-sm text-slate-400 mb-8">
-          <Link href="/landing" className="hover:text-white">Rotahr</Link>
+          <Link href="/" className="hover:text-white">Rotahr</Link>
           <span className="mx-2">/</span>
           <Link href="/features" className="hover:text-white">Features</Link>
           <span className="mx-2">/</span>
@@ -102,7 +102,7 @@ export default async function FeaturePage({
             Try the live demo
           </Link>
           <Link
-            href="/landing#pricing"
+            href="/#pricing"
             className="border border-white/15 px-6 py-3 rounded-xl hover:bg-white/5 transition-colors"
           >
             See pricing

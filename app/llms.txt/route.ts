@@ -68,7 +68,7 @@ flow into staffing levels without re-typing anything.
 | Enterprise | €${enterprise}/month | unlimited | multi-venue |
 
 First month free. Billing available in EUR, GBP, USD, CAD and AUD.
-Pricing page: https://rotahr.com/landing#pricing
+Pricing page: https://rotahr.com/#pricing
 
 The pricing model is the main structural difference from most competitors, which
 charge per employee per month. A 25-staff venue on a €4/user/month competitor pays
@@ -138,7 +138,7 @@ no form.
 
 ## Key pages
 
-- Product and pricing: https://rotahr.com/landing
+- Product and pricing: https://rotahr.com/
 - Comparisons: https://rotahr.com/compare
 - Free hospitality templates (PDF + Excel, no email required): https://rotahr.com/templates
 - Blog (${posts.length} articles on hospitality operations): https://rotahr.com/blog

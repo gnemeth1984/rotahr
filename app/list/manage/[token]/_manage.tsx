@@ -308,7 +308,7 @@ export function ManageListing({ token, site }: { token: string; site: string }) 
       <p className="text-xs text-slate-500 leading-relaxed">
         Keep the email with this link — it&apos;s how you get back in to edit. No password
         needed. Want bookings, rotas and food-safety records too?{" "}
-        <a href="/landing" className="text-[#ff6b35] hover:underline">
+        <a href="/" className="text-[#ff6b35] hover:underline">
           See what else Rotahr does
         </a>
         .

@@ -50,7 +50,7 @@ async function main() {
   );
   ok(
     "our own domain is rejected",
-    !isPlausibleTarget(hit("Rotahr", "https://rotahr.com/landing")),
+    !isPlausibleTarget(hit("Rotahr", "https://rotahr.com/")),
     "no self-links"
   );
   ok(

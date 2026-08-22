@@ -441,7 +441,7 @@ export default async function PublicVenuePage({ params }: { params: { slug: stri
         </p>
         <p className="mt-2 text-xs text-slate-400">
           Powered by{" "}
-          <Link href="/landing" className="font-medium text-slate-500 underline decoration-slate-300 underline-offset-4">
+          <Link href="/" className="font-medium text-slate-500 underline decoration-slate-300 underline-offset-4">
             Rotahr
           </Link>
         </p>

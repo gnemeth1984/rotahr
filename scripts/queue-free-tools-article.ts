@@ -67,7 +67,7 @@ There's nothing wrong with a printed sheet on a clipboard. It's cheap, it needs 
 
 Where paper starts to hurt is at the edges. You can't tell from a filing cabinet whether this morning's temperature check actually happened until you walk over and look. A rota on the wall doesn't tell the person who isn't in the building. Twelve months of logs in a box is not something you can search when someone asks what happened on a specific Tuesday. And a missed check only becomes visible after it matters.
 
-That's the gap [Rotahr](/landing) fills — the same records, logged on a phone, with reminders when a check is due and a searchable history behind it. If you get to the point where the clipboard is costing you more than it saves, it's there.
+That's the gap [Rotahr](/) fills — the same records, logged on a phone, with reminders when a check is due and a searchable history behind it. If you get to the point where the clipboard is costing you more than it saves, it's there.
 
 Until then, take the templates. They're free, they're genuinely useful, and there's nothing to sign up for.
 

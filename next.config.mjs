@@ -59,6 +59,19 @@ const nextConfig = {
       // Short, memorable URL for print material and QR codes. Lands on the
       // sign-in page, which has the one-click demo panel open by default.
       { source: "/try", destination: "/auth/signin", permanent: false },
+
+      // `/landing` used to render the same component as `/`, so the marketing
+      // page existed on two URLs and split its own traffic (142 views on `/`
+      // vs 88 on `/landing` in one 30-day window). `/` is now the single
+      // canonical marketing URL. Permanent so the link equity consolidates.
+      { source: "/landing", destination: "/", permanent: true },
+
+      // Both of these were hard 404s. `/demo` is the most natural URL a
+      // visitor guesses when they want to look before signing up, and
+      // `/pricing` is what external links and typed URLs reach for — the nav
+      // only ever used the `#pricing` anchor.
+      { source: "/demo", destination: "/try", permanent: false },
+      { source: "/pricing", destination: "/#pricing", permanent: false },
     ];
   },
 };

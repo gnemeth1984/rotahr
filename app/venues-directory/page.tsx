@@ -173,7 +173,7 @@ export default async function VenueDirectoryPage() {
       <header className="border-b border-slate-200 bg-[#0f1c35] text-white">
         <div className="mx-auto max-w-5xl px-6 py-14">
           <Link
-            href="/landing"
+            href="/"
             className="mb-8 inline-flex items-center gap-2 text-lg font-bold text-[#ff6b35] transition-opacity hover:opacity-80"
           >
             ← Rotahr
@@ -321,7 +321,7 @@ export default async function VenueDirectoryPage() {
           claim it or have it removed from the page itself.
         </p>
         <p className="mt-5 text-sm">
-          <Link href="/landing" className="text-orange-700 underline">
+          <Link href="/" className="text-orange-700 underline">
             Rotahr — one app to run your entire venue
           </Link>
         </p>

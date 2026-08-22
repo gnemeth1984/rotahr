@@ -37,7 +37,7 @@ export default function ListVenuePage() {
     <main className="min-h-screen bg-[#0f1c35] text-white">
       <div className="max-w-5xl mx-auto px-6 py-14 sm:py-20">
         <Link
-          href="/landing"
+          href="/"
           className="inline-flex items-center gap-2 text-[#ff6b35] font-bold text-lg mb-10 hover:opacity-80 transition-opacity"
         >
           ← Rotahr

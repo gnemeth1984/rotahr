@@ -45,7 +45,7 @@ export default function FeaturesIndexPage() {
           softwareApplicationSchema(),
           itemList,
           breadcrumbSchema([
-            { name: "Rotahr", path: "/landing" },
+            { name: "Rotahr", path: "/" },
             { name: "Features", path: "/features" },
           ]),
         ])}
@@ -53,7 +53,7 @@ export default function FeaturesIndexPage() {
 
       <div className="max-w-4xl mx-auto px-6 py-16">
         <nav className="text-sm text-slate-400 mb-8">
-          <Link href="/landing" className="hover:text-white">Rotahr</Link>
+          <Link href="/" className="hover:text-white">Rotahr</Link>
           <span className="mx-2">/</span>
           <span className="text-slate-300">Features</span>
         </nav>

@@ -220,7 +220,7 @@ function insertInternalLinks(
   });
 
   paragraphs.push(
-    `Want to see how this works in practice? [Explore Rotahr](/landing) — scheduling, bookings, food safety and payroll for restaurants, bars and hotels.`,
+    `Want to see how this works in practice? [Explore Rotahr](/) — scheduling, bookings, food safety and payroll for restaurants, bars and hotels.`,
   );
 
   return paragraphs.join("\n\n");

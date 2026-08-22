@@ -16,11 +16,9 @@ import {
   faqSchema,
 } from "@/lib/seo/structured-data"
 
-// Canonical is explicit because `/` redirects here — without it Google has to
-// guess which of the two URLs is the real marketing page.
-export const metadata = {
-  alternates: { canonical: "/landing" },
-}
+// No `metadata` export here any more: this is a plain component, not a route.
+// `/` owns the canonical URL and declares its own metadata; `/landing`
+// permanently redirects to `/` (see the redirects block in next.config.mjs).
 
 const features = [
   {
@@ -218,6 +216,9 @@ export default function LandingPage() {
               List your venue <span className="text-emerald-600 font-medium">free</span>
             </Link>
             <Link href="/blog" className="hover:text-slate-900 transition-colors">Blog</Link>
+            <Link href="/try" className="hover:text-slate-900 transition-colors">
+              Live demo <span className="text-emerald-600 font-medium">no signup</span>
+            </Link>
           </nav>
           <div className="flex items-center gap-3">
             <Link href="/auth/signin" className="text-sm text-slate-600 hover:text-slate-900 transition-colors">
@@ -262,6 +263,19 @@ export default function LandingPage() {
           Replace 4 separate tools with one. Starting at <strong className="text-slate-600">€59/month</strong> incl. VAT.
         </p>
 
+        {/*
+          The demo is deliberately a co-primary CTA, not a footer link.
+
+          Why: in one 30-day window this page had ~230 views and /auth/register
+          got 2 — while /auth/signin got 128. People wanted to look before
+          committing, and the only door to looking was a *sign-in* page. With no
+          customer logos to lean on (and we don't invent any), "see inside
+          without signing up" is the strongest thing this page can offer, so it
+          sits next to the primary CTA instead of at the bottom of the footer.
+
+          /try redirects to /auth/signin, which opens with the one-click demo
+          panel expanded — no typing, no card, no account.
+        */}
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
           <Link
             href="/auth/register"
@@ -270,13 +284,18 @@ export default function LandingPage() {
           >
             Get Started <ArrowRight className="w-4 h-4" />
           </Link>
-          <a
-            href="#pricing"
-            className="border border-slate-200 text-slate-700 px-8 py-3.5 rounded-xl text-base font-medium hover:border-slate-400 transition-colors w-full sm:w-auto"
+          <Link
+            href="/try"
+            className="flex items-center justify-center gap-2 border-2 px-8 py-3.5 rounded-xl text-base font-semibold transition-colors w-full sm:w-auto"
+            style={{ borderColor: "#F97316", color: "#C2410C" }}
           >
-            View Pricing
-          </a>
+            Explore the live demo
+          </Link>
         </div>
+        <p className="text-sm text-slate-500 mt-4">
+          The demo is a real venue with staff, rotas and bookings already in it —
+          no signup, no card. Or <a href="#pricing" className="underline decoration-slate-300 underline-offset-4 hover:text-slate-700">jump to pricing</a>.
+        </p>
       </section>
 
       {/* vs competitors */}

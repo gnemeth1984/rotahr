@@ -72,7 +72,7 @@ export default function PitchDeckClient() {
 
       {/* Header */}
       <header className="pitch-header-inner" style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'20px 40px',borderBottom:'1px solid rgba(255,255,255,0.08)',position:'sticky',top:0,background:'rgba(10,15,26,0.95)',backdropFilter:'blur(12px)',zIndex:100}}>
-        <a href="/landing" style={{display:'flex',alignItems:'center',gap:10,textDecoration:'none'}}>
+        <a href="/" style={{display:'flex',alignItems:'center',gap:10,textDecoration:'none'}}>
           <svg width="32" height="32" viewBox="0 0 40 40" fill="none">
             <circle cx="20" cy="20" r="20" fill="#0f172a"/>
             <path d="M20 8C15 8 11 13 13 18C15 23 20 24 20 32C20 24 25 23 27 18C29 13 25 8 20 8Z" fill="url(#pg)"/>

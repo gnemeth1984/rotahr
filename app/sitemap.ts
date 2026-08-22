@@ -41,11 +41,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }));
 
   return [
-    // NOTE: the bare domain is deliberately absent — `/` redirects to
-    // `/landing`, and listing a redirecting URL makes Google report it as
-    // "Page with redirect" instead of indexing it. `/landing` is the canonical
-    // marketing page and is listed below.
-    { url: `${baseUrl}/landing`, lastModified: new Date(), changeFrequency: 'daily', priority: 1 },
+    // The bare domain IS the marketing page now. `/landing` used to be the
+    // canonical and is a permanent redirect to `/` — listing a redirecting URL
+    // makes Google report it as "Page with redirect" instead of indexing it,
+    // so only `/` belongs here.
+    { url: `${baseUrl}/`, lastModified: new Date(), changeFrequency: 'daily', priority: 1 },
     { url: `${baseUrl}/blog`, lastModified: new Date(), changeFrequency: 'daily', priority: 0.8 },
     { url: `${baseUrl}/pitch`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.5 },
     { url: `${baseUrl}/partners`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.6 },

@@ -103,7 +103,7 @@ export default function ComparePage() {
       <script
         {...jsonLdProps(
           breadcrumbSchema([
-            { name: "Rotahr", path: "/landing" },
+            { name: "Rotahr", path: "/" },
             { name: "Compare", path: "/compare" },
           ])
         )}

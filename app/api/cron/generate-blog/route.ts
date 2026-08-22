@@ -184,7 +184,7 @@ function insertInternalLinks(
   });
 
   // Always close with a soft product link
-  paragraphs.push(`Want to see how this works in practice? [Explore Rotahr](/landing) for restaurants, bars and hotels.`);
+  paragraphs.push(`Want to see how this works in practice? [Explore Rotahr](/) for restaurants, bars and hotels.`);
 
   return paragraphs.join('\n\n');
 }
