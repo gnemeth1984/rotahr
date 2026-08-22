@@ -2625,6 +2625,50 @@ model NavChatMessage {
   @@index([userId, createdAt])
 }
 
+/// What Navigator remembers about the user between conversations.
+///
+/// The chat only ever sees the last handful of messages, so without this the
+/// assistant is amnesiac: every durable fact ("sister is called Reka", "hates
+/// early gym", "shipping the template library") had to be repeated. Rows are
+/// written both by the model (via the remember tool) and by an automatic
+/// extraction pass after each turn.
+///
+/// Forgetting is a soft flag, not a delete: the model stops seeing a forgotten
+/// row immediately, but the history stays auditable so a wrong auto-extraction
+/// can be reviewed rather than vanishing silently.
+model NavMemory {
+  id     String @id @default(cuid())
+  userId String
+
+  // fact | preference | person | thread | project
+  kind String @default("fact")
+
+  /// Short stable label, e.g. "coffee order" — also the dedupe handle, so a
+  /// changed value updates the existing row instead of stacking a contradiction.
+  key     String
+  value   String  @db.Text
+  /// Who or what this is about, for person/thread rows.
+  subject String?
+
+  // chat | auto | manual
+  source String @default("auto")
+
+  /// Pinned rows are always in context, regardless of relevance scoring.
+  pinned    Boolean @default(false)
+  forgotten Boolean @default(false)
+
+  /// Retrieval feedback: what actually gets used stays near the top.
+  useCount   Int       @default(0)
+  lastUsedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, forgotten, pinned])
+  @@index([userId, forgotten, updatedAt])
+  @@index([userId, kind])
+}
+
 // ── Free template library ────────────────────────────────────────────────────
 // Public requests from /templates. No auth — anyone can ask for a template.
 // Email is optional: the request is still useful as a signal of what paperwork

@@ -5,6 +5,7 @@ import { enforceShiftWindow, withShiftBuffers } from "./shift";
 import { sanitisePlanBlocks } from "./blocks";
 import { dayFromKey, weekdayName, minutesBetween } from "./dates";
 import { redListPromptBlock } from "./redlist";
+import { recallMemories, renderMemories, saveMemory, forgetMemory } from "./memory";
 
 const MODEL = "gpt-4o-mini";
 
@@ -37,7 +38,15 @@ High-IQ layer:
 
 Boundaries: you are not a clinician. No diagnosis, no medication advice. If they mention crisis-level distress, say plainly that a human professional is the right call, and stay kind.
 
-You have tools that change their real data. Use them rather than telling the user to do it themselves. After using tools, confirm in one line what changed.`;
+You have tools that change their real data. Use them rather than telling the user to do it themselves. After using tools, confirm in one line what changed.
+
+Memory:
+- You remember this person across sessions. When something durable comes up — a preference, a person in their life, a project, an ongoing thread, a standing constraint — store it with "remember". Do NOT store today's plan, passing moods, or anything they did not actually say.
+- When they refer to something you cannot see in your current context, use "recall_memory" before saying you do not know.
+- The moment they say you have something wrong, or ask you to drop it, call "forget" with that key. Never argue with them about what you remember.
+- Use what you remember naturally, the way a person would. Never recite the list back at them.
+
+You can also read their record: search_tasks, day_history, habit_stats and checkin_trends. When they ask what is outstanding, how a week went, or whether a pattern is real, look it up instead of guessing.`;
 
 // --------------------------------------------------------------------------
 // Tone (6.2 Personality)
@@ -348,6 +357,129 @@ const tools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
       },
     },
   },
+
+  // ---- Read tools -------------------------------------------------------
+  // Everything above writes. Without these the assistant could only ever act
+  // on the fixed snapshot it was handed, so any question about the user's own
+  // history ("how often did I skip the gym?") was unanswerable.
+  {
+    type: "function",
+    function: {
+      name: "search_tasks",
+      description:
+        "Search the user's tasks. Use whenever they refer to a task you cannot see in the snapshot, or ask what is outstanding in some area.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "Words to match in title/notes" },
+          status: {
+            type: "string",
+            enum: ["todo", "doing", "done", "parked", "draft", "any"],
+            description: "Defaults to any except draft",
+          },
+          project: { type: "string" },
+          limit: { type: "number", description: "Max 25, defaults to 10" },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "day_history",
+      description:
+        "Look back at previous days: focus theme, energy, score, wins, friction and reflections. Use for 'how was last week', pattern spotting, or comparing to now.",
+      parameters: {
+        type: "object",
+        properties: {
+          days: { type: "number", description: "How many days back, max 60, defaults to 14" },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "habit_stats",
+      description:
+        "Completion counts per habit over a window, with target-per-week. Use for any question about consistency or streaks.",
+      parameters: {
+        type: "object",
+        properties: {
+          days: { type: "number", description: "Window in days, max 120, defaults to 30" },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "checkin_trends",
+      description:
+        "Averages of the user's energy/mood/focus/hunger/overstim check-ins over a window, split by time of day. Use to ground advice in their real pattern rather than guessing.",
+      parameters: {
+        type: "object",
+        properties: {
+          days: { type: "number", description: "Window in days, max 90, defaults to 21" },
+        },
+        required: [],
+      },
+    },
+  },
+
+  // ---- Memory -----------------------------------------------------------
+  {
+    type: "function",
+    function: {
+      name: "recall_memory",
+      description:
+        "Search what you remember about this person. Use when they refer to something from a past conversation, a person, or an ongoing thread you cannot see in your current context.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "What to look for" },
+        },
+        required: ["query"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "remember",
+      description:
+        "Store something durable about the user so it survives to future conversations. Use when they tell you a lasting fact, preference, person or project — NOT for today's plan or passing moods. Reuse an existing key to update it.",
+      parameters: {
+        type: "object",
+        properties: {
+          kind: { type: "string", enum: ["fact", "preference", "person", "thread", "project"] },
+          key: { type: "string", description: "Short reusable label, e.g. 'gym timing'" },
+          value: { type: "string", description: "One plain sentence" },
+          subject: { type: "string", description: "Who/what it is about, for person or thread" },
+          pinned: { type: "boolean", description: "Always keep in context. Use sparingly." },
+        },
+        required: ["key", "value"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "forget",
+      description:
+        "Stop remembering something, by its key. Use the moment the user asks you to forget it or tells you it is wrong.",
+      parameters: {
+        type: "object",
+        properties: {
+          key: { type: "string", description: "The key of the memory to drop" },
+        },
+        required: ["key"],
+      },
+    },
+  },
 ];
 
 export type ToolAction = { tool: string; summary: string };
@@ -568,6 +700,240 @@ async function runTool(
       return { result: { ok: true }, action: { tool: name, summary: `Reflection saved for ${key}` } };
     }
 
+    // ---- Read tools -----------------------------------------------------
+    // These never write. They exist so the model can answer "what's left on
+    // X" or "how was last week" from the record instead of guessing, which is
+    // the difference between an assistant and a confident liar.
+    case "search_tasks": {
+      const q = typeof args.query === "string" ? args.query.trim() : "";
+      const status = typeof args.status === "string" ? args.status : "any";
+      const limit = Math.min(Math.max(Number(args.limit) || 10, 1), 25);
+
+      const where: any = { userId, archivedAt: null };
+      // "draft" is an un-triaged capture and is deliberately invisible unless
+      // asked for by name — see the schema comment on NavTask.status.
+      if (status === "any") where.status = { not: "draft" };
+      else where.status = status;
+      if (args.project) where.project = { contains: String(args.project), mode: "insensitive" };
+      if (q) {
+        where.OR = [
+          { title: { contains: q, mode: "insensitive" } },
+          { notes: { contains: q, mode: "insensitive" } },
+          { project: { contains: q, mode: "insensitive" } },
+        ];
+      }
+
+      const rows = await prisma.navTask.findMany({
+        where,
+        orderBy: [{ status: "asc" }, { updatedAt: "desc" }],
+        take: limit,
+        select: {
+          id: true,
+          title: true,
+          status: true,
+          priority: true,
+          project: true,
+          effortMins: true,
+          dueDate: true,
+          scheduledFor: true,
+          parentId: true,
+        },
+      });
+
+      return {
+        result: {
+          count: rows.length,
+          tasks: rows.map((t) => ({
+            id: t.id,
+            title: t.title,
+            status: t.status,
+            priority: t.priority,
+            project: t.project,
+            effortMins: t.effortMins,
+            due: t.dueDate ? t.dueDate.toISOString().slice(0, 10) : null,
+            scheduledFor: t.scheduledFor ? t.scheduledFor.toISOString().slice(0, 10) : null,
+            isSubtask: Boolean(t.parentId),
+          })),
+        },
+        action: { tool: name, summary: `Searched tasks${q ? ` for "${q}"` : ""} — ${rows.length} found` },
+      };
+    }
+
+    case "day_history": {
+      const days = Math.min(Math.max(Number(args.days) || 14, 1), 60);
+      const from = dayFromKey(today);
+      from.setDate(from.getDate() - days);
+
+      const rows = await prisma.navDayPlan.findMany({
+        where: { userId, date: { gte: from } },
+        orderBy: { date: "desc" },
+        take: days,
+        select: {
+          date: true,
+          energy: true,
+          mood: true,
+          availableHours: true,
+          focusTheme: true,
+          anchor: true,
+          wins: true,
+          friction: true,
+          scoreOutOf5: true,
+          reflection: true,
+        },
+      });
+
+      const scored = rows.filter((r) => typeof r.scoreOutOf5 === "number");
+      const avgScore = scored.length
+        ? Math.round((scored.reduce((a, r) => a + (r.scoreOutOf5 ?? 0), 0) / scored.length) * 10) / 10
+        : null;
+
+      return {
+        result: {
+          days,
+          daysLogged: rows.length,
+          avgScoreOutOf5: avgScore,
+          history: rows.map((r) => ({
+            date: r.date.toISOString().slice(0, 10),
+            weekday: weekdayName(r.date.toISOString().slice(0, 10)),
+            energy: r.energy,
+            mood: r.mood,
+            availableHours: r.availableHours,
+            focusTheme: r.focusTheme,
+            anchor: r.anchor,
+            wins: r.wins,
+            friction: r.friction,
+            scoreOutOf5: r.scoreOutOf5,
+            reflection: r.reflection,
+          })),
+        },
+        action: { tool: name, summary: `Reviewed the last ${days} days (${rows.length} logged)` },
+      };
+    }
+
+    case "habit_stats": {
+      const days = Math.min(Math.max(Number(args.days) || 30, 1), 120);
+      const from = dayFromKey(today);
+      from.setDate(from.getDate() - days);
+
+      const habits = await prisma.navHabit.findMany({
+        where: { userId, active: true },
+        orderBy: { order: "asc" },
+        select: {
+          id: true,
+          name: true,
+          emoji: true,
+          targetPerWk: true,
+          cue: true,
+          logs: {
+            where: { date: { gte: from }, done: true },
+            select: { date: true },
+            orderBy: { date: "desc" },
+          },
+        },
+      });
+
+      const weeks = Math.max(days / 7, 1);
+      return {
+        result: {
+          windowDays: days,
+          habits: habits.map((h) => {
+            const done = h.logs.length;
+            const perWeek = Math.round((done / weeks) * 10) / 10;
+            return {
+              name: h.name,
+              emoji: h.emoji,
+              cue: h.cue,
+              targetPerWk: h.targetPerWk,
+              doneInWindow: done,
+              actualPerWeek: perWeek,
+              onTarget: h.targetPerWk ? perWeek >= h.targetPerWk : null,
+              lastDone: h.logs[0] ? h.logs[0].date.toISOString().slice(0, 10) : null,
+            };
+          }),
+        },
+        action: { tool: name, summary: `Checked habit consistency over ${days} days` },
+      };
+    }
+
+    case "checkin_trends": {
+      const days = Math.min(Math.max(Number(args.days) || 21, 1), 90);
+      const from = new Date();
+      from.setDate(from.getDate() - days);
+
+      const rows = await prisma.navCheckin.findMany({
+        where: { userId, at: { gte: from } },
+        orderBy: { at: "desc" },
+        take: 600,
+        select: { at: true, kind: true, value: true },
+      });
+
+      // Split by part of day: the useful signal for an ADHD day is *when* the
+      // dip lands, not the flat average.
+      const slotOf = (d: Date) => {
+        const h = d.getHours();
+        if (h < 12) return "morning";
+        if (h < 17) return "afternoon";
+        return "evening";
+      };
+      const buckets = new Map<string, { sum: number; n: number }>();
+      for (const r of rows) {
+        for (const k of [r.kind, `${r.kind}/${slotOf(r.at)}`]) {
+          const b = buckets.get(k) ?? { sum: 0, n: 0 };
+          b.sum += r.value;
+          b.n += 1;
+          buckets.set(k, b);
+        }
+      }
+      const averages: Record<string, { avg: number; samples: number }> = {};
+      for (const [k, b] of buckets) {
+        averages[k] = { avg: Math.round((b.sum / b.n) * 10) / 10, samples: b.n };
+      }
+
+      return {
+        result: { windowDays: days, checkins: rows.length, averagesOutOf5: averages },
+        action: { tool: name, summary: `Checked ${rows.length} check-ins over ${days} days` },
+      };
+    }
+
+    // ---- Memory ---------------------------------------------------------
+    case "recall_memory": {
+      const rows = await recallMemories(userId, String(args.query ?? ""), 12);
+      return {
+        result: {
+          count: rows.length,
+          memories: rows.map((r) => ({ kind: r.kind, key: r.key, subject: r.subject, value: r.value, pinned: r.pinned })),
+        },
+        action: { tool: name, summary: `Recalled ${rows.length} memor${rows.length === 1 ? "y" : "ies"}` },
+      };
+    }
+
+    case "remember": {
+      const saved = await saveMemory(userId, {
+        kind: args.kind,
+        key: String(args.key ?? ""),
+        value: String(args.value ?? ""),
+        subject: args.subject ? String(args.subject) : null,
+        source: "chat",
+        pinned: args.pinned === true ? true : undefined,
+      });
+      if (!saved) {
+        return { result: { ok: false, error: "key and value are both required" }, action: { tool: name, summary: "Nothing to remember" } };
+      }
+      return {
+        result: { ok: true, key: saved.key, kind: saved.kind },
+        action: { tool: name, summary: `Remembered: ${saved.key}` },
+      };
+    }
+
+    case "forget": {
+      const key = String(args.key ?? "");
+      const n = await forgetMemory(userId, { key });
+      return {
+        result: { ok: n > 0, dropped: n },
+        action: { tool: name, summary: n > 0 ? `Forgot: ${key}` : `Nothing stored under "${key}"` },
+      };
+    }
+
     default:
       return { result: { error: `unknown tool ${name}` }, action: { tool: name, summary: "Unknown tool" } };
   }
@@ -585,9 +951,15 @@ export async function navigatorChat(
   const snapshot = await buildSnapshot(userId);
   const openai = client();
 
+  // Long-term memory, retrieved against this message. Injected as its own
+  // system message so it survives the history window instead of scrolling off
+  // after 14 turns like everything else.
+  const memoryBlock = renderMemories(await recallMemories(userId, userMessage));
+
   const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
     { role: "system", content: personaFor(snapshot.profile.coachTone) },
     { role: "system", content: `Current state of the user's day:\n\n${renderSnapshot(snapshot)}` },
+    ...(memoryBlock ? [{ role: "system" as const, content: memoryBlock }] : []),
     ...history.slice(-14).map((m) => ({ role: m.role, content: m.content }) as const),
     { role: "user", content: userMessage },
   ];

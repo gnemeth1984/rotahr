@@ -322,3 +322,17 @@ export type NavState = {
   planStale: boolean;
   staleAfterMins: number;
 };
+
+export type NavMemoryRow = {
+  id: string;
+  kind: string;
+  key: string;
+  value: string;
+  subject: string | null;
+  source: string;
+  pinned: boolean;
+  forgotten: boolean;
+  useCount: number;
+  lastUsedAt: string | null;
+  updatedAt: string;
+};

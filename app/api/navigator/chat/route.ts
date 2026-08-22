@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { navigatorUserId, forbidden } from "@/lib/navigator/guard";
 import { navigatorChat } from "@/lib/navigator/ai";
+import { extractMemories } from "@/lib/navigator/memory";
 import { z } from "zod";
 
 export const dynamic = "force-dynamic";
@@ -54,6 +55,13 @@ export async function POST(req: NextRequest) {
     const saved = await prisma.navChatMessage.create({
       data: { userId, role: "assistant", content: reply, actions: actions.length ? actions : undefined },
     });
+
+    // Awaited on purpose. Vercel freezes the function the moment the response
+    // is sent, so a floating promise here would die about half the time and
+    // memory would silently stop working. extractMemories swallows its own
+    // errors and no-ops on short turns, so it can never fail the reply.
+    await extractMemories(userId, parsed.data.message, reply);
+
     return NextResponse.json({ message: saved, actions });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "AI request failed";

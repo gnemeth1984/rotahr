@@ -6,6 +6,7 @@ import { ChatMessage, NavState } from "./types";
 import { api, errMsg } from "./api";
 import { Btn, Panel, Pill, SectionTitle, inputClass } from "./nav-ui";
 import { SpeakButton } from "./SpeakButton";
+import { VoiceButton } from "./VoiceButton";
 
 const STARTERS = [
   "I've got 40 minutes and no idea where to start",
@@ -34,9 +35,10 @@ export function ChatTab({ state, refresh }: { state: NavState; refresh: () => vo
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages?.length, sending]);
 
-  async function send(text?: string) {
+  // Returns the reply so the voice loop can speak it. Null means nothing to say.
+  async function send(text?: string): Promise<ChatMessage | null> {
     const msg = (text ?? input).trim();
-    if (!msg || sending) return;
+    if (!msg || sending) return null;
     setSending(true);
     setError(null);
     setInput("");
@@ -53,10 +55,12 @@ export function ChatTab({ state, refresh }: { state: NavState; refresh: () => vo
       const out = await api<{ message: ChatMessage }>("/chat", { body: { message: msg } });
       setMessages((m) => [...(m ?? []), out.message]);
       refresh();
+      return out.message;
     } catch (e) {
       setError(errMsg(e));
       setMessages((m) => (m ?? []).filter((x) => x.id !== optimistic.id));
       setInput(msg);
+      return null;
     } finally {
       setSending(false);
     }
@@ -162,7 +166,10 @@ export function ChatTab({ state, refresh }: { state: NavState; refresh: () => vo
 
         <div className="border-t border-white/[0.06] p-3.5">
           {error && <p className="mb-2 text-xs text-rose-300">{error}</p>}
-          {lastReply && <SpeakButton message={lastReply} className="mb-2.5" />}
+          <div className="mb-2.5 flex flex-col gap-2 sm:flex-row sm:items-start">
+            <VoiceButton onTranscript={send} disabled={sending} />
+            {lastReply && <SpeakButton message={lastReply} />}
+          </div>
           <div className="flex gap-2">
             <textarea
               className={`${inputClass} max-h-32 min-h-[46px] resize-none`}

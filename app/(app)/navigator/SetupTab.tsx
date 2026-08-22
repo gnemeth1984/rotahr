@@ -5,6 +5,7 @@ import { Check, Save } from "lucide-react";
 import { NavProfile, NavState, WeekdayKey, WeekPattern, DayWindow } from "./types";
 import { api, errMsg } from "./api";
 import { Btn, Field, Panel, SectionTitle, inputClass } from "./nav-ui";
+import { MemoryPanel } from "./MemoryPanel";
 import PushToggle from "./PushToggle";
 
 const TIMEZONES = [
@@ -640,6 +641,10 @@ export function SetupTab({ state, refresh }: { state: NavState; refresh: () => v
           </Field>
         </div>
       </Panel>
+
+      {/* Its own store, saved on its own — deliberately outside the profile
+          form's Save, so dropping a wrong memory takes effect immediately. */}
+      <MemoryPanel />
 
       <div className="flex items-center gap-3">
         <Btn variant="flame" loading={busy} onClick={save}>
