@@ -37,6 +37,12 @@ const securityHeaders = [
 ];
 
 const nextConfig = {
+  // TEMPORARY — required by instrumentation.ts, the diagnostic that captures the
+  // (app) SSR 500 into ActivityLog because Vercel runtime logs are unreachable
+  // with our API token. Remove both together once the 500 is fixed.
+  experimental: {
+    instrumentationHook: true,
+  },
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "lh3.googleusercontent.com" },
