@@ -6,6 +6,7 @@ import { sanitisePlanBlocks } from "./blocks";
 import { dayFromKey, weekdayName, minutesBetween } from "./dates";
 import { redListPromptBlock } from "./redlist";
 import { recallMemories, renderMemories, saveMemory, forgetMemory } from "./memory";
+import { webLookup } from "./web";
 
 const MODEL = "gpt-4o-mini";
 
@@ -46,7 +47,13 @@ Memory:
 - The moment they say you have something wrong, or ask you to drop it, call "forget" with that key. Never argue with them about what you remember.
 - Use what you remember naturally, the way a person would. Never recite the list back at them.
 
-You can also read their record: search_tasks, day_history, habit_stats and checkin_trends. When they ask what is outstanding, how a week went, or whether a pattern is real, look it up instead of guessing.`;
+You can also read their record: search_tasks, day_history, habit_stats and checkin_trends. When they ask what is outstanding, how a week went, or whether a pattern is real, look it up instead of guessing.
+
+The live web:
+- You have "web_lookup". Use it for anything that could have changed since you were trained, or that you are not certain about: prices, wage rates, law and regulation, opening hours, suppliers, competitors, product specs, news, "is this still true".
+- Being confidently wrong about a real-world number is worse than taking a few seconds to check. Check.
+- Report what you found with the figure first, and name at most two sources as bare domains, e.g. [workplacerelations.ie]. Never cite a source the lookup did not return.
+- If the lookup fails or finds nothing, say that in one line. Do not answer from memory as though you had checked.`;
 
 // --------------------------------------------------------------------------
 // Tone (6.2 Personality)
@@ -426,6 +433,35 @@ const tools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
           days: { type: "number", description: "Window in days, max 90, defaults to 21" },
         },
         required: [],
+      },
+    },
+  },
+
+  // ---- Web --------------------------------------------------------------
+  // Read-only and outward-facing. Everything else here reads his own record;
+  // this is the only tool that can see the world, which is why the persona
+  // insists on it for anything current rather than answering from stale
+  // training data with total confidence.
+  {
+    type: "function",
+    function: {
+      name: "web_lookup",
+      description:
+        "Look something up on the live web and get an answer with real sources. Use for anything current or verifiable: prices, wage rates, legal or regulatory detail, opening hours, suppliers, competitors, product specs, news, 'is X still true'. Always use this instead of answering from memory when the answer could have changed, and when you are not certain.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: {
+            type: "string",
+            description: "The question, in plain words. Include the year or 'current' when it matters.",
+          },
+          depth: {
+            type: "string",
+            enum: ["low", "medium"],
+            description: "low (default, fast) for a single fact; medium for a question needing several sources",
+          },
+        },
+        required: ["query"],
       },
     },
   },
@@ -892,6 +928,41 @@ async function runTool(
       return {
         result: { windowDays: days, checkins: rows.length, averagesOutOf5: averages },
         action: { tool: name, summary: `Checked ${rows.length} check-ins over ${days} days` },
+      };
+    }
+
+    // ---- Web ------------------------------------------------------------
+    case "web_lookup": {
+      const query = String(args.query ?? "").trim();
+      if (!query) {
+        return {
+          result: { error: "no query" },
+          action: { tool: name, summary: "Web lookup skipped — no query" },
+        };
+      }
+      // 22s, not the module default of 28s: chat allows 3 tool rounds inside a
+      // 60s route, so two lookups plus the final completion still fit.
+      const found = await webLookup(query, {
+        depth: args.depth === "medium" ? "medium" : "low",
+        timeoutMs: 22_000,
+      });
+      return {
+        result: {
+          query,
+          answer: found.answer,
+          sources: found.sources,
+          // Named so the model cannot quietly present a failed lookup as fact.
+          lookupFailed: Boolean(found.failed),
+          instruction: found.failed
+            ? "The lookup failed. Tell the user you could not check, in one line. Do NOT answer from memory as if you had checked."
+            : "Answer from this. Cite at most 2 sources, as a bare domain in brackets. Never invent a source that is not listed.",
+        },
+        action: {
+          tool: name,
+          summary: found.failed
+            ? `Web lookup failed: ${query.slice(0, 60)}`
+            : `Looked up "${query.slice(0, 60)}" — ${found.sources.length} source${found.sources.length === 1 ? "" : "s"}`,
+        },
       };
     }
 
