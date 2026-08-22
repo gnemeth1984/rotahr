@@ -72,6 +72,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // see inside before they sign up, and software-directory reviewers cannot
     // verify a capability that only exists behind a login.
     { url: `${baseUrl}/product-tour`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.8 },
+    // Demo chooser. Used to be a redirect to /auth/signin (and so deliberately
+    // absent here); it is a real page now, and it is the only no-signup way to
+    // see the product working, so it belongs in the index.
+    { url: `${baseUrl}/try`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.8 },
     // Module pages: match how people actually search ("restaurant HACCP app"),
     // which the landing page's two-line summaries can never rank for.
     ...features.map(f => ({

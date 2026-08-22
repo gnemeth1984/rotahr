@@ -502,7 +502,8 @@ export default function LandingPage() {
           <Image src="/logo-dark.png" alt="Rotahr" width={130} height={42} className="object-contain mx-auto mb-8" />
           <h2 className="text-3xl font-extrabold text-white mb-4">Ready to simplify your operations?</h2>
           <p className="text-slate-400 text-lg mb-10 max-w-xl mx-auto">
-            Join hospitality businesses already using Rotahr to manage their teams and venues.
+            Set your venue up in an evening. First month free, no card needed — or look
+            around the live demo first and decide after.
           </p>
           <Link
             href="/auth/register"
