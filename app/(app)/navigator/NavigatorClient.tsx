@@ -12,6 +12,7 @@ import {
   MessageCircle,
   SlidersHorizontal,
   Gauge,
+  Camera,
   RefreshCw,
 } from "lucide-react";
 import { NavState } from "./types";
@@ -25,10 +26,12 @@ import { FocusTab } from "./FocusTab";
 import { ChatTab } from "./ChatTab";
 import { SetupTab } from "./SetupTab";
 import { SystemTab } from "./SystemTab";
+import { CaptureTab } from "./CaptureTab";
 
 const TABS = [
   { id: "today", label: "Today", icon: Sun },
   { id: "tasks", label: "Tasks", icon: ListChecks },
+  { id: "capture", label: "Capture", icon: Camera },
   { id: "food", label: "Food", icon: Utensils },
   { id: "move", label: "Move", icon: Activity },
   { id: "habits", label: "Habits", icon: Repeat },
@@ -150,6 +153,7 @@ export function NavigatorClient({ firstName }: { firstName: string }) {
         <>
           {tab === "today" && <TodayTab state={state} refresh={refresh} />}
           {tab === "tasks" && <TasksTab state={state} refresh={refresh} />}
+          {tab === "capture" && <CaptureTab refresh={refresh} />}
           {tab === "food" && <FoodTab state={state} refresh={refresh} />}
           {tab === "move" && <MoveTab state={state} refresh={refresh} />}
           {tab === "habits" && <HabitsTab state={state} refresh={refresh} />}

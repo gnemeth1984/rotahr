@@ -2669,6 +2669,66 @@ model NavMemory {
   @@index([userId, kind])
 }
 
+/// A photo or document Gabor threw at Navigator: a receipt, a scribbled note, a
+/// letter from Revenue.
+///
+/// One capture button, no "what kind is this?" question first — asking the user
+/// to classify before capturing is exactly the friction that stops a capture
+/// happening at all. A vision pass decides the kind and pulls the fields out.
+///
+/// Deliberately separate from Expense/StockItem: those are tenant business
+/// records for a venue, and this is his personal pile. A receipt captured here
+/// never becomes a Rotahr expense on its own — money is on Navigator's red
+/// list, so anything financial stops at "read and shown".
+model NavCapture {
+  id     String @id @default(cuid())
+  userId String
+
+  /// receipt | note | document | unknown — decided by the vision pass, and
+  /// overridable by hand when it guesses wrong.
+  kind String @default("unknown")
+
+  /// Private Vercel Blob url. Never public: these are personal documents, so
+  /// they are proxied through the app behind the Navigator guard.
+  blobUrl  String
+  mimeType String @default("image/jpeg")
+
+  /// pending | done | failed — a capture is saved BEFORE the AI runs, so a
+  /// vision failure or timeout still leaves the photo safely stored rather
+  /// than losing it along with the request.
+  status String  @default("pending")
+  error  String? @db.Text
+
+  /// One-line title, and the plain summary shown in the list.
+  title   String?
+  summary String? @db.Text
+  /// Full text read off the image, kept so it stays searchable later.
+  rawText String? @db.Text
+
+  /// Receipts: vendor, total, currency, date on the receipt.
+  vendor   String?
+  total    Float?
+  currency String?
+  docDate  DateTime?
+
+  /// Documents: the deadline the letter is really about. The whole point of
+  /// photographing an official letter is not losing this date.
+  deadline DateTime?
+  /// Anything else structured the pass found (line items, action list).
+  extracted Json?
+
+  /// Tasks this capture created, so re-running it cannot duplicate them and
+  /// the list can show "3 tasks" against the photo.
+  taskIds String[] @default([])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([userId, kind])
+  @@index([userId, status])
+}
+
 // ── Free template library ────────────────────────────────────────────────────
 // Public requests from /templates. No auth — anyone can ask for a template.
 // Email is optional: the request is still useful as a signal of what paperwork

@@ -7,10 +7,11 @@ const securityHeaders = [
   // the browser refuses getUserMedia site-wide before any permission UI exists:
   // an instant NotAllowedError, no prompt, and no site entry in browser settings
   // — which reads exactly like a broken button. Third parties stay blocked.
-  // camera stays off until Phase 2 photo capture needs it.
+  // camera=(self) is the same story for Navigator's photo capture: the capture
+  // input needs it to open the rear camera on a phone. Both are first-party only.
   {
     key: "Permissions-Policy",
-    value: "camera=(), microphone=(self), geolocation=(self), interest-cohort=()",
+    value: "camera=(self), microphone=(self), geolocation=(self), interest-cohort=()",
   },
   {
     key: "Strict-Transport-Security",
