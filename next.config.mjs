@@ -3,7 +3,15 @@ const securityHeaders = [
   { key: "X-Frame-Options", value: "SAMEORIGIN" },
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-  { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(self), interest-cohort=()" },
+  // microphone=(self) is required by Navigator's push-to-talk. With microphone=()
+  // the browser refuses getUserMedia site-wide before any permission UI exists:
+  // an instant NotAllowedError, no prompt, and no site entry in browser settings
+  // — which reads exactly like a broken button. Third parties stay blocked.
+  // camera stays off until Phase 2 photo capture needs it.
+  {
+    key: "Permissions-Policy",
+    value: "camera=(), microphone=(self), geolocation=(self), interest-cohort=()",
+  },
   {
     key: "Strict-Transport-Security",
     value: "max-age=63072000; includeSubDomains; preload",
