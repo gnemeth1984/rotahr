@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { put } from "@vercel/blob";
 import { prisma } from "@/lib/db";
 import { navigatorUserId, forbidden } from "@/lib/navigator/guard";
-import { readCapture, type CaptureKind } from "@/lib/navigator/capture";
-import { todayKey } from "@/lib/navigator/dates";
+import { type CaptureKind } from "@/lib/navigator/capture";
+import { processCapture, fetchCaptureBytes } from "@/lib/navigator/capture-process";
 
 export const dynamic = "force-dynamic";
 // Vision on a "high" detail photo is the slow part — a dark handwritten note
@@ -12,12 +12,6 @@ export const maxDuration = 60;
 
 const MAX_BYTES = 12 * 1024 * 1024; // phone photos land at 2-5MB; 12 is generous
 const ALLOWED = ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"];
-
-function dateOrNull(key: string | null): Date | null {
-  if (!key) return null;
-  const d = new Date(`${key}T12:00:00.000Z`); // midday, so no timezone slips a day
-  return Number.isNaN(d.getTime()) ? null : d;
-}
 
 // GET — recent captures, newest first
 export async function GET(req: NextRequest) {
@@ -87,63 +81,17 @@ export async function POST(req: NextRequest) {
   });
 
   // ---- Read it ------------------------------------------------------------
-  try {
-    const reading = await readCapture(bytes.toString("base64"), mimeType, todayKey());
+  // All persistence rules live in processCapture so the share-sheet route and
+  // the retry path cannot drift from this one.
+  const result = await processCapture({ userId, captureId: capture.id, bytes, mimeType });
 
-    // Notes and documents become real tasks. Captured as "todo", not "draft":
-    // he pointed a camera at it on purpose, which is triage enough — a draft
-    // would be invisible and the capture would achieve nothing.
-    let taskIds: string[] = [];
-    if (reading.tasks.length) {
-      const created = await prisma.$transaction(
-        reading.tasks.map((t) =>
-          prisma.navTask.create({
-            data: {
-              userId,
-              title: t.title,
-              notes: t.notes ?? null,
-              status: "todo",
-              priority: t.priority ?? "important",
-              effortMins: t.effortMins ?? null,
-              dueDate: dateOrNull(t.due ?? null),
-              project: reading.kind === "document" ? "Admin" : null,
-            },
-            select: { id: true },
-          })
-        )
-      );
-      taskIds = created.map((c) => c.id);
-    }
-
-    const saved = await prisma.navCapture.update({
-      where: { id: capture.id },
-      data: {
-        kind: reading.kind,
-        status: "done",
-        title: reading.title,
-        summary: reading.summary,
-        rawText: reading.rawText,
-        vendor: reading.vendor,
-        total: reading.total,
-        currency: reading.currency,
-        docDate: dateOrNull(reading.docDate),
-        deadline: dateOrNull(reading.deadline),
-        extracted: reading.lineItems.length ? { lineItems: reading.lineItems } : undefined,
-        taskIds,
-      },
-    });
-
-    return NextResponse.json({ capture: saved, tasksCreated: taskIds.length });
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : "Could not read the image";
-    const saved = await prisma.navCapture.update({
-      where: { id: capture.id },
-      data: { status: "failed", error: msg.slice(0, 500), title: "Could not read this one" },
-    });
-    // 200, not 5xx: the photo IS saved and listed. The client shows the row
-    // with a retry, which is the honest state of things.
-    return NextResponse.json({ capture: saved, tasksCreated: 0, readFailed: true, error: msg });
-  }
+  // 200 even on a failed read: the photo IS saved and listed. The client shows
+  // the row with a retry, which is the honest state of things.
+  return NextResponse.json({
+    capture: result.capture,
+    tasksCreated: result.tasksCreated,
+    ...(result.readFailed ? { readFailed: true, error: result.error } : {}),
+  });
 }
 
 // PATCH — fix the kind by hand, or retry a failed read
