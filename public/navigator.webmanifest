@@ -1,0 +1,65 @@
+{
+  "name": "Navigator",
+  "short_name": "Navigator",
+  "description": "Personal ops — capture, tasks, focus and the day's plan",
+  "start_url": "/navigator",
+  "scope": "/navigator",
+  "display": "standalone",
+  "background_color": "#0f1c35",
+  "theme_color": "#0f1c35",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icons/navigator-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/navigator-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/navigator-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "categories": ["productivity"],
+  "share_target": {
+    "action": "/navigator/share/submit",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url",
+      "files": [
+        {
+          "name": "file",
+          "accept": ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"]
+        }
+      ]
+    }
+  },
+  "shortcuts": [
+    {
+      "name": "Capture",
+      "url": "/navigator?tab=capture",
+      "description": "Photograph a receipt, note or document"
+    },
+    {
+      "name": "Tasks",
+      "url": "/navigator?tab=tasks",
+      "description": "What's open today"
+    },
+    {
+      "name": "Chat",
+      "url": "/navigator?tab=chat",
+      "description": "Talk to Navigator"
+    }
+  ]
+}

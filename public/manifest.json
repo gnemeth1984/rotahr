@@ -35,34 +35,7 @@
       "name": "My Schedule",
       "url": "/shifts",
       "description": "View your shifts"
-    },
-    {
-      "name": "Capture",
-      "url": "/navigator?tab=capture",
-      "description": "Photograph a receipt, note or document"
     }
   ],
-  "scope": "/",
-  "share_target": {
-    "action": "/api/navigator/share",
-    "method": "POST",
-    "enctype": "multipart/form-data",
-    "params": {
-      "title": "title",
-      "text": "text",
-      "url": "url",
-      "files": [
-        {
-          "name": "file",
-          "accept": [
-            "image/jpeg",
-            "image/png",
-            "image/webp",
-            "image/heic",
-            "image/heif"
-          ]
-        }
-      ]
-    }
-  }
+  "scope": "/"
 }

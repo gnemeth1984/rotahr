@@ -44,7 +44,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <head>
-        <link rel="manifest" href="/manifest.json" />
+        {/* No hardcoded manifest link here. It comes from the Metadata API
+            (metadata.manifest above) so a nested layout can override it —
+            /navigator ships its own manifest, and a hardcoded tag would win
+            over the nested one and break Navigator's install + share target. */}
         <link rel="apple-touch-icon" href="/icons/icon-192.png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />

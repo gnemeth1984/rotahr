@@ -11,11 +11,16 @@ const MAX_BYTES = 12 * 1024 * 1024;
 const ALLOWED = ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"];
 
 /**
- * POST /api/navigator/share — the Android share-sheet target.
+ * POST /navigator/share/submit — the Android share-sheet target.
  *
- * Registered in manifest.json as share_target, so "Rotahr" appears in the OS
- * share sheet and a photo, screenshot or link can go straight into Navigator
- * without opening the app and finding the Capture tab first.
+ * Registered in /navigator.webmanifest as share_target, so "Navigator" appears
+ * in the OS share sheet and a photo, screenshot or link can go straight into
+ * Capture without opening the app and finding the tab first.
+ *
+ * Lives under /navigator rather than /api on purpose: a share_target action
+ * MUST sit inside the manifest's scope, and Navigator's manifest is scoped to
+ * /navigator so it installs as its own app without dragging the whole of
+ * Rotahr — and its share entry — onto every staff member's phone.
  *
  * Deliberately does NOT read the image here. The share sheet navigates the
  * browser to this URL, so anything slow leaves the phone staring at a blank
@@ -31,9 +36,9 @@ export async function POST(req: NextRequest) {
   const origin = req.nextUrl.origin;
   const userId = await navigatorUserId();
 
-  // Navigator is super-admin-only, but the manifest is the whole app's, so a
-  // staff member's installed PWA also lists Rotahr as a share destination.
-  // Send them somewhere sensible instead of a 403 they cannot act on.
+  // Navigator's manifest is scoped to /navigator, so in practice only its own
+  // installed app can reach this. Belt and braces anyway: anyone else who
+  // POSTs here goes somewhere sensible rather than a 403 they cannot act on.
   if (!userId) {
     return NextResponse.redirect(`${origin}/dashboard`, { status: 303 });
   }
