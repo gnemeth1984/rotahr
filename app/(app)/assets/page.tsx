@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { UserRole as Role } from "@/types/roles";
+import { useCurrency } from "@/components/shared/CurrencyProvider";
 
 const CATEGORIES = [
   { value: "refrigeration", label: "Refrigeration" },
@@ -122,6 +123,7 @@ function statusBadge(status) {
 }
 
 export default function AssetsPage() {
+  const { symbol } = useCurrency();
   const { data: session } = useSession();
   const role = session?.user?.role;
   const isManager = role === Role.MANAGER || role === Role.ADMIN;
@@ -397,7 +399,7 @@ export default function AssetsPage() {
             <Field label="Purchase date">
               <Input type="date" value={form.purchaseDate} onChange={(e) => setForm({ ...form, purchaseDate: e.target.value })} />
             </Field>
-            <Field label="Purchase price">
+            <Field label={`Purchase price (${symbol})`}>
               <Input type="number" step="0.01" value={form.purchasePrice}
                 onChange={(e) => setForm({ ...form, purchasePrice: e.target.value })} placeholder="0.00" />
             </Field>
@@ -566,6 +568,7 @@ function AssetRow({ asset: a, expanded, onToggle, onEdit, onDelete, onChanged })
 }
 
 function AssetDetail({ asset: a, onChanged }) {
+  const { symbol, fmt: fmtMoney } = useCurrency();
   const [services, setServices] = useState(null);
   const [loading, setLoading] = useState(true);
   const [logging, setLogging] = useState(false);
@@ -661,7 +664,7 @@ function AssetDetail({ asset: a, onChanged }) {
       {(a.warrantyNotes || a.notes || a.purchaseDate || a.purchasePrice != null) && (
         <div className="grid sm:grid-cols-2 gap-3 text-xs">
           {a.purchaseDate && <Detail label="Purchased">{fmt(a.purchaseDate)}</Detail>}
-          {a.purchasePrice != null && <Detail label="Purchase price">{a.purchasePrice.toFixed(2)}</Detail>}
+          {a.purchasePrice != null && <Detail label="Purchase price">{fmtMoney(Number(a.purchasePrice))}</Detail>}
           {a.serviceIntervalMonths && <Detail label="Service interval">Every {a.serviceIntervalMonths} months</Detail>}
           {a.lastServiceDate && <Detail label="Last serviced">{fmt(a.lastServiceDate)}</Detail>}
           {a.warrantyProvider && <Detail label="Warranty provider">{a.warrantyProvider}</Detail>}
@@ -728,7 +731,7 @@ function AssetDetail({ asset: a, onChanged }) {
               onChange={(e) => setSvc({ ...svc, engineer: e.target.value })} /></Field>
             <Field label="Company"><Input className="bg-white" value={svc.company}
               onChange={(e) => setSvc({ ...svc, company: e.target.value })} /></Field>
-            <Field label="Cost"><Input type="number" step="0.01" className="bg-white" value={svc.cost}
+            <Field label={`Cost (${symbol})`}><Input type="number" step="0.01" className="bg-white" value={svc.cost}
               onChange={(e) => setSvc({ ...svc, cost: e.target.value })} placeholder="0.00" /></Field>
             <Field label="Next due (optional)"><Input type="date" className="bg-white" value={svc.nextDue}
               onChange={(e) => setSvc({ ...svc, nextDue: e.target.value })} /></Field>
@@ -773,7 +776,7 @@ function AssetDetail({ asset: a, onChanged }) {
                     {s.underWarranty && (
                       <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200 text-[10px]">Under warranty</Badge>
                     )}
-                    {s.cost != null && <span className="text-xs text-slate-600">{Number(s.cost).toFixed(2)}</span>}
+                    {s.cost != null && <span className="text-xs text-slate-600">{fmtMoney(Number(s.cost))}</span>}
                     <label className="text-[11px] text-orange-600 hover:underline cursor-pointer">
                       attach
                       <input type="file" accept="image/*,application/pdf" className="hidden"
