@@ -48,7 +48,12 @@ const STOP = new Set([
   "what", "when", "where", "who", "why", "how", "get", "got", "go", "going", "want", "need",
 ]);
 
-function tokens(s: string): string[] {
+/**
+ * Exported so the cross-surface search in ./search.ts tokenises identically.
+ * Two tokenisers would drift, and then the same query would rank memory rows
+ * differently from tasks for no reason a user could ever understand.
+ */
+export function tokens(s: string): string[] {
   return s
     .toLowerCase()
     .replace(/[^a-z0-9\s'-]/g, " ")

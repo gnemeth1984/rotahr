@@ -14,6 +14,7 @@ import {
   Gauge,
   Camera,
   RefreshCw,
+  Search,
 } from "lucide-react";
 import { NavState } from "./types";
 import { Btn, Pill, Spinner } from "./nav-ui";
@@ -27,6 +28,7 @@ import { ChatTab } from "./ChatTab";
 import { SetupTab } from "./SetupTab";
 import { SystemTab } from "./SystemTab";
 import { CaptureTab } from "./CaptureTab";
+import { SearchPanel } from "./SearchPanel";
 
 const TABS = [
   { id: "today", label: "Today", icon: Sun },
@@ -48,6 +50,7 @@ export function NavigatorClient({ firstName }: { firstName: string }) {
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<TabId>("today");
   const [refreshing, setRefreshing] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
 
   const load = useCallback(async (quiet = false) => {
     if (!quiet) setRefreshing(true);
@@ -75,6 +78,19 @@ export function NavigatorClient({ firstName }: { firstName: string }) {
 
   const refresh = useCallback(() => load(true), [load]);
 
+  // ⌘K / Ctrl+K from any tab. The whole point of the panel is that it is not
+  // somewhere you have to navigate to.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setSearchOpen(true);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   const greeting = useMemo(() => {
     const hour = Number((state?.now ?? "09:00").slice(0, 2));
     if (hour < 5) return "Still up";
@@ -87,6 +103,12 @@ export function NavigatorClient({ firstName }: { firstName: string }) {
 
   return (
     <div className="text-slate-100">
+      <SearchPanel
+        open={searchOpen}
+        onClose={() => setSearchOpen(false)}
+        onJump={(t) => setTab(t as TabId)}
+      />
+
       {/* Header */}
       <header className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
@@ -106,6 +128,14 @@ export function NavigatorClient({ firstName }: { firstName: string }) {
         <div className="flex items-center gap-2">
           {state?.focus && <Pill tone="flame">Focus live: {state.focus.label}</Pill>}
           {openCount > 0 && <Pill tone="slate">{openCount} open</Pill>}
+          <button
+            onClick={() => setSearchOpen(true)}
+            className="rounded-xl border border-white/10 bg-white/[0.06] p-2 text-slate-300 transition hover:bg-white/[0.12] hover:text-white"
+            aria-label="Search Navigator"
+            title="Search everything (⌘K)"
+          >
+            <Search className="h-4 w-4" />
+          </button>
           <button
             onClick={() => load()}
             className="rounded-xl border border-white/10 bg-white/[0.06] p-2 text-slate-300 transition hover:bg-white/[0.12] hover:text-white"
