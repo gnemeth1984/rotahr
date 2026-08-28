@@ -51,6 +51,9 @@
     "app/api/cron/asset-digest/route.ts": {
       "maxDuration": 300
     },
+    "app/api/cron/asset-reminders/route.ts": {
+      "maxDuration": 300
+    },
     "app/api/assets/upload/route.ts": {
       "maxDuration": 60
     }
@@ -137,6 +140,7 @@
     { "path": "/api/cron/listing-discovery", "schedule": "15 4 * * 2" },
     { "path": "/api/cron/listing-monitor", "schedule": "15 4 * * 6" },
     { "path": "/api/cron/template-gaps", "schedule": "40 6 * * 1" },
-    { "path": "/api/cron/asset-digest", "schedule": "0 7 * * 1" }
+    { "path": "/api/cron/asset-digest", "schedule": "0 7 * * 1" },
+    { "path": "/api/cron/asset-reminders", "schedule": "15 7 * * *" }
   ]
 }

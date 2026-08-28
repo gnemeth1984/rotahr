@@ -1514,6 +1514,12 @@ model Asset {
   lastServiceDate       DateTime?
   nextServiceDate       DateTime?
 
+  // End of life. Separate from servicing on purpose: a machine can be perfectly
+  // serviced and still be due for replacement, and that needs budgeting for
+  // well before it dies mid-service.
+  replaceByDate DateTime?
+  replaceNotes  String?   @db.Text
+
   status String  @default("active") // active | faulty | awaiting_parts | out_of_service | retired
   notes  String? @db.Text
 
@@ -1522,8 +1528,9 @@ model Asset {
   haccpEquipmentId String?         @unique
   haccpEquipment   HACCPEquipment? @relation(fields: [haccpEquipmentId], references: [id], onDelete: SetNull)
 
-  services AssetService[]
-  docs     AssetDoc[]
+  services  AssetService[]
+  docs      AssetDoc[]
+  reminders AssetReminder[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1531,7 +1538,28 @@ model Asset {
   @@index([businessId, category])
   @@index([businessId, warrantyExpiry])
   @@index([businessId, nextServiceDate])
+  @@index([businessId, replaceByDate])
   @@index([businessId, status])
+}
+
+// One advance warning that has already been sent, so the daily cron is
+// idempotent. dueDate is part of the key on purpose: when an engineer moves a
+// service date the reminders legitimately fire again for the new date, but a
+// second run on the same day for the same date stays silent.
+model AssetReminder {
+  id         String @id @default(cuid())
+  businessId String
+  assetId    String
+  asset      Asset  @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  kind    String // service | warranty | replace
+  stage   Int // days of lead time this reminder represented: 30 | 7
+  dueDate DateTime // the date being warned about
+
+  sentAt DateTime @default(now())
+
+  @@unique([assetId, kind, stage, dueDate])
+  @@index([businessId, sentAt])
 }
 
 // One engineer visit / one thing that was done to an asset.

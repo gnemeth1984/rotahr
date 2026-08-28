@@ -6,6 +6,7 @@ import { logActivity } from "@/lib/services/activity.service";
 import {
   warrantyStatus,
   serviceStatus,
+  replaceStatus,
   urgencyRank,
   categoryForEquipType,
   daysUntil,
@@ -126,8 +127,10 @@ export async function GET(req: NextRequest) {
       ...a,
       warranty: warrantyStatus(a.warrantyExpiry, now),
       service: serviceStatus(a.nextServiceDate, now),
+      replace: replaceStatus(a.replaceByDate, now),
       warrantyDays: daysUntil(a.warrantyExpiry, now),
       serviceDays: daysUntil(a.nextServiceDate, now),
+      replaceDays: daysUntil(a.replaceByDate, now),
       rank: urgencyRank(a, now),
     }))
     .filter((a) => (attention ? a.rank <= 5 : true))
@@ -171,6 +174,8 @@ export async function POST(req: NextRequest) {
       serviceIntervalMonths: numOrNull(body.serviceIntervalMonths),
       lastServiceDate: dateOrNull(body.lastServiceDate),
       nextServiceDate: dateOrNull(body.nextServiceDate),
+      replaceByDate: dateOrNull(body.replaceByDate),
+      replaceNotes: body.replaceNotes ?? null,
       status: body.status ?? "active",
       notes: body.notes ?? null,
     },
@@ -223,6 +228,8 @@ export async function PATCH(req: NextRequest) {
       }),
       ...(b.lastServiceDate !== undefined && { lastServiceDate: dateOrNull(b.lastServiceDate) }),
       ...(b.nextServiceDate !== undefined && { nextServiceDate: dateOrNull(b.nextServiceDate) }),
+      ...(b.replaceByDate !== undefined && { replaceByDate: dateOrNull(b.replaceByDate) }),
+      ...(b.replaceNotes !== undefined && { replaceNotes: b.replaceNotes || null }),
       ...(b.status !== undefined && { status: b.status }),
       ...(b.notes !== undefined && { notes: b.notes || null }),
     },

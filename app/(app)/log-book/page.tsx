@@ -38,6 +38,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { EquipmentTab } from "./EquipmentTab";
 
 const LOG_TYPES = [
   { value: "note", label: "Shift Note", icon: StickyNote, color: "text-blue-600 bg-blue-50 border-blue-200" },
@@ -687,6 +688,10 @@ function LogBookInner() {
   const [activeTab, setActiveTab] = useState(searchParams.get("tab") ?? "log");
 
   const isManager = session?.user?.role === "MANAGER" || session?.user?.role === "ADMIN";
+  // The register used to be its own pro+ sidebar entry. Moving it into Log Book
+  // (which is on every plan) must not quietly hand it to Starter.
+  const plan = session?.user?.lsPlan ?? null;
+  const canSeeEquipment = isManager && (plan === "pro" || plan === "enterprise");
 
   function switchTab(id: string) {
     setActiveTab(id);
@@ -696,6 +701,7 @@ function LogBookInner() {
   const tabs = [
     { id: "log", label: "Manager Log", icon: NotebookPen },
     { id: "tasks", label: "Tasks", icon: ClipboardList },
+    ...(canSeeEquipment ? [{ id: "equipment", label: "Equipment", icon: Wrench }] : []),
   ];
 
   return (
@@ -731,6 +737,7 @@ function LogBookInner() {
 
       {activeTab === "log" && <LogTab isManager={isManager} />}
       {activeTab === "tasks" && <TasksTab isManager={isManager} />}
+      {activeTab === "equipment" && canSeeEquipment && <EquipmentTab />}
     </div>
   );
 }

@@ -267,15 +267,6 @@ const navItems = [
     featureKey: "training" as FeatureKey,
     plans: ["pro", "enterprise"],
   },
-  {
-    href: "/assets",
-    label: "Equipment & Service",
-    icon: Wrench,
-    roles: [Role.MANAGER, Role.ADMIN],
-    permission: "assets",
-    featureKey: null,
-    plans: ["pro", "enterprise"],
-  },
   // ── Enterprise only ──────────────────────────────────────────────────────
   {
     href: "/venues",

@@ -12,12 +12,28 @@
 
 export const WARRANTY_SOON_DAYS = 60; // longer lead than certs: you need time to claim
 export const SERVICE_SOON_DAYS = 30;
+/** Replacement needs the longest lead of all — it is a budget decision, not a
+ *  phone call. */
+export const REPLACE_SOON_DAYS = 90;
+
+/**
+ * Lead times for the advance warnings, longest first.
+ *
+ * Two stages on purpose: 30 days is "book the engineer", 7 days is "you still
+ * have not booked the engineer". One reminder a month out gets read and
+ * forgotten; one a week out arrives too late to arrange cover.
+ */
+export const REMINDER_STAGES = [30, 7] as const;
+export type ReminderStage = (typeof REMINDER_STAGES)[number];
+export type ReminderKind = "service" | "warranty" | "replace";
+
 /** How long an already-passed date keeps showing up. Stops the digest nagging
  *  forever about a warranty that lapsed two years ago. */
 export const RECENTLY_PASSED_DAYS = 90;
 
 export type WarrantyStatus = "NO_WARRANTY" | "EXPIRED" | "EXPIRING_SOON" | "VALID";
 export type ServiceStatus = "NO_SCHEDULE" | "OVERDUE" | "DUE_SOON" | "SCHEDULED";
+export type ReplaceStatus = "NO_TARGET" | "OVERDUE" | "DUE_SOON" | "SCHEDULED";
 
 export const ASSET_CATEGORIES = [
   "refrigeration",
@@ -89,22 +105,83 @@ export function serviceStatus(
   return "SCHEDULED";
 }
 
+export function replaceStatus(
+  replaceByDate: Date | null | undefined,
+  now: Date = new Date()
+): ReplaceStatus {
+  const days = daysUntil(replaceByDate, now);
+  if (days === null) return "NO_TARGET";
+  if (days < 0) return "OVERDUE";
+  if (days <= REPLACE_SOON_DAYS) return "DUE_SOON";
+  return "SCHEDULED";
+}
+
 /** True when this asset should appear in the weekly digest. */
 export function needsAttention(
-  asset: { warrantyExpiry: Date | null; nextServiceDate: Date | null },
+  asset: { warrantyExpiry: Date | null; nextServiceDate: Date | null; replaceByDate?: Date | null },
   now: Date = new Date()
 ): boolean {
   const w = warrantyStatus(asset.warrantyExpiry, now);
   const s = serviceStatus(asset.nextServiceDate, now);
+  const r = replaceStatus(asset.replaceByDate ?? null, now);
   const wDays = daysUntil(asset.warrantyExpiry, now);
   const sDays = daysUntil(asset.nextServiceDate, now);
+  const rDays = daysUntil(asset.replaceByDate ?? null, now);
 
   const warrantyRelevant =
     (w === "EXPIRING_SOON" || (w === "EXPIRED" && wDays !== null && wDays >= -RECENTLY_PASSED_DAYS));
   const serviceRelevant =
     (s === "DUE_SOON" || (s === "OVERDUE" && sDays !== null && sDays >= -RECENTLY_PASSED_DAYS));
+  const replaceRelevant =
+    (r === "DUE_SOON" || (r === "OVERDUE" && rDays !== null && rDays >= -RECENTLY_PASSED_DAYS));
 
-  return warrantyRelevant || serviceRelevant;
+  return warrantyRelevant || serviceRelevant || replaceRelevant;
+}
+
+/**
+ * Which advance warnings are owed for one asset today.
+ *
+ * Returns a row per (kind, stage) whose due date falls inside that stage's
+ * window but outside the next tighter one, so a date 20 days out yields the
+ * 30-day warning only — never both at once. The caller de-duplicates against
+ * AssetReminder before sending anything.
+ *
+ * Overdue dates are handled by the weekly digest, not here: an advance warning
+ * for something already late would read as nonsense.
+ */
+export function dueReminders(
+  asset: {
+    nextServiceDate: Date | null;
+    warrantyExpiry: Date | null;
+    replaceByDate?: Date | null;
+  },
+  now: Date = new Date()
+): { kind: ReminderKind; stage: ReminderStage; dueDate: Date; days: number }[] {
+  const out: { kind: ReminderKind; stage: ReminderStage; dueDate: Date; days: number }[] = [];
+
+  const fields: { kind: ReminderKind; date: Date | null }[] = [
+    { kind: "service", date: asset.nextServiceDate },
+    { kind: "warranty", date: asset.warrantyExpiry },
+    { kind: "replace", date: asset.replaceByDate ?? null },
+  ];
+
+  for (const f of fields) {
+    if (!f.date) continue;
+    const days = daysUntil(f.date, now);
+    if (days === null || days < 0) continue;
+
+    // Stages are ordered widest first; pick the tightest one that still contains
+    // this date so the 7-day warning supersedes the 30-day one.
+    let matched: ReminderStage | null = null;
+    for (const stage of REMINDER_STAGES) {
+      if (days <= stage) matched = stage;
+    }
+    if (matched === null) continue;
+
+    out.push({ kind: f.kind, stage: matched, dueDate: f.date, days });
+  }
+
+  return out;
 }
 
 /**

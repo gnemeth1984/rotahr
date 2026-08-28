@@ -194,7 +194,7 @@ async function __cronHandler(req: NextRequest) {
   ${section("Coming up", soon, "#0f1c35")}
 
   <p style="margin:24px 0 0;">
-    <a href="https://rotahr.com/assets" style="display:inline-block;background:#ff6b35;color:#fff;text-decoration:none;padding:10px 18px;border-radius:8px;font-weight:600;font-size:14px;">
+    <a href="https://rotahr.com/log-book?tab=equipment" style="display:inline-block;background:#ff6b35;color:#fff;text-decoration:none;padding:10px 18px;border-radius:8px;font-weight:600;font-size:14px;">
       Open the asset register
     </a>
   </p>
@@ -210,7 +210,7 @@ async function __cronHandler(req: NextRequest) {
       "",
       ...(overdue.length ? ["NEEDS ACTION NOW:", ...overdue.map((r) => `- ${r.name}: ${r.line}`), ""] : []),
       ...(soon.length ? ["COMING UP:", ...soon.map((r) => `- ${r.name}: ${r.line}`), ""] : []),
-      `https://rotahr.com/assets`,
+      `https://rotahr.com/log-book?tab=equipment`,
     ].join("\n");
 
     // sendEmailQuiet: a failed digest must never fail the cron for every other
