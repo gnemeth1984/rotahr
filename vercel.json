@@ -136,6 +136,7 @@
     { "path": "/api/cron/navigator-ideas", "schedule": "25 6 * * *" },
     { "path": "/api/cron/listing-discovery", "schedule": "15 4 * * 2" },
     { "path": "/api/cron/listing-monitor", "schedule": "15 4 * * 6" },
-    { "path": "/api/cron/template-gaps", "schedule": "40 6 * * 1" }
+    { "path": "/api/cron/template-gaps", "schedule": "40 6 * * 1" },
+    { "path": "/api/cron/asset-digest", "schedule": "0 7 * * 1" }
   ]
 }
