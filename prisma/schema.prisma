@@ -73,6 +73,9 @@ model Business {
   haccpChecklistTemplates HACCPChecklistTemplate[]
   haccpSchedules          HACCPSchedule[]
 
+  // Asset register / service notes
+  assets Asset[]
+
   // Locale / currency
   currency String @default("EUR") // "EUR" | "GBP"
   country  String @default("IE") // "IE" | "GB"
@@ -1443,6 +1446,9 @@ model HACCPEquipment {
   sortOrder  Int      @default(0)
   createdAt  DateTime @default(now())
 
+  // Mirrored into the asset register (warranty / service tracking).
+  asset Asset?
+
   @@index([businessId, equipType])
 }
 
@@ -1460,6 +1466,124 @@ model HACCPSchedule {
 
   @@unique([businessId, checkType])
   @@index([businessId])
+}
+
+// ── Asset register / service notes ───────────────────────────────────────────
+// What the venue owns and what has to happen to it: warranty expiry, service
+// intervals, who to ring, what each visit cost.
+//
+// Deliberately separate from HACCPEquipment. That model exists so a temperature
+// check has a named unit to hang off, and is intentionally thin (name,
+// equipType, sortOrder) because it is written to many times a day. This is the
+// ownership record, written to a few times a year. HACCP units are mirrored in
+// here automatically via `haccpEquipmentId` so a walk-in is never entered twice.
+//
+// Nothing here ever writes to Expense. A service cost is a note about what was
+// paid, not a booked expense — booking money is a deliberate human action.
+model Asset {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  name     String // "Walk-in Fridge", "Rational Oven", "Glasswasher"
+  category String  @default("other") // refrigeration | cooking | dishwashing | bar | coffee | hvac | plumbing | electrical | pos | furniture | other
+  location String? // "Main Kitchen", "Cellar", "Bar"
+
+  make         String?
+  model        String?
+  serialNumber String?
+
+  purchaseDate  DateTime?
+  purchasePrice Float?
+
+  // Warranty — the whole point of the feature: know before you pay a callout.
+  warrantyExpiry   DateTime?
+  warrantyProvider String?
+  warrantyNotes    String?   @db.Text
+
+  // Who to ring
+  contactCompany String?
+  contactName    String?
+  contactPhone   String?
+  contactEmail   String?
+
+  // Service schedule. nextServiceDate is STORED, not derived: logging a service
+  // rolls it forward by serviceIntervalMonths, but an engineer can also book a
+  // one-off date that does not match the interval, and that must survive.
+  serviceIntervalMonths Int?
+  lastServiceDate       DateTime?
+  nextServiceDate       DateTime?
+
+  status String  @default("active") // active | faulty | awaiting_parts | out_of_service | retired
+  notes  String? @db.Text
+
+  // Set when this asset mirrors a HACCP unit. Unique so the auto-import cannot
+  // create a second copy of the same fridge.
+  haccpEquipmentId String?         @unique
+  haccpEquipment   HACCPEquipment? @relation(fields: [haccpEquipmentId], references: [id], onDelete: SetNull)
+
+  services AssetService[]
+  docs     AssetDoc[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([businessId, category])
+  @@index([businessId, warrantyExpiry])
+  @@index([businessId, nextServiceDate])
+  @@index([businessId, status])
+}
+
+// One engineer visit / one thing that was done to an asset.
+model AssetService {
+  id         String @id @default(cuid())
+  businessId String
+  assetId    String
+  asset      Asset  @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  servicedOn    DateTime
+  kind          String    @default("service") // service | repair | inspection | installation | callout
+  engineer      String?
+  company       String?
+  cost          Float?
+  underWarranty Boolean   @default(false) // was this covered, or did we pay
+  summary       String?   @db.Text // what was actually done
+  nextDue       DateTime? // what this visit set the next service to
+
+  docs AssetDoc[]
+
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([businessId, servicedOn])
+  @@index([assetId, servicedOn])
+}
+
+// A photo or scan attached to an asset, optionally to a specific visit.
+// Files live in the PRIVATE blob store and are streamed through
+// /api/assets/doc?id=... which proves ownership first — the same rule as
+// Navigator's capture/image route. A blob url is never handed to the client.
+model AssetDoc {
+  id         String        @id @default(cuid())
+  businessId String
+  assetId    String
+  asset      Asset         @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  serviceId  String?
+  service    AssetService? @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  kind      String  @default("other") // warranty | invoice | service_report | manual | photo | other
+  blobUrl   String
+  mimeType  String?
+  fileName  String?
+  sizeBytes Int?
+
+  uploadedById String?
+  createdAt    DateTime @default(now())
+
+  @@index([assetId, createdAt])
+  @@index([businessId, kind])
+  @@index([serviceId])
 }
 
 // Internal tool: Blog Comment Assistant (Gabor-only, not tenant-scoped)

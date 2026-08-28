@@ -47,6 +47,12 @@
     },
     "app/api/cron/listing-monitor/route.ts": {
       "maxDuration": 300
+    },
+    "app/api/cron/asset-digest/route.ts": {
+      "maxDuration": 300
+    },
+    "app/api/assets/upload/route.ts": {
+      "maxDuration": 60
     }
   },
   "crons": [
