@@ -167,6 +167,7 @@ export const haccpTemplates: FreeTemplate[] = [
       },
     ],
     related: [
+      "reheat-hot-holding-record",
       "fridge-freezer-temperature-log",
       "haccp-corrective-action-log",
       "delivery-check-record",
@@ -343,6 +344,100 @@ export const haccpTemplates: FreeTemplate[] = [
       "food safety corrective action record free",
       "corrective action form kitchen",
       "haccp deviation log excel",
+    ],
+  },
+  {
+    slug: "reheat-hot-holding-record",
+    category: "haccp",
+    name: "Reheat & hot holding record",
+    h1: "Free reheat and hot holding temperature record template",
+    title: "Free Reheat & Hot Holding Log Template | Rotahr",
+    metaDescription:
+      "Free reheat and hot holding temperature record template in PDF and Excel. Log the reheat core temperature, the time food went into hot hold, and every check after that.",
+    answer:
+      "This free reheat and hot holding record template — printable PDF or editable Excel — gives you one row per batch to log the core temperature it reached on reheating, the time it went into the hot hold unit, a temperature check every hour or two after that, and the time it came off or was discarded.",
+    body: [
+      "Reheating and hot holding are usually recorded badly or not at all, because the food is already cooked and the pressure is off. That is exactly backwards: reheated food has been through the danger zone twice, and food sitting in a bain-marie at 55°C for three hours is a far more common cause of illness than an undercooked chicken. This sheet keeps both steps on one row so the batch that was reheated is the same batch you can see being held.",
+      "For the reheat, the widely used pass figure is a core temperature of 70°C held for two minutes, or 75°C reached momentarily. Scotland works to 82°C. The US Food Code asks for 165°F (74°C) for fifteen seconds on previously cooked and cooled food. Print whichever figure your own food safety management system specifies in the target column instead of assuming the one on the sheet applies to you.",
+      "For the hold, 63°C or above is the figure used in the UK and Ireland, 60°C in Australia, and 135°F (57°C) in the US. The point of the repeat check columns is not the first reading — a bain-marie is always hot when the food goes in. It is the reading two hours later, when the unit is half empty and the water has dropped, that either proves the hold worked or tells you to discard.",
+      "The two-hour allowance in the UK lets food be held below temperature once, for up to two hours, after which it must be used, chilled or thrown out. That is why the sheet asks for the time the batch came off as well as the time it went on. Without both times, an elapsed period out of temperature can never be shown, and reheating a second time is not an option under any system.",
+    ],
+    sheet: {
+      kind: "log",
+      orientation: "landscape",
+      headerFields: ["Venue / site", "Date", "Chef on duty"],
+      columns: [
+        { name: "Item / batch", hint: "Name it as the label says", width: 4 },
+        { name: "Reheat time", hint: "hh:mm", width: 1 },
+        { name: "Reheat core temp", hint: "°C", width: 1 },
+        { name: "Pass?", hint: "Y / N", width: 1 },
+        { name: "Into hot hold", hint: "hh:mm", width: 1 },
+        { name: "Unit", hint: "Bain-marie / gantry / cabinet", width: 2 },
+        { name: "Check 1", hint: "hh:mm + °C", width: 2 },
+        { name: "Check 2", hint: "hh:mm + °C", width: 2 },
+        { name: "Off / discarded", hint: "hh:mm — circle which", width: 1 },
+        { name: "Initials", width: 1 },
+      ],
+      extraColumns: [
+        { name: "Check 3", hint: "hh:mm + °C", width: 2 },
+        { name: "Corrective action", hint: "What you did about a low reading", width: 5 },
+        { name: "Reheated from", hint: "Chilled / Frozen", width: 2 },
+      ],
+      rowCount: 14,
+      footerNotes: [
+        "Reheat once only. Food that has been reheated and not used is discarded, not held for tomorrow.",
+        "Probe the thickest part of the item in the tray, not the water or the tray edge, and sanitise the probe between items.",
+        "A low hold reading needs an action recorded: turn the unit up and re-probe, reheat the batch through, or discard.",
+      ],
+    },
+    howToUse: [
+      "Print one sheet per day and keep it on the pass next to the hot hold unit.",
+      "Write the batch name exactly as it appears on the container label so it can be matched to the cooking and cooling record.",
+      "Reheat the item, probe the thickest part, and record the time and core temperature — then mark pass or fail against your own target figure.",
+      "Note the time the batch went into the hot hold unit and which unit it went into.",
+      "Re-probe every hour or two during service and write the time alongside each reading, not just the temperature.",
+      "Record the time the batch came off, and whether it was used or discarded. Initial the row.",
+    ],
+    whatsIncluded: [
+      "Printable PDF, landscape A4, 14 batch rows per day",
+      "Editable Excel (.xlsx) with a third check column, a corrective action column and a chilled/frozen field",
+      "CSV version for importing elsewhere",
+      "Reheat core temperature and pass/fail columns on the same row as the hold",
+      "Timed check columns so time out of temperature can be worked out afterwards",
+      "Off/discarded column and footer prompts covering the reheat-once rule",
+    ],
+    faqs: [
+      {
+        q: "What temperature should food be reheated to?",
+        a: "70°C held for two minutes, or 75°C in the thickest part, are the figures used across most of the UK, Ireland and Australia. Scotland works to 82°C and the US Food Code asks for 165°F (74°C) for fifteen seconds. Print your own system's figure in the target column.",
+      },
+      {
+        q: "What temperature should hot food be held at?",
+        a: "63°C or above in the UK and Ireland, 60°C in Australia, and 135°F (57°C) under the US Food Code. Check which applies to you before relying on the figure printed on the sheet.",
+      },
+      {
+        q: "How long can hot food be held below temperature?",
+        a: "UK guidance allows food to be held below 63°C once, for up to two hours, after which it must be served, chilled or discarded. Other systems differ, so record the times either way — the elapsed period is what anyone reviewing the sheet will ask about.",
+      },
+      {
+        q: "How often should I check hot holding temperatures?",
+        a: "Most kitchens probe at the start of service and then every one to two hours. The sheet prints two check columns and the spreadsheet has a third, which covers a long service without turning the record into a chore.",
+      },
+      {
+        q: "Can food be reheated twice?",
+        a: "No. Reheat once and then use it or discard it. That is why the sheet asks you to record the time a batch came off the hot hold and what happened to it.",
+      },
+    ],
+    related: [
+      "cooking-cooling-temperature-log",
+      "fridge-freezer-temperature-log",
+      "haccp-corrective-action-log",
+    ],
+    keywords: [
+      "reheat temperature log template free",
+      "hot holding temperature record sheet",
+      "bain marie temperature log template",
+      "haccp reheating record excel",
     ],
   },
 ];
