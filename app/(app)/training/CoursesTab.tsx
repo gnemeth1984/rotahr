@@ -12,7 +12,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   GraduationCap, Clock, CheckCircle2, AlertTriangle, Loader2,
-  ChevronRight, Users, Utensils, Play, RotateCcw, Flame,
+  ChevronRight, Users, Utensils, Play, RotateCcw, Flame, PackageOpen,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -57,6 +57,7 @@ export default function CoursesTab({ onOpenMatrix }: { onOpenMatrix?: () => void
   const courses = data?.courses ?? [];
   const menu = data?.menu ?? { dishes: 0, checked: 0 };
   const equipment = data?.equipment ?? { assets: 0 };
+  const stock = data?.stock ?? { items: 0 };
 
   return (
     <div className="space-y-5">
@@ -101,6 +102,19 @@ export default function CoursesTab({ onOpenMatrix }: { onOpenMatrix?: () => void
         </div>
       )}
 
+      {courses.some((c: any) => c.usesStock) && stock.items === 0 && (
+        <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <PackageOpen className="h-4 w-4 mt-0.5 shrink-0" />
+          <div className="flex-1">
+            <strong>No stock items recorded yet.</strong>{" "}
+            The manual handling course names the heaviest things you actually take in —
+            the sacks, the oil, the kegs — once your stock list has pack sizes on it,
+            under Stock. The course runs either way; it just stops talking in general
+            terms once it can point at a real delivery.
+          </div>
+        </div>
+      )}
+
       {courses.length === 0 && (
         <Card><CardContent className="py-10 text-center text-slate-500">
           No courses available yet.
@@ -130,6 +144,11 @@ export default function CoursesTab({ onOpenMatrix }: { onOpenMatrix?: () => void
                       {c.usesAssets && (
                         <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
                           Uses your equipment
+                        </Badge>
+                      )}
+                      {c.usesStock && (
+                        <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                          Uses your stock list
                         </Badge>
                       )}
                     </div>

@@ -100,6 +100,102 @@ export function toCourseAsset(row: any): CourseAsset {
   };
 }
 
+// --------------------------------------------------------------------------- //
+// The venue's own stock list, as a course sees it
+// --------------------------------------------------------------------------- //
+
+/**
+ * A pack weight at or above this is worth planning rather than just picking up.
+ * It is NOT a legal limit and it is not the guideline maximum — published
+ * guidance charts sit higher than this. It is the point at which the manual
+ * handling course stops calling something "a box" and starts calling it a load.
+ */
+const HEAVY_KG = 10;
+
+/** Reads "5kg", "2.5 kg", "10L", "500ml", "100 gm" out of an item name. */
+const WEIGHT_IN_NAME = /(\d+(?:[.,]\d+)?)\s*(kgs?|kilos?|gms?|g|litres?|liters?|ltrs?|l|mls?)\b/i;
+
+export interface CourseStock {
+  id: string;
+  name: string;
+  unit: string;
+  category: string;
+  /** Weight of one pack in kg, when the venue actually recorded one. */
+  kg: number | null;
+  /** Volume of one pack in litres, when the venue actually recorded one. */
+  litres: number | null;
+  /** A keg — heavy, awkward, and the classic cellar injury. */
+  keg: boolean;
+  /** Worth a team lift, a trolley or a decant. */
+  heavy: boolean;
+}
+
+function round1(n: number): number {
+  return Math.round(n * 10) / 10;
+}
+
+/**
+ * Narrow a Prisma StockItem row into what a course uses.
+ *
+ * Weights are only ever READ, never guessed. First choice is the recorded pack
+ * size; failing that, a figure the venue typed into the item name itself. If
+ * neither exists the course says so rather than inventing a number.
+ */
+export function toCourseStock(row: any): CourseStock {
+  const name: string = row.name ?? "";
+  const unit: string = (row.unit ?? "unit").toLowerCase();
+  let kg: number | null = null;
+  let litres: number | null = null;
+
+  const packSize = typeof row.packSize === "number" ? row.packSize : null;
+  const packUnit = (row.packUnit ?? "").toString().trim().toLowerCase();
+  if (packSize && packSize > 0) {
+    if (packUnit === "kg") kg = packSize;
+    else if (packUnit === "g") kg = packSize / 1000;
+    else if (packUnit === "litre" || packUnit === "liter" || packUnit === "l") litres = packSize;
+    else if (packUnit === "ml") litres = packSize / 1000;
+  }
+
+  if (kg === null && litres === null) {
+    const m = WEIGHT_IN_NAME.exec(name);
+    if (m) {
+      const value = Number(m[1].replace(",", "."));
+      const u = m[2].toLowerCase();
+      if (Number.isFinite(value) && value > 0) {
+        if (u.startsWith("kg") || u.startsWith("kilo")) kg = value;
+        else if (u === "g" || u.startsWith("gm")) kg = value / 1000;
+        else if (u === "l" || u.startsWith("litre") || u.startsWith("liter") || u.startsWith("ltr"))
+          litres = value;
+        else if (u.startsWith("ml")) litres = value / 1000;
+      }
+    }
+  }
+
+  const keg = unit === "keg" || /\bkegs?\b/i.test(name) || /\bcask\b/i.test(name);
+  // A litre of anything a kitchen buys weighs about a kilo, so volume counts
+  // toward the same threshold. Kegs are heavy before anything is in them.
+  const heavy =
+    keg || (kg !== null && kg >= HEAVY_KG) || (litres !== null && litres >= HEAVY_KG);
+
+  return {
+    id: row.id,
+    name,
+    unit: row.unit ?? "unit",
+    category: row.category ?? "general",
+    kg: kg === null ? null : round1(kg),
+    litres: litres === null ? null : round1(litres),
+    keg,
+    heavy,
+  };
+}
+
+/** "20 kg", "50 L", or null when the venue never recorded a figure. */
+export function stockWeight(item: CourseStock): string | null {
+  if (item.kg !== null) return `${item.kg} kg`;
+  if (item.litres !== null) return `${item.litres} L`;
+  return null;
+}
+
 export function niceDate(iso: string | null): string {
   if (!iso) return "no date recorded";
   return new Date(iso).toLocaleDateString("en-IE", {

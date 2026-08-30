@@ -26,18 +26,21 @@
 import { ALLERGENS, type AllergenKey, containedKeys, parseTraces } from "./allergens";
 import {
   type CourseAsset,
+  type CourseStock,
   type Lesson,
   type QuizQuestion,
   shuffled,
   toCourseAsset,
+  toCourseStock,
 } from "./kit";
 import { fireLessons, fireQuiz } from "./fire";
+import { manualHandlingLessons, manualHandlingQuiz } from "./manual-handling";
 
 // Shapes and helpers live in kit.ts so course content files can import them
 // without importing this module back. Re-exported so existing importers and the
 // API routes keep a single place to import from.
-export type { CourseAsset, Lesson, QuizQuestion };
-export { toCourseAsset };
+export type { CourseAsset, CourseStock, Lesson, QuizQuestion };
+export { toCourseAsset, toCourseStock };
 
 export interface CourseDef {
   slug: string;
@@ -58,6 +61,8 @@ export interface CourseDef {
   usesMenu: boolean;
   /** True when the course reads the venue's own equipment register. */
   usesAssets: boolean;
+  /** True when the course reads the venue's own stock list. */
+  usesStock: boolean;
 }
 
 export const COURSES: CourseDef[] = [
@@ -73,6 +78,7 @@ export const COURSES: CourseDef[] = [
     certTitle: "Allergen awareness (in-house)",
     usesMenu: true,
     usesAssets: false,
+    usesStock: false,
   },
   {
     slug: "fire-safety-awareness",
@@ -88,6 +94,25 @@ export const COURSES: CourseDef[] = [
     certTitle: "Fire safety awareness (in-house)",
     usesMenu: false,
     usesAssets: true,
+    usesStock: false,
+  },
+  {
+    slug: "manual-handling-awareness",
+    title: "Manual handling awareness",
+    summary:
+      "Lifting, carrying, kegs, cellar drops and the injuries that build up over years — built around the heaviest items recorded on your own stock list.",
+    minutes: 20,
+    validMonths: 12,
+    passMark: 80,
+    // Deliberately OTHER rather than MANUAL_HANDLING. The accredited course is
+    // hands-on by design and in several countries it is what an operator is
+    // actually expected to provide; an in-house awareness record must not sit in
+    // the tracker looking like it satisfies that.
+    certCategory: "OTHER",
+    certTitle: "Manual handling awareness (in-house)",
+    usesMenu: false,
+    usesAssets: false,
+    usesStock: true,
   },
 ];
 
@@ -112,6 +137,7 @@ export interface CourseDish {
 export interface CourseData {
   dishes: CourseDish[];
   assets: CourseAsset[];
+  stock: CourseStock[];
 }
 
 /** Narrow a Prisma dish row (with allergen columns) into what the course uses. */
@@ -176,6 +202,7 @@ function menuLesson(dishes: CourseDish[]): Lesson {
 
 export function lessonsFor(slug: string, data: CourseData): Lesson[] {
   if (slug === "fire-safety-awareness") return fireLessons(data.assets);
+  if (slug === "manual-handling-awareness") return manualHandlingLessons(data.stock);
   if (slug !== "allergen-awareness") return [];
 
   const dishes = data.dishes;
@@ -489,6 +516,7 @@ export function buildQuiz(
   seed: number
 ): QuizQuestion[] {
   if (slug === "fire-safety-awareness") return fireQuiz(data.assets, seed);
+  if (slug === "manual-handling-awareness") return manualHandlingQuiz(data.stock, seed);
   if (slug !== "allergen-awareness") return [];
 
   const fromMenu = menuQuestions(data.dishes, seed);

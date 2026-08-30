@@ -21,6 +21,7 @@ import {
   getCourse,
   toCourseDish,
   toCourseAsset,
+  toCourseStock,
   buildQuiz,
   grade,
 } from "@/lib/training/courses";
@@ -106,7 +107,15 @@ export async function POST(req: NextRequest) {
     ? ticket.m.map((id) => byAsset.get(id)).filter(Boolean).map(toCourseAsset)
     : [];
 
-  const paper = buildQuiz(ticket.s, { dishes, assets }, ticket.d);
+  const stockRows = course.usesStock
+    ? await prisma.stockItem.findMany({ where: { businessId, id: { in: ticket.m } } })
+    : [];
+  const byStock = new Map(stockRows.map((s) => [s.id, s]));
+  const stock = course.usesStock
+    ? ticket.m.map((id) => byStock.get(id)).filter(Boolean).map(toCourseStock)
+    : [];
+
+  const paper = buildQuiz(ticket.s, { dishes, assets, stock }, ticket.d);
   if (paper.length === 0) {
     return NextResponse.json({ error: "Could not rebuild the quiz." }, { status: 400 });
   }
@@ -183,7 +192,7 @@ export async function POST(req: NextRequest) {
       // Named for the menu because that came first, but it is the snapshot of
       // whatever venue data the course was built from. Menus and equipment both
       // change; evidence of what somebody was actually taught must not.
-      menuSnapshot: course.usesAssets ? assets : dishes,
+      menuSnapshot: course.usesAssets ? assets : course.usesStock ? stock : dishes,
       certificationId,
       startedAt: startedAt ? new Date(startedAt) : completedAt,
       completedAt,

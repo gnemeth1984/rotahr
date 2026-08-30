@@ -17,6 +17,7 @@ import {
   lessonsFor,
   toCourseDish,
   toCourseAsset,
+  toCourseStock,
   buildQuiz,
   publicQuiz,
 } from "@/lib/training/courses";
@@ -65,8 +66,16 @@ export async function GET(req: NextRequest) {
     : [];
   const assets = assetRows.map(toCourseAsset);
 
+  const stockRows = course.usesStock
+    ? await prisma.stockItem.findMany({
+        where: { businessId },
+        orderBy: [{ name: "asc" }],
+      })
+    : [];
+  const stock = stockRows.map(toCourseStock);
+
   const seed = freshSeed();
-  const data = { dishes, assets };
+  const data = { dishes, assets, stock };
   const paper = buildQuiz(slug, data, seed);
 
   const token = signTicket({
@@ -76,9 +85,14 @@ export async function GET(req: NextRequest) {
     // nothing", so a practice pass can never mint a certificate.
     e: me?.id ?? "",
     b: businessId,
-    // Dish ids for a menu course, asset ids for an equipment course. The submit
-    // route reloads whichever the course declares, in this order.
-    m: course.usesAssets ? assets.map((a) => a.id) : dishes.map((d) => d.id),
+    // Dish ids for a menu course, asset ids for an equipment course, stock item
+    // ids for a handling course. The submit route reloads whichever the course
+    // declares, in this order.
+    m: course.usesAssets
+      ? assets.map((a) => a.id)
+      : course.usesStock
+        ? stock.map((s) => s.id)
+        : dishes.map((d) => d.id),
     t: Date.now(),
   });
 
@@ -91,6 +105,8 @@ export async function GET(req: NextRequest) {
       passMark: course.passMark,
       validMonths: course.validMonths,
       usesMenu: course.usesMenu,
+      usesAssets: course.usesAssets,
+      usesStock: course.usesStock,
     },
     practice,
     trainee: practice
@@ -101,5 +117,6 @@ export async function GET(req: NextRequest) {
     token,
     menu: { dishes: dishes.length, checked: dishes.filter((d) => d.checked).length },
     equipment: { assets: assets.length, fireRisk: assets.filter((a) => a.fireRisk).length },
+    stock: { items: stock.length, heavy: stock.filter((s) => s.heavy).length },
   });
 }
