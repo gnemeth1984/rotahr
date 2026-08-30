@@ -7,6 +7,13 @@
  * A blank row is not a confirmed absence — that is why "Confirmed" is a separate
  * explicit act with a name and a timestamp against it, and why the course tests
  * that instinct rather than assuming a blank means safe.
+ *
+ * Each cell has three states, not two, because "contains" and "may contain" are
+ * different answers to a customer and the second one is the one kitchens get
+ * wrong. Red is in the recipe. Amber is cross-contact — the shared fryer, the
+ * one board, the flour in the air. Blank means nobody has said either way.
+ * Fourteen allergens already make a wide table, so the third state is a click
+ * through the same box rather than fourteen more columns.
  */
 
 import { useEffect, useMemo, useState } from "react";
@@ -18,6 +25,12 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { parseTraces } from "@/lib/training/allergens";
+
+/** The traces column is stored comma-separated; the grid wants an array. */
+function hydrate(d: any) {
+  return { ...d, _traces: parseTraces(d.allergenTraces) };
+}
 
 function fmt(d: string | null) {
   if (!d) return null;
@@ -38,7 +51,7 @@ export default function AllergenMatrixTab({ canEdit }: { canEdit: boolean }) {
       .then((r) => r.json())
       .then((d) => {
         setAllergens(d.allergens ?? []);
-        setDishes(d.dishes ?? []);
+        setDishes((d.dishes ?? []).map(hydrate));
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -52,17 +65,28 @@ export default function AllergenMatrixTab({ canEdit }: { canEdit: boolean }) {
 
   const checkedCount = dishes.filter((d) => d.allergenCheckedAt).length;
 
-  function toggle(dishId: string, field: string) {
+  // blank -> contains -> may contain -> blank
+  function cycle(dishId: string, a: any) {
     if (!canEdit) return;
     setDishes((prev) =>
-      prev.map((d) => (d.id === dishId ? { ...d, [field]: !d[field] } : d))
+      prev.map((d) => {
+        if (d.id !== dishId) return d;
+        const traces: string[] = d._traces ?? [];
+        if (d[a.field]) {
+          return { ...d, [a.field]: false, _traces: [...traces.filter((k) => k !== a.key), a.key] };
+        }
+        if (traces.includes(a.key)) {
+          return { ...d, [a.field]: false, _traces: traces.filter((k) => k !== a.key) };
+        }
+        return { ...d, [a.field]: true, _traces: traces.filter((k) => k !== a.key) };
+      })
     );
     setDirty((p) => ({ ...p, [dishId]: true }));
   }
 
   async function save(dish: any, confirm: boolean) {
     setSavingId(dish.id);
-    const payload: any = { id: dish.id, confirm };
+    const payload: any = { id: dish.id, confirm, traces: dish._traces ?? [] };
     for (const a of allergens) payload[a.field] = Boolean(dish[a.field]);
     try {
       const res = await fetch("/api/menu/dishes/allergens", {
@@ -72,7 +96,7 @@ export default function AllergenMatrixTab({ canEdit }: { canEdit: boolean }) {
       });
       const data = await res.json();
       if (data.dish) {
-        setDishes((prev) => prev.map((d) => (d.id === data.dish.id ? data.dish : d)));
+        setDishes((prev) => prev.map((d) => (d.id === data.dish.id ? hydrate(data.dish) : d)));
         setDirty((p) => { const n = { ...p }; delete n[dish.id]; return n; });
       }
     } finally {
@@ -92,8 +116,9 @@ export default function AllergenMatrixTab({ canEdit }: { canEdit: boolean }) {
     <div className="space-y-5">
       <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
         <strong className="text-slate-800">This is the source your allergen course reads.</strong>{" "}
-        Tick what each dish <em>contains</em>, then press Confirm — that stamps who checked it and
-        when. An unconfirmed row is treated as unknown, not as safe. The named list here is the
+        Click a box once for what the dish <em>contains</em>, again for <em>may contain</em> —
+        the cross-contact answer for a shared fryer or one board — then press Confirm, which
+        stamps who checked it and when. An unconfirmed row is treated as unknown, not as safe. The named list here is the
         14 used across the EU and UK; the US names 9 and Australia/New Zealand differs again, so
         check the rules that apply where you trade.
         <button
@@ -131,6 +156,28 @@ export default function AllergenMatrixTab({ canEdit }: { canEdit: boolean }) {
           {checkedCount} of {dishes.length} dishes confirmed
         </Badge>
       </div>
+
+      {dishes.length > 0 && (
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-slate-500">
+          <span className="flex items-center gap-1.5">
+            <span className="flex h-4 w-4 items-center justify-center rounded border border-red-300 bg-red-500 text-white">
+              <Check className="h-3 w-3" />
+            </span>
+            Contains — it is in the dish
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="flex h-4 w-4 items-center justify-center rounded border border-amber-300 bg-amber-400 text-[11px] font-bold leading-none text-white">
+              ~
+            </span>
+            May contain — traces or cross-contact
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="h-4 w-4 rounded border border-slate-200 bg-white" />
+            Not recorded
+          </span>
+          {canEdit && <span className="text-slate-400">Click a box to cycle through the three.</span>}
+        </div>
+      )}
 
       {dishes.length === 0 && (
         <Card><CardContent className="py-10 text-center">
@@ -176,21 +223,29 @@ export default function AllergenMatrixTab({ canEdit }: { canEdit: boolean }) {
                       </td>
                       {allergens.map((a) => {
                         const on = Boolean(d[a.field]);
+                        const tr = !on && (d._traces ?? []).includes(a.key);
+                        const state = on ? "contains" : tr ? "may contain — traces / cross-contact" : "not recorded";
                         return (
                           <td key={a.key} className="px-1 py-2.5 text-center">
                             <button
                               disabled={!canEdit}
-                              onClick={() => toggle(d.id, a.field)}
-                              title={a.label}
+                              onClick={() => cycle(d.id, a)}
+                              title={`${a.label} — ${state}${canEdit ? ". Click to change." : ""}`}
                               className={cn(
-                                "h-6 w-6 rounded border transition-colors",
+                                "h-6 w-6 rounded border text-white transition-colors",
                                 on
-                                  ? "border-red-300 bg-red-500 text-white"
+                                  ? "border-red-300 bg-red-500"
+                                  : tr
+                                  ? "border-amber-300 bg-amber-400"
                                   : "border-slate-200 bg-white hover:bg-slate-100",
                                 !canEdit && "cursor-default opacity-70"
                               )}
                             >
-                              {on && <Check className="mx-auto h-3.5 w-3.5" />}
+                              {on ? (
+                                <Check className="mx-auto h-3.5 w-3.5" />
+                              ) : tr ? (
+                                <span className="block text-[13px] font-bold leading-none">~</span>
+                              ) : null}
                             </button>
                           </td>
                         );
@@ -245,7 +300,8 @@ export default function AllergenMatrixTab({ canEdit }: { canEdit: boolean }) {
         <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
         Cross-contact risk is a kitchen-by-kitchen judgement: a shared fryer, one board, or a
         single tub of flour in the air can carry an allergen into a dish that never listed it.
-        Record what you actually do, not what the recipe says.
+        That is what amber is for — record what you actually do, not what the recipe says. Amber
+        is not a softer red: if an allergen is in the dish, it contains it.
       </p>
     </div>
   );
