@@ -55,21 +55,29 @@ function label(a: CourseAsset): string {
 // --------------------------------------------------------------------------- //
 
 function equipmentLesson(assets: CourseAsset[]): Lesson {
-  const risky = assets.filter((a) => a.fireRisk && a.status !== "retired");
+  const live = assets.filter((a) => a.status !== "retired");
+  const risky = live.filter((a) => a.fireRisk);
   const fryers = risky.filter((a) => a.fryer);
   const overdue = risky.filter((a) => a.serviceOverdue);
 
   if (risky.length === 0) {
+    const partial = live.length > 0;
     return {
       id: "your-equipment",
       title: "Your own equipment",
       body: [
-        "This lesson normally lists the fire-risk equipment recorded in your own building — the fryers, ranges, grills, extraction and electrical plant. Nothing is recorded yet, so there is nothing to show.",
-        "A manager can build the register under Log book → Equipment. It is worth doing for its own sake: it is where service dates and warranty details live. Once it is filled in, this lesson and the questions at the end name your actual equipment instead of talking in general terms.",
+        partial
+          ? `This lesson normally lists the fire-risk equipment recorded in your own building — the fryers, ranges, grills, extraction and electrical plant. Your register has ${live.length} ${
+              live.length === 1 ? "item" : "items"
+            } on it, but none of them are recorded under cooking, extraction or electrical, so there is nothing to name here.`
+          : "This lesson normally lists the fire-risk equipment recorded in your own building — the fryers, ranges, grills, extraction and electrical plant. Nothing is recorded yet, so there is nothing to show.",
+        partial
+          ? "That usually means the register is part-built rather than that the kitchen has no hot equipment. A manager can add the rest under Log book → Equipment, and set the category correctly while doing it — that is what tells this course, and the service reminders, which items matter most."
+          : "A manager can build the register under Log book → Equipment. It is worth doing for its own sake: it is where service dates and warranty details live. Once it is filled in, this lesson and the questions at the end name your actual equipment instead of talking in general terms.",
         "In the meantime, do the walk yourself. Find the fryers, the gas isolation valve, the extraction canopy, the electrical distribution board, the fire alarm call points, the extinguishers and the assembly point. Somebody on every shift has to know where those are without looking.",
       ],
       keyPoint:
-        "An empty equipment register is not evidence that nothing in the building is a risk. It only means nobody has written it down yet.",
+        "A register with no fire-risk equipment on it is not evidence that the building has none. It only means nobody has written it down yet.",
     };
   }
 
