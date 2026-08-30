@@ -14,8 +14,9 @@ import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft, ArrowRight, GraduationCap, Loader2, CheckCircle2, XCircle,
-  AlertTriangle, Award, Info, Lightbulb, PenLine,
+  AlertTriangle, Award, Info, Lightbulb, PenLine, Printer,
 } from "lucide-react";
+import { openCertificate } from "@/lib/training/certificate";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -39,6 +40,8 @@ function CourseInner() {
   const [signedName, setSignedName] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<any>(null);
+  const [printing, setPrinting] = useState(false);
+  const [printError, setPrintError] = useState<string | null>(null);
   const startedAt = useRef<string>(new Date().toISOString());
   const topRef = useRef<HTMLDivElement>(null);
 
@@ -67,6 +70,36 @@ function CourseInner() {
     () => questions.filter((q: any) => (answers[q.id] ?? []).length > 0).length,
     [questions, answers]
   );
+
+  // Fetches the filed record and opens the printable sheet. The sheet is built
+  // from what the server says was filed, never from the state of this page, so
+  // a printed record cannot disagree with the stored one.
+  async function printRecord() {
+    if (!result?.completionId) return;
+    setPrinting(true);
+    setPrintError(null);
+    try {
+      const r = await fetch(
+        `/api/training/certificate?id=${encodeURIComponent(result.completionId)}`
+      );
+      const d = await r.json();
+      if (d.error) { setPrintError(d.error); return; }
+      const ok = openCertificate({
+        ...d.certificate,
+        completedAt: d.certificate.completedAt,
+        expiresAt: d.certificate.expiresAt,
+      });
+      if (!ok) {
+        setPrintError(
+          "Your browser blocked the print window. Allow pop-ups for rotahr.com and try again."
+        );
+      }
+    } catch {
+      setPrintError("Could not load the record. Try again in a moment.");
+    } finally {
+      setPrinting(false);
+    }
+  }
 
   function pick(q: any, idx: number) {
     setAnswers((prev) => {
@@ -403,10 +436,23 @@ function CourseInner() {
                 <Button variant="outline" onClick={() => router.push("/training?tab=courses")}>
                   Back to courses
                 </Button>
+                {result.passed && result.filed !== false && result.completionId && (
+                  <Button onClick={printRecord} disabled={printing}>
+                    {printing ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Printer className="mr-2 h-4 w-4" />
+                    )}
+                    Print record
+                  </Button>
+                )}
                 {!result.passed && (
                   <Button onClick={() => window.location.reload()}>Take it again</Button>
                 )}
               </div>
+              {printError && (
+                <p className="mt-3 text-sm text-amber-700">{printError}</p>
+              )}
             </CardContent>
           </Card>
 
