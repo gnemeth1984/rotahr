@@ -22,6 +22,7 @@ import {
   toCourseDish,
   toCourseAsset,
   toCourseStock,
+  toCourseHaccpUnit,
   buildQuiz,
   grade,
 } from "@/lib/training/courses";
@@ -115,7 +116,21 @@ export async function POST(req: NextRequest) {
     ? ticket.m.map((id) => byStock.get(id)).filter(Boolean).map(toCourseStock)
     : [];
 
-  const paper = buildQuiz(ticket.s, { dishes, assets, stock }, ticket.d);
+  const haccpRows = course.usesHaccp
+    ? await prisma.hACCPEquipment.findMany({ where: { businessId, id: { in: ticket.m } } })
+    : [];
+  const byUnit = new Map(haccpRows.map((u) => [u.id, u]));
+  const haccp = course.usesHaccp
+    ? ticket.m.map((id) => byUnit.get(id)).filter(Boolean).map(toCourseHaccpUnit)
+    : [];
+
+  // haccpChecks is deliberately empty: the schedule only ever fed a lesson, and
+  // lessons are not graded.
+  const paper = buildQuiz(
+    ticket.s,
+    { dishes, assets, stock, haccp, haccpChecks: [] },
+    ticket.d
+  );
   if (paper.length === 0) {
     return NextResponse.json({ error: "Could not rebuild the quiz." }, { status: 400 });
   }
@@ -192,7 +207,13 @@ export async function POST(req: NextRequest) {
       // Named for the menu because that came first, but it is the snapshot of
       // whatever venue data the course was built from. Menus and equipment both
       // change; evidence of what somebody was actually taught must not.
-      menuSnapshot: course.usesAssets ? assets : course.usesStock ? stock : dishes,
+      menuSnapshot: course.usesAssets
+        ? assets
+        : course.usesStock
+          ? stock
+          : course.usesHaccp
+            ? haccp
+            : dishes,
       certificationId,
       startedAt: startedAt ? new Date(startedAt) : completedAt,
       completedAt,

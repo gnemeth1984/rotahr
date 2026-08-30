@@ -43,13 +43,14 @@ export async function GET(req: NextRequest) {
 
   // Menu and equipment readiness — course quality depends on both, so surface
   // them here rather than making somebody find out inside a lesson.
-  const [dishCount, checkedCount, assetCount, stockCount] = await Promise.all([
+  const [dishCount, checkedCount, assetCount, stockCount, haccpCount] = await Promise.all([
     prisma.dish.count({ where: { businessId, active: true } }),
     prisma.dish.count({
       where: { businessId, active: true, allergenCheckedAt: { not: null } },
     }),
     prisma.asset.count({ where: { businessId, status: { not: "retired" } } }),
     prisma.stockItem.count({ where: { businessId } }),
+    prisma.hACCPEquipment.count({ where: { businessId } }),
   ]);
 
   const completions = await prisma.courseCompletion.findMany({
@@ -112,6 +113,7 @@ export async function GET(req: NextRequest) {
       usesMenu: c.usesMenu,
       usesAssets: c.usesAssets,
       usesStock: c.usesStock,
+      usesHaccp: c.usesHaccp,
       mine: {
         completedAt: mine?.completedAt ?? null,
         score: mine ? `${mine.score}/${mine.total}` : null,
@@ -131,5 +133,6 @@ export async function GET(req: NextRequest) {
     menu: { dishes: dishCount, checked: checkedCount },
     equipment: { assets: assetCount },
     stock: { items: stockCount },
+    haccp: { units: haccpCount },
   });
 }

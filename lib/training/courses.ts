@@ -26,21 +26,26 @@
 import { ALLERGENS, type AllergenKey, containedKeys, parseTraces } from "./allergens";
 import {
   type CourseAsset,
+  type CourseHaccpCheck,
+  type CourseHaccpUnit,
   type CourseStock,
   type Lesson,
   type QuizQuestion,
   shuffled,
   toCourseAsset,
+  toCourseHaccpCheck,
+  toCourseHaccpUnit,
   toCourseStock,
 } from "./kit";
 import { fireLessons, fireQuiz } from "./fire";
+import { foodHygieneLessons, foodHygieneQuiz } from "./food-hygiene";
 import { manualHandlingLessons, manualHandlingQuiz } from "./manual-handling";
 
 // Shapes and helpers live in kit.ts so course content files can import them
 // without importing this module back. Re-exported so existing importers and the
 // API routes keep a single place to import from.
-export type { CourseAsset, CourseStock, Lesson, QuizQuestion };
-export { toCourseAsset, toCourseStock };
+export type { CourseAsset, CourseHaccpCheck, CourseHaccpUnit, CourseStock, Lesson, QuizQuestion };
+export { toCourseAsset, toCourseHaccpCheck, toCourseHaccpUnit, toCourseStock };
 
 export interface CourseDef {
   slug: string;
@@ -63,6 +68,8 @@ export interface CourseDef {
   usesAssets: boolean;
   /** True when the course reads the venue's own stock list. */
   usesStock: boolean;
+  /** True when the course reads the venue's own HACCP units and check times. */
+  usesHaccp: boolean;
 }
 
 export const COURSES: CourseDef[] = [
@@ -79,6 +86,7 @@ export const COURSES: CourseDef[] = [
     usesMenu: true,
     usesAssets: false,
     usesStock: false,
+    usesHaccp: false,
   },
   {
     slug: "fire-safety-awareness",
@@ -95,6 +103,7 @@ export const COURSES: CourseDef[] = [
     usesMenu: false,
     usesAssets: true,
     usesStock: false,
+    usesHaccp: false,
   },
   {
     slug: "manual-handling-awareness",
@@ -113,6 +122,27 @@ export const COURSES: CourseDef[] = [
     usesMenu: false,
     usesAssets: false,
     usesStock: true,
+    usesHaccp: false,
+  },
+  {
+    slug: "food-hygiene-awareness",
+    title: "Food hygiene awareness",
+    summary:
+      "The danger zone, the four Cs, fitness to work, and what to do when a check fails \— built around your own fridges, freezers and hot-holding units and the check times you set.",
+    minutes: 25,
+    validMonths: 12,
+    passMark: 80,
+    // Deliberately OTHER, not HACCP or FOOD_SAFETY. Both of those categories
+    // exist in the tracker for the accredited qualification an operator is
+    // expected to hold \— HACCP Level 1 and 2, Safe Catering and the rest. An
+    // in-house awareness record filed under either would sit in the same list
+    // looking like it satisfied that requirement. It does not.
+    certCategory: "OTHER",
+    certTitle: "Food hygiene awareness (in-house)",
+    usesMenu: false,
+    usesAssets: false,
+    usesStock: false,
+    usesHaccp: true,
   },
 ];
 
@@ -138,6 +168,12 @@ export interface CourseData {
   dishes: CourseDish[];
   assets: CourseAsset[];
   stock: CourseStock[];
+  haccp: CourseHaccpUnit[];
+  /**
+   * The venue's own check schedule. Used by lessons only, never by the quiz \—
+   * so it does not need to be rebuildable from a ticket at grading time.
+   */
+  haccpChecks: CourseHaccpCheck[];
 }
 
 /** Narrow a Prisma dish row (with allergen columns) into what the course uses. */
@@ -203,6 +239,8 @@ function menuLesson(dishes: CourseDish[]): Lesson {
 export function lessonsFor(slug: string, data: CourseData): Lesson[] {
   if (slug === "fire-safety-awareness") return fireLessons(data.assets);
   if (slug === "manual-handling-awareness") return manualHandlingLessons(data.stock);
+  if (slug === "food-hygiene-awareness")
+    return foodHygieneLessons(data.haccp, data.haccpChecks);
   if (slug !== "allergen-awareness") return [];
 
   const dishes = data.dishes;
@@ -517,6 +555,7 @@ export function buildQuiz(
 ): QuizQuestion[] {
   if (slug === "fire-safety-awareness") return fireQuiz(data.assets, seed);
   if (slug === "manual-handling-awareness") return manualHandlingQuiz(data.stock, seed);
+  if (slug === "food-hygiene-awareness") return foodHygieneQuiz(data.haccp, seed);
   if (slug !== "allergen-awareness") return [];
 
   const fromMenu = menuQuestions(data.dishes, seed);

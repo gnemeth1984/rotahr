@@ -196,6 +196,137 @@ export function stockWeight(item: CourseStock): string | null {
   return null;
 }
 
+// --------------------------------------------------------------------------- //
+// The venue's own HACCP units and check schedule, as a course sees it
+// --------------------------------------------------------------------------- //
+
+/**
+ * Target ranges per unit type.
+ *
+ * These MIRROR the thresholds the HACCP module already enforces in
+ * app/(app)/haccp/page.tsx (CHECK_GROUPS). They are duplicated rather than
+ * imported because that file is a large client component and importing it into
+ * server course code would drag the whole tree along. If the thresholds there
+ * change, change them here in the same commit — a course that teaches a
+ * different number from the one the app marks against is worse than no course.
+ *
+ * The figures themselves are the widely used ones, not universal law. Fridge
+ * maximums, hot-holding minimums and core cooking temperatures all differ
+ * between countries; the module is deliberately set tighter than the legal
+ * maximum in several of them, and that headroom is the point.
+ */
+export const HACCP_TARGETS: Record<
+  string,
+  { label: string; target: string; min: number | null; max: number | null; note: string }
+> = {
+  fridge: {
+    label: "Fridge / cold room",
+    target: "1 to 4°C",
+    min: 1,
+    max: 4,
+    note: "Checked twice a day by default. Tighter than the legal maximum in several countries, on purpose — a unit sitting at the limit has nowhere to go on a hot Saturday.",
+  },
+  freezer: {
+    label: "Freezer",
+    target: "-25 to -18°C",
+    min: -25,
+    max: -18,
+    note: "Checked daily by default. -18°C or colder is the figure used almost everywhere.",
+  },
+  hot_holding: {
+    label: "Hot holding",
+    target: "above 63°C",
+    min: 63,
+    max: 100,
+    note: "Checked every two hours by default. 63°C is the UK and Ireland figure; the US works to 60°C (140°F).",
+  },
+  cooking: {
+    label: "Cooking",
+    target: "core above 75°C",
+    min: 75,
+    max: 100,
+    note: "Core temperature, taken in the thickest part. Recorded per cook rather than on a clock.",
+  },
+  cooling: {
+    label: "Cooling",
+    target: "60°C down to below 4°C within 4 hours",
+    min: 0,
+    max: 4,
+    note: "Recorded per batch. The clock matters as much as the temperature.",
+  },
+};
+
+/** Human labels for the check types a schedule can be set against. */
+export const HACCP_CHECK_LABELS: Record<string, string> = {
+  fridge_temp: "Fridge / cold room temperatures",
+  freezer_temp: "Freezer temperatures",
+  hot_holding: "Hot holding temperatures",
+  cooking_temp: "Cooking temperatures",
+  cooling: "Cooling records",
+  delivery: "Delivery checks",
+  cleaning_daily: "Daily cleaning",
+  cleaning_weekly: "Weekly cleaning",
+  cleaning_deep: "Deep clean",
+  opening_checks: "Opening checks",
+  closing_checks: "Closing checks",
+  pest_control: "Pest control log",
+  corrective_action: "Corrective action log",
+};
+
+export interface CourseHaccpUnit {
+  id: string;
+  name: string;
+  /** fridge | freezer | hot_holding | cooking | cooling | other */
+  type: string;
+  /** "Fridge / cold room" */
+  typeLabel: string;
+  /** "1 to 4°C" — the range this venue's own module marks against. */
+  target: string;
+  min: number | null;
+  max: number | null;
+}
+
+/** Narrow a Prisma HACCPEquipment row into what a course uses. */
+export function toCourseHaccpUnit(row: any): CourseHaccpUnit {
+  const type: string = row.equipType ?? "other";
+  const t = HACCP_TARGETS[type];
+  return {
+    id: row.id,
+    name: row.name ?? "",
+    type,
+    typeLabel: t?.label ?? "Other unit",
+    target: t?.target ?? "no target range recorded",
+    min: t?.min ?? null,
+    max: t?.max ?? null,
+  };
+}
+
+export interface CourseHaccpCheck {
+  checkType: string;
+  label: string;
+  /** "HH:mm" strings the venue set. */
+  times: string[];
+  /** 0=Sun..6=Sat. Empty means every day. */
+  daysOfWeek: number[];
+  active: boolean;
+}
+
+/** Narrow a Prisma HACCPSchedule row into what a course uses. */
+export function toCourseHaccpCheck(row: any): CourseHaccpCheck {
+  const times = Array.isArray(row.times) ? row.times.filter((t: any) => typeof t === "string") : [];
+  const days = Array.isArray(row.daysOfWeek)
+    ? row.daysOfWeek.filter((d: any) => typeof d === "number")
+    : [];
+  const checkType: string = row.checkType ?? "";
+  return {
+    checkType,
+    label: HACCP_CHECK_LABELS[checkType] ?? checkType.replace(/_/g, " "),
+    times,
+    daysOfWeek: days,
+    active: row.active !== false,
+  };
+}
+
 export function niceDate(iso: string | null): string {
   if (!iso) return "no date recorded";
   return new Date(iso).toLocaleDateString("en-IE", {

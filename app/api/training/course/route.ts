@@ -18,6 +18,8 @@ import {
   toCourseDish,
   toCourseAsset,
   toCourseStock,
+  toCourseHaccpUnit,
+  toCourseHaccpCheck,
   buildQuiz,
   publicQuiz,
 } from "@/lib/training/courses";
@@ -74,8 +76,26 @@ export async function GET(req: NextRequest) {
     : [];
   const stock = stockRows.map(toCourseStock);
 
+  const haccpRows = course.usesHaccp
+    ? await prisma.hACCPEquipment.findMany({
+        where: { businessId },
+        orderBy: [{ equipType: "asc" }, { sortOrder: "asc" }, { name: "asc" }],
+      })
+    : [];
+  const haccp = haccpRows.map(toCourseHaccpUnit);
+
+  // The check schedule feeds a lesson, not the quiz, so it is never carried on
+  // the ticket \— a manager editing the times mid-course cannot change the paper.
+  const scheduleRows = course.usesHaccp
+    ? await prisma.hACCPSchedule.findMany({
+        where: { businessId },
+        orderBy: [{ checkType: "asc" }],
+      })
+    : [];
+  const haccpChecks = scheduleRows.map(toCourseHaccpCheck);
+
   const seed = freshSeed();
-  const data = { dishes, assets, stock };
+  const data = { dishes, assets, stock, haccp, haccpChecks };
   const paper = buildQuiz(slug, data, seed);
 
   const token = signTicket({
@@ -92,7 +112,9 @@ export async function GET(req: NextRequest) {
       ? assets.map((a) => a.id)
       : course.usesStock
         ? stock.map((s) => s.id)
-        : dishes.map((d) => d.id),
+        : course.usesHaccp
+          ? haccp.map((u) => u.id)
+          : dishes.map((d) => d.id),
     t: Date.now(),
   });
 
@@ -107,6 +129,7 @@ export async function GET(req: NextRequest) {
       usesMenu: course.usesMenu,
       usesAssets: course.usesAssets,
       usesStock: course.usesStock,
+      usesHaccp: course.usesHaccp,
     },
     practice,
     trainee: practice
@@ -118,5 +141,9 @@ export async function GET(req: NextRequest) {
     menu: { dishes: dishes.length, checked: dishes.filter((d) => d.checked).length },
     equipment: { assets: assets.length, fireRisk: assets.filter((a) => a.fireRisk).length },
     stock: { items: stock.length, heavy: stock.filter((s) => s.heavy).length },
+    haccp: {
+      units: haccp.length,
+      scheduled: haccpChecks.filter((c) => c.active).length,
+    },
   });
 }
