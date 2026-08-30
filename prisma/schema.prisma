@@ -245,6 +245,7 @@ model Employee {
   shiftSwapRequestsReceived ShiftSwapRequest[]       @relation("SwapReceiver")
   tipDistributions          TipDistribution[]
   certifications            TrainingCertification[]
+  courseCompletions         CourseCompletion[]
   opsTasks                  OpsTask[]
   venueId                   String?
   venue                     Venue?                   @relation(fields: [venueId], references: [id], onDelete: SetNull)
@@ -842,6 +843,51 @@ model TrainingCertification {
   @@index([expiryDate])
 }
 
+/// One graded attempt at an in-house training course.
+///
+/// Courses themselves are code, not rows (lib/training/courses.ts) — the same
+/// reason the free template library is code. What has to be durable is the
+/// evidence: who sat it, what they were asked, what they answered, and the name
+/// they signed. A passing attempt also writes a TrainingCertification so the
+/// existing cert-expiry cron chases the retrain without knowing about courses.
+///
+/// These are IN-HOUSE, employer-delivered records. Nothing here is an accredited
+/// qualification and no field should ever be presented as one.
+model CourseCompletion {
+  id         String   @id @default(cuid())
+  businessId String
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  courseSlug  String
+  courseTitle String
+
+  score    Int
+  total    Int
+  passMark Int
+  passed   Boolean
+
+  /// Typed name the trainee signed the record with.
+  signedName String
+
+  /// Every question, the answer given and whether it was right. This is the
+  /// record that makes the certificate defensible, so it is stored in full.
+  answers Json
+
+  /// The venue's dish allergen data at the moment of the attempt. A menu changes;
+  /// the evidence of what someone was actually taught must not.
+  menuSnapshot Json?
+
+  /// The TrainingCertification this attempt generated, when it passed.
+  certificationId String?
+
+  startedAt   DateTime
+  completedAt DateTime @default(now())
+
+  @@index([businessId, courseSlug, completedAt])
+  @@index([employeeId, completedAt])
+}
+
 // ── Menu Planning ─────────────────────────────────────────────────────────────
 
 model Dish {
@@ -856,6 +902,31 @@ model Dish {
   costPrice   Float? // auto-calculated from ingredients if set
   imageUrl    String?
   active      Boolean @default(true)
+
+  // 14 EU allergens (true = CONTAINS). Same field names as FunctionMenuDish.
+  // Thresholds and the named list differ by country — see lib/training/allergens.ts.
+  allergenGluten     Boolean @default(false)
+  allergenCrustacean Boolean @default(false)
+  allergenEgg        Boolean @default(false)
+  allergenFish       Boolean @default(false)
+  allergenPeanut     Boolean @default(false)
+  allergenSoy        Boolean @default(false)
+  allergenMilk       Boolean @default(false)
+  allergenNuts       Boolean @default(false) // tree nuts
+  allergenCelery     Boolean @default(false)
+  allergenMustard    Boolean @default(false)
+  allergenSesame     Boolean @default(false)
+  allergenSulphites  Boolean @default(false)
+  allergenLupin      Boolean @default(false)
+  allergenMollusc    Boolean @default(false)
+
+  /// Comma-separated allergen keys that may be present via cross-contact.
+  allergenTraces    String?
+  /// Free text: how it is handled, which supplier spec it came from.
+  allergenNotes     String?   @db.Text
+  /// When a human last confirmed the row above. Null = never checked.
+  allergenCheckedAt DateTime?
+  allergenCheckedBy String?
 
   ingredients DishIngredient[]
 
@@ -2865,7 +2936,7 @@ model NavCapture {
 
   /// Documents: the deadline the letter is really about. The whole point of
   /// photographing an official letter is not losing this date.
-  deadline DateTime?
+  deadline  DateTime?
   /// Anything else structured the pass found (line items, action list).
   extracted Json?
 

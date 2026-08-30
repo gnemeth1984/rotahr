@@ -1319,12 +1319,12 @@ export async function main(prisma: PrismaClient = new PrismaClient()) {
 
   await prisma.dish.createMany({
     data: [
-      { id: dish1, businessId: BIZ, name: "Ribeye Steak (10oz)", description: "Aged ribeye served with chips, seasonal veg & peppercorn sauce", category: "main", sellPrice: 28.50, active: true, imageUrl: "https://efxjg5pqfqlyxu80.private.blob.vercel-storage.com/dish-photos/demo/ribeye.jpg" },
-      { id: dish2, businessId: BIZ, name: "Pan-Fried Atlantic Salmon", description: "Fresh Atlantic salmon, crushed new potatoes, dill cream sauce", category: "main", sellPrice: 24.00, active: true, imageUrl: "https://efxjg5pqfqlyxu80.private.blob.vercel-storage.com/dish-photos/demo/salmon.jpg" },
-      { id: dish3, businessId: BIZ, name: "Buttermilk Chicken & Chips", description: "Marinated buttermilk chicken breast, chunky chips, house slaw", category: "main", sellPrice: 18.50, active: true },
-      { id: dish4, businessId: BIZ, name: "Chunky Chips", description: "Hand-cut chunky chips with sea salt & house aioli", category: "sides", sellPrice: 5.00, active: true },
-      { id: dish5, businessId: BIZ, name: "Guinness & Beef Stew", description: "Slow-braised beef in Guinness, champ mash, soda bread", category: "main", sellPrice: 21.00, active: true },
-      { id: dish6, businessId: BIZ, name: "Anchor House Burger", description: "6oz beef patty, smoked cheddar, bacon jam, brioche bun, fries", category: "main", sellPrice: 17.50, active: true, imageUrl: "https://efxjg5pqfqlyxu80.private.blob.vercel-storage.com/dish-photos/demo/burger.jpg" },
+      { id: dish1, businessId: BIZ, name: "Ribeye Steak (10oz)", description: "Aged ribeye served with chips, seasonal veg & peppercorn sauce", category: "main", sellPrice: 28.50, active: true, imageUrl: "https://efxjg5pqfqlyxu80.private.blob.vercel-storage.com/dish-photos/demo/ribeye.jpg" , allergenMilk: true, allergenCelery: true, allergenSulphites: true, allergenTraces: "gluten", allergenCheckedAt: days(-14), allergenCheckedBy: "Marco De Luca" },
+      { id: dish2, businessId: BIZ, name: "Pan-Fried Atlantic Salmon", description: "Fresh Atlantic salmon, crushed new potatoes, dill cream sauce", category: "main", sellPrice: 24.00, active: true, imageUrl: "https://efxjg5pqfqlyxu80.private.blob.vercel-storage.com/dish-photos/demo/salmon.jpg" , allergenFish: true, allergenMilk: true, allergenCheckedAt: days(-14), allergenCheckedBy: "Marco De Luca" },
+      { id: dish3, businessId: BIZ, name: "Buttermilk Chicken & Chips", description: "Marinated buttermilk chicken breast, chunky chips, house slaw", category: "main", sellPrice: 18.50, active: true , allergenGluten: true, allergenMilk: true, allergenEgg: true, allergenMustard: true, allergenCheckedAt: days(-14), allergenCheckedBy: "Marco De Luca" },
+      { id: dish4, businessId: BIZ, name: "Chunky Chips", description: "Hand-cut chunky chips with sea salt & house aioli", category: "sides", sellPrice: 5.00, active: true , allergenEgg: true, allergenMustard: true, allergenTraces: "gluten", allergenCheckedAt: days(-14), allergenCheckedBy: "Marco De Luca" },
+      { id: dish5, businessId: BIZ, name: "Guinness & Beef Stew", description: "Slow-braised beef in Guinness, champ mash, soda bread", category: "main", sellPrice: 21.00, active: true , allergenGluten: true, allergenMilk: true, allergenCelery: true, allergenSulphites: true, allergenCheckedAt: days(-14), allergenCheckedBy: "Marco De Luca" },
+      { id: dish6, businessId: BIZ, name: "Anchor House Burger", description: "6oz beef patty, smoked cheddar, bacon jam, brioche bun, fries", category: "main", sellPrice: 17.50, active: true, imageUrl: "https://efxjg5pqfqlyxu80.private.blob.vercel-storage.com/dish-photos/demo/burger.jpg" , allergenGluten: true, allergenMilk: true, allergenEgg: true, allergenMustard: true, allergenSulphites: true, allergenTraces: "sesame", allergenCheckedAt: days(-14), allergenCheckedBy: "Marco De Luca" },
     ],
   });
 
@@ -2038,9 +2038,9 @@ export async function seedOwnerDemos(prisma: PrismaClient) {
   const pDish2 = "demo-p-dish-risotto";
   const pDish3 = "demo-p-dish-brunch";
   await prisma.dish.createMany({ data: [
-    { id: pDish1, businessId: P_BIZ, name: "Wild Mushroom Flatbread", description: "Truffle oil, taleggio, rocket, balsamic glaze", category: "starter", sellPrice: 14.00, active: true, imageUrl: "https://efxjg5pqfqlyxu80.private.blob.vercel-storage.com/dish-photos/demo/flatbread.jpg" },
-    { id: pDish2, businessId: P_BIZ, name: "Wild Garlic Risotto", description: "Arborio rice, wild garlic, parmesan, lemon zest", category: "main", sellPrice: 19.50, active: true },
-    { id: pDish3, businessId: P_BIZ, name: "Bloom Brunch Board", description: "Sourdough, smashed avo, poached eggs, feta, chorizo", category: "main", sellPrice: 16.00, active: true, imageUrl: "https://efxjg5pqfqlyxu80.private.blob.vercel-storage.com/dish-photos/demo/brunch.jpg" },
+    { id: pDish1, businessId: P_BIZ, name: "Wild Mushroom Flatbread", description: "Truffle oil, taleggio, rocket, balsamic glaze", category: "starter", sellPrice: 14.00, active: true, imageUrl: "https://efxjg5pqfqlyxu80.private.blob.vercel-storage.com/dish-photos/demo/flatbread.jpg" , allergenGluten: true, allergenMilk: true, allergenSulphites: true, allergenCheckedAt: days(-14), allergenCheckedBy: "James Harrington" },
+    { id: pDish2, businessId: P_BIZ, name: "Wild Garlic Risotto", description: "Arborio rice, wild garlic, parmesan, lemon zest", category: "main", sellPrice: 19.50, active: true , allergenMilk: true, allergenCelery: true, allergenSulphites: true, allergenCheckedAt: days(-14), allergenCheckedBy: "James Harrington" },
+    { id: pDish3, businessId: P_BIZ, name: "Bloom Brunch Board", description: "Sourdough, smashed avo, poached eggs, feta, chorizo", category: "main", sellPrice: 16.00, active: true, imageUrl: "https://efxjg5pqfqlyxu80.private.blob.vercel-storage.com/dish-photos/demo/brunch.jpg" , allergenGluten: true, allergenEgg: true, allergenMilk: true, allergenSulphites: true, allergenTraces: "sesame", allergenCheckedAt: days(-14), allergenCheckedBy: "James Harrington" },
   ]});
   // Stock items behind the Pro recipes — without these, costing has no supplier
   // price to work from and the Recipes page shows "no usable price" everywhere.

@@ -1,0 +1,208 @@
+// @ts-nocheck
+"use client";
+
+/**
+ * In-house courses. These are employer-delivered training records, not
+ * accredited qualifications — the copy on this page must never imply otherwise,
+ * because a false claim on a certificate shown to an inspector is worse than
+ * having no course at all.
+ */
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import {
+  GraduationCap, Clock, CheckCircle2, AlertTriangle, Loader2,
+  ChevronRight, Users, Utensils, Play, RotateCcw,
+} from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
+
+function fmt(d: string | null) {
+  if (!d) return "—";
+  return new Date(d).toLocaleDateString("en-IE", {
+    day: "2-digit", month: "short", year: "numeric",
+  });
+}
+
+const STATUS: Record<string, { label: string; cls: string }> = {
+  VALID: { label: "Up to date", cls: "bg-green-100 text-green-700 border-green-200" },
+  EXPIRING_SOON: { label: "Due soon", cls: "bg-amber-100 text-amber-700 border-amber-200" },
+  EXPIRED: { label: "Retrain due", cls: "bg-red-100 text-red-700 border-red-200" },
+  NOT_STARTED: { label: "Not done", cls: "bg-slate-100 text-slate-600 border-slate-200" },
+};
+
+export default function CoursesTab({ onOpenMatrix }: { onOpenMatrix?: () => void }) {
+  const router = useRouter();
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [openRoster, setOpenRoster] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/training/courses")
+      .then((r) => r.json())
+      .then((d) => { setData(d); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-48">
+        <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+      </div>
+    );
+  }
+
+  const courses = data?.courses ?? [];
+  const menu = data?.menu ?? { dishes: 0, checked: 0 };
+
+  return (
+    <div className="space-y-5">
+      <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+        <strong className="text-slate-800">In-house training, delivered by you.</strong>{" "}
+        These courses produce a dated record signed by the trainee, which is what most
+        food-safety regimes expect an employer to keep. They are not accredited
+        qualifications and Rotahr never presents them as one — where a licence or an
+        accredited certificate is required, you still need an approved provider.
+      </div>
+
+      {courses.some((c: any) => c.usesMenu) && menu.checked < menu.dishes && (
+        <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <Utensils className="h-4 w-4 mt-0.5 shrink-0" />
+          <div className="flex-1">
+            <strong>
+              {menu.checked} of {menu.dishes} dishes have confirmed allergen information.
+            </strong>{" "}
+            The allergen course builds its best questions from your own menu. Confirm the
+            rest and the course gets sharper for every member of staff who takes it after.
+            {onOpenMatrix && (
+              <button
+                onClick={onOpenMatrix}
+                className="ml-1 font-medium text-amber-800 underline hover:text-amber-950"
+              >
+                Open the allergen matrix
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {courses.length === 0 && (
+        <Card><CardContent className="py-10 text-center text-slate-500">
+          No courses available yet.
+        </CardContent></Card>
+      )}
+
+      {courses.map((c: any) => {
+        const s = STATUS[c.mine?.status] ?? STATUS.NOT_STARTED;
+        const done = c.mine?.status === "VALID";
+        return (
+          <Card key={c.slug} className="overflow-hidden">
+            <CardContent className="p-5">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div className="flex gap-3">
+                  <div className="h-10 w-10 shrink-0 rounded-lg bg-orange-100 flex items-center justify-center">
+                    <GraduationCap className="h-5 w-5 text-orange-600" />
+                  </div>
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="font-semibold text-slate-900">{c.title}</h3>
+                      <Badge variant="outline" className={cn("text-xs", s.cls)}>{s.label}</Badge>
+                      {c.usesMenu && (
+                        <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                          Uses your menu
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="mt-1 text-sm text-slate-600 max-w-2xl">{c.summary}</p>
+                    <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
+                      <span className="flex items-center gap-1">
+                        <Clock className="h-3.5 w-3.5" /> about {c.minutes} min
+                      </span>
+                      <span>Pass mark {c.passMark}%</span>
+                      <span>Valid {c.validMonths} months</span>
+                      {c.mine?.completedAt && (
+                        <span className="flex items-center gap-1 text-slate-600">
+                          <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
+                          You passed {fmt(c.mine.completedAt)} ({c.mine.score}) — renew by{" "}
+                          {fmt(c.mine.expiresAt)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex shrink-0 items-center gap-2">
+                  <Button
+                    onClick={() => router.push(`/training/course?slug=${c.slug}`)}
+                    variant={done ? "outline" : "default"}
+                  >
+                    {done ? <RotateCcw className="h-4 w-4 mr-2" /> : <Play className="h-4 w-4 mr-2" />}
+                    {done ? "Take again" : c.mine?.status === "EXPIRED" ? "Retrain" : "Start course"}
+                  </Button>
+                </div>
+              </div>
+
+              {c.roster && (
+                <div className="mt-4 border-t border-slate-100 pt-3">
+                  <button
+                    onClick={() => setOpenRoster(openRoster === c.slug ? null : c.slug)}
+                    className="flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-slate-900"
+                  >
+                    <Users className="h-4 w-4" />
+                    Team: {c.rosterDone} of {c.rosterTotal} up to date
+                    <ChevronRight
+                      className={cn("h-4 w-4 transition-transform", openRoster === c.slug && "rotate-90")}
+                    />
+                  </button>
+
+                  {openRoster === c.slug && (
+                    <div className="mt-3 overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="text-left text-xs uppercase tracking-wide text-slate-400">
+                            <th className="py-2 pr-4 font-medium">Name</th>
+                            <th className="py-2 pr-4 font-medium">Status</th>
+                            <th className="py-2 pr-4 font-medium">Completed</th>
+                            <th className="py-2 pr-4 font-medium">Score</th>
+                            <th className="py-2 font-medium">Renew by</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {c.roster.map((r: any) => {
+                            const rs = STATUS[r.status] ?? STATUS.NOT_STARTED;
+                            return (
+                              <tr key={r.employeeId} className="border-t border-slate-100">
+                                <td className="py-2 pr-4 text-slate-800">{r.name}</td>
+                                <td className="py-2 pr-4">
+                                  <Badge variant="outline" className={cn("text-xs", rs.cls)}>
+                                    {r.status === "EXPIRED" && (
+                                      <AlertTriangle className="h-3 w-3 mr-1" />
+                                    )}
+                                    {rs.label}
+                                  </Badge>
+                                </td>
+                                <td className="py-2 pr-4 text-slate-600">{fmt(r.completedAt)}</td>
+                                <td className="py-2 pr-4 text-slate-600">{r.score ?? "—"}</td>
+                                <td className="py-2 text-slate-600">{fmt(r.expiresAt)}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                      <p className="mt-3 text-xs text-slate-400">
+                        A pass files a 12-month certificate against the employee, so the
+                        existing expiry reminders chase the retrain automatically.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        );
+      })}
+    </div>
+  );
+}

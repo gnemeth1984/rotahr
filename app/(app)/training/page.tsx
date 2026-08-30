@@ -3,11 +3,13 @@
 
 import { useState, useEffect, useRef, Suspense } from "react";
 import { useSession } from "next-auth/react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import {
   Award, Plus, AlertTriangle, CheckCircle2, Clock, Loader2,
-  Trash2, Edit2, X, Upload, Filter, Search,
+  Trash2, Edit2, X, Upload, Filter, Search, GraduationCap, Utensils,
 } from "lucide-react";
+import CoursesTab from "./CoursesTab";
+import AllergenMatrixTab from "./AllergenMatrixTab";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -75,7 +77,7 @@ const EMPTY_FORM = {
   documentUrl: "",
 };
 
-function TrainingInner() {
+function CertificatesTab() {
   const { data: session } = useSession();
   const searchParams = useSearchParams();
   const empParam = searchParams.get("employeeId");
@@ -252,8 +254,8 @@ function TrainingInner() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Training & Certifications</h1>
-          <p className="text-sm text-slate-500 mt-1">
+          <h2 className="text-lg font-semibold text-slate-900">Certificates on file</h2>
+          <p className="text-sm text-slate-500 mt-0.5">
             HACCP, alcohol serving certs, manual handling, first aid — track expiry dates and stay compliant
           </p>
         </div>
@@ -588,10 +590,72 @@ function TrainingInner() {
   );
 }
 
+function TrainingShell() {
+  const { data: session } = useSession();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const role = session?.user?.role;
+  const isManager = role === Role.MANAGER || role === Role.ADMIN;
+
+  const [activeTab, setActiveTab] = useState<string>(
+    searchParams.get("tab") || "certificates"
+  );
+
+  function switchTab(id: string) {
+    setActiveTab(id);
+    router.replace(`/training?tab=${id}`, { scroll: false });
+  }
+
+  const tabs = [
+    { id: "certificates", label: "Certificates", icon: Award },
+    { id: "courses", label: "Courses", icon: GraduationCap },
+    { id: "allergens", label: "Allergen matrix", icon: Utensils },
+  ];
+
+  return (
+    <div className="space-y-0">
+      <div className="flex items-center gap-3 mb-5">
+        <Award className="h-7 w-7 text-orange-500" />
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Training &amp; Certifications</h1>
+          <p className="text-slate-500 text-sm">
+            Certificates and expiry dates, in-house courses, and the allergen record behind them.
+          </p>
+        </div>
+      </div>
+
+      <div className="flex gap-1 border-b border-slate-200 mb-5 overflow-x-auto">
+        {tabs.map((tab) => {
+          const Icon = tab.icon;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => switchTab(tab.id)}
+              className={cn(
+                "flex items-center gap-2 px-4 py-2.5 text-sm font-medium whitespace-nowrap border-b-2 transition-colors",
+                activeTab === tab.id
+                  ? "border-orange-500 text-orange-600"
+                  : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
+              )}
+            >
+              <Icon className="h-4 w-4" />
+              {tab.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {activeTab === "certificates" && <CertificatesTab />}
+      {activeTab === "courses" && <CoursesTab onOpenMatrix={() => switchTab("allergens")} />}
+      {activeTab === "allergens" && <AllergenMatrixTab canEdit={isManager} />}
+    </div>
+  );
+}
+
 export default function TrainingPage() {
   return (
     <Suspense fallback={<div className="flex items-center justify-center h-64"><div className="h-6 w-6 animate-spin rounded-full border-2 border-slate-300 border-t-slate-600" /></div>}>
-      <TrainingInner />
+      <TrainingShell />
     </Suspense>
   );
 }
