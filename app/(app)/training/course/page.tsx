@@ -173,6 +173,17 @@ function CourseInner() {
         </div>
       )}
 
+      {data.practice && (
+        <div className="flex items-start gap-2 rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
+          <Info className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>
+            <strong>Practice run.</strong> Your login isn&apos;t on the staff roster, so this
+            attempt is marked but nothing is filed and no certificate is issued. Add yourself
+            under Team if you want your own training record kept on file.
+          </span>
+        </div>
+      )}
+
       {/* ---------------- Lessons ---------------- */}
       {phase === "lessons" && lessons[step] && (
         <>
@@ -243,7 +254,10 @@ function CourseInner() {
         <>
           <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
             Answer every question. Some ask you to tick more than one option — those say so.
-            You need {course.passMark}% to pass, and the record is filed either way.
+            You need {course.passMark}% to pass
+            {data.practice
+              ? ", and nothing is filed — this is a practice run."
+              : ", and the record is filed either way."}
           </div>
 
           {questions.map((q: any, qi: number) => {
@@ -362,7 +376,13 @@ function CourseInner() {
                 {result.score} of {result.total} correct ({result.percent}%) · pass mark{" "}
                 {result.passMark}%
               </p>
-              {result.passed ? (
+              {result.filed === false ? (
+                <p className="mx-auto mt-3 max-w-lg text-sm text-slate-600">
+                  This was a practice run, so nothing has been filed and no certificate was
+                  issued. Read the explanations below. To keep a real record, add yourself to the
+                  team roster and take it again.
+                </p>
+              ) : result.passed ? (
                 <p className="mx-auto mt-3 max-w-lg text-sm text-slate-600">
                   A dated training record has been filed against you and a certificate added to
                   the tracker, valid until{" "}

@@ -33,19 +33,17 @@ export async function GET(req: NextRequest) {
   const course = getCourse(slug);
   if (!course) return NextResponse.json({ error: "Unknown course" }, { status: 404 });
 
+  // An owner account created at signup has no Employee row of its own, and the
+  // owner is the most likely person to open a course first. Blocking them was a
+  // dead end on the demo and on every real signup. So a login with no employee
+  // record still gets the whole course — it simply cannot file evidence against
+  // a staff member who does not exist. Practice mode says that plainly instead
+  // of pretending a record was kept.
   const me = await prisma.employee.findFirst({
     where: { userId: session.user.id, businessId },
     select: { id: true, firstName: true, lastName: true },
   });
-  if (!me) {
-    return NextResponse.json(
-      {
-        error:
-          "Your login is not linked to an employee record, so a training record cannot be filed against it. A manager can link it under Team.",
-      },
-      { status: 400 }
-    );
-  }
+  const practice = !me;
 
   const dishRows = await prisma.dish.findMany({
     where: { businessId, active: true },
@@ -59,7 +57,9 @@ export async function GET(req: NextRequest) {
   const token = signTicket({
     s: slug,
     d: seed,
-    e: me.id,
+    // Empty in practice mode — the submit route reads that as "grade it, file
+    // nothing", so a practice pass can never mint a certificate.
+    e: me?.id ?? "",
     b: businessId,
     m: dishes.map((d) => d.id),
     t: Date.now(),
@@ -75,7 +75,10 @@ export async function GET(req: NextRequest) {
       validMonths: course.validMonths,
       usesMenu: course.usesMenu,
     },
-    trainee: { id: me.id, name: `${me.firstName} ${me.lastName}`.trim() },
+    practice,
+    trainee: practice
+      ? { id: null, name: session.user.name || "" }
+      : { id: me.id, name: `${me.firstName} ${me.lastName}`.trim() },
     lessons: lessonsFor(slug, dishes),
     questions: publicQuiz(paper),
     token,

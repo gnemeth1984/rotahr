@@ -63,13 +63,23 @@ export async function POST(req: NextRequest) {
 
   // The employee is taken from the ticket, not from the request body, so a
   // trainee cannot file a record against somebody else.
-  const employee = await prisma.employee.findFirst({
-    where: { id: ticket.e, businessId },
-    select: { id: true, firstName: true, lastName: true, userId: true },
-  });
-  if (!employee) return NextResponse.json({ error: "Employee not found" }, { status: 404 });
-  if (employee.userId && employee.userId !== session.user.id) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  //
+  // An empty employee id means the ticket was issued in practice mode: the
+  // signed-in login has no employee record (an owner who never added themselves
+  // to the roster). The attempt is still marked, but nothing is written — no
+  // completion, no certificate. Evidence has to belong to a named person.
+  const practice = !ticket.e;
+  const employee = practice
+    ? null
+    : await prisma.employee.findFirst({
+        where: { id: ticket.e, businessId },
+        select: { id: true, firstName: true, lastName: true, userId: true },
+      });
+  if (!practice) {
+    if (!employee) return NextResponse.json({ error: "Employee not found" }, { status: 404 });
+    if (employee.userId && employee.userId !== session.user.id) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
   }
 
   // Rebuild the exact paper. Dishes come from the ticket's id list in the
@@ -100,6 +110,29 @@ export async function POST(req: NextRequest) {
 
   const completedAt = new Date();
   let certificationId: string | null = null;
+
+  if (practice) {
+    logActivity({
+      businessId,
+      userId: session.user.id,
+      userName: session.user.name,
+      action: "course_practice",
+      detail: `${course.title} — ${result.score}/${result.total} (${result.percent}%), practice run, not filed`,
+    });
+
+    return NextResponse.json({
+      completionId: null,
+      filed: false,
+      passed,
+      score: result.score,
+      total: result.total,
+      percent: result.percent,
+      passMark: course.passMark,
+      certificationId: null,
+      expiresAt: null,
+      detail: result.detail,
+    });
+  }
 
   if (passed) {
     const cert = await prisma.trainingCertification.create({
@@ -150,6 +183,7 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({
     completionId: completion.id,
+    filed: true,
     passed,
     score: result.score,
     total: result.total,
