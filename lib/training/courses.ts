@@ -24,20 +24,20 @@
  */
 
 import { ALLERGENS, type AllergenKey, containedKeys, parseTraces } from "./allergens";
+import {
+  type CourseAsset,
+  type Lesson,
+  type QuizQuestion,
+  shuffled,
+  toCourseAsset,
+} from "./kit";
+import { fireLessons, fireQuiz } from "./fire";
 
-export interface Lesson {
-  id: string;
-  title: string;
-  /** Paragraphs. Plain text — rendered as <p>. */
-  body: string[];
-  /** Optional bullet list rendered under the body. */
-  bullets?: string[];
-  /**
-   * Rendered as a highlighted box. Use for the one thing they must not get
-   * wrong in that lesson.
-   */
-  keyPoint?: string;
-}
+// Shapes and helpers live in kit.ts so course content files can import them
+// without importing this module back. Re-exported so existing importers and the
+// API routes keep a single place to import from.
+export type { CourseAsset, Lesson, QuizQuestion };
+export { toCourseAsset };
 
 export interface CourseDef {
   slug: string;
@@ -56,6 +56,8 @@ export interface CourseDef {
   certTitle: string;
   /** True when the course reads the venue's own menu. */
   usesMenu: boolean;
+  /** True when the course reads the venue's own equipment register. */
+  usesAssets: boolean;
 }
 
 export const COURSES: CourseDef[] = [
@@ -70,6 +72,22 @@ export const COURSES: CourseDef[] = [
     certCategory: "HACCP",
     certTitle: "Allergen awareness (in-house)",
     usesMenu: true,
+    usesAssets: false,
+  },
+  {
+    slug: "fire-safety-awareness",
+    title: "Fire safety awareness",
+    summary:
+      "How fires start in a working kitchen, which extinguisher matches which fire, evacuation and roll call — built around the fire-risk equipment on your own register.",
+    minutes: 25,
+    validMonths: 12,
+    passMark: 80,
+    // Deliberately OTHER, not FIRST_AID or a fire-specific claim: this is
+    // awareness training, not a fire warden qualification.
+    certCategory: "OTHER",
+    certTitle: "Fire safety awareness (in-house)",
+    usesMenu: false,
+    usesAssets: true,
   },
 ];
 
@@ -88,6 +106,12 @@ export interface CourseDish {
   contains: AllergenKey[];
   traces: AllergenKey[];
   checked: boolean;
+}
+
+/** Everything a course may read about the venue. Grows as courses are added. */
+export interface CourseData {
+  dishes: CourseDish[];
+  assets: CourseAsset[];
 }
 
 /** Narrow a Prisma dish row (with allergen columns) into what the course uses. */
@@ -150,8 +174,11 @@ function menuLesson(dishes: CourseDish[]): Lesson {
   };
 }
 
-export function lessonsFor(slug: string, dishes: CourseDish[]): Lesson[] {
+export function lessonsFor(slug: string, data: CourseData): Lesson[] {
+  if (slug === "fire-safety-awareness") return fireLessons(data.assets);
   if (slug !== "allergen-awareness") return [];
+
+  const dishes = data.dishes;
 
   return [
     {
@@ -242,33 +269,6 @@ export function lessonsFor(slug: string, dishes: CourseDish[]): Lesson[] {
 // --------------------------------------------------------------------------- //
 // Quiz
 // --------------------------------------------------------------------------- //
-
-export interface QuizQuestion {
-  id: string;
-  /** "single" = one correct option. "multi" = zero or more. */
-  kind: "single" | "multi";
-  prompt: string;
-  /** Extra context under the prompt. */
-  note?: string;
-  options: string[];
-  /** Indexes into options. Server-side only — never sent to the client. */
-  correct: number[];
-  /** Shown on the result page. */
-  why: string;
-}
-
-/** Deterministic shuffle so a given seed always yields the same paper. */
-function shuffled<T>(items: T[], seed: number): T[] {
-  const out = [...items];
-  let s = seed % 2147483647;
-  if (s <= 0) s += 2147483646;
-  for (let i = out.length - 1; i > 0; i--) {
-    s = (s * 16807) % 2147483647;
-    const j = s % (i + 1);
-    [out[i], out[j]] = [out[j], out[i]];
-  }
-  return out;
-}
 
 function knowledgeBank(): QuizQuestion[] {
   return [
@@ -485,12 +485,13 @@ function menuQuestions(dishes: CourseDish[], seed: number): QuizQuestion[] {
  */
 export function buildQuiz(
   slug: string,
-  dishes: CourseDish[],
+  data: CourseData,
   seed: number
 ): QuizQuestion[] {
+  if (slug === "fire-safety-awareness") return fireQuiz(data.assets, seed);
   if (slug !== "allergen-awareness") return [];
 
-  const fromMenu = menuQuestions(dishes, seed);
+  const fromMenu = menuQuestions(data.dishes, seed);
   // A small menu means fewer venue questions, so top up from the knowledge bank
   // rather than shipping a four-question paper.
   const wanted = 12;

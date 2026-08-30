@@ -12,7 +12,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   GraduationCap, Clock, CheckCircle2, AlertTriangle, Loader2,
-  ChevronRight, Users, Utensils, Play, RotateCcw,
+  ChevronRight, Users, Utensils, Play, RotateCcw, Flame,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -56,6 +56,7 @@ export default function CoursesTab({ onOpenMatrix }: { onOpenMatrix?: () => void
 
   const courses = data?.courses ?? [];
   const menu = data?.menu ?? { dishes: 0, checked: 0 };
+  const equipment = data?.equipment ?? { assets: 0 };
 
   return (
     <div className="space-y-5">
@@ -88,6 +89,18 @@ export default function CoursesTab({ onOpenMatrix }: { onOpenMatrix?: () => void
         </div>
       )}
 
+      {courses.some((c: any) => c.usesAssets) && equipment.assets === 0 && (
+        <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <Flame className="h-4 w-4 mt-0.5 shrink-0" />
+          <div className="flex-1">
+            <strong>No equipment recorded yet.</strong>{" "}
+            The fire safety course names your own fryers, ovens and extraction once the
+            equipment register is filled in — under Log book → Equipment. The course runs
+            either way; it just gets sharper when it can point at the actual kit.
+          </div>
+        </div>
+      )}
+
       {courses.length === 0 && (
         <Card><CardContent className="py-10 text-center text-slate-500">
           No courses available yet.
@@ -112,6 +125,11 @@ export default function CoursesTab({ onOpenMatrix }: { onOpenMatrix?: () => void
                       {c.usesMenu && (
                         <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
                           Uses your menu
+                        </Badge>
+                      )}
+                      {c.usesAssets && (
+                        <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                          Uses your equipment
                         </Badge>
                       )}
                     </div>

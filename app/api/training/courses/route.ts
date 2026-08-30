@@ -41,12 +41,14 @@ export async function GET(req: NextRequest) {
     select: { id: true, firstName: true, lastName: true },
   });
 
-  // Menu readiness — the course quality depends on it, so surface it here.
-  const [dishCount, checkedCount] = await Promise.all([
+  // Menu and equipment readiness — course quality depends on both, so surface
+  // them here rather than making somebody find out inside a lesson.
+  const [dishCount, checkedCount, assetCount] = await Promise.all([
     prisma.dish.count({ where: { businessId, active: true } }),
     prisma.dish.count({
       where: { businessId, active: true, allergenCheckedAt: { not: null } },
     }),
+    prisma.asset.count({ where: { businessId, status: { not: "retired" } } }),
   ]);
 
   const completions = await prisma.courseCompletion.findMany({
@@ -107,6 +109,7 @@ export async function GET(req: NextRequest) {
       validMonths: c.validMonths,
       passMark: c.passMark,
       usesMenu: c.usesMenu,
+      usesAssets: c.usesAssets,
       mine: {
         completedAt: mine?.completedAt ?? null,
         score: mine ? `${mine.score}/${mine.total}` : null,
@@ -124,5 +127,6 @@ export async function GET(req: NextRequest) {
     me: me ? { id: me.id, name: `${me.firstName} ${me.lastName}`.trim() } : null,
     canSeeRoster,
     menu: { dishes: dishCount, checked: checkedCount },
+    equipment: { assets: assetCount },
   });
 }

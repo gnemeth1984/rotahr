@@ -17,7 +17,13 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, isResponse } from "@/lib/auth/middleware";
 import { prisma } from "@/lib/db";
-import { getCourse, toCourseDish, buildQuiz, grade } from "@/lib/training/courses";
+import {
+  getCourse,
+  toCourseDish,
+  toCourseAsset,
+  buildQuiz,
+  grade,
+} from "@/lib/training/courses";
 import { verifyTicket } from "@/lib/training/quiz-token";
 import { logActivity } from "@/lib/services/activity.service";
 
@@ -82,16 +88,25 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Rebuild the exact paper. Dishes come from the ticket's id list in the
-  // ticket's order, so a menu edit mid-quiz cannot change the paper.
-  const dishRows = await prisma.dish.findMany({ where: { businessId, id: { in: ticket.m } } });
-  const byId = new Map(dishRows.map((d) => [d.id, d]));
-  const dishes = ticket.m
-    .map((id) => byId.get(id))
-    .filter(Boolean)
-    .map(toCourseDish);
+  // Rebuild the exact paper. The venue data comes from the ticket's id list in
+  // the ticket's order, so an edit made mid-quiz cannot change the paper.
+  const dishRows = course.usesMenu
+    ? await prisma.dish.findMany({ where: { businessId, id: { in: ticket.m } } })
+    : [];
+  const byDish = new Map(dishRows.map((d) => [d.id, d]));
+  const dishes = course.usesMenu
+    ? ticket.m.map((id) => byDish.get(id)).filter(Boolean).map(toCourseDish)
+    : [];
 
-  const paper = buildQuiz(ticket.s, dishes, ticket.d);
+  const assetRows = course.usesAssets
+    ? await prisma.asset.findMany({ where: { businessId, id: { in: ticket.m } } })
+    : [];
+  const byAsset = new Map(assetRows.map((a) => [a.id, a]));
+  const assets = course.usesAssets
+    ? ticket.m.map((id) => byAsset.get(id)).filter(Boolean).map(toCourseAsset)
+    : [];
+
+  const paper = buildQuiz(ticket.s, { dishes, assets }, ticket.d);
   if (paper.length === 0) {
     return NextResponse.json({ error: "Could not rebuild the quiz." }, { status: 400 });
   }
@@ -165,7 +180,10 @@ export async function POST(req: NextRequest) {
       passed,
       signedName: name,
       answers: result.detail,
-      menuSnapshot: dishes,
+      // Named for the menu because that came first, but it is the snapshot of
+      // whatever venue data the course was built from. Menus and equipment both
+      // change; evidence of what somebody was actually taught must not.
+      menuSnapshot: course.usesAssets ? assets : dishes,
       certificationId,
       startedAt: startedAt ? new Date(startedAt) : completedAt,
       completedAt,

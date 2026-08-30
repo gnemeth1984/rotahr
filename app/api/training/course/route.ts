@@ -16,6 +16,7 @@ import {
   getCourse,
   lessonsFor,
   toCourseDish,
+  toCourseAsset,
   buildQuiz,
   publicQuiz,
 } from "@/lib/training/courses";
@@ -45,14 +46,28 @@ export async function GET(req: NextRequest) {
   });
   const practice = !me;
 
-  const dishRows = await prisma.dish.findMany({
-    where: { businessId, active: true },
-    orderBy: [{ category: "asc" }, { name: "asc" }],
-  });
+  // Each course reads only the venue data it actually uses, so a fire course
+  // does not pull the whole menu and an allergen course does not pull the asset
+  // register. The ticket then carries the ids of whichever set was used.
+  const dishRows = course.usesMenu
+    ? await prisma.dish.findMany({
+        where: { businessId, active: true },
+        orderBy: [{ category: "asc" }, { name: "asc" }],
+      })
+    : [];
   const dishes = dishRows.map(toCourseDish);
 
+  const assetRows = course.usesAssets
+    ? await prisma.asset.findMany({
+        where: { businessId, status: { not: "retired" } },
+        orderBy: [{ category: "asc" }, { name: "asc" }],
+      })
+    : [];
+  const assets = assetRows.map(toCourseAsset);
+
   const seed = freshSeed();
-  const paper = buildQuiz(slug, dishes, seed);
+  const data = { dishes, assets };
+  const paper = buildQuiz(slug, data, seed);
 
   const token = signTicket({
     s: slug,
@@ -61,7 +76,9 @@ export async function GET(req: NextRequest) {
     // nothing", so a practice pass can never mint a certificate.
     e: me?.id ?? "",
     b: businessId,
-    m: dishes.map((d) => d.id),
+    // Dish ids for a menu course, asset ids for an equipment course. The submit
+    // route reloads whichever the course declares, in this order.
+    m: course.usesAssets ? assets.map((a) => a.id) : dishes.map((d) => d.id),
     t: Date.now(),
   });
 
@@ -79,9 +96,10 @@ export async function GET(req: NextRequest) {
     trainee: practice
       ? { id: null, name: session.user.name || "" }
       : { id: me.id, name: `${me.firstName} ${me.lastName}`.trim() },
-    lessons: lessonsFor(slug, dishes),
+    lessons: lessonsFor(slug, data),
     questions: publicQuiz(paper),
     token,
     menu: { dishes: dishes.length, checked: dishes.filter((d) => d.checked).length },
+    equipment: { assets: assets.length, fireRisk: assets.filter((a) => a.fireRisk).length },
   });
 }
