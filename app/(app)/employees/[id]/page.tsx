@@ -11,7 +11,7 @@ import {
   Loader2, ChevronRight, CheckCircle2, XCircle, Building2,
   FileText, Upload, Trash2, Plus, CheckSquare, Square, ExternalLink,
   FolderOpen, ClipboardList, Edit2, Save, X, MapPin, Globe,
-  CreditCard, ShieldAlert, Contact,
+  CreditCard, ShieldAlert, Contact, GraduationCap, Printer,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -27,6 +27,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn, getInitials } from "@/lib/utils";
+import { openCertificate } from "@/lib/training/certificate";
 import { UserRole as Role } from "@/types/roles";
 
 interface EmployeeProfile {
@@ -180,6 +181,9 @@ export default function EmployeeProfilePage() {
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [timeoff, setTimeoff] = useState<TimeOff[]>([]);
   const [certs, setCerts] = useState<Cert[]>([]);
+  const [completions, setCompletions] = useState<any[]>([]);
+  const [printingId, setPrintingId] = useState<string | null>(null);
+  const [printError, setPrintError] = useState<string | null>(null);
   const [weeklyHours, setWeeklyHours] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("overview");
@@ -220,11 +224,12 @@ export default function EmployeeProfilePage() {
     async function load() {
       setLoading(true);
       try {
-        const [empRes, shiftsRes, toRes, certRes] = await Promise.allSettled([
+        const [empRes, shiftsRes, toRes, certRes, courseRes] = await Promise.allSettled([
           fetch(`/api/employee/${id}`),
           fetch(`/api/shifts/list?employeeId=${id}&limit=10`),
           fetch(`/api/timeoff?employeeId=${id}`),
           fetch(`/api/certifications?employeeId=${id}`),
+          fetch(`/api/training/completions?employeeId=${id}`),
         ]);
 
         if (empRes.status === "fulfilled" && empRes.value.ok) {
@@ -274,12 +279,39 @@ export default function EmployeeProfilePage() {
           const d = await certRes.value.json();
           setCerts(d.certifications ?? []);
         }
+        if (courseRes.status === "fulfilled" && courseRes.value.ok) {
+          const d = await courseRes.value.json();
+          setCompletions(d.completions ?? []);
+        }
       } finally {
         setLoading(false);
       }
     }
     load();
   }, [id, session, isManager]);
+
+  // Print the record of one passed attempt. Same machinery the course player
+  // uses: the server rebuilds the sheet from the stored snapshot, the browser's
+  // own print dialog turns it into paper or a PDF.
+  async function printRecord(completionId: string) {
+    setPrintingId(completionId);
+    setPrintError(null);
+    try {
+      const r = await fetch(`/api/training/certificate?id=${encodeURIComponent(completionId)}`);
+      const d = await r.json();
+      if (d.error) { setPrintError(d.error); return; }
+      const ok = openCertificate(d.certificate);
+      if (!ok) {
+        setPrintError(
+          "Your browser blocked the print window. Allow pop-ups for rotahr.com and try again."
+        );
+      }
+    } catch {
+      setPrintError("Could not load the record. Try again in a moment.");
+    } finally {
+      setPrintingId(null);
+    }
+  }
 
   // Load onboarding tasks when tab opens
   useEffect(() => {
@@ -686,6 +718,85 @@ export default function EmployeeProfilePage() {
                     </div>
                   ))}
                 </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* In-house courses */}
+          <Card className="lg:col-span-2">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <GraduationCap className="h-4 w-4 text-sky-600" /> In-house courses
+                </CardTitle>
+                <Link href="/training?tab=courses">
+                  <Button variant="ghost" size="sm" className="text-xs h-7 gap-1">
+                    Courses <ChevronRight className="h-3 w-3" />
+                  </Button>
+                </Link>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {completions.length === 0 ? (
+                <p className="text-sm text-slate-400 py-4 text-center">No in-house courses taken yet</p>
+              ) : (
+                <div className="space-y-2">
+                  {completions.map((c) => (
+                    <div key={c.id} className="flex items-start gap-3 p-3 rounded-lg border border-slate-100 bg-slate-50">
+                      <div className={cn("h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0",
+                        c.passed ? "bg-green-100" : "bg-slate-200"
+                      )}>
+                        {c.passed ? (
+                          <CheckCircle2 className="h-4 w-4 text-green-600" />
+                        ) : (
+                          <XCircle className="h-4 w-4 text-slate-500" />
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-slate-900">{c.courseTitle}</p>
+                        <p className="text-xs text-slate-400">
+                          {c.score}/{c.total} ({c.percent}%) · {fmtDate(c.completedAt)}
+                          {c.minutesTaken > 0 && ` · ${c.minutesTaken} min`}
+                          {c.isCurrent && c.expiresAt && ` · retrain by ${fmtDate(c.expiresAt)}`}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        {c.passed && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 text-xs gap-1"
+                            onClick={() => printRecord(c.id)}
+                            disabled={printingId === c.id}
+                          >
+                            {printingId === c.id ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <Printer className="h-3 w-3" />
+                            )}
+                            Print
+                          </Button>
+                        )}
+                        <Badge className={cn("text-xs border",
+                          c.status === "VALID" ? "bg-green-100 text-green-700 border-green-200" :
+                          c.status === "EXPIRING_SOON" ? "bg-amber-100 text-amber-700 border-amber-200" :
+                          c.status === "EXPIRED" ? "bg-red-100 text-red-700 border-red-200" :
+                          c.status === "PASSED" ? "bg-slate-100 text-slate-600 border-slate-200" :
+                          "bg-red-50 text-red-600 border-red-100"
+                        )}>
+                          {c.status === "PASSED" ? "EARLIER PASS" : c.status.replace("_", " ")}
+                        </Badge>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {printError && <p className="mt-3 text-sm text-amber-700">{printError}</p>}
+              {completions.some((c) => !c.passed) && (
+                <p className="mt-3 text-xs text-slate-400">
+                  Failed attempts stay on the record on purpose. A pass straight after a fail is
+                  better evidence of training than a single clean pass.
+                </p>
               )}
             </CardContent>
           </Card>
