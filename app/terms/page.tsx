@@ -105,6 +105,36 @@ export default function TermsPage() {
           </section>
 
           <section>
+            <h2 className="text-lg font-semibold text-slate-800 mb-2">
+              7a. Training courses, templates and compliance content
+            </h2>
+            <p>
+              Rotahr includes in-house training courses, record templates and other compliance material. These
+              are provided as guidance and as a tool for you to deliver and record your own staff instruction.
+              They are not legal, health-and-safety, food-safety or professional advice.
+            </p>
+            <p className="mt-2">
+              Courses delivered through Rotahr are <strong>in-house training delivered by you as the employer</strong>.
+              They are not accredited qualifications, they are not issued by an awarding body, and a completion
+              record does not certify a person as holding any accredited or statutory qualification. Where the
+              law, your insurer, a role or a local authority requires accredited or certified training, you must
+              still obtain it from an approved provider.
+            </p>
+            <p className="mt-2">
+              Temperatures, time limits, deadlines and other figures used in courses and templates are the ones
+              in common use and are not universal. Rules differ between countries and local authorities and they
+              change over time. You are responsible for checking the requirements that apply where you operate,
+              and your own documented procedures take precedence over anything stated in a course or template.
+            </p>
+            <p className="mt-2">
+              You remain solely responsible for your legal and regulatory obligations, including staff training,
+              food safety, fire safety, health and safety, and data protection. Rotahr gives no warranty that
+              use of this content will make you compliant with any law or standard, and accepts no liability for
+              any fine, enforcement action, claim or loss arising from your reliance on it.
+            </p>
+          </section>
+
+          <section>
             <h2 className="text-lg font-semibold text-slate-800 mb-2">8. Limitation of liability</h2>
             <p>
               To the fullest extent permitted by Irish law, Rotahr's liability for any claim arising from use
