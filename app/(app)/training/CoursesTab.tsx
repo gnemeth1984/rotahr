@@ -34,7 +34,13 @@ const STATUS: Record<string, { label: string; cls: string }> = {
   NOT_STARTED: { label: "Not done", cls: "bg-slate-100 text-slate-600 border-slate-200" },
 };
 
-export default function CoursesTab({ onOpenMatrix }: { onOpenMatrix?: () => void }) {
+export default function CoursesTab({
+  onOpenMatrix,
+  onOpenTeamBoard,
+}: {
+  onOpenMatrix?: () => void;
+  onOpenTeamBoard?: () => void;
+}) {
   const router = useRouter();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -74,6 +80,22 @@ export default function CoursesTab({ onOpenMatrix }: { onOpenMatrix?: () => void
         qualifications and Rotahr never presents them as one — where a licence or an
         accredited certificate is required, you still need an approved provider.
       </div>
+
+      {onOpenTeamBoard && data?.canSeeRoster && (
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
+          <Users className="h-4 w-4 shrink-0 text-slate-400" />
+          <span>
+            Chasing a whole roster? The team board puts every member of staff against
+            every course on one grid.
+          </span>
+          <button
+            onClick={onOpenTeamBoard}
+            className="ml-auto font-medium text-orange-600 underline hover:text-orange-700"
+          >
+            Open the team board
+          </button>
+        </div>
+      )}
 
       {courses.some((c: any) => c.usesMenu) && menu.checked < menu.dishes && (
         <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
