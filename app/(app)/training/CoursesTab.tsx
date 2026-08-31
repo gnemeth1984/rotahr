@@ -13,7 +13,7 @@ import { useRouter } from "next/navigation";
 import {
   GraduationCap, Clock, CheckCircle2, AlertTriangle, Loader2,
   ChevronRight, Users, Utensils, Play, RotateCcw, Flame, PackageOpen, Thermometer,
-  SprayCan, Truck, ShieldCheck, CalendarClock,
+  SprayCan, Truck, ShieldCheck, CalendarClock, ClipboardCheck,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";

@@ -20,6 +20,7 @@ import {
   toCourseStock,
   toCourseHaccpUnit,
   toCourseHaccpCheck,
+  toCourseHaccpLog,
   toCourseCleaningRecord,
   toCourseCleaningTemplate,
   toCourseCustomer,
@@ -246,7 +247,7 @@ export async function GET(req: NextRequest) {
     c: course.usesShifts ? clock : undefined,
     // The HACCP system course grades against the schedule and the logged checks
     // as well as the register, and m is already spoken for by the unit ids.
-    k: course.usesHaccpLogs ? haccpChecks.map((c) => c.id) : undefined,
+    k: course.usesHaccpLogs ? scheduleRows.map((r) => r.id) : undefined,
     l: course.usesHaccpLogs ? logRows.map((r) => r.id) : undefined,
     t: Date.now(),
   });
