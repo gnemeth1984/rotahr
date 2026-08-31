@@ -588,6 +588,82 @@ export function toCourseCustomer(row: any): CourseCustomer {
   };
 }
 
+/**
+ * A rostered shift, reduced to what the course teaches from.
+ *
+ * Carries NO employee name — the same instinct as CourseCustomer. A working
+ * time course that printed "Tommy Ryan worked 11 hours with no break" onto a
+ * page every member of staff opens, and then froze that line into the stored
+ * completion snapshot forever, would be handing out a grievance rather than
+ * training. employeeId is kept only so distinct people can be counted.
+ */
+export interface CourseShift {
+  id: string;
+  employeeId: string | null;
+  /** ISO date of the shift. */
+  date: string;
+  startTime: string;
+  endTime: string;
+  /** Rostered length in hours, end minus start. Never negative. */
+  hours: number;
+  published: boolean;
+  overtimeHours: number;
+}
+
+/** Narrow a Prisma Shift row into course shape. No name, ever. */
+export function toCourseShift(row: any): CourseShift {
+  const start = new Date(row.startTime);
+  const end = new Date(row.endTime);
+  const raw = (end.getTime() - start.getTime()) / 3600000;
+  const hours = Number.isFinite(raw) && raw > 0 ? Math.round(raw * 100) / 100 : 0;
+
+  return {
+    id: row.id,
+    employeeId: typeof row.employeeId === "string" ? row.employeeId : null,
+    date: new Date(row.date).toISOString(),
+    startTime: start.toISOString(),
+    endTime: end.toISOString(),
+    hours,
+    published: row.published === true,
+    overtimeHours: typeof row.overtimeHours === "number" ? row.overtimeHours : 0,
+  };
+}
+
+/**
+ * Clock activity as counts only.
+ *
+ * ClockEvent rows can run to thousands and the course only ever teaches from
+ * totals, so this is summed in the API route and travels as one small object.
+ * Break events are the interesting number: a break nobody recorded cannot be
+ * evidenced later, and at the time of writing no venue on the platform had
+ * recorded a single one.
+ */
+export interface CourseClock {
+  ins: number;
+  outs: number;
+  breakStarts: number;
+  breakEnds: number;
+  /** ISO timestamp of the most recent event of any type, or null. */
+  latest: string | null;
+}
+
+/** Sum a set of Prisma ClockEvent rows into course shape. */
+export function toCourseClock(rows: any[]): CourseClock {
+  const count = (t: string) => rows.filter((r) => r.type === t).length;
+  let latest: number | null = null;
+  for (const r of rows) {
+    const t = new Date(r.timestamp).getTime();
+    if (Number.isFinite(t) && (latest === null || t > latest)) latest = t;
+  }
+  return {
+    ins: count("in"),
+    outs: count("out"),
+    breakStarts: count("break_start"),
+    breakEnds: count("break_end"),
+    latest: latest === null ? null : new Date(latest).toISOString(),
+  };
+}
+
 export function niceDate(iso: string | null): string {
   if (!iso) return "no date recorded";
   return new Date(iso).toLocaleDateString("en-IE", {

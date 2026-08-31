@@ -31,6 +31,20 @@ export interface QuizTicket {
   b: string;
   /** Dish ids the paper was built from, in order. */
   m: string[];
+  /**
+   * Clock-event counts the paper was built from, for the courses that read the
+   * time clock. These are not rows with ids, so they cannot travel on m — and a
+   * single clock-in between the GET and the POST would otherwise change the
+   * counts the questions were written from and mark a correct answer wrong.
+   * Optional: every other course leaves it out.
+   */
+  c?: {
+    ins: number;
+    outs: number;
+    breakStarts: number;
+    breakEnds: number;
+    latest: string | null;
+  };
   /** Issued at, epoch ms. */
   t: number;
 }

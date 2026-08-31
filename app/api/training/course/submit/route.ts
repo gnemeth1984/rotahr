@@ -26,6 +26,7 @@ import {
   toCourseCleaningRecord,
   toCourseCustomer,
   toCourseDelivery,
+  toCourseShift,
   buildQuiz,
   grade,
 } from "@/lib/training/courses";
@@ -156,6 +157,36 @@ export async function POST(req: NextRequest) {
     ? ticket.m.map((id) => byCustomer.get(id)).filter(Boolean).map(toCourseCustomer)
     : [];
 
+  // Shifts come back in ticket order, scoped through the venue's own employees
+  // because Shift carries no businessId. A shift deleted between GET and POST
+  // shifts the counts the same way a deleted dish does — the accepted risk every
+  // course carries.
+  const rotaStaff = course.usesShifts
+    ? await prisma.employee.findMany({ where: { businessId }, select: { id: true } })
+    : [];
+  const rotaStaffIds = rotaStaff.map((e) => e.id);
+  const shiftRows =
+    course.usesShifts && rotaStaffIds.length > 0
+      ? await prisma.shift.findMany({
+          where: { id: { in: ticket.m }, employeeId: { in: rotaStaffIds } },
+        })
+      : [];
+  const byShift = new Map(shiftRows.map((r) => [r.id, r]));
+  const shifts = course.usesShifts
+    ? ticket.m.map((id) => byShift.get(id)).filter(Boolean).map(toCourseShift)
+    : [];
+
+  // Clock counts are read off the ticket, not the database: they are counts
+  // rather than rows, so re-reading them would let one clock-in during the
+  // quiz rewrite a question the trainee has already answered.
+  const clock = ticket.c ?? {
+    ins: 0,
+    outs: 0,
+    breakStarts: 0,
+    breakEnds: 0,
+    latest: null,
+  };
+
   // haccpChecks and cleaningTemplates are deliberately empty: the check
   // schedule and the venue's edited checklists only ever fed lessons, and
   // lessons are not graded. Anything added here must also be on the ticket.
@@ -171,6 +202,8 @@ export async function POST(req: NextRequest) {
       cleaningTemplates: [],
       deliveries,
       customers,
+      shifts,
+      clock,
     },
     ticket.d
   );

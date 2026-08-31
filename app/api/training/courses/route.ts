@@ -53,6 +53,8 @@ export async function GET(req: NextRequest) {
     cleaningCount,
     deliveryCount,
     customerCount,
+    shiftCount,
+    breakCount,
   ] = await Promise.all([
     prisma.dish.count({ where: { businessId, active: true } }),
     prisma.dish.count({
@@ -66,6 +68,10 @@ export async function GET(req: NextRequest) {
       }),
       prisma.hACCPRecord.count({ where: { businessId, checkType: "delivery" } }),
       prisma.customer.count({ where: { businessId } }),
+      // Shift hangs off the employee, not the business, so the count goes
+      // through the venue's own staff.
+      prisma.shift.count({ where: { employee: { businessId } } }),
+      prisma.clockEvent.count({ where: { businessId, type: "break_start" } }),
     ]);
 
   const completions = await prisma.courseCompletion.findMany({
@@ -132,6 +138,7 @@ export async function GET(req: NextRequest) {
       usesCleaning: c.usesCleaning,
       usesDeliveries: c.usesDeliveries,
       usesCustomers: c.usesCustomers,
+      usesShifts: c.usesShifts,
       mine: {
         completedAt: mine?.completedAt ?? null,
         score: mine ? `${mine.score}/${mine.total}` : null,
@@ -155,5 +162,6 @@ export async function GET(req: NextRequest) {
     cleaning: { records: cleaningCount },
     deliveries: { records: deliveryCount },
     customers: { profiles: customerCount },
+    shifts: { total: shiftCount, breaksRecorded: breakCount },
   });
 }

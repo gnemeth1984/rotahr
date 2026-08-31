@@ -26,23 +26,27 @@
 import { ALLERGENS, type AllergenKey, containedKeys, parseTraces } from "./allergens";
 import {
   type CourseAsset,
+  type CourseClock,
   type CourseHaccpCheck,
   type CourseCleaningRecord,
   type CourseCleaningTemplate,
   type CourseCustomer,
   type CourseDelivery,
   type CourseHaccpUnit,
+  type CourseShift,
   type CourseStock,
   type Lesson,
   type QuizQuestion,
   shuffled,
   toCourseAsset,
+  toCourseClock,
   toCourseCleaningRecord,
   toCourseCleaningTemplate,
   toCourseCustomer,
   toCourseDelivery,
   toCourseHaccpCheck,
   toCourseHaccpUnit,
+  toCourseShift,
   toCourseStock,
 } from "./kit";
 import { cleaningLessons, cleaningQuiz } from "./cleaning";
@@ -51,30 +55,35 @@ import { fireLessons, fireQuiz } from "./fire";
 import { foodHygieneLessons, foodHygieneQuiz } from "./food-hygiene";
 import { manualHandlingLessons, manualHandlingQuiz } from "./manual-handling";
 import { privacyLessons, privacyQuiz } from "./privacy";
+import { workingTimeLessons, workingTimeQuiz } from "./working-time";
 
 // Shapes and helpers live in kit.ts so course content files can import them
 // without importing this module back. Re-exported so existing importers and the
 // API routes keep a single place to import from.
 export type {
   CourseAsset,
+  CourseClock,
   CourseCleaningRecord,
   CourseCleaningTemplate,
   CourseCustomer,
   CourseDelivery,
   CourseHaccpCheck,
   CourseHaccpUnit,
+  CourseShift,
   CourseStock,
   Lesson,
   QuizQuestion,
 };
 export {
   toCourseAsset,
+  toCourseClock,
   toCourseCleaningRecord,
   toCourseCleaningTemplate,
   toCourseCustomer,
   toCourseDelivery,
   toCourseHaccpCheck,
   toCourseHaccpUnit,
+  toCourseShift,
   toCourseStock,
 };
 
@@ -111,6 +120,12 @@ export interface CourseDef {
    * allergy text — see CourseCustomer in kit.ts for why that matters.
    */
   usesCustomers: boolean;
+  /**
+   * True when the course reads the venue's own rota and time clock. Shape only:
+   * shift lengths, gaps, totals and clock-event counts. Never an employee's
+   * name — see CourseShift in kit.ts for why that matters.
+   */
+  usesShifts: boolean;
 }
 
 export const COURSES: CourseDef[] = [
@@ -122,7 +137,10 @@ export const COURSES: CourseDef[] = [
     minutes: 20,
     validMonths: 12,
     passMark: 80,
-    certCategory: "HACCP",
+    // OTHER, never HACCP. A HACCP category would file this in-house record in the
+    // same bucket as a real QQI HACCP Level 1/2/3 certificate, and a manager
+    // filtering the tracker by HACCP could read it as satisfying that requirement.
+    certCategory: "OTHER",
     certTitle: "Allergen awareness (in-house)",
     usesMenu: true,
     usesAssets: false,
@@ -131,6 +149,7 @@ export const COURSES: CourseDef[] = [
     usesCleaning: false,
     usesDeliveries: false,
     usesCustomers: false,
+    usesShifts: false,
   },
   {
     slug: "fire-safety-awareness",
@@ -151,6 +170,7 @@ export const COURSES: CourseDef[] = [
     usesCleaning: false,
     usesDeliveries: false,
     usesCustomers: false,
+    usesShifts: false,
   },
   {
     slug: "manual-handling-awareness",
@@ -173,6 +193,7 @@ export const COURSES: CourseDef[] = [
     usesCleaning: false,
     usesDeliveries: false,
     usesCustomers: false,
+    usesShifts: false,
   },
   {
     slug: "food-hygiene-awareness",
@@ -196,6 +217,7 @@ export const COURSES: CourseDef[] = [
     usesCleaning: false,
     usesDeliveries: false,
     usesCustomers: false,
+    usesShifts: false,
   },
   {
     slug: "cleaning-chemical-safety",
@@ -218,6 +240,7 @@ export const COURSES: CourseDef[] = [
     usesCleaning: true,
     usesDeliveries: false,
     usesCustomers: false,
+    usesShifts: false,
   },
   {
     slug: "deliveries-goods-in",
@@ -240,6 +263,7 @@ export const COURSES: CourseDef[] = [
     usesCleaning: false,
     usesDeliveries: true,
     usesCustomers: false,
+    usesShifts: false,
   },
   {
     slug: "guest-data-privacy",
@@ -263,6 +287,32 @@ export const COURSES: CourseDef[] = [
     usesCleaning: false,
     usesDeliveries: false,
     usesCustomers: true,
+    usesShifts: false,
+  },
+  {
+    slug: "working-time-breaks",
+    title: "Working time, breaks & rest",
+    summary:
+      "What counts as working time, when a break is owed, the eleven-hour turnaround, the average week, under-18s, and why the record is what protects the venue — read against your own rota and time clock.",
+    minutes: 25,
+    validMonths: 12,
+    passMark: 80,
+    // Deliberately OTHER, like every other in-house course. This is awareness
+    // training for staff and managers, not employment law advice and not a
+    // qualification. Working time law is set nationally, so every figure in the
+    // content is introduced as a widely used figure with an instruction to
+    // check the local rule — the EU directive is a floor, Ireland and the UK
+    // implement it differently, and the UK opt-out does not exist here.
+    certCategory: "OTHER",
+    certTitle: "Working time, breaks & rest awareness (in-house)",
+    usesMenu: false,
+    usesAssets: false,
+    usesStock: false,
+    usesHaccp: false,
+    usesCleaning: false,
+    usesDeliveries: false,
+    usesCustomers: false,
+    usesShifts: true,
   },
 ];
 
@@ -309,6 +359,13 @@ export interface CourseData {
    * Read the CourseCustomer doc comment in kit.ts before adding a field here.
    */
   customers: CourseCustomer[];
+  /**
+   * The venue's own rostered shifts, newest first — shape only, no names.
+   * Read the CourseShift doc comment in kit.ts before adding a field here.
+   */
+  shifts: CourseShift[];
+  /** Clock-in, clock-out and break event counts for the venue. */
+  clock: CourseClock;
 }
 
 /** Narrow a Prisma dish row (with allergen columns) into what the course uses. */
@@ -380,6 +437,8 @@ export function lessonsFor(slug: string, data: CourseData): Lesson[] {
     return cleaningLessons(data.cleaning, data.cleaningTemplates);
   if (slug === "deliveries-goods-in") return deliveriesLessons(data.deliveries);
   if (slug === "guest-data-privacy") return privacyLessons(data.customers);
+  if (slug === "working-time-breaks")
+    return workingTimeLessons(data.shifts, data.clock);
   if (slug !== "allergen-awareness") return [];
 
   const dishes = data.dishes;
@@ -698,6 +757,8 @@ export function buildQuiz(
   if (slug === "cleaning-chemical-safety") return cleaningQuiz(data.cleaning, seed);
   if (slug === "deliveries-goods-in") return deliveriesQuiz(data.deliveries, seed);
   if (slug === "guest-data-privacy") return privacyQuiz(data.customers, seed);
+  if (slug === "working-time-breaks")
+    return workingTimeQuiz(data.shifts, data.clock, seed);
   if (slug !== "allergen-awareness") return [];
 
   const fromMenu = menuQuestions(data.dishes, seed);

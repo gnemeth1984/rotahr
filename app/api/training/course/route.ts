@@ -24,6 +24,8 @@ import {
   toCourseCleaningTemplate,
   toCourseCustomer,
   toCourseDelivery,
+  toCourseShift,
+  toCourseClock,
   buildQuiz,
   publicQuiz,
 } from "@/lib/training/courses";
@@ -151,6 +153,38 @@ export async function GET(req: NextRequest) {
     : [];
   const customers = customerRows.map(toCourseCustomer);
 
+  // The rota and the time clock. Shift has no businessId of its own — it hangs
+  // off the employee — so the venue's own staff ids are the tenant boundary
+  // here. toCourseShift keeps shape only: date, times, length, published flag.
+  // Never a name. A working time course that printed who was rostered thin
+  // would be handing one member of staff another's hours, and the completion
+  // snapshot would keep that forever.
+  const rotaStaff = course.usesShifts
+    ? await prisma.employee.findMany({ where: { businessId }, select: { id: true } })
+    : [];
+  const rotaStaffIds = rotaStaff.map((e) => e.id);
+  const shiftRows =
+    course.usesShifts && rotaStaffIds.length > 0
+      ? await prisma.shift.findMany({
+          where: { employeeId: { in: rotaStaffIds } },
+          orderBy: [{ date: "desc" }, { startTime: "asc" }],
+          take: 250,
+        })
+      : [];
+  const shifts = shiftRows.map(toCourseShift);
+
+  // Clock events are counted, not listed: how many people clocked in, whether
+  // anybody ever clocked out, and whether a break was ever recorded. The
+  // counts ride on the ticket rather than being re-read at submit time.
+  const clockRows = course.usesShifts
+    ? await prisma.clockEvent.findMany({
+        where: { businessId },
+        orderBy: [{ timestamp: "desc" }],
+        take: 500,
+      })
+    : [];
+  const clock = toCourseClock(clockRows);
+
   const seed = freshSeed();
   const data = {
     dishes,
@@ -162,6 +196,8 @@ export async function GET(req: NextRequest) {
     cleaningTemplates,
     deliveries,
     customers,
+    shifts,
+    clock,
   };
   const paper = buildQuiz(slug, data, seed);
 
@@ -187,7 +223,11 @@ export async function GET(req: NextRequest) {
               ? deliveries.map((d) => d.id)
               : course.usesCustomers
                 ? customers.map((c) => c.id)
-                : dishes.map((d) => d.id),
+                : course.usesShifts
+                  ? shifts.map((sh) => sh.id)
+                  : dishes.map((d) => d.id),
+    // Only the working time course reads the clock, and only counts travel.
+    c: course.usesShifts ? clock : undefined,
     t: Date.now(),
   });
 
@@ -206,6 +246,7 @@ export async function GET(req: NextRequest) {
       usesCleaning: course.usesCleaning,
       usesDeliveries: course.usesDeliveries,
       usesCustomers: course.usesCustomers,
+      usesShifts: course.usesShifts,
     },
     practice,
     trainee: practice
@@ -233,6 +274,11 @@ export async function GET(req: NextRequest) {
       profiles: customers.length,
       consented: customers.filter((c) => c.consent).length,
       withNotes: customers.filter((c) => c.hasInternalNotes).length,
+    },
+    shifts: {
+      total: shifts.length,
+      people: new Set(shifts.map((sh) => sh.employeeId).filter(Boolean)).size,
+      breaksRecorded: clock.breakStarts,
     },
   });
 }

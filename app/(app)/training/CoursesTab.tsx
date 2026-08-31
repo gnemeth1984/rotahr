@@ -13,7 +13,7 @@ import { useRouter } from "next/navigation";
 import {
   GraduationCap, Clock, CheckCircle2, AlertTriangle, Loader2,
   ChevronRight, Users, Utensils, Play, RotateCcw, Flame, PackageOpen, Thermometer,
-  SprayCan, Truck, ShieldCheck,
+  SprayCan, Truck, ShieldCheck, CalendarClock,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -63,6 +63,7 @@ export default function CoursesTab({ onOpenMatrix }: { onOpenMatrix?: () => void
   const cleaning = data?.cleaning ?? { records: 0 };
   const deliveries = data?.deliveries ?? { records: 0 };
   const customers = data?.customers ?? { profiles: 0 };
+  const shifts = data?.shifts ?? { total: 0, breaksRecorded: 0 };
 
   return (
     <div className="space-y-5">
@@ -172,6 +173,35 @@ export default function CoursesTab({ onOpenMatrix }: { onOpenMatrix?: () => void
         </div>
       )}
 
+      {courses.some((c: any) => c.usesShifts) && shifts.total === 0 && (
+        <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <CalendarClock className="h-4 w-4 mt-0.5 shrink-0" />
+          <div className="flex-1">
+            <strong>No shifts on the rota yet.</strong>{" "}
+            The working time course reads your own rota and time clock — how long
+            shifts run, how much rest sits between them, and whether breaks were
+            ever recorded. It reads lengths and gaps only, never who was on. The
+            course runs either way, and an empty rota is its own lesson: nothing
+            here can show what anybody actually worked.
+          </div>
+        </div>
+      )}
+
+      {courses.some((c: any) => c.usesShifts) &&
+        shifts.total > 0 &&
+        shifts.breaksRecorded === 0 && (
+        <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <CalendarClock className="h-4 w-4 mt-0.5 shrink-0" />
+          <div className="flex-1">
+            <strong>No breaks have ever been recorded on the clock.</strong>{" "}
+            Staff are clocking in, but nobody has used On break / End break, so
+            there is no record that a break was taken — and in most places the
+            employer, not the employee, is the one asked to produce that record.
+            The working time course teaches this against your own numbers.
+          </div>
+        </div>
+      )}
+
       {courses.length === 0 && (
         <Card><CardContent className="py-10 text-center text-slate-500">
           No courses available yet.
@@ -221,6 +251,11 @@ export default function CoursesTab({ onOpenMatrix }: { onOpenMatrix?: () => void
                       {c.usesCustomers && (
                         <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
                           Uses your guest records
+                        </Badge>
+                      )}
+                      {c.usesShifts && (
+                        <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                          Uses your rota
                         </Badge>
                       )}
                       {c.usesDeliveries && (
