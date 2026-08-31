@@ -2,7 +2,7 @@
 // handler deletes every cache that isn't the current name, so changing this
 // string is what evicts a stale app shell from an installed PWA — without it,
 // a phone can keep serving old JS long after a deploy.
-const CACHE_NAME = "rotahr-v80";
+const CACHE_NAME = "rotahr-v81";
 const STATIC_ASSETS = [
   "/",
   "/auth/signin",

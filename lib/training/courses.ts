@@ -61,6 +61,7 @@ import { fireLessons, fireQuiz } from "./fire";
 import { fohAllergenLessons, fohAllergenQuiz } from "./foh-allergens";
 import { foodHygieneLessons, foodHygieneQuiz } from "./food-hygiene";
 import { haccpSystemLessons, haccpSystemQuiz } from "./haccp-system";
+import { knifeEquipmentLessons, knifeEquipmentQuiz } from "./knife-equipment";
 import { manualHandlingLessons, manualHandlingQuiz } from "./manual-handling";
 import { openCloseLessons, openCloseQuiz } from "./open-close";
 import { privacyLessons, privacyQuiz } from "./privacy";
@@ -485,6 +486,31 @@ export const COURSES: CourseDef[] = [
     usesReservations: false,
     usesWastage: false,
   },
+  {
+    slug: "knife-equipment-safety",
+    title: "Knife and equipment safety",
+    summary:
+      "Blades and powered machines: knife handling, mandolins, slicers and mincers, guards and interlocks, isolating a machine before your hands go inside it, hot oil and steam as burns, and how a faulty machine gets taken out of use. Read against your venue's own equipment register.",
+    minutes: 20,
+    validMonths: 12,
+    passMark: 80,
+    // OTHER, like every in-house course. There is no accredited knife or
+    // machinery qualification this could be mistaken for. It is explicitly not
+    // first aid training and not engineer training, and the content says so.
+    certCategory: "OTHER",
+    certTitle: "Knife and equipment safety (in-house)",
+    usesMenu: false,
+    usesAssets: true,
+    usesStock: false,
+    usesHaccp: false,
+    usesCleaning: false,
+    usesDeliveries: false,
+    usesCustomers: false,
+    usesShifts: false,
+    usesHaccpLogs: false,
+    usesReservations: false,
+    usesWastage: false,
+  },
 ];
 
 export function getCourse(slug: string): CourseDef | undefined {
@@ -651,6 +677,9 @@ export function lessonsFor(slug: string, data: CourseData): Lesson[] {
   // paper has to rebuild identically at submit time.
   if (slug === "opening-closing-checks")
     return openCloseLessons(data.cleaning, data.cleaningTemplates);
+  // The equipment register only. Nothing here reads who logged a fault or who
+  // serviced a unit: the course reads the kit, never the person.
+  if (slug === "knife-equipment-safety") return knifeEquipmentLessons(data.assets);
   if (slug !== "allergen-awareness") return [];
 
   const dishes = data.dishes;
@@ -982,6 +1011,9 @@ export function buildQuiz(
   // Cleaning records only \— their ids already ride on the ticket, so this
   // paper rebuilds identically at grading time. Templates are never read here.
   if (slug === "opening-closing-checks") return openCloseQuiz(data.cleaning, seed);
+  // Assets only. Asset ids already ride on the ticket, so this paper rebuilds
+  // identically at grading time.
+  if (slug === "knife-equipment-safety") return knifeEquipmentQuiz(data.assets, seed);
   if (slug !== "allergen-awareness") return [];
 
   const fromMenu = menuQuestions(data.dishes, seed);
