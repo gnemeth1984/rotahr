@@ -745,3 +745,61 @@ export function niceDate(iso: string | null): string {
     year: "numeric",
   });
 }
+
+// --------------------------------------------------------------------------- //
+// The venue's own bookings, as a course sees it
+// --------------------------------------------------------------------------- //
+
+/**
+ * A booking, as the front-of-house allergen course reads it.
+ *
+ * One field here breaks the rule every other shape in this file follows, so
+ * read this before adding to it.
+ *
+ * `dietary` is carried verbatim. It is the only piece of guest-entered free
+ * text any course prints, and it is deliberate, because it is the subject being
+ * taught. A real booking note reads "2 vegan, 1 nut allergy", and the failure
+ * mode the course exists to correct is a member of staff treating those two
+ * halves as the same kind of request. Reduced to a count, the lesson disappears.
+ * It is a short structured field, it carries no guest identifier on its own,
+ * and it is only ever shown to staff of the same venue who read that same field
+ * on the bookings screen every shift.
+ *
+ * Everything that could name a guest stays out: customerName, customerEmail and
+ * customerPhone are never read. The general `notes` and `kitchenNotes` fields
+ * are read as presence only, never text: they are long free text and routinely
+ * name people ("Mr Byrne's retirement"), so printing them would put a guest's
+ * name on a page every member of staff opens, and the completion snapshot would
+ * then keep it forever. Same reasoning as CourseCustomer above.
+ */
+export interface CourseReservation {
+  id: string;
+  /** ISO date of the booking. */
+  date: string;
+  partySize: number;
+  status: string;
+  /** The venue's own dietary field, trimmed. See the note above. */
+  dietary: string | null;
+  /** Whether general notes were written. Presence only, never the text. */
+  hasNotes: boolean;
+  /** Whether anything was written for the kitchen. Presence only. */
+  hasKitchenNotes: boolean;
+  menuRequired: boolean;
+}
+
+/** Narrow a Prisma Reservation row into what a course uses. */
+export function toCourseReservation(row: any): CourseReservation {
+  const dietary =
+    typeof row.dietary === "string" && row.dietary.trim() ? row.dietary.trim() : null;
+  const when = row.date ? new Date(row.date) : new Date(row.createdAt ?? Date.now());
+  return {
+    id: row.id,
+    date: when.toISOString(),
+    partySize: Number.isFinite(row.partySize) ? Number(row.partySize) : 0,
+    status: (row.status ?? "").toString() || "unknown",
+    dietary,
+    hasNotes: typeof row.notes === "string" && row.notes.trim().length > 0,
+    hasKitchenNotes: typeof row.kitchenNotes === "string" && row.kitchenNotes.trim().length > 0,
+    menuRequired: Boolean(row.menuRequired),
+  };
+}

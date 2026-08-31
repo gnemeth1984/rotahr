@@ -57,6 +57,7 @@ export async function GET(req: NextRequest) {
     breakCount,
     haccpLogCount,
     haccpFailCount,
+    dietaryCount,
   ] = await Promise.all([
     prisma.dish.count({ where: { businessId, active: true } }),
     prisma.dish.count({
@@ -79,6 +80,12 @@ export async function GET(req: NextRequest) {
       // worth surfacing before somebody opens the course.
       prisma.hACCPRecord.count({ where: { businessId } }),
       prisma.hACCPRecord.count({ where: { businessId, status: { not: "pass" } } }),
+      // Bookings that actually carry a dietary note. The front of house allergen
+      // course builds its sharpest lesson from these, so an empty count is worth
+      // surfacing before somebody opens the course. Count only \— no guest text.
+      prisma.reservation.count({
+        where: { businessId, dietary: { not: null } },
+      }),
     ]);
 
   const completions = await prisma.courseCompletion.findMany({
@@ -171,5 +178,6 @@ export async function GET(req: NextRequest) {
     deliveries: { records: deliveryCount },
     customers: { profiles: customerCount },
     shifts: { total: shiftCount, breaksRecorded: breakCount },
+    reservations: { withDietary: dietaryCount },
   });
 }

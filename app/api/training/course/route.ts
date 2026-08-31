@@ -25,6 +25,7 @@ import {
   toCourseCleaningTemplate,
   toCourseCustomer,
   toCourseDelivery,
+  toCourseReservation,
   toCourseShift,
   toCourseClock,
   buildQuiz,
@@ -189,6 +190,22 @@ export async function GET(req: NextRequest) {
       : [];
   const shifts = shiftRows.map(toCourseShift);
 
+  // The venue's own recent bookings. Read by the lessons only \— they are
+  // deliberately not carried on the ticket and never feed a graded question, so
+  // a booking edited halfway through a course cannot change the paper, and no
+  // guest dietary text ends up in the completion snapshot that is kept for
+  // years. toCourseReservation carries the dietary field verbatim because that
+  // text is the thing being taught; read its doc comment in kit.ts before
+  // widening this. Guest name, email and phone are never selected.
+  const reservationRows = course.usesReservations
+    ? await prisma.reservation.findMany({
+        where: { businessId },
+        orderBy: [{ date: "desc" }],
+        take: 200,
+      })
+    : [];
+  const reservations = reservationRows.map(toCourseReservation);
+
   // Clock events are counted, not listed: how many people clocked in, whether
   // anybody ever clocked out, and whether a break was ever recorded. The
   // counts ride on the ticket rather than being re-read at submit time.
@@ -215,6 +232,7 @@ export async function GET(req: NextRequest) {
     customers,
     shifts,
     clock,
+    reservations,
   };
   const paper = buildQuiz(slug, data, seed);
 
@@ -269,6 +287,7 @@ export async function GET(req: NextRequest) {
       usesCustomers: course.usesCustomers,
       usesShifts: course.usesShifts,
       usesHaccpLogs: course.usesHaccpLogs,
+      usesReservations: course.usesReservations,
     },
     practice,
     trainee: practice
@@ -303,6 +322,11 @@ export async function GET(req: NextRequest) {
       total: shifts.length,
       people: new Set(shifts.map((sh) => sh.employeeId).filter(Boolean)).size,
       breaksRecorded: clock.breakStarts,
+    },
+    reservations: {
+      total: reservations.length,
+      withDietary: reservations.filter((r) => r.dietary).length,
+      withKitchenNotes: reservations.filter((r) => r.hasKitchenNotes).length,
     },
   });
 }

@@ -34,6 +34,7 @@ import {
   type CourseCustomer,
   type CourseDelivery,
   type CourseHaccpUnit,
+  type CourseReservation,
   type CourseShift,
   type CourseStock,
   type Lesson,
@@ -48,12 +49,14 @@ import {
   toCourseHaccpCheck,
   toCourseHaccpLog,
   toCourseHaccpUnit,
+  toCourseReservation,
   toCourseShift,
   toCourseStock,
 } from "./kit";
 import { cleaningLessons, cleaningQuiz } from "./cleaning";
 import { deliveriesLessons, deliveriesQuiz } from "./deliveries";
 import { fireLessons, fireQuiz } from "./fire";
+import { fohAllergenLessons, fohAllergenQuiz } from "./foh-allergens";
 import { foodHygieneLessons, foodHygieneQuiz } from "./food-hygiene";
 import { haccpSystemLessons, haccpSystemQuiz } from "./haccp-system";
 import { manualHandlingLessons, manualHandlingQuiz } from "./manual-handling";
@@ -73,6 +76,7 @@ export type {
   CourseHaccpCheck,
   CourseHaccpLog,
   CourseHaccpUnit,
+  CourseReservation,
   CourseShift,
   CourseStock,
   Lesson,
@@ -88,6 +92,7 @@ export {
   toCourseHaccpCheck,
   toCourseHaccpLog,
   toCourseHaccpUnit,
+  toCourseReservation,
   toCourseShift,
   toCourseStock,
 };
@@ -139,6 +144,13 @@ export interface CourseDef {
    * without pulling hundreds of records it does not teach from.
    */
   usesHaccpLogs: boolean;
+  /**
+   * True when the course reads the venue's own bookings. Almost all shape only
+   * \— party sizes, counts, whether a note was written. The one exception is the
+   * dietary field, which is read verbatim because it is the thing being taught;
+   * read the CourseReservation doc comment in kit.ts before touching this.
+   */
+  usesReservations: boolean;
 }
 
 export const COURSES: CourseDef[] = [
@@ -164,6 +176,7 @@ export const COURSES: CourseDef[] = [
     usesCustomers: false,
     usesShifts: false,
     usesHaccpLogs: false,
+    usesReservations: false,
   },
   {
     slug: "fire-safety-awareness",
@@ -186,6 +199,7 @@ export const COURSES: CourseDef[] = [
     usesCustomers: false,
     usesShifts: false,
     usesHaccpLogs: false,
+    usesReservations: false,
   },
   {
     slug: "manual-handling-awareness",
@@ -210,6 +224,7 @@ export const COURSES: CourseDef[] = [
     usesCustomers: false,
     usesShifts: false,
     usesHaccpLogs: false,
+    usesReservations: false,
   },
   {
     slug: "food-hygiene-awareness",
@@ -235,6 +250,7 @@ export const COURSES: CourseDef[] = [
     usesCustomers: false,
     usesShifts: false,
     usesHaccpLogs: false,
+    usesReservations: false,
   },
   {
     slug: "cleaning-chemical-safety",
@@ -259,6 +275,7 @@ export const COURSES: CourseDef[] = [
     usesCustomers: false,
     usesShifts: false,
     usesHaccpLogs: false,
+    usesReservations: false,
   },
   {
     slug: "deliveries-goods-in",
@@ -283,6 +300,7 @@ export const COURSES: CourseDef[] = [
     usesCustomers: false,
     usesShifts: false,
     usesHaccpLogs: false,
+    usesReservations: false,
   },
   {
     slug: "guest-data-privacy",
@@ -308,6 +326,7 @@ export const COURSES: CourseDef[] = [
     usesCustomers: true,
     usesShifts: false,
     usesHaccpLogs: false,
+    usesReservations: false,
   },
   {
     slug: "working-time-breaks",
@@ -334,6 +353,7 @@ export const COURSES: CourseDef[] = [
     usesCustomers: false,
     usesShifts: true,
     usesHaccpLogs: false,
+    usesReservations: false,
   },
   {
     slug: "haccp-system-awareness",
@@ -362,6 +382,31 @@ export const COURSES: CourseDef[] = [
     usesCustomers: false,
     usesShifts: false,
     usesHaccpLogs: true,
+    usesReservations: false,
+  },
+  {
+    slug: "foh-allergen-service",
+    title: "Front of house allergen service",
+    summary:
+      "Taking, checking and relaying an allergen order at the table \— the booking note, the question you ask, the handover to the kitchen, and what \"may contain\" really means \— read against your own menu and your own bookings.",
+    minutes: 20,
+    validMonths: 12,
+    passMark: 80,
+    // OTHER. There is no accredited front of house allergen qualification this
+    // could be confused with, but the rule holds for every in-house course:
+    // never file one alongside a real awarding body's certificate.
+    certCategory: "OTHER",
+    certTitle: "Front of house allergen service (in-house)",
+    usesMenu: true,
+    usesAssets: false,
+    usesStock: false,
+    usesHaccp: false,
+    usesCleaning: false,
+    usesDeliveries: false,
+    usesCustomers: false,
+    usesShifts: false,
+    usesHaccpLogs: false,
+    usesReservations: true,
   },
 ];
 
@@ -420,6 +465,14 @@ export interface CourseData {
   shifts: CourseShift[];
   /** Clock-in, clock-out and break event counts for the venue. */
   clock: CourseClock;
+  /**
+   * The venue's own recent bookings, newest first. Used by lessons only, never
+   * by the quiz \— so they are deliberately not carried on the ticket, and a
+   * booking edited mid-course cannot change the paper. That also keeps guest
+   * dietary text out of the completion snapshot, which is kept for years.
+   * Read the CourseReservation doc comment in kit.ts before adding a field.
+   */
+  reservations: CourseReservation[];
 }
 
 /** Narrow a Prisma dish row (with allergen columns) into what the course uses. */
@@ -495,6 +548,10 @@ export function lessonsFor(slug: string, data: CourseData): Lesson[] {
   if (slug === "guest-data-privacy") return privacyLessons(data.customers);
   if (slug === "working-time-breaks")
     return workingTimeLessons(data.shifts, data.clock);
+  // Reservations are read by the lessons only, never by the quiz. See the
+  // reservations field on CourseData for why that boundary exists.
+  if (slug === "foh-allergen-service")
+    return fohAllergenLessons(data.dishes, data.reservations);
   if (slug !== "allergen-awareness") return [];
 
   const dishes = data.dishes;
@@ -817,6 +874,9 @@ export function buildQuiz(
   if (slug === "guest-data-privacy") return privacyQuiz(data.customers, seed);
   if (slug === "working-time-breaks")
     return workingTimeQuiz(data.shifts, data.clock, seed);
+  // Dishes only \— dish ids already ride on the ticket, so this paper rebuilds
+  // identically at grading time without carrying any booking data.
+  if (slug === "foh-allergen-service") return fohAllergenQuiz(data.dishes, seed);
   if (slug !== "allergen-awareness") return [];
 
   const fromMenu = menuQuestions(data.dishes, seed);

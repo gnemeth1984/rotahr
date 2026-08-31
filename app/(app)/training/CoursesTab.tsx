@@ -86,6 +86,7 @@ export default function CoursesTab({
   const deliveries = data?.deliveries ?? { records: 0 };
   const customers = data?.customers ?? { profiles: 0 };
   const shifts = data?.shifts ?? { total: 0, breaksRecorded: 0 };
+  const reservations = data?.reservations ?? { withDietary: 0 };
 
   return (
     <div className="space-y-5">
@@ -133,6 +134,23 @@ export default function CoursesTab({
           </div>
         </div>
       )}
+
+      {courses.some((c: any) => c.usesReservations) &&
+        reservations.withDietary === 0 && (
+          <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            <ClipboardList className="h-4 w-4 mt-0.5 shrink-0" />
+            <div className="flex-1">
+              <strong>No booking has a dietary note on it yet.</strong>{" "}
+              The front of house allergen course reads your own bookings \— the party
+              size, whether anything was written for the kitchen, and what the dietary
+              field actually says \— because telling a real allergy apart from a
+              preference is the whole skill. It reads that one field and never a
+              guest&rsquo;s name, email or phone. The course runs either way, and an
+              empty field is its own lesson: nothing reaches the kitchen that nobody
+              wrote down.
+            </div>
+          </div>
+        )}
 
       {courses.some((c: any) => c.usesAssets) && equipment.assets === 0 && (
         <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">

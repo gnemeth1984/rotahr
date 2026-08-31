@@ -215,10 +215,14 @@ export async function POST(req: NextRequest) {
     latest: null,
   };
 
-  // cleaningTemplates is deliberately empty: a venue's edited checklists only
-  // ever fed lessons, and lessons are not graded. haccpChecks is empty for every
-  // course except the HACCP system course, which grades against it and carries
-  // the ids on the ticket. Anything added here must also be on the ticket.
+  // cleaningTemplates and reservations are deliberately empty: a venue's edited
+  // checklists and its bookings only ever fed lessons, and lessons are not
+  // graded. Bookings especially must not be re-read here — a guest's booking can
+  // be edited or cancelled between starting a course and submitting it, and
+  // re-reading it would change the paper under the trainee's feet. haccpChecks
+  // is empty for every course except the HACCP system course, which grades
+  // against it and carries the ids on the ticket. Anything added here must also
+  // be on the ticket.
   const paper = buildQuiz(
     ticket.s,
     {
@@ -230,6 +234,7 @@ export async function POST(req: NextRequest) {
       haccpLogs,
       cleaning,
       cleaningTemplates: [],
+      reservations: [],
       deliveries,
       customers,
       shifts,
