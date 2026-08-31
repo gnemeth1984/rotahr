@@ -52,6 +52,7 @@ export async function GET(req: NextRequest) {
     haccpCount,
     cleaningCount,
     deliveryCount,
+    customerCount,
   ] = await Promise.all([
     prisma.dish.count({ where: { businessId, active: true } }),
     prisma.dish.count({
@@ -64,6 +65,7 @@ export async function GET(req: NextRequest) {
         where: { businessId, checkType: { in: [...CLEANING_CHECK_TYPES] } },
       }),
       prisma.hACCPRecord.count({ where: { businessId, checkType: "delivery" } }),
+      prisma.customer.count({ where: { businessId } }),
     ]);
 
   const completions = await prisma.courseCompletion.findMany({
@@ -129,6 +131,7 @@ export async function GET(req: NextRequest) {
       usesHaccp: c.usesHaccp,
       usesCleaning: c.usesCleaning,
       usesDeliveries: c.usesDeliveries,
+      usesCustomers: c.usesCustomers,
       mine: {
         completedAt: mine?.completedAt ?? null,
         score: mine ? `${mine.score}/${mine.total}` : null,
@@ -151,5 +154,6 @@ export async function GET(req: NextRequest) {
     haccp: { units: haccpCount },
     cleaning: { records: cleaningCount },
     deliveries: { records: deliveryCount },
+    customers: { profiles: customerCount },
   });
 }

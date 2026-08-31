@@ -22,6 +22,7 @@ import {
   toCourseHaccpCheck,
   toCourseCleaningRecord,
   toCourseCleaningTemplate,
+  toCourseCustomer,
   toCourseDelivery,
   buildQuiz,
   publicQuiz,
@@ -133,6 +134,23 @@ export async function GET(req: NextRequest) {
     : [];
   const deliveries = deliveryRows.map(toCourseDelivery);
 
+  // Guest records. toCourseCustomer keeps shape only — counts, flags and the
+  // length of the note field, never a name, a note or an allergy line. A
+  // privacy course that printed a real guest's name and their allergy note onto
+  // a page every member of staff opens would be a breach of its own, and the
+  // completion stores a snapshot of what the course read, so that text would
+  // sit in the evidence record forever. A higher take than the other courses is
+  // deliberate: every question here is a count, and a truncated list would
+  // state a false figure about the venue's own data.
+  const customerRows = course.usesCustomers
+    ? await prisma.customer.findMany({
+        where: { businessId },
+        orderBy: [{ createdAt: "desc" }],
+        take: 200,
+      })
+    : [];
+  const customers = customerRows.map(toCourseCustomer);
+
   const seed = freshSeed();
   const data = {
     dishes,
@@ -143,6 +161,7 @@ export async function GET(req: NextRequest) {
     cleaning,
     cleaningTemplates,
     deliveries,
+    customers,
   };
   const paper = buildQuiz(slug, data, seed);
 
@@ -166,7 +185,9 @@ export async function GET(req: NextRequest) {
             ? cleaning.map((r) => r.id)
             : course.usesDeliveries
               ? deliveries.map((d) => d.id)
-              : dishes.map((d) => d.id),
+              : course.usesCustomers
+                ? customers.map((c) => c.id)
+                : dishes.map((d) => d.id),
     t: Date.now(),
   });
 
@@ -184,6 +205,7 @@ export async function GET(req: NextRequest) {
       usesHaccp: course.usesHaccp,
       usesCleaning: course.usesCleaning,
       usesDeliveries: course.usesDeliveries,
+      usesCustomers: course.usesCustomers,
     },
     practice,
     trainee: practice
@@ -206,6 +228,11 @@ export async function GET(req: NextRequest) {
     deliveries: {
       records: deliveries.length,
       missingTemp: deliveries.filter((d) => d.temp === null).length,
+    },
+    customers: {
+      profiles: customers.length,
+      consented: customers.filter((c) => c.consent).length,
+      withNotes: customers.filter((c) => c.hasInternalNotes).length,
     },
   });
 }

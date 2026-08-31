@@ -24,6 +24,7 @@ import {
   toCourseStock,
   toCourseHaccpUnit,
   toCourseCleaningRecord,
+  toCourseCustomer,
   toCourseDelivery,
   buildQuiz,
   grade,
@@ -142,6 +143,19 @@ export async function POST(req: NextRequest) {
     ? ticket.m.map((id) => byDelivery.get(id)).filter(Boolean).map(toCourseDelivery)
     : [];
 
+  // Reloaded in ticket order, same as every other course. The privacy
+  // questions carry counts in their ids, so ticket order is what keeps the
+  // rebuilt paper's ids identical to the paper the trainee answered. A guest
+  // profile deleted between GET and POST still shifts the count \— the same
+  // accepted risk the other courses carry.
+  const customerRows = course.usesCustomers
+    ? await prisma.customer.findMany({ where: { businessId, id: { in: ticket.m } } })
+    : [];
+  const byCustomer = new Map(customerRows.map((r) => [r.id, r]));
+  const customers = course.usesCustomers
+    ? ticket.m.map((id) => byCustomer.get(id)).filter(Boolean).map(toCourseCustomer)
+    : [];
+
   // haccpChecks and cleaningTemplates are deliberately empty: the check
   // schedule and the venue's edited checklists only ever fed lessons, and
   // lessons are not graded. Anything added here must also be on the ticket.
@@ -156,6 +170,7 @@ export async function POST(req: NextRequest) {
       cleaning,
       cleaningTemplates: [],
       deliveries,
+      customers,
     },
     ticket.d
   );

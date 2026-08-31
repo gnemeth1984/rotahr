@@ -29,6 +29,7 @@ import {
   type CourseHaccpCheck,
   type CourseCleaningRecord,
   type CourseCleaningTemplate,
+  type CourseCustomer,
   type CourseDelivery,
   type CourseHaccpUnit,
   type CourseStock,
@@ -38,6 +39,7 @@ import {
   toCourseAsset,
   toCourseCleaningRecord,
   toCourseCleaningTemplate,
+  toCourseCustomer,
   toCourseDelivery,
   toCourseHaccpCheck,
   toCourseHaccpUnit,
@@ -48,6 +50,7 @@ import { deliveriesLessons, deliveriesQuiz } from "./deliveries";
 import { fireLessons, fireQuiz } from "./fire";
 import { foodHygieneLessons, foodHygieneQuiz } from "./food-hygiene";
 import { manualHandlingLessons, manualHandlingQuiz } from "./manual-handling";
+import { privacyLessons, privacyQuiz } from "./privacy";
 
 // Shapes and helpers live in kit.ts so course content files can import them
 // without importing this module back. Re-exported so existing importers and the
@@ -56,6 +59,7 @@ export type {
   CourseAsset,
   CourseCleaningRecord,
   CourseCleaningTemplate,
+  CourseCustomer,
   CourseDelivery,
   CourseHaccpCheck,
   CourseHaccpUnit,
@@ -67,6 +71,7 @@ export {
   toCourseAsset,
   toCourseCleaningRecord,
   toCourseCleaningTemplate,
+  toCourseCustomer,
   toCourseDelivery,
   toCourseHaccpCheck,
   toCourseHaccpUnit,
@@ -100,6 +105,12 @@ export interface CourseDef {
   usesCleaning: boolean;
   /** True when the course reads the venue's own goods-in delivery records. */
   usesDeliveries: boolean;
+  /**
+   * True when the course reads the venue's own guest records. Shape only:
+   * counts, flags and field lengths. Never a guest's name, note text or
+   * allergy text — see CourseCustomer in kit.ts for why that matters.
+   */
+  usesCustomers: boolean;
 }
 
 export const COURSES: CourseDef[] = [
@@ -119,6 +130,7 @@ export const COURSES: CourseDef[] = [
     usesHaccp: false,
     usesCleaning: false,
     usesDeliveries: false,
+    usesCustomers: false,
   },
   {
     slug: "fire-safety-awareness",
@@ -138,6 +150,7 @@ export const COURSES: CourseDef[] = [
     usesHaccp: false,
     usesCleaning: false,
     usesDeliveries: false,
+    usesCustomers: false,
   },
   {
     slug: "manual-handling-awareness",
@@ -159,6 +172,7 @@ export const COURSES: CourseDef[] = [
     usesHaccp: false,
     usesCleaning: false,
     usesDeliveries: false,
+    usesCustomers: false,
   },
   {
     slug: "food-hygiene-awareness",
@@ -181,6 +195,7 @@ export const COURSES: CourseDef[] = [
     usesHaccp: true,
     usesCleaning: false,
     usesDeliveries: false,
+    usesCustomers: false,
   },
   {
     slug: "cleaning-chemical-safety",
@@ -202,6 +217,7 @@ export const COURSES: CourseDef[] = [
     usesHaccp: false,
     usesCleaning: true,
     usesDeliveries: false,
+    usesCustomers: false,
   },
   {
     slug: "deliveries-goods-in",
@@ -223,6 +239,30 @@ export const COURSES: CourseDef[] = [
     usesHaccp: false,
     usesCleaning: false,
     usesDeliveries: true,
+    usesCustomers: false,
+  },
+  {
+    slug: "guest-data-privacy",
+    title: "Guest data & privacy awareness",
+    summary:
+      "What counts as personal data, what a guest can ask you for, why the note field is disclosable, and how fast a suspected breach has to be escalated — read against your own guest records.",
+    minutes: 20,
+    validMonths: 12,
+    passMark: 80,
+    // Deliberately OTHER. This is employer-delivered awareness training, not a
+    // data protection qualification, and it must never look like one: no DPO
+    // course, no certification, no accreditation. It teaches the staff
+    // instinct — what counts as personal data, what a guest can ask for, what
+    // belongs in the note field, and who to escalate a suspected breach to.
+    certCategory: "OTHER",
+    certTitle: "Guest data & privacy awareness (in-house)",
+    usesMenu: false,
+    usesAssets: false,
+    usesStock: false,
+    usesHaccp: false,
+    usesCleaning: false,
+    usesDeliveries: false,
+    usesCustomers: true,
   },
 ];
 
@@ -264,6 +304,11 @@ export interface CourseData {
   cleaningTemplates: CourseCleaningTemplate[];
   /** The venue's own goods-in delivery checks, newest first. */
   deliveries: CourseDelivery[];
+  /**
+   * The venue's own guest records, newest first — shape only, never content.
+   * Read the CourseCustomer doc comment in kit.ts before adding a field here.
+   */
+  customers: CourseCustomer[];
 }
 
 /** Narrow a Prisma dish row (with allergen columns) into what the course uses. */
@@ -334,6 +379,7 @@ export function lessonsFor(slug: string, data: CourseData): Lesson[] {
   if (slug === "cleaning-chemical-safety")
     return cleaningLessons(data.cleaning, data.cleaningTemplates);
   if (slug === "deliveries-goods-in") return deliveriesLessons(data.deliveries);
+  if (slug === "guest-data-privacy") return privacyLessons(data.customers);
   if (slug !== "allergen-awareness") return [];
 
   const dishes = data.dishes;
@@ -651,6 +697,7 @@ export function buildQuiz(
   if (slug === "food-hygiene-awareness") return foodHygieneQuiz(data.haccp, seed);
   if (slug === "cleaning-chemical-safety") return cleaningQuiz(data.cleaning, seed);
   if (slug === "deliveries-goods-in") return deliveriesQuiz(data.deliveries, seed);
+  if (slug === "guest-data-privacy") return privacyQuiz(data.customers, seed);
   if (slug !== "allergen-awareness") return [];
 
   const fromMenu = menuQuestions(data.dishes, seed);

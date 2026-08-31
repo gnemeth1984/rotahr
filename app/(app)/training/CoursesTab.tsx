@@ -13,7 +13,7 @@ import { useRouter } from "next/navigation";
 import {
   GraduationCap, Clock, CheckCircle2, AlertTriangle, Loader2,
   ChevronRight, Users, Utensils, Play, RotateCcw, Flame, PackageOpen, Thermometer,
-  SprayCan, Truck,
+  SprayCan, Truck, ShieldCheck,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -62,6 +62,7 @@ export default function CoursesTab({ onOpenMatrix }: { onOpenMatrix?: () => void
   const haccp = data?.haccp ?? { units: 0 };
   const cleaning = data?.cleaning ?? { records: 0 };
   const deliveries = data?.deliveries ?? { records: 0 };
+  const customers = data?.customers ?? { profiles: 0 };
 
   return (
     <div className="space-y-5">
@@ -157,6 +158,20 @@ export default function CoursesTab({ onOpenMatrix }: { onOpenMatrix?: () => void
         </div>
       )}
 
+      {courses.some((c: any) => c.usesCustomers) && customers.profiles === 0 && (
+        <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <ShieldCheck className="h-4 w-4 mt-0.5 shrink-0" />
+          <div className="flex-1">
+            <strong>No guest records yet.</strong>{" "}
+            The privacy course reads your own guest list under CRM — how many profiles
+            you hold, how many gave consent, and how many carry a free-text note. It
+            reads counts only, never a guest&rsquo;s name or note. The course runs
+            either way, and an empty list is its own lesson: the safest data is the
+            data you never collected.
+          </div>
+        </div>
+      )}
+
       {courses.length === 0 && (
         <Card><CardContent className="py-10 text-center text-slate-500">
           No courses available yet.
@@ -201,6 +216,11 @@ export default function CoursesTab({ onOpenMatrix }: { onOpenMatrix?: () => void
                       {c.usesCleaning && (
                         <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
                           Uses your cleaning records
+                        </Badge>
+                      )}
+                      {c.usesCustomers && (
+                        <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                          Uses your guest records
                         </Badge>
                       )}
                       {c.usesDeliveries && (

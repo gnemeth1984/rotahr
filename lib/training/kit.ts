@@ -530,6 +530,64 @@ export function toCourseDelivery(row: any): CourseDelivery {
   };
 }
 
+/**
+ * A guest profile, reduced to shape only.
+ *
+ * Deliberately carries NO guest name, email, phone, note text or allergy text.
+ * A privacy course that printed a real guest's name and their "SEVERE nut
+ * allergy" note onto a training page shown to every member of staff would be
+ * teaching the opposite of its own lesson — and the completion stores a snapshot
+ * of whatever the course read, so that text would then sit in the evidence
+ * record forever. Counts and booleans are enough to teach from.
+ */
+export interface CourseCustomer {
+  id: string;
+  /** ISO date the profile was created. */
+  createdAt: string;
+  /** GDPR / marketing consent flag as recorded. */
+  consent: boolean;
+  /** ISO date consent was given, or null when the flag is set with no date. */
+  consentAt: string | null;
+  /** SMS / WhatsApp consent — a separate permission, not implied by the above. */
+  smsConsent: boolean;
+  hasEmail: boolean;
+  hasPhone: boolean;
+  hasBirthday: boolean;
+  /** Allergy text present. Health data about an identifiable person. */
+  hasAllergyData: boolean;
+  hasDietaryNotes: boolean;
+  /** Free-text internal note present — readable by staff, disclosable to the guest. */
+  hasInternalNotes: boolean;
+  /** Length of the internal note in characters. Never its content. */
+  noteLength: number;
+  tagCount: number;
+  anonymised: boolean;
+}
+
+/** Narrow a Prisma Customer row into what the course uses. */
+export function toCourseCustomer(row: any): CourseCustomer {
+  const txt = (v: any) => (typeof v === "string" && v.trim() ? v.trim() : null);
+  const notes = txt(row.internalNotes);
+  const created = row.createdAt ? new Date(row.createdAt) : new Date();
+
+  return {
+    id: row.id,
+    createdAt: created.toISOString(),
+    consent: row.gdprConsent === true,
+    consentAt: row.gdprConsentAt ? new Date(row.gdprConsentAt).toISOString() : null,
+    smsConsent: row.smsWhatsappConsent === true,
+    hasEmail: !!txt(row.email),
+    hasPhone: !!txt(row.phone),
+    hasBirthday: !!row.birthday,
+    hasAllergyData: !!txt(row.allergies),
+    hasDietaryNotes: !!txt(row.dietaryNotes),
+    hasInternalNotes: !!notes,
+    noteLength: notes ? notes.length : 0,
+    tagCount: Array.isArray(row.tags) ? row.tags.length : 0,
+    anonymised: row.isAnonymised === true,
+  };
+}
+
 export function niceDate(iso: string | null): string {
   if (!iso) return "no date recorded";
   return new Date(iso).toLocaleDateString("en-IE", {
