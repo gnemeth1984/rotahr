@@ -134,10 +134,10 @@ export function crmLesson(customers: CourseCustomer[]): Lesson {
     body.push(
       `${s.consent} of the ${s.total} profiles are marked as having given consent. ${
         s.noConsent
-      } ${plural(s.noConsent, "is", "are")} not. Holding a profile without consent is not automatically wrong — a booking is generally handled on the basis of the reservation itself, not on marketing consent — but sending marketing to those ${plural(
+      } ${plural(s.noConsent, "is", "are")} not. Holding a profile without consent is not automatically wrong — a booking is generally handled on the basis of the reservation itself, not on marketing consent — but sending marketing to ${plural(
         s.noConsent,
-        "record",
-        "records"
+        "that record",
+        "those records"
       )} would be, and Rotahr's own email tool is deliberately gated on that flag for exactly that reason.`
     );
   } else {
@@ -244,7 +244,11 @@ export function notesLesson(customers: CourseCustomer[]): Lesson {
         s.total,
         "profile",
         "profiles"
-      )} here carries a free-text internal note, and the longest runs to ${
+      )} here ${plural(
+        s.notes,
+        "carries",
+        "carry"
+      )} a free-text internal note, and the longest runs to ${
         s.longestNote
       } characters. Nobody wrote those expecting an audience. That is exactly why they are worth a lesson.`
     );
@@ -901,7 +905,11 @@ export function customerQuestions(
         s.total,
         "profile",
         "profiles"
-      )} here carries a free-text internal note (the longest is ${
+      )} here ${plural(
+        s.notes,
+        "carries",
+        "carry"
+      )} a free-text internal note (the longest is ${
         s.longestNote
       } characters). If one of those guests asked for a copy of everything held about them, what happens to those notes?`,
       options: [
