@@ -13,6 +13,7 @@ import { useRouter } from "next/navigation";
 import {
   GraduationCap, Clock, CheckCircle2, AlertTriangle, Loader2,
   ChevronRight, Users, Utensils, Play, RotateCcw, Flame, PackageOpen, Thermometer,
+  SprayCan,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -59,6 +60,7 @@ export default function CoursesTab({ onOpenMatrix }: { onOpenMatrix?: () => void
   const equipment = data?.equipment ?? { assets: 0 };
   const stock = data?.stock ?? { items: 0 };
   const haccp = data?.haccp ?? { units: 0 };
+  const cleaning = data?.cleaning ?? { records: 0 };
 
   return (
     <div className="space-y-5">
@@ -129,6 +131,18 @@ export default function CoursesTab({ onOpenMatrix }: { onOpenMatrix?: () => void
         </div>
       )}
 
+      {courses.some((c: any) => c.usesCleaning) && cleaning.records === 0 && (
+        <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <SprayCan className="h-4 w-4 mt-0.5 shrink-0" />
+          <div className="flex-1">
+            <strong>Nobody has logged a cleaning checklist yet.</strong>{" "}
+            The cleaning course reads your own daily, weekly and deep-clean logs under
+            HACCP \— how much of each list was actually ticked, and how long ago. The
+            course still runs, and an empty log becomes its own lesson.
+          </div>
+        </div>
+      )}
+
       {courses.length === 0 && (
         <Card><CardContent className="py-10 text-center text-slate-500">
           No courses available yet.
@@ -168,6 +182,11 @@ export default function CoursesTab({ onOpenMatrix }: { onOpenMatrix?: () => void
                       {c.usesHaccp && (
                         <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
                           Uses your HACCP units
+                        </Badge>
+                      )}
+                      {c.usesCleaning && (
+                        <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                          Uses your cleaning records
                         </Badge>
                       )}
                     </div>

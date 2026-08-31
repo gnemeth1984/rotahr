@@ -327,6 +327,143 @@ export function toCourseHaccpCheck(row: any): CourseHaccpCheck {
   };
 }
 
+// --------------------------------------------------------------------------- //
+// The venue's own cleaning records, as a course sees it
+// --------------------------------------------------------------------------- //
+
+/** The five checklist types a venue actually cleans against. */
+export const CLEANING_CHECK_TYPES = [
+  "cleaning_daily",
+  "cleaning_weekly",
+  "cleaning_deep",
+  "opening_checks",
+  "closing_checks",
+] as const;
+
+/**
+ * The default task lists behind each of those checklists.
+ *
+ * These MIRROR the defaults in app/(app)/haccp/page.tsx (DAILY_CLEANING_ITEMS
+ * and the four beside it). They are duplicated rather than imported because
+ * that file is a large client component and importing it into server course
+ * code would drag the whole tree along. If a list changes there, change it here
+ * in the same commit — the cleaning course counts against these lengths, so a
+ * course teaching "6 of 8" against a 9-item list is worse than no course.
+ *
+ * A venue can edit its own lists (HACCPChecklistTemplate). Those edits feed a
+ * LESSON only, never the quiz: a manager editing a list mid-course must not be
+ * able to change the paper that is being graded.
+ */
+export const DEFAULT_CLEANING_ITEMS: Record<string, string[]> = {
+  cleaning_daily: [
+    "Kitchen prep surfaces wiped and sanitised",
+    "Cooking equipment cleaned (fryers, grills, ovens)",
+    "Fridge/freezer door seals wiped",
+    "Sinks and taps sanitised",
+    "Floor swept and mopped",
+    "Bins emptied and cleaned",
+    "Hand washing stations stocked (soap, paper towels)",
+    "Dishwasher/glasswasher cleaned and checked",
+  ],
+  cleaning_weekly: [
+    "Behind/under cooking equipment cleaned",
+    "Extraction hood and filters degreased",
+    "Cold room/walk-in walls and floors scrubbed",
+    "Dry store shelves wiped and organised",
+    "Waste area cleaned and disinfected",
+    "Drains cleaned and deodorised",
+    "Bar fridges deep cleaned",
+  ],
+  cleaning_deep: [
+    "Full extraction system cleaned",
+    "All equipment moved and cleaned behind/under",
+    "Grease traps cleaned",
+    "All walls and ceilings wiped down",
+    "All drains jet washed",
+    "Pest control check completed",
+    "Signed off by manager",
+  ],
+  opening_checks: [
+    "All fridge/freezer temps within safe range",
+    "Hand washing facilities clean and stocked",
+    "All food covered and correctly labelled",
+    "Prep surfaces sanitised before use",
+    "Date labels checked — remove expired stock",
+    "Pest check — no signs of activity",
+    "Equipment working correctly (no faults)",
+  ],
+  closing_checks: [
+    "All food stored, covered and labelled",
+    "Cooking equipment switched off and cleaned",
+    "Surfaces wiped and sanitised",
+    "Floor swept and mopped",
+    "Bins emptied",
+    "Fridges/freezers closed and temps normal",
+    "Gas/electrics checked",
+  ],
+};
+
+export interface CourseCleaningRecord {
+  id: string;
+  /** cleaning_daily | cleaning_weekly | cleaning_deep | opening_checks | closing_checks */
+  checkType: string;
+  /** "Daily cleaning" */
+  label: string;
+  /** ISO date of the check itself, not of the row. */
+  checkedAt: string;
+  /** "pass" | "fail" | whatever the module wrote. */
+  status: string;
+  /** How many tasks were actually ticked on that record. */
+  tickedCount: number;
+  /** How many tasks the default list for that checklist holds. */
+  expectedCount: number;
+  notes: string | null;
+}
+
+/**
+ * Narrow a Prisma HACCPRecord row (a cleaning type) into what a course uses.
+ *
+ * data.items is the list of tasks that were TICKED, so its length against the
+ * default list length is the whole partial-record lesson. Nothing is invented:
+ * a record with no items array reads as 0 ticked, which is exactly what it is.
+ */
+export function toCourseCleaningRecord(row: any): CourseCleaningRecord {
+  const checkType: string = row.checkType ?? "";
+  const data = row.data && typeof row.data === "object" ? row.data : {};
+  const items = Array.isArray((data as any).items)
+    ? (data as any).items.filter((i: any) => typeof i === "string")
+    : [];
+  const checkedAt = row.checkedAt ? new Date(row.checkedAt) : new Date(row.createdAt ?? Date.now());
+  return {
+    id: row.id,
+    checkType,
+    label: HACCP_CHECK_LABELS[checkType] ?? checkType.replace(/_/g, " "),
+    checkedAt: checkedAt.toISOString(),
+    status: (row.status ?? "").toString() || "unknown",
+    tickedCount: items.length,
+    expectedCount: (DEFAULT_CLEANING_ITEMS[checkType] ?? []).length,
+    notes: typeof row.notes === "string" && row.notes.trim() ? row.notes.trim() : null,
+  };
+}
+
+/** A checklist a venue has actually edited for itself. Lesson-only. */
+export interface CourseCleaningTemplate {
+  checkType: string;
+  label: string;
+  itemCount: number;
+}
+
+/** Narrow a Prisma HACCPChecklistTemplate row into what a course uses. */
+export function toCourseCleaningTemplate(row: any): CourseCleaningTemplate {
+  const checkType: string = row.checkType ?? "";
+  const items = Array.isArray(row.items) ? row.items.filter((i: any) => typeof i === "string") : [];
+  return {
+    checkType,
+    label: HACCP_CHECK_LABELS[checkType] ?? checkType.replace(/_/g, " "),
+    itemCount: items.length,
+  };
+}
+
 export function niceDate(iso: string | null): string {
   if (!iso) return "no date recorded";
   return new Date(iso).toLocaleDateString("en-IE", {

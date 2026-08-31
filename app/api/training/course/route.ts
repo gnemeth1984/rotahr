@@ -20,10 +20,13 @@ import {
   toCourseStock,
   toCourseHaccpUnit,
   toCourseHaccpCheck,
+  toCourseCleaningRecord,
+  toCourseCleaningTemplate,
   buildQuiz,
   publicQuiz,
 } from "@/lib/training/courses";
 import { signTicket, freshSeed } from "@/lib/training/quiz-token";
+import { CLEANING_CHECK_TYPES } from "@/lib/training/kit";
 
 export async function GET(req: NextRequest) {
   const session = await requireAuth();
@@ -94,8 +97,30 @@ export async function GET(req: NextRequest) {
     : [];
   const haccpChecks = scheduleRows.map(toCourseHaccpCheck);
 
+  // Cleaning, opening and closing checks that were actually logged. What makes
+  // this worth teaching from is not the tick — it is how much of the list was
+  // ticked, and how long ago.
+  const cleaningRows = course.usesCleaning
+    ? await prisma.hACCPRecord.findMany({
+        where: { businessId, checkType: { in: [...CLEANING_CHECK_TYPES] } },
+        orderBy: [{ checkedAt: "desc" }],
+        take: 40,
+      })
+    : [];
+  const cleaning = cleaningRows.map(toCourseCleaningRecord);
+
+  // A venue's own edited checklists feed a lesson, not the quiz, so like the
+  // HACCP schedule they never go on the ticket.
+  const templateRows = course.usesCleaning
+    ? await prisma.hACCPChecklistTemplate.findMany({
+        where: { businessId },
+        orderBy: [{ checkType: "asc" }],
+      })
+    : [];
+  const cleaningTemplates = templateRows.map(toCourseCleaningTemplate);
+
   const seed = freshSeed();
-  const data = { dishes, assets, stock, haccp, haccpChecks };
+  const data = { dishes, assets, stock, haccp, haccpChecks, cleaning, cleaningTemplates };
   const paper = buildQuiz(slug, data, seed);
 
   const token = signTicket({
@@ -114,7 +139,9 @@ export async function GET(req: NextRequest) {
         ? stock.map((s) => s.id)
         : course.usesHaccp
           ? haccp.map((u) => u.id)
-          : dishes.map((d) => d.id),
+          : course.usesCleaning
+            ? cleaning.map((r) => r.id)
+            : dishes.map((d) => d.id),
     t: Date.now(),
   });
 
@@ -130,6 +157,7 @@ export async function GET(req: NextRequest) {
       usesAssets: course.usesAssets,
       usesStock: course.usesStock,
       usesHaccp: course.usesHaccp,
+      usesCleaning: course.usesCleaning,
     },
     practice,
     trainee: practice
@@ -144,6 +172,10 @@ export async function GET(req: NextRequest) {
     haccp: {
       units: haccp.length,
       scheduled: haccpChecks.filter((c) => c.active).length,
+    },
+    cleaning: {
+      records: cleaning.length,
+      lastDeepClean: cleaning.find((r) => r.checkType === "cleaning_deep")?.checkedAt ?? null,
     },
   });
 }

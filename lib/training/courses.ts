@@ -27,16 +27,21 @@ import { ALLERGENS, type AllergenKey, containedKeys, parseTraces } from "./aller
 import {
   type CourseAsset,
   type CourseHaccpCheck,
+  type CourseCleaningRecord,
+  type CourseCleaningTemplate,
   type CourseHaccpUnit,
   type CourseStock,
   type Lesson,
   type QuizQuestion,
   shuffled,
   toCourseAsset,
+  toCourseCleaningRecord,
+  toCourseCleaningTemplate,
   toCourseHaccpCheck,
   toCourseHaccpUnit,
   toCourseStock,
 } from "./kit";
+import { cleaningLessons, cleaningQuiz } from "./cleaning";
 import { fireLessons, fireQuiz } from "./fire";
 import { foodHygieneLessons, foodHygieneQuiz } from "./food-hygiene";
 import { manualHandlingLessons, manualHandlingQuiz } from "./manual-handling";
@@ -44,8 +49,24 @@ import { manualHandlingLessons, manualHandlingQuiz } from "./manual-handling";
 // Shapes and helpers live in kit.ts so course content files can import them
 // without importing this module back. Re-exported so existing importers and the
 // API routes keep a single place to import from.
-export type { CourseAsset, CourseHaccpCheck, CourseHaccpUnit, CourseStock, Lesson, QuizQuestion };
-export { toCourseAsset, toCourseHaccpCheck, toCourseHaccpUnit, toCourseStock };
+export type {
+  CourseAsset,
+  CourseCleaningRecord,
+  CourseCleaningTemplate,
+  CourseHaccpCheck,
+  CourseHaccpUnit,
+  CourseStock,
+  Lesson,
+  QuizQuestion,
+};
+export {
+  toCourseAsset,
+  toCourseCleaningRecord,
+  toCourseCleaningTemplate,
+  toCourseHaccpCheck,
+  toCourseHaccpUnit,
+  toCourseStock,
+};
 
 export interface CourseDef {
   slug: string;
@@ -70,6 +91,8 @@ export interface CourseDef {
   usesStock: boolean;
   /** True when the course reads the venue's own HACCP units and check times. */
   usesHaccp: boolean;
+  /** True when the course reads the venue's own cleaning records. */
+  usesCleaning: boolean;
 }
 
 export const COURSES: CourseDef[] = [
@@ -87,6 +110,7 @@ export const COURSES: CourseDef[] = [
     usesAssets: false,
     usesStock: false,
     usesHaccp: false,
+    usesCleaning: false,
   },
   {
     slug: "fire-safety-awareness",
@@ -104,6 +128,7 @@ export const COURSES: CourseDef[] = [
     usesAssets: true,
     usesStock: false,
     usesHaccp: false,
+    usesCleaning: false,
   },
   {
     slug: "manual-handling-awareness",
@@ -123,6 +148,7 @@ export const COURSES: CourseDef[] = [
     usesAssets: false,
     usesStock: true,
     usesHaccp: false,
+    usesCleaning: false,
   },
   {
     slug: "food-hygiene-awareness",
@@ -143,6 +169,27 @@ export const COURSES: CourseDef[] = [
     usesAssets: false,
     usesStock: false,
     usesHaccp: true,
+    usesCleaning: false,
+  },
+  {
+    slug: "cleaning-chemical-safety",
+    title: "Cleaning & chemical safety awareness",
+    summary:
+      "Two-stage cleaning, contact time, dilution, and the chemicals that must never meet \— checked against what your own cleaning records actually show.",
+    minutes: 20,
+    validMonths: 12,
+    passMark: 80,
+    // Deliberately OTHER. This is not a COSHH or chemical safety qualification,
+    // and in several countries handling hazardous substances carries its own
+    // required training. An in-house awareness record must not sit in the
+    // tracker looking like it satisfied that.
+    certCategory: "OTHER",
+    certTitle: "Cleaning & chemical safety awareness (in-house)",
+    usesMenu: false,
+    usesAssets: false,
+    usesStock: false,
+    usesHaccp: false,
+    usesCleaning: true,
   },
 ];
 
@@ -174,6 +221,14 @@ export interface CourseData {
    * so it does not need to be rebuildable from a ticket at grading time.
    */
   haccpChecks: CourseHaccpCheck[];
+  /** The venue's own cleaning, opening and closing check records. */
+  cleaning: CourseCleaningRecord[];
+  /**
+   * The venue's own customised cleaning checklists. Used by lessons only, never
+   * by the quiz \— so they are not carried on the ticket, and the paper still
+   * rebuilds identically at grading time.
+   */
+  cleaningTemplates: CourseCleaningTemplate[];
 }
 
 /** Narrow a Prisma dish row (with allergen columns) into what the course uses. */
@@ -241,6 +296,8 @@ export function lessonsFor(slug: string, data: CourseData): Lesson[] {
   if (slug === "manual-handling-awareness") return manualHandlingLessons(data.stock);
   if (slug === "food-hygiene-awareness")
     return foodHygieneLessons(data.haccp, data.haccpChecks);
+  if (slug === "cleaning-chemical-safety")
+    return cleaningLessons(data.cleaning, data.cleaningTemplates);
   if (slug !== "allergen-awareness") return [];
 
   const dishes = data.dishes;
@@ -556,6 +613,7 @@ export function buildQuiz(
   if (slug === "fire-safety-awareness") return fireQuiz(data.assets, seed);
   if (slug === "manual-handling-awareness") return manualHandlingQuiz(data.stock, seed);
   if (slug === "food-hygiene-awareness") return foodHygieneQuiz(data.haccp, seed);
+  if (slug === "cleaning-chemical-safety") return cleaningQuiz(data.cleaning, seed);
   if (slug !== "allergen-awareness") return [];
 
   const fromMenu = menuQuestions(data.dishes, seed);

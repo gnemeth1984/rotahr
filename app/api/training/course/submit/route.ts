@@ -23,6 +23,7 @@ import {
   toCourseAsset,
   toCourseStock,
   toCourseHaccpUnit,
+  toCourseCleaningRecord,
   buildQuiz,
   grade,
 } from "@/lib/training/courses";
@@ -124,11 +125,20 @@ export async function POST(req: NextRequest) {
     ? ticket.m.map((id) => byUnit.get(id)).filter(Boolean).map(toCourseHaccpUnit)
     : [];
 
-  // haccpChecks is deliberately empty: the schedule only ever fed a lesson, and
-  // lessons are not graded.
+  const cleaningRows = course.usesCleaning
+    ? await prisma.hACCPRecord.findMany({ where: { businessId, id: { in: ticket.m } } })
+    : [];
+  const byRecord = new Map(cleaningRows.map((r) => [r.id, r]));
+  const cleaning = course.usesCleaning
+    ? ticket.m.map((id) => byRecord.get(id)).filter(Boolean).map(toCourseCleaningRecord)
+    : [];
+
+  // haccpChecks and cleaningTemplates are deliberately empty: the check
+  // schedule and the venue's edited checklists only ever fed lessons, and
+  // lessons are not graded. Anything added here must also be on the ticket.
   const paper = buildQuiz(
     ticket.s,
-    { dishes, assets, stock, haccp, haccpChecks: [] },
+    { dishes, assets, stock, haccp, haccpChecks: [], cleaning, cleaningTemplates: [] },
     ticket.d
   );
   if (paper.length === 0) {

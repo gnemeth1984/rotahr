@@ -13,6 +13,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, requirePermission, isResponse } from "@/lib/auth/middleware";
 import { prisma } from "@/lib/db";
 import { COURSES } from "@/lib/training/courses";
+import { CLEANING_CHECK_TYPES } from "@/lib/training/kit";
 
 function addMonths(d: Date, months: number): Date {
   const out = new Date(d);
@@ -43,7 +44,8 @@ export async function GET(req: NextRequest) {
 
   // Menu and equipment readiness — course quality depends on both, so surface
   // them here rather than making somebody find out inside a lesson.
-  const [dishCount, checkedCount, assetCount, stockCount, haccpCount] = await Promise.all([
+  const [dishCount, checkedCount, assetCount, stockCount, haccpCount, cleaningCount] =
+    await Promise.all([
     prisma.dish.count({ where: { businessId, active: true } }),
     prisma.dish.count({
       where: { businessId, active: true, allergenCheckedAt: { not: null } },
@@ -51,7 +53,10 @@ export async function GET(req: NextRequest) {
     prisma.asset.count({ where: { businessId, status: { not: "retired" } } }),
     prisma.stockItem.count({ where: { businessId } }),
     prisma.hACCPEquipment.count({ where: { businessId } }),
-  ]);
+      prisma.hACCPRecord.count({
+        where: { businessId, checkType: { in: [...CLEANING_CHECK_TYPES] } },
+      }),
+    ]);
 
   const completions = await prisma.courseCompletion.findMany({
     where: { businessId, passed: true },
@@ -114,6 +119,7 @@ export async function GET(req: NextRequest) {
       usesAssets: c.usesAssets,
       usesStock: c.usesStock,
       usesHaccp: c.usesHaccp,
+      usesCleaning: c.usesCleaning,
       mine: {
         completedAt: mine?.completedAt ?? null,
         score: mine ? `${mine.score}/${mine.total}` : null,
@@ -134,5 +140,6 @@ export async function GET(req: NextRequest) {
     equipment: { assets: assetCount },
     stock: { items: stockCount },
     haccp: { units: haccpCount },
+    cleaning: { records: cleaningCount },
   });
 }
