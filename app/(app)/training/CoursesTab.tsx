@@ -13,7 +13,7 @@ import { useRouter } from "next/navigation";
 import {
   GraduationCap, Clock, CheckCircle2, AlertTriangle, Loader2,
   ChevronRight, Users, Utensils, Play, RotateCcw, Flame, PackageOpen, Thermometer,
-  SprayCan,
+  SprayCan, Truck,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -61,6 +61,7 @@ export default function CoursesTab({ onOpenMatrix }: { onOpenMatrix?: () => void
   const stock = data?.stock ?? { items: 0 };
   const haccp = data?.haccp ?? { units: 0 };
   const cleaning = data?.cleaning ?? { records: 0 };
+  const deliveries = data?.deliveries ?? { records: 0 };
 
   return (
     <div className="space-y-5">
@@ -143,6 +144,19 @@ export default function CoursesTab({ onOpenMatrix }: { onOpenMatrix?: () => void
         </div>
       )}
 
+      {courses.some((c: any) => c.usesDeliveries) && deliveries.records === 0 && (
+        <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <Truck className="h-4 w-4 mt-0.5 shrink-0" />
+          <div className="flex-1">
+            <strong>No delivery checks logged yet.</strong>{" "}
+            The deliveries course reads your own goods-in log under HACCP — who
+            delivered, what arrived, and the temperature it arrived at. The course runs
+            either way, and an empty log is its own lesson: nothing to show an inspector
+            and nothing to answer a recall with.
+          </div>
+        </div>
+      )}
+
       {courses.length === 0 && (
         <Card><CardContent className="py-10 text-center text-slate-500">
           No courses available yet.
@@ -187,6 +201,11 @@ export default function CoursesTab({ onOpenMatrix }: { onOpenMatrix?: () => void
                       {c.usesCleaning && (
                         <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
                           Uses your cleaning records
+                        </Badge>
+                      )}
+                      {c.usesDeliveries && (
+                        <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                          Uses your delivery records
                         </Badge>
                       )}
                     </div>

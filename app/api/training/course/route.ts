@@ -22,6 +22,7 @@ import {
   toCourseHaccpCheck,
   toCourseCleaningRecord,
   toCourseCleaningTemplate,
+  toCourseDelivery,
   buildQuiz,
   publicQuiz,
 } from "@/lib/training/courses";
@@ -119,8 +120,30 @@ export async function GET(req: NextRequest) {
     : [];
   const cleaningTemplates = templateRows.map(toCourseCleaningTemplate);
 
+  // Goods-in checks. What teaches here is not that a delivery was logged — it
+  // is whether the record could answer a recall: which supplier, what came in,
+  // and what temperature it arrived at. Missing fields stay missing; a blank
+  // temperature is a lesson, not something to fill in with a guess.
+  const deliveryRows = course.usesDeliveries
+    ? await prisma.hACCPRecord.findMany({
+        where: { businessId, checkType: "delivery" },
+        orderBy: [{ checkedAt: "desc" }],
+        take: 40,
+      })
+    : [];
+  const deliveries = deliveryRows.map(toCourseDelivery);
+
   const seed = freshSeed();
-  const data = { dishes, assets, stock, haccp, haccpChecks, cleaning, cleaningTemplates };
+  const data = {
+    dishes,
+    assets,
+    stock,
+    haccp,
+    haccpChecks,
+    cleaning,
+    cleaningTemplates,
+    deliveries,
+  };
   const paper = buildQuiz(slug, data, seed);
 
   const token = signTicket({
@@ -141,7 +164,9 @@ export async function GET(req: NextRequest) {
           ? haccp.map((u) => u.id)
           : course.usesCleaning
             ? cleaning.map((r) => r.id)
-            : dishes.map((d) => d.id),
+            : course.usesDeliveries
+              ? deliveries.map((d) => d.id)
+              : dishes.map((d) => d.id),
     t: Date.now(),
   });
 
@@ -158,6 +183,7 @@ export async function GET(req: NextRequest) {
       usesStock: course.usesStock,
       usesHaccp: course.usesHaccp,
       usesCleaning: course.usesCleaning,
+      usesDeliveries: course.usesDeliveries,
     },
     practice,
     trainee: practice
@@ -176,6 +202,10 @@ export async function GET(req: NextRequest) {
     cleaning: {
       records: cleaning.length,
       lastDeepClean: cleaning.find((r) => r.checkType === "cleaning_deep")?.checkedAt ?? null,
+    },
+    deliveries: {
+      records: deliveries.length,
+      missingTemp: deliveries.filter((d) => d.temp === null).length,
     },
   });
 }

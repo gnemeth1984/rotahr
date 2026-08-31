@@ -464,6 +464,72 @@ export function toCourseCleaningTemplate(row: any): CourseCleaningTemplate {
   };
 }
 
+// --------------------------------------------------------------------------- //
+// The venue's own delivery checks, as a course sees it
+// --------------------------------------------------------------------------- //
+
+/**
+ * A logged goods-in check.
+ *
+ * HACCPRecord.data for checkType "delivery" has been written by three different
+ * routes over the life of the module, so the shape varies: the manual form
+ * writes { supplier, deliveryTemp }, the older form adds { product, accepted,
+ * packagingCondition }, and the delivery-note scanner writes { items[],
+ * itemCount, invoiceUrl, invoiceDate }. Every field here is therefore optional
+ * and nothing is defaulted to a number — a missing temperature reads as null,
+ * which is the whole point of the strongest lesson in the course.
+ */
+export interface CourseDelivery {
+  id: string;
+  /** ISO date of the check itself. */
+  checkedAt: string;
+  supplier: string | null;
+  /** Degrees C as logged, or null when nobody recorded one. */
+  temp: number | null;
+  /** Line count, from itemCount or the items array. Null when neither exists. */
+  itemCount: number | null;
+  /** True when an invoice or delivery-note image is attached to the record. */
+  hasInvoice: boolean;
+  /** "good" | "damaged" | whatever the form wrote, or null. */
+  packagingCondition: string | null;
+  /** "pass" | "fail" | whatever the module wrote. */
+  status: string;
+  notes: string | null;
+}
+
+/** Narrow a Prisma HACCPRecord row (checkType "delivery") into course shape. */
+export function toCourseDelivery(row: any): CourseDelivery {
+  const data = row.data && typeof row.data === "object" ? row.data : {};
+  const d = data as any;
+
+  const rawTemp = d.deliveryTemp;
+  const temp = typeof rawTemp === "number" && Number.isFinite(rawTemp) ? rawTemp : null;
+
+  const items = Array.isArray(d.items) ? d.items : null;
+  const rawCount = typeof d.itemCount === "number" ? d.itemCount : null;
+  const itemCount = rawCount ?? (items ? items.length : null);
+
+  const supplier =
+    typeof d.supplier === "string" && d.supplier.trim() ? d.supplier.trim() : null;
+
+  const checkedAt = row.checkedAt ? new Date(row.checkedAt) : new Date(row.createdAt ?? Date.now());
+
+  return {
+    id: row.id,
+    checkedAt: checkedAt.toISOString(),
+    supplier,
+    temp,
+    itemCount,
+    hasInvoice: typeof d.invoiceUrl === "string" && d.invoiceUrl.length > 0,
+    packagingCondition:
+      typeof d.packagingCondition === "string" && d.packagingCondition.trim()
+        ? d.packagingCondition.trim()
+        : null,
+    status: (row.status ?? "").toString() || "unknown",
+    notes: typeof row.notes === "string" && row.notes.trim() ? row.notes.trim() : null,
+  };
+}
+
 export function niceDate(iso: string | null): string {
   if (!iso) return "no date recorded";
   return new Date(iso).toLocaleDateString("en-IE", {

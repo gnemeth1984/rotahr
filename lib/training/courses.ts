@@ -29,6 +29,7 @@ import {
   type CourseHaccpCheck,
   type CourseCleaningRecord,
   type CourseCleaningTemplate,
+  type CourseDelivery,
   type CourseHaccpUnit,
   type CourseStock,
   type Lesson,
@@ -37,11 +38,13 @@ import {
   toCourseAsset,
   toCourseCleaningRecord,
   toCourseCleaningTemplate,
+  toCourseDelivery,
   toCourseHaccpCheck,
   toCourseHaccpUnit,
   toCourseStock,
 } from "./kit";
 import { cleaningLessons, cleaningQuiz } from "./cleaning";
+import { deliveriesLessons, deliveriesQuiz } from "./deliveries";
 import { fireLessons, fireQuiz } from "./fire";
 import { foodHygieneLessons, foodHygieneQuiz } from "./food-hygiene";
 import { manualHandlingLessons, manualHandlingQuiz } from "./manual-handling";
@@ -53,6 +56,7 @@ export type {
   CourseAsset,
   CourseCleaningRecord,
   CourseCleaningTemplate,
+  CourseDelivery,
   CourseHaccpCheck,
   CourseHaccpUnit,
   CourseStock,
@@ -63,6 +67,7 @@ export {
   toCourseAsset,
   toCourseCleaningRecord,
   toCourseCleaningTemplate,
+  toCourseDelivery,
   toCourseHaccpCheck,
   toCourseHaccpUnit,
   toCourseStock,
@@ -93,6 +98,8 @@ export interface CourseDef {
   usesHaccp: boolean;
   /** True when the course reads the venue's own cleaning records. */
   usesCleaning: boolean;
+  /** True when the course reads the venue's own goods-in delivery records. */
+  usesDeliveries: boolean;
 }
 
 export const COURSES: CourseDef[] = [
@@ -111,6 +118,7 @@ export const COURSES: CourseDef[] = [
     usesStock: false,
     usesHaccp: false,
     usesCleaning: false,
+    usesDeliveries: false,
   },
   {
     slug: "fire-safety-awareness",
@@ -129,6 +137,7 @@ export const COURSES: CourseDef[] = [
     usesStock: false,
     usesHaccp: false,
     usesCleaning: false,
+    usesDeliveries: false,
   },
   {
     slug: "manual-handling-awareness",
@@ -149,6 +158,7 @@ export const COURSES: CourseDef[] = [
     usesStock: true,
     usesHaccp: false,
     usesCleaning: false,
+    usesDeliveries: false,
   },
   {
     slug: "food-hygiene-awareness",
@@ -170,6 +180,7 @@ export const COURSES: CourseDef[] = [
     usesStock: false,
     usesHaccp: true,
     usesCleaning: false,
+    usesDeliveries: false,
   },
   {
     slug: "cleaning-chemical-safety",
@@ -190,6 +201,28 @@ export const COURSES: CourseDef[] = [
     usesStock: false,
     usesHaccp: false,
     usesCleaning: true,
+    usesDeliveries: false,
+  },
+  {
+    slug: "deliveries-goods-in",
+    title: "Deliveries & goods-in awareness",
+    summary:
+      "The cold chain, arrival temperatures, when to refuse a load, and the traceability a delivery record has to leave behind — read against your own goods-in log.",
+    minutes: 20,
+    validMonths: 12,
+    passMark: 80,
+    // Deliberately OTHER, never HACCP or FOOD_SAFETY. Goods-in is a HACCP
+    // control point, so an in-house awareness record filed under HACCP would
+    // sit in the tracker beside real accredited rows looking like it satisfied
+    // that requirement. It does not.
+    certCategory: "OTHER",
+    certTitle: "Deliveries & goods-in awareness (in-house)",
+    usesMenu: false,
+    usesAssets: false,
+    usesStock: false,
+    usesHaccp: false,
+    usesCleaning: false,
+    usesDeliveries: true,
   },
 ];
 
@@ -229,6 +262,8 @@ export interface CourseData {
    * rebuilds identically at grading time.
    */
   cleaningTemplates: CourseCleaningTemplate[];
+  /** The venue's own goods-in delivery checks, newest first. */
+  deliveries: CourseDelivery[];
 }
 
 /** Narrow a Prisma dish row (with allergen columns) into what the course uses. */
@@ -298,6 +333,7 @@ export function lessonsFor(slug: string, data: CourseData): Lesson[] {
     return foodHygieneLessons(data.haccp, data.haccpChecks);
   if (slug === "cleaning-chemical-safety")
     return cleaningLessons(data.cleaning, data.cleaningTemplates);
+  if (slug === "deliveries-goods-in") return deliveriesLessons(data.deliveries);
   if (slug !== "allergen-awareness") return [];
 
   const dishes = data.dishes;
@@ -614,6 +650,7 @@ export function buildQuiz(
   if (slug === "manual-handling-awareness") return manualHandlingQuiz(data.stock, seed);
   if (slug === "food-hygiene-awareness") return foodHygieneQuiz(data.haccp, seed);
   if (slug === "cleaning-chemical-safety") return cleaningQuiz(data.cleaning, seed);
+  if (slug === "deliveries-goods-in") return deliveriesQuiz(data.deliveries, seed);
   if (slug !== "allergen-awareness") return [];
 
   const fromMenu = menuQuestions(data.dishes, seed);
