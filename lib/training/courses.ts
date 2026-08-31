@@ -62,6 +62,7 @@ import { fohAllergenLessons, fohAllergenQuiz } from "./foh-allergens";
 import { foodHygieneLessons, foodHygieneQuiz } from "./food-hygiene";
 import { haccpSystemLessons, haccpSystemQuiz } from "./haccp-system";
 import { manualHandlingLessons, manualHandlingQuiz } from "./manual-handling";
+import { openCloseLessons, openCloseQuiz } from "./open-close";
 import { privacyLessons, privacyQuiz } from "./privacy";
 import { stockCostLessons, stockCostQuiz } from "./stock-cost";
 import { workingTimeLessons, workingTimeQuiz } from "./working-time";
@@ -455,6 +456,35 @@ export const COURSES: CourseDef[] = [
     usesReservations: false,
     usesWastage: true,
   },
+  {
+    slug: "opening-closing-checks",
+    title: "Opening and closing the venue",
+    summary:
+      "The two routines that bracket every trading day: the walk before the doors open, the walk after the last guest leaves, what to do when a check fails, and why a half-ticked list saved as a pass is worth nothing. Read against your venue's own opening and closing records.",
+    minutes: 20,
+    validMonths: 12,
+    passMark: 80,
+    // OTHER, like every in-house course. There is no accredited opening and
+    // closing, key-holder or lock-up qualification this could be mistaken for,
+    // and nothing in the course is presented as one.
+    certCategory: "OTHER",
+    certTitle: "Opening and closing checks (in-house)",
+    usesMenu: false,
+    usesAssets: false,
+    usesStock: false,
+    // usesHaccp stays false deliberately. The signed ticket carries exactly one
+    // dataset in m, and haccp wins the branch order over cleaning in the course
+    // route, which would take the cleaning record ids off the ticket and leave
+    // the venue questions ungradable at submit time.
+    usesHaccp: false,
+    usesCleaning: true,
+    usesDeliveries: false,
+    usesCustomers: false,
+    usesShifts: false,
+    usesHaccpLogs: false,
+    usesReservations: false,
+    usesWastage: false,
+  },
 ];
 
 export function getCourse(slug: string): CourseDef | undefined {
@@ -616,6 +646,11 @@ export function lessonsFor(slug: string, data: CourseData): Lesson[] {
   // See the wastage field on CourseData for why that boundary exists.
   if (slug === "stock-waste-cost")
     return stockCostLessons(data.stock, data.wastage, data.currency);
+  // Records feed the graded questions, edited checklist templates feed the
+  // lessons only: a manager can add or remove a task mid-course, and a graded
+  // paper has to rebuild identically at submit time.
+  if (slug === "opening-closing-checks")
+    return openCloseLessons(data.cleaning, data.cleaningTemplates);
   if (slug !== "allergen-awareness") return [];
 
   const dishes = data.dishes;
@@ -944,6 +979,9 @@ export function buildQuiz(
   // Stock only \— stock ids already ride on the ticket, so this paper rebuilds
   // identically at grading time without carrying any waste line.
   if (slug === "stock-waste-cost") return stockCostQuiz(data.stock, seed, data.currency);
+  // Cleaning records only \— their ids already ride on the ticket, so this
+  // paper rebuilds identically at grading time. Templates are never read here.
+  if (slug === "opening-closing-checks") return openCloseQuiz(data.cleaning, seed);
   if (slug !== "allergen-awareness") return [];
 
   const fromMenu = menuQuestions(data.dishes, seed);
