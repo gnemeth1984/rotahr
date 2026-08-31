@@ -27,12 +27,14 @@ import {
   toCourseDelivery,
   toCourseReservation,
   toCourseShift,
+  toCourseWastage,
   toCourseClock,
   buildQuiz,
   publicQuiz,
 } from "@/lib/training/courses";
 import { signTicket, freshSeed } from "@/lib/training/quiz-token";
 import { CLEANING_CHECK_TYPES } from "@/lib/training/kit";
+import { getCurrencySymbol } from "@/lib/currency";
 
 export async function GET(req: NextRequest) {
   const session = await requireAuth();
@@ -206,6 +208,29 @@ export async function GET(req: NextRequest) {
     : [];
   const reservations = reservationRows.map(toCourseReservation);
 
+  // The venue's own waste log. Read by the lessons only, exactly like the
+  // bookings above: a waste line can be logged, corrected or deleted while
+  // somebody is mid-course, so grading against it would be grading against a
+  // moving target. toCourseWastage drops recordedBy and reads the detail field
+  // as presence only \— a cost course that named who logged a line would become
+  // a blame sheet, and staff would stop logging waste at all, which destroys the
+  // only data the venue has about where its margin goes.
+  const wastageRows = course.usesWastage
+    ? await prisma.wastageRecord.findMany({
+        where: { businessId },
+        orderBy: [{ date: "desc" }],
+        take: 200,
+      })
+    : [];
+  const wastage = wastageRows.map(toCourseWastage);
+
+  // Course copy that prints money prints it in the venue's own currency.
+  const bizRow = await prisma.business.findUnique({
+    where: { id: businessId },
+    select: { currency: true },
+  });
+  const currency = getCurrencySymbol(bizRow?.currency ?? "EUR");
+
   // Clock events are counted, not listed: how many people clocked in, whether
   // anybody ever clocked out, and whether a break was ever recorded. The
   // counts ride on the ticket rather than being re-read at submit time.
@@ -233,6 +258,8 @@ export async function GET(req: NextRequest) {
     shifts,
     clock,
     reservations,
+    wastage,
+    currency,
   };
   const paper = buildQuiz(slug, data, seed);
 
@@ -288,6 +315,7 @@ export async function GET(req: NextRequest) {
       usesShifts: course.usesShifts,
       usesHaccpLogs: course.usesHaccpLogs,
       usesReservations: course.usesReservations,
+      usesWastage: course.usesWastage,
     },
     practice,
     trainee: practice
@@ -322,6 +350,11 @@ export async function GET(req: NextRequest) {
       total: shifts.length,
       people: new Set(shifts.map((sh) => sh.employeeId).filter(Boolean)).size,
       breaksRecorded: clock.breakStarts,
+    },
+    wastage: {
+      lines: wastage.length,
+      costed: wastage.filter((w) => w.totalCost !== null).length,
+      withReason: wastage.filter((w) => w.reason).length,
     },
     reservations: {
       total: reservations.length,

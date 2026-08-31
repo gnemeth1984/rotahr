@@ -34,6 +34,7 @@ import {
 } from "@/lib/training/courses";
 import { verifyTicket } from "@/lib/training/quiz-token";
 import { logActivity } from "@/lib/services/activity.service";
+import { getCurrencySymbol } from "@/lib/currency";
 
 function addMonths(d: Date, months: number): Date {
   const out = new Date(d);
@@ -223,6 +224,12 @@ export async function POST(req: NextRequest) {
   // is empty for every course except the HACCP system course, which grades
   // against it and carries the ids on the ticket. Anything added here must also
   // be on the ticket.
+  const bizRow = await prisma.business.findUnique({
+    where: { id: businessId },
+    select: { currency: true },
+  });
+  const currency = getCurrencySymbol(bizRow?.currency ?? "EUR");
+
   const paper = buildQuiz(
     ticket.s,
     {
@@ -235,6 +242,11 @@ export async function POST(req: NextRequest) {
       cleaning,
       cleaningTemplates: [],
       reservations: [],
+      // Same reasoning for the waste log: lessons only, never graded, so it is
+      // not on the ticket and does not need to be rebuilt here. A line logged
+      // or deleted mid-course cannot move the paper being graded.
+      wastage: [],
+      currency,
       deliveries,
       customers,
       shifts,

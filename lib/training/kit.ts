@@ -128,6 +128,22 @@ export interface CourseStock {
   keg: boolean;
   /** Worth a team lift, a trolley or a decant. */
   heavy: boolean;
+  /**
+   * What one pack last cost, from the venue's own most recent invoice figure.
+   * Null when nobody has ever priced the line — which is itself a lesson, so
+   * never substitute an average or a guess.
+   */
+  packPrice: number | null;
+  /** Size of one pack in packUnit, when recorded. */
+  packSize: number | null;
+  /** The unit a pack is measured in — kg, litre, each. Lower case, when recorded. */
+  packUnit: string | null;
+  /** How many packs the venue believes it is holding right now. */
+  currentStock: number | null;
+  /** The par level the venue set for this line, when it set one. */
+  reorderLevel: number | null;
+  /** True when currentStock has reached or fallen through reorderLevel. */
+  atOrBelow: boolean;
 }
 
 function round1(n: number): number {
@@ -186,7 +202,23 @@ export function toCourseStock(row: any): CourseStock {
     litres: litres === null ? null : round1(litres),
     keg,
     heavy,
+    packPrice: num(row.lastPrice),
+    packSize,
+    packUnit: packUnit || null,
+    currentStock: num(row.currentStock),
+    reorderLevel: num(row.reorderLevel),
+    atOrBelow:
+      num(row.currentStock) !== null &&
+      num(row.reorderLevel) !== null &&
+      Number(row.currentStock) <= Number(row.reorderLevel),
   };
+}
+
+/** A finite number or null. Never a zero standing in for "not recorded". */
+function num(v: any): number | null {
+  if (v === null || v === undefined) return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
 }
 
 /** "20 kg", "50 L", or null when the venue never recorded a figure. */
@@ -801,5 +833,108 @@ export function toCourseReservation(row: any): CourseReservation {
     hasNotes: typeof row.notes === "string" && row.notes.trim().length > 0,
     hasKitchenNotes: typeof row.kitchenNotes === "string" && row.kitchenNotes.trim().length > 0,
     menuRequired: Boolean(row.menuRequired),
+  };
+}
+
+// --------------------------------------------------------------------------- //
+// The venue's own waste log, as a course sees it
+// --------------------------------------------------------------------------- //
+
+/** Reason codes the app writes, mapped to something a lesson can say out loud. */
+export const WASTE_REASONS: Record<string, string> = {
+  expiry: "out of date",
+  spoilage: "spoiled",
+  "over-prep": "over-prepped",
+  overprep: "over-prepped",
+  spill: "spilled or broken",
+  breakage: "spilled or broken",
+  prep: "prep trim",
+  "wrong-order": "wrongly made",
+  return: "sent back by a guest",
+  staff: "staff food or drink",
+  comp: "comped to a guest",
+  other: "other",
+};
+
+/** What each reason code actually points at. The reason column is the lesson. */
+export const WASTE_CAUSES: Record<string, string> = {
+  expiry: "ordering and rotation",
+  spoilage: "storage, temperature or rotation",
+  "over-prep": "forecasting and prep quantities",
+  overprep: "forecasting and prep quantities",
+  spill: "handling and training",
+  breakage: "handling and training",
+  prep: "butchery, yield and specification",
+  "wrong-order": "kitchen consistency and communication",
+  return: "consistency, portioning or specification",
+  staff: "staff food policy",
+  comp: "service recovery, not the kitchen",
+  other: "unclassified — the code was left blank",
+};
+
+export function wasteReasonLabel(code: string): string {
+  const key = (code ?? "").toString().trim().toLowerCase();
+  return WASTE_REASONS[key] ?? key.replace(/[-_]+/g, " ") ?? "unclassified";
+}
+
+export function wasteCauseLabel(code: string): string {
+  const key = (code ?? "").toString().trim().toLowerCase();
+  return WASTE_CAUSES[key] ?? "worth asking what this code really means";
+}
+
+/**
+ * One line off the venue's own wastage log, as the stock and food cost course
+ * reads it.
+ *
+ * One hard exclusion, and it is the whole reason this shape exists rather than
+ * the raw row being passed through: `recordedBy` is never read, and neither is
+ * the free-text `notes` field.
+ *
+ * A cost control course that printed "Tommy logged 51 euro of salmon on the
+ * 29th" stops being a cost control course the moment somebody reads it. It
+ * becomes a blame sheet, and the predictable response is that staff quietly bin
+ * things instead of logging them — which destroys the only data the venue has
+ * about where its margin is going. Rotahr's own published wastage log guidance
+ * says the same thing in different words: make it easy to log and it gets
+ * logged. On top of that, a course completion keeps a snapshot of what the
+ * course read for years, so a name printed here would outlive the employment.
+ *
+ * `itemName` IS printed. A stock line is venue property, exactly like an
+ * equipment name or a supplier name, and the course is useless without it —
+ * "one item is 53 percent of your waste" teaches nothing if you cannot say
+ * which item.
+ */
+export interface CourseWastage {
+  id: string;
+  /** ISO date the waste was logged against. */
+  date: string;
+  /** The stock line, named. Venue property, not personal data. */
+  itemName: string;
+  /** Link back to the stock list, when the row was logged against a line. */
+  stockItemId: string | null;
+  quantity: number;
+  unit: string;
+  /** What the wasted quantity cost at cost price, when the venue costed it. */
+  totalCost: number | null;
+  /** The raw reason code, lower case. Empty string when nobody chose one. */
+  reason: string;
+  /** Whether a line of detail was written. Presence only, never the text. */
+  hasNotes: boolean;
+}
+
+/** Narrow a Prisma WastageRecord row into what a course uses. */
+export function toCourseWastage(row: any): CourseWastage {
+  const when = row.date ? new Date(row.date) : new Date(row.createdAt ?? Date.now());
+  const cost = num(row.totalCost);
+  return {
+    id: row.id,
+    date: when.toISOString(),
+    itemName: (row.itemName ?? "").toString().trim() || "unnamed item",
+    stockItemId: row.stockItemId ?? null,
+    quantity: num(row.quantity) ?? 0,
+    unit: (row.unit ?? "unit").toString(),
+    totalCost: cost === null ? null : Math.round(cost * 100) / 100,
+    reason: (row.reason ?? "").toString().trim().toLowerCase(),
+    hasNotes: typeof row.notes === "string" && row.notes.trim().length > 0,
   };
 }

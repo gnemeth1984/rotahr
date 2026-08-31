@@ -37,6 +37,7 @@ import {
   type CourseReservation,
   type CourseShift,
   type CourseStock,
+  type CourseWastage,
   type Lesson,
   type QuizQuestion,
   shuffled,
@@ -52,6 +53,7 @@ import {
   toCourseReservation,
   toCourseShift,
   toCourseStock,
+  toCourseWastage,
 } from "./kit";
 import { cleaningLessons, cleaningQuiz } from "./cleaning";
 import { deliveriesLessons, deliveriesQuiz } from "./deliveries";
@@ -61,6 +63,7 @@ import { foodHygieneLessons, foodHygieneQuiz } from "./food-hygiene";
 import { haccpSystemLessons, haccpSystemQuiz } from "./haccp-system";
 import { manualHandlingLessons, manualHandlingQuiz } from "./manual-handling";
 import { privacyLessons, privacyQuiz } from "./privacy";
+import { stockCostLessons, stockCostQuiz } from "./stock-cost";
 import { workingTimeLessons, workingTimeQuiz } from "./working-time";
 
 // Shapes and helpers live in kit.ts so course content files can import them
@@ -79,6 +82,7 @@ export type {
   CourseReservation,
   CourseShift,
   CourseStock,
+  CourseWastage,
   Lesson,
   QuizQuestion,
 };
@@ -95,6 +99,7 @@ export {
   toCourseReservation,
   toCourseShift,
   toCourseStock,
+  toCourseWastage,
 };
 
 export interface CourseDef {
@@ -151,6 +156,12 @@ export interface CourseDef {
    * read the CourseReservation doc comment in kit.ts before touching this.
    */
   usesReservations: boolean;
+  /**
+   * True when the course reads the venue's own wastage log. Lessons only, never
+   * the quiz, and never who logged a line \— read the CourseWastage doc comment
+   * in kit.ts before touching this.
+   */
+  usesWastage: boolean;
 }
 
 export const COURSES: CourseDef[] = [
@@ -177,6 +188,7 @@ export const COURSES: CourseDef[] = [
     usesShifts: false,
     usesHaccpLogs: false,
     usesReservations: false,
+    usesWastage: false,
   },
   {
     slug: "fire-safety-awareness",
@@ -200,6 +212,7 @@ export const COURSES: CourseDef[] = [
     usesShifts: false,
     usesHaccpLogs: false,
     usesReservations: false,
+    usesWastage: false,
   },
   {
     slug: "manual-handling-awareness",
@@ -225,6 +238,7 @@ export const COURSES: CourseDef[] = [
     usesShifts: false,
     usesHaccpLogs: false,
     usesReservations: false,
+    usesWastage: false,
   },
   {
     slug: "food-hygiene-awareness",
@@ -251,6 +265,7 @@ export const COURSES: CourseDef[] = [
     usesShifts: false,
     usesHaccpLogs: false,
     usesReservations: false,
+    usesWastage: false,
   },
   {
     slug: "cleaning-chemical-safety",
@@ -276,6 +291,7 @@ export const COURSES: CourseDef[] = [
     usesShifts: false,
     usesHaccpLogs: false,
     usesReservations: false,
+    usesWastage: false,
   },
   {
     slug: "deliveries-goods-in",
@@ -301,6 +317,7 @@ export const COURSES: CourseDef[] = [
     usesShifts: false,
     usesHaccpLogs: false,
     usesReservations: false,
+    usesWastage: false,
   },
   {
     slug: "guest-data-privacy",
@@ -327,6 +344,7 @@ export const COURSES: CourseDef[] = [
     usesShifts: false,
     usesHaccpLogs: false,
     usesReservations: false,
+    usesWastage: false,
   },
   {
     slug: "working-time-breaks",
@@ -354,6 +372,7 @@ export const COURSES: CourseDef[] = [
     usesShifts: true,
     usesHaccpLogs: false,
     usesReservations: false,
+    usesWastage: false,
   },
   {
     slug: "haccp-system-awareness",
@@ -383,6 +402,7 @@ export const COURSES: CourseDef[] = [
     usesShifts: false,
     usesHaccpLogs: true,
     usesReservations: false,
+    usesWastage: false,
   },
   {
     slug: "foh-allergen-service",
@@ -407,6 +427,33 @@ export const COURSES: CourseDef[] = [
     usesShifts: false,
     usesHaccpLogs: false,
     usesReservations: true,
+    usesWastage: false,
+  },
+  {
+    slug: "stock-waste-cost",
+    title: "Stock, waste and food cost control",
+    summary:
+      "Where the margin actually goes \— pack price against portion cost, the reason code beside every waste line, par levels and portion drift \— read against your own stock list and your own waste log.",
+    minutes: 25,
+    validMonths: 12,
+    passMark: 80,
+    // OTHER, like every in-house course. There is no accredited food cost
+    // qualification this could be confused with, and this one is not a
+    // compliance course at all \— it is a margin course. It still gets filed as
+    // in-house training and never alongside an awarding body's certificate.
+    certCategory: "OTHER",
+    certTitle: "Stock, waste and food cost control (in-house)",
+    usesMenu: false,
+    usesAssets: false,
+    usesStock: true,
+    usesHaccp: false,
+    usesCleaning: false,
+    usesDeliveries: false,
+    usesCustomers: false,
+    usesShifts: false,
+    usesHaccpLogs: false,
+    usesReservations: false,
+    usesWastage: true,
   },
 ];
 
@@ -473,6 +520,19 @@ export interface CourseData {
    * Read the CourseReservation doc comment in kit.ts before adding a field.
    */
   reservations: CourseReservation[];
+  /**
+   * The venue's own wastage log, newest first. Used by lessons only, never by
+   * the quiz \— a waste line can be logged, corrected or deleted while somebody
+   * is mid-course, so grading against it would be grading against a moving
+   * target. Never carries who logged it: see CourseWastage in kit.ts.
+   */
+  wastage: CourseWastage[];
+  /**
+   * The venue's own currency symbol. Course copy that prints money has to print
+   * it in the money the venue actually spends, and Rotahr runs in five
+   * currencies. Defaults to the euro symbol when a venue has none set.
+   */
+  currency: string;
 }
 
 /** Narrow a Prisma dish row (with allergen columns) into what the course uses. */
@@ -552,6 +612,10 @@ export function lessonsFor(slug: string, data: CourseData): Lesson[] {
   // reservations field on CourseData for why that boundary exists.
   if (slug === "foh-allergen-service")
     return fohAllergenLessons(data.dishes, data.reservations);
+  // Stock feeds the graded questions, the waste log feeds the lessons only.
+  // See the wastage field on CourseData for why that boundary exists.
+  if (slug === "stock-waste-cost")
+    return stockCostLessons(data.stock, data.wastage, data.currency);
   if (slug !== "allergen-awareness") return [];
 
   const dishes = data.dishes;
@@ -877,6 +941,9 @@ export function buildQuiz(
   // Dishes only \— dish ids already ride on the ticket, so this paper rebuilds
   // identically at grading time without carrying any booking data.
   if (slug === "foh-allergen-service") return fohAllergenQuiz(data.dishes, seed);
+  // Stock only \— stock ids already ride on the ticket, so this paper rebuilds
+  // identically at grading time without carrying any waste line.
+  if (slug === "stock-waste-cost") return stockCostQuiz(data.stock, seed, data.currency);
   if (slug !== "allergen-awareness") return [];
 
   const fromMenu = menuQuestions(data.dishes, seed);

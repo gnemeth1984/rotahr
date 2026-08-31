@@ -58,6 +58,8 @@ export async function GET(req: NextRequest) {
     haccpLogCount,
     haccpFailCount,
     dietaryCount,
+    wastageCount,
+    wastageCostedCount,
   ] = await Promise.all([
     prisma.dish.count({ where: { businessId, active: true } }),
     prisma.dish.count({
@@ -85,6 +87,15 @@ export async function GET(req: NextRequest) {
       // surfacing before somebody opens the course. Count only \— no guest text.
       prisma.reservation.count({
         where: { businessId, dietary: { not: null } },
+      }),
+      // Waste lines the venue has actually logged, and how many of them carry a
+      // cost. The stock and food cost course builds its sharpest lessons from
+      // these two numbers, and a venue with stock but an empty waste log has no
+      // idea where its margin goes, which is worth saying before the course
+      // starts. Counts only, never who logged the line.
+      prisma.wastageRecord.count({ where: { businessId } }),
+      prisma.wastageRecord.count({
+        where: { businessId, totalCost: { not: null } },
       }),
     ]);
 
@@ -179,5 +190,6 @@ export async function GET(req: NextRequest) {
     customers: { profiles: customerCount },
     shifts: { total: shiftCount, breaksRecorded: breakCount },
     reservations: { withDietary: dietaryCount },
+    wastage: { lines: wastageCount, costed: wastageCostedCount },
   });
 }

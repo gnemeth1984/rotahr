@@ -87,6 +87,7 @@ export default function CoursesTab({
   const customers = data?.customers ?? { profiles: 0 };
   const shifts = data?.shifts ?? { total: 0, breaksRecorded: 0 };
   const reservations = data?.reservations ?? { withDietary: 0 };
+  const wastage = data?.wastage ?? { lines: 0, costed: 0 };
 
   return (
     <div className="space-y-5">
@@ -176,6 +177,40 @@ export default function CoursesTab({
           </div>
         </div>
       )}
+
+      {courses.some((c: any) => c.usesWastage) && wastage.lines === 0 && (
+        <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <PackageOpen className="h-4 w-4 mt-0.5 shrink-0" />
+          <div className="flex-1">
+            <strong>Nothing has been logged as waste yet.</strong>{" "}
+            The stock, waste and food cost course reads your own waste log under
+            Stock — what went in the bin, what it cost, and which reason was given.
+            It reads item names and money only, never who logged the line. The
+            course runs either way, and an empty log is its own lesson: waste
+            nobody writes down still comes off the margin, it just does it where
+            nobody can see it.
+          </div>
+        </div>
+      )}
+
+      {courses.some((c: any) => c.usesWastage) &&
+        wastage.lines > 0 &&
+        wastage.costed === 0 && (
+          <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+            <div className="flex-1">
+              <strong>
+                {wastage.lines} waste{" "}
+                {wastage.lines === 1 ? "line" : "lines"} logged, none with a cost
+                on it.
+              </strong>{" "}
+              A waste log without money on it tells you what was thrown out but
+              not what it was worth, so it cannot tell you which item to fix
+              first. Put a price on the stock items you waste most and the course
+              starts naming the real figure.
+            </div>
+          </div>
+        )}
 
       {courses.some((c: any) => c.usesHaccp) && haccp.units === 0 && (
         <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
