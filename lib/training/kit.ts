@@ -328,6 +328,79 @@ export function toCourseHaccpCheck(row: any): CourseHaccpCheck {
 }
 
 // --------------------------------------------------------------------------- //
+// The venue's own monitoring log, as a course sees it
+// --------------------------------------------------------------------------- //
+
+/**
+ * One logged HACCP check, narrowed for a course.
+ *
+ * This carries the reading and the unit or supplier the record names. Equipment
+ * and suppliers are the venue's own property, not people, so printing "Main
+ * Walk-In Fridge" in a lesson is safe and useful. What never travels is who
+ * logged it: a course that printed "Tommy logged this at 6°C and passed it" on
+ * a page every colleague opens — and then froze that into the stored completion
+ * snapshot forever — would be issuing a disciplinary, not teaching. There is no
+ * checkedById here on purpose.
+ */
+export interface CourseHaccpLog {
+  checkType: string;
+  /** "Fridge / cold room temperatures" */
+  label: string;
+  /** ISO date string. */
+  checkedAt: string;
+  /** "pass" | "fail" | whatever the module wrote. */
+  status: string;
+  /** The numeric reading the record carried, if any. */
+  reading: number | null;
+  /** Which field the reading came from — "temp", "coreTemp", "endTemp", "deliveryTemp". */
+  readingKind: string | null;
+  /** The unit or supplier named on the record. Never a person. */
+  subject: string | null;
+  /** True when somebody wrote something in the notes field. */
+  hasNotes: boolean;
+  /** How many checklist items were ticked, for the tick-list check types. */
+  tickedCount: number;
+}
+
+/** Narrow a Prisma HACCPRecord row into what a course uses. */
+export function toCourseHaccpLog(row: any): CourseHaccpLog {
+  const checkType: string = row.checkType ?? "";
+  const data = row.data && typeof row.data === "object" ? row.data : {};
+
+  // The module writes the reading under a different key per check type.
+  const keys = ["temp", "coreTemp", "endTemp", "deliveryTemp"];
+  let reading: number | null = null;
+  let readingKind: string | null = null;
+  for (const k of keys) {
+    const v = (data as any)[k];
+    if (typeof v === "number" && Number.isFinite(v)) {
+      reading = v;
+      readingKind = k;
+      break;
+    }
+  }
+
+  const subjectRaw =
+    (data as any).equipment ?? (data as any).supplier ?? (data as any).item ?? null;
+  const items = Array.isArray((data as any).items) ? (data as any).items : [];
+
+  const checkedAt = row.checkedAt instanceof Date ? row.checkedAt : new Date(row.checkedAt);
+
+  return {
+    checkType,
+    label: HACCP_CHECK_LABELS[checkType] ?? checkType.replace(/_/g, " "),
+    checkedAt: checkedAt.toISOString(),
+    status: (row.status ?? "").toString() || "unknown",
+    reading,
+    readingKind,
+    subject:
+      typeof subjectRaw === "string" && subjectRaw.trim() ? subjectRaw.trim() : null,
+    hasNotes: typeof row.notes === "string" && row.notes.trim().length > 0,
+    tickedCount: items.length,
+  };
+}
+
+// --------------------------------------------------------------------------- //
 // The venue's own cleaning records, as a course sees it
 // --------------------------------------------------------------------------- //
 

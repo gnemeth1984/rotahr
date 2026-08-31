@@ -45,6 +45,19 @@ export interface QuizTicket {
     breakEnds: number;
     latest: string | null;
   };
+  /**
+   * Schedule ids the paper was built from, for a course whose questions read the
+   * monitoring schedule as well as the register. m already carries the unit ids,
+   * and only one list fits there, so a second graded list needs its own field.
+   * Optional: every other course leaves it out.
+   */
+  k?: string[];
+  /**
+   * Logged HACCP record ids the paper was built from, in order, for the same
+   * reason as k. A check logged between the GET and the POST must not be able to
+   * change a question the trainee has already answered.
+   */
+  l?: string[];
   /** Issued at, epoch ms. */
   t: number;
 }

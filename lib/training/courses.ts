@@ -28,6 +28,7 @@ import {
   type CourseAsset,
   type CourseClock,
   type CourseHaccpCheck,
+  type CourseHaccpLog,
   type CourseCleaningRecord,
   type CourseCleaningTemplate,
   type CourseCustomer,
@@ -45,6 +46,7 @@ import {
   toCourseCustomer,
   toCourseDelivery,
   toCourseHaccpCheck,
+  toCourseHaccpLog,
   toCourseHaccpUnit,
   toCourseShift,
   toCourseStock,
@@ -53,6 +55,7 @@ import { cleaningLessons, cleaningQuiz } from "./cleaning";
 import { deliveriesLessons, deliveriesQuiz } from "./deliveries";
 import { fireLessons, fireQuiz } from "./fire";
 import { foodHygieneLessons, foodHygieneQuiz } from "./food-hygiene";
+import { haccpSystemLessons, haccpSystemQuiz } from "./haccp-system";
 import { manualHandlingLessons, manualHandlingQuiz } from "./manual-handling";
 import { privacyLessons, privacyQuiz } from "./privacy";
 import { workingTimeLessons, workingTimeQuiz } from "./working-time";
@@ -68,6 +71,7 @@ export type {
   CourseCustomer,
   CourseDelivery,
   CourseHaccpCheck,
+  CourseHaccpLog,
   CourseHaccpUnit,
   CourseShift,
   CourseStock,
@@ -82,6 +86,7 @@ export {
   toCourseCustomer,
   toCourseDelivery,
   toCourseHaccpCheck,
+  toCourseHaccpLog,
   toCourseHaccpUnit,
   toCourseShift,
   toCourseStock,
@@ -126,6 +131,14 @@ export interface CourseDef {
    * name — see CourseShift in kit.ts for why that matters.
    */
   usesShifts: boolean;
+  /**
+   * True when the course reads the venue's own logged HACCP checks — the
+   * readings, the passes and fails, and how long ago each was written. Shape
+   * and reading only: never who logged it, see CourseHaccpLog in kit.ts. Kept
+   * separate from usesHaccp so a course can read the register and the schedule
+   * without pulling hundreds of records it does not teach from.
+   */
+  usesHaccpLogs: boolean;
 }
 
 export const COURSES: CourseDef[] = [
@@ -150,6 +163,7 @@ export const COURSES: CourseDef[] = [
     usesDeliveries: false,
     usesCustomers: false,
     usesShifts: false,
+    usesHaccpLogs: false,
   },
   {
     slug: "fire-safety-awareness",
@@ -171,6 +185,7 @@ export const COURSES: CourseDef[] = [
     usesDeliveries: false,
     usesCustomers: false,
     usesShifts: false,
+    usesHaccpLogs: false,
   },
   {
     slug: "manual-handling-awareness",
@@ -194,6 +209,7 @@ export const COURSES: CourseDef[] = [
     usesDeliveries: false,
     usesCustomers: false,
     usesShifts: false,
+    usesHaccpLogs: false,
   },
   {
     slug: "food-hygiene-awareness",
@@ -218,6 +234,7 @@ export const COURSES: CourseDef[] = [
     usesDeliveries: false,
     usesCustomers: false,
     usesShifts: false,
+    usesHaccpLogs: false,
   },
   {
     slug: "cleaning-chemical-safety",
@@ -241,6 +258,7 @@ export const COURSES: CourseDef[] = [
     usesDeliveries: false,
     usesCustomers: false,
     usesShifts: false,
+    usesHaccpLogs: false,
   },
   {
     slug: "deliveries-goods-in",
@@ -264,6 +282,7 @@ export const COURSES: CourseDef[] = [
     usesDeliveries: true,
     usesCustomers: false,
     usesShifts: false,
+    usesHaccpLogs: false,
   },
   {
     slug: "guest-data-privacy",
@@ -288,6 +307,7 @@ export const COURSES: CourseDef[] = [
     usesDeliveries: false,
     usesCustomers: true,
     usesShifts: false,
+    usesHaccpLogs: false,
   },
   {
     slug: "working-time-breaks",
@@ -313,6 +333,35 @@ export const COURSES: CourseDef[] = [
     usesDeliveries: false,
     usesCustomers: false,
     usesShifts: true,
+    usesHaccpLogs: false,
+  },
+  {
+    slug: "haccp-system-awareness",
+    title: "Your food safety management system (HACCP)",
+    summary:
+      "What a food safety management system actually is, the seven principles, why a step becomes a critical control point, and what a monitoring record has to be able to prove \— read against your own units, your own check times and your own logged checks.",
+    minutes: 25,
+    validMonths: 12,
+    passMark: 80,
+    // OTHER, and this one matters more than the rest. "HACCP" has an accredited
+    // meaning \— QQI Level 1/2/3 Food Safety (HACCP) in Ireland, and venues
+    // store those as real TrainingCertification rows with certCategory "HACCP".
+    // Filing an in-house awareness record under that category would put it in
+    // the same pile as the accredited article on the Certificates tab, which is
+    // exactly the confusion an inspector would punish. It files as OTHER, and
+    // the course copy says on its face that it does not replace the real
+    // qualification. See the header of lib/training/haccp-system.ts.
+    certCategory: "OTHER",
+    certTitle: "Food safety management system (HACCP) awareness (in-house)",
+    usesMenu: false,
+    usesAssets: false,
+    usesStock: false,
+    usesHaccp: true,
+    usesCleaning: false,
+    usesDeliveries: false,
+    usesCustomers: false,
+    usesShifts: false,
+    usesHaccpLogs: true,
   },
 ];
 
@@ -344,6 +393,11 @@ export interface CourseData {
    * so it does not need to be rebuildable from a ticket at grading time.
    */
   haccpChecks: CourseHaccpCheck[];
+  /**
+   * The venue's own logged HACCP checks, newest first. Readings, pass/fail and
+   * the unit or supplier named on the record \— never who logged it.
+   */
+  haccpLogs: CourseHaccpLog[];
   /** The venue's own cleaning, opening and closing check records. */
   cleaning: CourseCleaningRecord[];
   /**
@@ -433,6 +487,8 @@ export function lessonsFor(slug: string, data: CourseData): Lesson[] {
   if (slug === "manual-handling-awareness") return manualHandlingLessons(data.stock);
   if (slug === "food-hygiene-awareness")
     return foodHygieneLessons(data.haccp, data.haccpChecks);
+  if (slug === "haccp-system-awareness")
+    return haccpSystemLessons(data.haccp, data.haccpChecks, data.haccpLogs);
   if (slug === "cleaning-chemical-safety")
     return cleaningLessons(data.cleaning, data.cleaningTemplates);
   if (slug === "deliveries-goods-in") return deliveriesLessons(data.deliveries);
@@ -754,6 +810,8 @@ export function buildQuiz(
   if (slug === "fire-safety-awareness") return fireQuiz(data.assets, seed);
   if (slug === "manual-handling-awareness") return manualHandlingQuiz(data.stock, seed);
   if (slug === "food-hygiene-awareness") return foodHygieneQuiz(data.haccp, seed);
+  if (slug === "haccp-system-awareness")
+    return haccpSystemQuiz(data.haccp, data.haccpChecks, data.haccpLogs, seed);
   if (slug === "cleaning-chemical-safety") return cleaningQuiz(data.cleaning, seed);
   if (slug === "deliveries-goods-in") return deliveriesQuiz(data.deliveries, seed);
   if (slug === "guest-data-privacy") return privacyQuiz(data.customers, seed);

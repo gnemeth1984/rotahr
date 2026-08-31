@@ -55,6 +55,8 @@ export async function GET(req: NextRequest) {
     customerCount,
     shiftCount,
     breakCount,
+    haccpLogCount,
+    haccpFailCount,
   ] = await Promise.all([
     prisma.dish.count({ where: { businessId, active: true } }),
     prisma.dish.count({
@@ -72,6 +74,11 @@ export async function GET(req: NextRequest) {
       // through the venue's own staff.
       prisma.shift.count({ where: { employee: { businessId } } }),
       prisma.clockEvent.count({ where: { businessId, type: "break_start" } }),
+      // Every logged HACCP check, not just the cleaning ones. The HACCP system
+      // course teaches from the log as evidence, so an empty log is the thing
+      // worth surfacing before somebody opens the course.
+      prisma.hACCPRecord.count({ where: { businessId } }),
+      prisma.hACCPRecord.count({ where: { businessId, status: { not: "pass" } } }),
     ]);
 
   const completions = await prisma.courseCompletion.findMany({
@@ -139,6 +146,7 @@ export async function GET(req: NextRequest) {
       usesDeliveries: c.usesDeliveries,
       usesCustomers: c.usesCustomers,
       usesShifts: c.usesShifts,
+      usesHaccpLogs: c.usesHaccpLogs,
       mine: {
         completedAt: mine?.completedAt ?? null,
         score: mine ? `${mine.score}/${mine.total}` : null,
@@ -158,7 +166,7 @@ export async function GET(req: NextRequest) {
     menu: { dishes: dishCount, checked: checkedCount },
     equipment: { assets: assetCount },
     stock: { items: stockCount },
-    haccp: { units: haccpCount },
+    haccp: { units: haccpCount, logged: haccpLogCount, failures: haccpFailCount },
     cleaning: { records: cleaningCount },
     deliveries: { records: deliveryCount },
     customers: { profiles: customerCount },

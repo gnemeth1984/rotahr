@@ -101,6 +101,21 @@ export async function GET(req: NextRequest) {
     : [];
   const haccpChecks = scheduleRows.map(toCourseHaccpCheck);
 
+  // Logged checks. This is the only course that reads them, and it reads them
+  // as evidence rather than as temperatures: how recent the newest one is, how
+  // many failed, whether a failure was ever followed by a corrective action,
+  // and whether anybody wrote a note. toCourseHaccpLog deliberately drops
+  // checkedById \— equipment and supplier names are the venue's property and
+  // safe to print, but who logged a check never travels into training content.
+  const logRows = course.usesHaccpLogs
+    ? await prisma.hACCPRecord.findMany({
+        where: { businessId },
+        orderBy: [{ checkedAt: "desc" }],
+        take: 250,
+      })
+    : [];
+  const haccpLogs = logRows.map(toCourseHaccpLog);
+
   // Cleaning, opening and closing checks that were actually logged. What makes
   // this worth teaching from is not the tick — it is how much of the list was
   // ticked, and how long ago.
@@ -192,6 +207,7 @@ export async function GET(req: NextRequest) {
     stock,
     haccp,
     haccpChecks,
+    haccpLogs,
     cleaning,
     cleaningTemplates,
     deliveries,
@@ -228,6 +244,10 @@ export async function GET(req: NextRequest) {
                   : dishes.map((d) => d.id),
     // Only the working time course reads the clock, and only counts travel.
     c: course.usesShifts ? clock : undefined,
+    // The HACCP system course grades against the schedule and the logged checks
+    // as well as the register, and m is already spoken for by the unit ids.
+    k: course.usesHaccpLogs ? haccpChecks.map((c) => c.id) : undefined,
+    l: course.usesHaccpLogs ? logRows.map((r) => r.id) : undefined,
     t: Date.now(),
   });
 
@@ -247,6 +267,7 @@ export async function GET(req: NextRequest) {
       usesDeliveries: course.usesDeliveries,
       usesCustomers: course.usesCustomers,
       usesShifts: course.usesShifts,
+      usesHaccpLogs: course.usesHaccpLogs,
     },
     practice,
     trainee: practice
@@ -261,6 +282,8 @@ export async function GET(req: NextRequest) {
     haccp: {
       units: haccp.length,
       scheduled: haccpChecks.filter((c) => c.active).length,
+      logged: haccpLogs.length,
+      failures: haccpLogs.filter((l) => l.status !== "pass").length,
     },
     cleaning: {
       records: cleaning.length,

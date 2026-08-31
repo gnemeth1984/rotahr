@@ -23,6 +23,8 @@ import {
   toCourseAsset,
   toCourseStock,
   toCourseHaccpUnit,
+  toCourseHaccpCheck,
+  toCourseHaccpLog,
   toCourseCleaningRecord,
   toCourseCustomer,
   toCourseDelivery,
@@ -128,6 +130,32 @@ export async function POST(req: NextRequest) {
     ? ticket.m.map((id) => byUnit.get(id)).filter(Boolean).map(toCourseHaccpUnit)
     : [];
 
+  // The schedule and the logged checks ride on their own ticket fields because
+  // m is already carrying the unit ids, and both feed graded questions in the
+  // HACCP system course. Reloaded in ticket order so the rebuilt paper's
+  // question ids match the paper the trainee answered.
+  const schedIds = course.usesHaccpLogs ? (ticket.k ?? []) : [];
+  const schedRows =
+    schedIds.length > 0
+      ? await prisma.hACCPSchedule.findMany({ where: { businessId, id: { in: schedIds } } })
+      : [];
+  const bySched = new Map(schedRows.map((r) => [r.id, r]));
+  const haccpChecks = schedIds
+    .map((id) => bySched.get(id))
+    .filter(Boolean)
+    .map(toCourseHaccpCheck);
+
+  const logIds = course.usesHaccpLogs ? (ticket.l ?? []) : [];
+  const logRows =
+    logIds.length > 0
+      ? await prisma.hACCPRecord.findMany({ where: { businessId, id: { in: logIds } } })
+      : [];
+  const byLog = new Map(logRows.map((r) => [r.id, r]));
+  const haccpLogs = logIds
+    .map((id) => byLog.get(id))
+    .filter(Boolean)
+    .map(toCourseHaccpLog);
+
   const cleaningRows = course.usesCleaning
     ? await prisma.hACCPRecord.findMany({ where: { businessId, id: { in: ticket.m } } })
     : [];
@@ -187,9 +215,10 @@ export async function POST(req: NextRequest) {
     latest: null,
   };
 
-  // haccpChecks and cleaningTemplates are deliberately empty: the check
-  // schedule and the venue's edited checklists only ever fed lessons, and
-  // lessons are not graded. Anything added here must also be on the ticket.
+  // cleaningTemplates is deliberately empty: a venue's edited checklists only
+  // ever fed lessons, and lessons are not graded. haccpChecks is empty for every
+  // course except the HACCP system course, which grades against it and carries
+  // the ids on the ticket. Anything added here must also be on the ticket.
   const paper = buildQuiz(
     ticket.s,
     {
@@ -197,7 +226,8 @@ export async function POST(req: NextRequest) {
       assets,
       stock,
       haccp,
-      haccpChecks: [],
+      haccpChecks,
+      haccpLogs,
       cleaning,
       cleaningTemplates: [],
       deliveries,

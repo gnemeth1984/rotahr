@@ -65,7 +65,7 @@ export default function CoursesTab({
   const menu = data?.menu ?? { dishes: 0, checked: 0 };
   const equipment = data?.equipment ?? { assets: 0 };
   const stock = data?.stock ?? { items: 0 };
-  const haccp = data?.haccp ?? { units: 0 };
+  const haccp = data?.haccp ?? { units: 0, logged: 0, failures: 0 };
   const cleaning = data?.cleaning ?? { records: 0 };
   const deliveries = data?.deliveries ?? { records: 0 };
   const customers = data?.customers ?? { profiles: 0 };
@@ -195,6 +195,21 @@ export default function CoursesTab({
         </div>
       )}
 
+      {courses.some((c: any) => c.usesHaccpLogs) && haccp.logged === 0 && (
+        <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <ClipboardCheck className="h-4 w-4 mt-0.5 shrink-0" />
+          <div className="flex-1">
+            <strong>No HACCP checks have been logged yet.</strong>{" "}
+            The food safety management system course reads your own log \— how
+            recent the newest check is, how many failed, and whether a failure was
+            ever followed by a corrective action. It reads readings and unit names
+            only, never who logged a check. The course runs either way, and an
+            empty log is its own lesson: a documented system nobody writes in
+            proves nothing.
+          </div>
+        </div>
+      )}
+
       {courses.some((c: any) => c.usesShifts) && shifts.total === 0 && (
         <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
           <CalendarClock className="h-4 w-4 mt-0.5 shrink-0" />
@@ -273,6 +288,11 @@ export default function CoursesTab({
                       {c.usesCustomers && (
                         <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
                           Uses your guest records
+                        </Badge>
+                      )}
+                      {c.usesHaccpLogs && (
+                        <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                          Uses your HACCP log
                         </Badge>
                       )}
                       {c.usesShifts && (
