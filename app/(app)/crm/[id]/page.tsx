@@ -29,6 +29,11 @@ import {
   MessageSquare,
   Ticket,
   Loader2,
+  Receipt,
+  Crown,
+  Upload,
+  Coins,
+  Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -88,6 +93,61 @@ interface EmailLog {
   sentBy: { name: string | null; email: string };
 }
 
+const TIER_STYLES: Record<string, string> = {
+  bronze: "bg-amber-100 text-amber-800 border-amber-300",
+  silver: "bg-slate-100 text-slate-700 border-slate-300",
+  gold: "bg-yellow-100 text-yellow-800 border-yellow-300",
+  vip: "bg-purple-100 text-purple-800 border-purple-300",
+};
+
+const CURRENCY_SYMBOLS: Record<string, string> = { EUR: "€", GBP: "£", USD: "$", CAD: "$", AUD: "$" };
+
+interface GuestTransaction {
+  id: string;
+  date: string;
+  totalSpend: number;
+  covers: number | null;
+  items: any;
+  itemsText: string | null;
+  notes: string | null;
+  source: string;
+  pointsAwarded: number;
+  recordedBy: string | null;
+  createdAt: string;
+}
+
+interface TierDef {
+  key: string;
+  name: string;
+  minVisits: number;
+  minSpend: number;
+  perks: string | null;
+  colour: string;
+  sortOrder: number;
+}
+
+interface LoyaltyConfig {
+  currency?: string;
+  settings: {
+    enabled: boolean;
+    pointsPerCurrency: number;
+    pointValue: number;
+    vipSpendThreshold: number;
+    autoUpgrade: boolean;
+  };
+  tiers: TierDef[];
+}
+
+interface Redemption {
+  id: string;
+  points: number;
+  reward: string;
+  valueAmount: number | null;
+  notes: string | null;
+  recordedBy: string | null;
+  createdAt: string;
+}
+
 interface Customer {
   id: string;
   name: string;
@@ -103,6 +163,13 @@ interface Customer {
   gdprConsentAt: string | null;
   smsWhatsappConsent: boolean;
   isAnonymised: boolean;
+  loyaltyTier: string;
+  loyaltyPoints: number;
+  visitCount: number;
+  totalSpend: number;
+  averageSpend: number;
+  lastVisitAt: string | null;
+  favouriteDishes: string[];
   createdAt: string;
   reservations: Reservation[];
   crmNotes: Note[];
@@ -158,6 +225,26 @@ export default function CustomerProfilePage() {
   // GDPR
   const [showAnonymise, setShowAnonymise] = useState(false);
   const [anonymising, setAnonymising] = useState(false);
+
+  // Spend history + loyalty
+  const [transactions, setTransactions] = useState<GuestTransaction[]>([]);
+  const [loyalty, setLoyalty] = useState<LoyaltyConfig | null>(null);
+  const [redemptions, setRedemptions] = useState<Redemption[]>([]);
+  const [showBillModal, setShowBillModal] = useState(false);
+  const [billDate, setBillDate] = useState("");
+  const [billAmount, setBillAmount] = useState("");
+  const [billCovers, setBillCovers] = useState("");
+  const [billItems, setBillItems] = useState("");
+  const [billNotes, setBillNotes] = useState("");
+  const [savingBill, setSavingBill] = useState(false);
+  const [showRedeemModal, setShowRedeemModal] = useState(false);
+  const [redeemPoints, setRedeemPoints] = useState("");
+  const [redeemReward, setRedeemReward] = useState("");
+  const [redeeming, setRedeeming] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importCsv, setImportCsv] = useState("");
+  const [importReport, setImportReport] = useState<any>(null);
+  const [importing, setImporting] = useState(false);
 
   const fetchOffers = async () => {
     const res = await fetch(`/api/crm/customers/${id}/offers`);
@@ -243,9 +330,131 @@ export default function CustomerProfilePage() {
     }
   };
 
+  const fetchSpend = async () => {
+    const res = await fetch(`/api/crm/transactions?customerId=${id}`);
+    if (res.ok) setTransactions((await res.json()).transactions || []);
+  };
+
+  const fetchLoyalty = async () => {
+    const [cfgRes, redRes] = await Promise.all([
+      fetch("/api/crm/loyalty"),
+      fetch(`/api/crm/loyalty/redeem?customerId=${id}`),
+    ]);
+    if (cfgRes.ok) setLoyalty(await cfgRes.json());
+    if (redRes.ok) setRedemptions((await redRes.json()).redemptions || []);
+  };
+
+  const openBill = () => {
+    setBillDate(new Date().toISOString().split("T")[0]);
+    setBillAmount("");
+    setBillCovers("");
+    setBillItems("");
+    setBillNotes("");
+    setShowBillModal(true);
+  };
+
+  const saveBill = async () => {
+    const amount = parseFloat(billAmount.replace(",", "."));
+    if (!Number.isFinite(amount) || amount < 0) {
+      alert("Enter the bill total");
+      return;
+    }
+    setSavingBill(true);
+    try {
+      const res = await fetch("/api/crm/transactions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customerId: id,
+          date: billDate,
+          totalSpend: amount,
+          covers: billCovers.trim() ? parseInt(billCovers, 10) : null,
+          itemsText: billItems.trim() || null,
+          notes: billNotes.trim() || null,
+        }),
+      });
+      if (res.ok) {
+        setShowBillModal(false);
+        await Promise.all([fetchSpend(), fetchCustomer(), fetchLoyalty()]);
+      } else {
+        const err = await res.json().catch(() => ({}));
+        alert(typeof err.error === "string" ? err.error : "Couldn't save that bill");
+      }
+    } finally {
+      setSavingBill(false);
+    }
+  };
+
+  const deleteTransaction = async (txId: string) => {
+    if (!confirm("Delete this bill? Visits, spend and points are recalculated.")) return;
+    const res = await fetch(`/api/crm/transactions?id=${txId}`, { method: "DELETE" });
+    if (res.ok) await Promise.all([fetchSpend(), fetchCustomer(), fetchLoyalty()]);
+  };
+
+  const redeem = async () => {
+    const pts = parseInt(redeemPoints, 10);
+    if (!Number.isFinite(pts) || pts < 1) {
+      alert("Enter how many points to redeem");
+      return;
+    }
+    if (!redeemReward.trim()) {
+      alert("Say what the guest gets for the points");
+      return;
+    }
+    setRedeeming(true);
+    try {
+      const res = await fetch("/api/crm/loyalty/redeem", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ customerId: id, points: pts, reward: redeemReward.trim() }),
+      });
+      if (res.ok) {
+        setShowRedeemModal(false);
+        await Promise.all([fetchCustomer(), fetchLoyalty()]);
+      } else {
+        const err = await res.json().catch(() => ({}));
+        alert(typeof err.error === "string" ? err.error : "Couldn't redeem those points");
+      }
+    } finally {
+      setRedeeming(false);
+    }
+  };
+
+  const deleteRedemption = async (redId: string) => {
+    if (!confirm("Remove this redemption? The points go back on the guest's balance.")) return;
+    const res = await fetch(`/api/crm/loyalty/redeem?id=${redId}`, { method: "DELETE" });
+    if (res.ok) await Promise.all([fetchCustomer(), fetchLoyalty()]);
+  };
+
+  const runImport = async (dryRun: boolean) => {
+    if (!importCsv.trim()) {
+      alert("Paste the CSV first");
+      return;
+    }
+    setImporting(true);
+    try {
+      const res = await fetch("/api/crm/transactions/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ csv: importCsv, dryRun }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(typeof d.error === "string" ? d.error : "Import failed");
+        return;
+      }
+      setImportReport(d);
+      if (!dryRun) await Promise.all([fetchSpend(), fetchCustomer(), fetchLoyalty()]);
+    } finally {
+      setImporting(false);
+    }
+  };
+
   useEffect(() => {
     fetchCustomer();
     fetchOffers();
+    fetchSpend();
+    fetchLoyalty();
     fetch("/api/integrations/gmail/status")
       .then((r) => r.json())
       .then(setGmailStatus)
@@ -462,6 +671,25 @@ export default function CustomerProfilePage() {
     })),
   ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
+  const currency = loyalty?.currency ?? "EUR";
+  const sym = CURRENCY_SYMBOLS[currency] ?? "€";
+  const money = (n: number | null | undefined) => `${sym}${(n ?? 0).toFixed(2)}`;
+  const itemsLabel = (items: any): string => {
+    if (!Array.isArray(items)) return "";
+    return items
+      .map((i: any) => (i?.qty && i.qty > 1 ? `${i.qty} x ${i.name}` : i?.name))
+      .filter(Boolean)
+      .join(", ");
+  };
+  const tiers = loyalty?.tiers ?? [];
+  const currentTier = tiers.find((t) => t.key === customer.loyaltyTier);
+  const nextTier = tiers
+    .filter((t) => t.sortOrder > (currentTier?.sortOrder ?? -1))
+    .sort((a, b) => a.sortOrder - b.sortOrder)[0];
+  const pointsWorth = (customer.loyaltyPoints ?? 0) * (loyalty?.settings.pointValue ?? 0);
+  const visitsToNext = nextTier ? Math.max(0, nextTier.minVisits - (customer.visitCount ?? 0)) : 0;
+  const spendToNext = nextTier ? Math.max(0, nextTier.minSpend - (customer.totalSpend ?? 0)) : 0;
+
   const TIMELINE_ICON: Record<TimelineItem["type"], React.ReactElement> = {
     note: <PenLine className="h-3.5 w-3.5 text-purple-600" />,
     email: <Mail className="h-3.5 w-3.5 text-indigo-600" />,
@@ -556,6 +784,74 @@ export default function CustomerProfilePage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left column: details + notes */}
         <div className="lg:col-span-1 space-y-5">
+          {/* Loyalty */}
+          {loyalty?.settings.enabled && (
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+              <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-1.5">
+                <Crown className="h-4 w-4 text-amber-500" /> Loyalty
+              </h3>
+              <div className="flex items-center gap-2 flex-wrap mb-3">
+                <span
+                  className={`text-xs px-2.5 py-1 rounded-full border font-semibold ${
+                    TIER_STYLES[customer.loyaltyTier] ?? TIER_STYLES.bronze
+                  }`}
+                >
+                  {currentTier?.name ?? customer.loyaltyTier ?? "Bronze"}
+                </span>
+                <span className="text-sm text-gray-700 font-medium">{customer.loyaltyPoints ?? 0} points</span>
+                {pointsWorth > 0 && <span className="text-xs text-gray-400">worth about {money(pointsWorth)}</span>}
+              </div>
+              {currentTier?.perks && (
+                <p className="text-xs text-gray-600 whitespace-pre-line mb-3">{currentTier.perks}</p>
+              )}
+              {nextTier && (
+                <p className="text-xs text-gray-500 mb-3">
+                  Next: <span className="font-medium text-gray-700">{nextTier.name}</span> at {nextTier.minVisits} visits
+                  and {money(nextTier.minSpend)} lifetime.{" "}
+                  {visitsToNext > 0 ? `${visitsToNext} more visits` : "Visits met"},{" "}
+                  {spendToNext > 0 ? `${money(spendToNext)} more spend` : "spend met"}.
+                </p>
+              )}
+              {!customer.isAnonymised && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="w-full gap-1.5"
+                  disabled={(customer.loyaltyPoints ?? 0) < 1}
+                  onClick={() => {
+                    setRedeemPoints("");
+                    setRedeemReward("");
+                    setShowRedeemModal(true);
+                  }}
+                >
+                  <Coins className="h-4 w-4" /> Redeem points
+                </Button>
+              )}
+              {redemptions.length > 0 && (
+                <div className="mt-3 pt-3 border-t border-gray-100 space-y-2 max-h-44 overflow-y-auto">
+                  {redemptions.map((r) => (
+                    <div key={r.id} className="flex items-start justify-between gap-2 text-xs">
+                      <div>
+                        <div className="font-medium text-gray-800">{r.reward}</div>
+                        <div className="text-gray-400">
+                          {r.points} pts
+                          {r.valueAmount ? ` · ${money(r.valueAmount)}` : ""} · {formatDate(r.createdAt)}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => deleteRedemption(r.id)}
+                        className="text-gray-300 hover:text-red-500 shrink-0"
+                        title="Remove redemption"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Details card */}
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
             <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-1.5">
@@ -580,6 +876,12 @@ export default function CustomerProfilePage() {
                 <div>
                   <dt className="text-xs text-gray-500 font-medium">Seating Preference</dt>
                   <dd className="text-gray-800">{customer.seatingPreference}</dd>
+                </div>
+              )}
+              {(customer.favouriteDishes?.length ?? 0) > 0 && (
+                <div>
+                  <dt className="text-xs text-gray-500 font-medium">Favourite dishes</dt>
+                  <dd className="text-gray-800">{customer.favouriteDishes.join(", ")}</dd>
                 </div>
               )}
               {customer.internalNotes && (
@@ -645,6 +947,94 @@ export default function CustomerProfilePage() {
 
         {/* Right column: reservations + emails */}
         <div className="lg:col-span-2 space-y-5">
+          {/* Spend history */}
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+            <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
+              <h3 className="font-semibold text-gray-800 flex items-center gap-1.5">
+                <Receipt className="h-4 w-4 text-indigo-600" /> Spend history
+              </h3>
+              {!customer.isAnonymised && (
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" className="gap-1.5" onClick={openBill}>
+                    <Plus className="h-4 w-4" /> Add bill
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-1.5"
+                    onClick={() => {
+                      setImportCsv("");
+                      setImportReport(null);
+                      setShowImportModal(true);
+                    }}
+                  >
+                    <Upload className="h-4 w-4" /> Import CSV
+                  </Button>
+                </div>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+              <div className="bg-gray-50 rounded-lg px-3 py-2">
+                <div className="text-xs text-gray-500">Lifetime spend</div>
+                <div className="text-lg font-bold text-gray-900">{money(customer.totalSpend)}</div>
+              </div>
+              <div className="bg-gray-50 rounded-lg px-3 py-2">
+                <div className="text-xs text-gray-500">Average bill</div>
+                <div className="text-lg font-bold text-gray-900">{money(customer.averageSpend)}</div>
+              </div>
+              <div className="bg-gray-50 rounded-lg px-3 py-2">
+                <div className="text-xs text-gray-500">Recorded visits</div>
+                <div className="text-lg font-bold text-gray-900">{customer.visitCount ?? 0}</div>
+              </div>
+              <div className="bg-gray-50 rounded-lg px-3 py-2">
+                <div className="text-xs text-gray-500">Last visit</div>
+                <div className="text-lg font-bold text-gray-900">{formatDate(customer.lastVisitAt ?? null)}</div>
+              </div>
+            </div>
+
+            {transactions.length === 0 ? (
+              <p className="text-sm text-gray-400">
+                No bills recorded yet. The POS feed is day level with no guest identity, so per guest spend is added by
+                hand or imported from a CSV.
+              </p>
+            ) : (
+              <div className="space-y-2 max-h-72 overflow-y-auto">
+                {transactions.map((t) => (
+                  <div key={t.id} className="flex items-start justify-between gap-3 bg-gray-50 rounded-lg px-3 py-2">
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium text-gray-900">
+                        {money(t.totalSpend)}
+                        <span className="text-xs font-normal text-gray-500"> · {formatDate(t.date)}</span>
+                        {t.covers ? (
+                          <span className="text-xs font-normal text-gray-500"> · {t.covers} covers</span>
+                        ) : null}
+                      </div>
+                      {(t.itemsText || itemsLabel(t.items)) && (
+                        <div className="text-xs text-gray-600 truncate">{t.itemsText || itemsLabel(t.items)}</div>
+                      )}
+                      {t.notes && <div className="text-xs text-gray-500 truncate">{t.notes}</div>}
+                      <div className="text-xs text-gray-400">
+                        {t.source === "csv" ? "CSV import" : t.source === "pos" ? "POS" : "Added by hand"}
+                        {t.pointsAwarded ? ` · ${t.pointsAwarded} pts` : ""}
+                        {t.recordedBy ? ` · ${t.recordedBy}` : ""}
+                      </div>
+                    </div>
+                    {!customer.isAnonymised && (
+                      <button
+                        onClick={() => deleteTransaction(t.id)}
+                        className="text-gray-300 hover:text-red-500 shrink-0"
+                        title="Delete bill"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           {/* Unified Activity Timeline */}
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
             <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-1.5">
@@ -1124,6 +1514,191 @@ export default function CustomerProfilePage() {
             <Button variant="outline" onClick={() => { setShowEmailModal(false); setPendingOfferQr(null); setPendingOfferCode(null); }}>Cancel</Button>
             <Button onClick={sendEmail} disabled={sendingEmail || !emailSubject || !emailBody} className="bg-indigo-600 hover:bg-indigo-700 gap-1.5">
               <Send className="h-4 w-4" /> {sendingEmail ? "Sending…" : "Send"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add bill Dialog */}
+      <Dialog open={showBillModal} onOpenChange={setShowBillModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add a bill for {customer.name}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label className="text-xs">Date</Label>
+              <Input type="date" value={billDate} onChange={(e) => setBillDate(e.target.value)} />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs">Bill total ({sym})</Label>
+                <Input
+                  inputMode="decimal"
+                  placeholder="84.50"
+                  value={billAmount}
+                  onChange={(e) => setBillAmount(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Covers (optional)</Label>
+                <Input
+                  inputMode="numeric"
+                  placeholder="2"
+                  value={billCovers}
+                  onChange={(e) => setBillCovers(e.target.value)}
+                />
+              </div>
+            </div>
+            <div>
+              <Label className="text-xs">What they had (optional)</Label>
+              <Textarea
+                rows={2}
+                placeholder="2 x Sirloin, Malbec, Sticky toffee"
+                value={billItems}
+                onChange={(e) => setBillItems(e.target.value)}
+              />
+              <p className="text-xs text-gray-400 mt-1">Comma separated. This is what builds their favourite dishes.</p>
+            </div>
+            <div>
+              <Label className="text-xs">Notes (optional)</Label>
+              <Input
+                placeholder="Anniversary, window table"
+                value={billNotes}
+                onChange={(e) => setBillNotes(e.target.value)}
+              />
+            </div>
+            {loyalty?.settings.enabled && (
+              <p className="text-xs text-gray-500">
+                Points are awarded at {loyalty.settings.pointsPerCurrency} per {sym}1 and the tier is re-checked on save.
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowBillModal(false)}>
+              Cancel
+            </Button>
+            <Button onClick={saveBill} disabled={savingBill} className="bg-indigo-600 hover:bg-indigo-700">
+              {savingBill ? "Saving…" : "Save bill"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Redeem points Dialog */}
+      <Dialog open={showRedeemModal} onOpenChange={setShowRedeemModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Redeem points for {customer.name}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-gray-600">
+              Balance: <span className="font-semibold text-gray-900">{customer.loyaltyPoints ?? 0} points</span>
+              {pointsWorth > 0 && <span className="text-gray-400"> (about {money(pointsWorth)})</span>}
+            </p>
+            <div>
+              <Label className="text-xs">Points to redeem</Label>
+              <Input
+                inputMode="numeric"
+                placeholder="100"
+                value={redeemPoints}
+                onChange={(e) => setRedeemPoints(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label className="text-xs">What the guest gets</Label>
+              <Input
+                placeholder="Free dessert"
+                value={redeemReward}
+                onChange={(e) => setRedeemReward(e.target.value)}
+              />
+            </div>
+            <p className="text-xs text-gray-400">
+              Redeeming never moves a tier. Tiers are earned on visits and lifetime spend.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowRedeemModal(false)}>
+              Cancel
+            </Button>
+            <Button onClick={redeem} disabled={redeeming} className="bg-indigo-600 hover:bg-indigo-700">
+              {redeeming ? "Redeeming…" : "Redeem"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* CSV import Dialog */}
+      <Dialog open={showImportModal} onOpenChange={setShowImportModal}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Import bills from a CSV</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-xs text-gray-500">
+              Columns read: date, amount or total, email, phone, name, covers, items, reference. Guests are matched on
+              email, then phone, then exact name, so one file can cover every guest in the venue. Ambiguous names are
+              skipped rather than guessed. Nothing is written until you press Import.
+            </p>
+            <Textarea
+              rows={8}
+              className="font-mono text-xs"
+              placeholder={"date,email,amount,covers,items\n2026-08-14,jane@example.com,84.50,2,\"2 x Sirloin, Malbec\""}
+              value={importCsv}
+              onChange={(e) => {
+                setImportCsv(e.target.value);
+                setImportReport(null);
+              }}
+            />
+            {importReport && (
+              <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 space-y-2">
+                <div className="text-sm font-medium text-gray-800">
+                  {importReport.imported != null
+                    ? `Imported ${importReport.imported} bills across ${importReport.guestsUpdated ?? 0} guests`
+                    : `${importReport.matched} of ${importReport.rowsRead} rows ready to import`}
+                  {importReport.totalSpend ? ` · ${money(importReport.totalSpend)}` : ""}
+                </div>
+                {importReport.truncated && (
+                  <div className="text-xs text-amber-700">File was truncated at the 2000 row cap.</div>
+                )}
+                {(importReport.preview || []).length > 0 && (
+                  <div className="text-xs text-gray-600">
+                    <div className="font-medium mb-1">First rows</div>
+                    {importReport.preview.map((p: any, i: number) => (
+                      <div key={i}>
+                        {p.date} · {p.guest} · {money(p.amount)}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {importReport.skipped > 0 && (
+                  <div className="text-xs text-gray-600">
+                    <div className="font-medium mb-1">{importReport.skipped} skipped</div>
+                    <ul className="list-disc pl-4 space-y-0.5 max-h-32 overflow-y-auto">
+                      {(importReport.skippedRows || []).slice(0, 20).map((sk: any, i: number) => (
+                        <li key={i}>
+                          Line {sk.line}: {sk.reason}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowImportModal(false)}>
+              Close
+            </Button>
+            <Button variant="outline" onClick={() => runImport(true)} disabled={importing || !importCsv.trim()}>
+              {importing ? "Checking…" : "Check file"}
+            </Button>
+            <Button
+              onClick={() => runImport(false)}
+              disabled={importing || !importReport || !importReport.matched || importReport.imported != null}
+              className="bg-indigo-600 hover:bg-indigo-700"
+            >
+              Import{importReport?.matched && importReport.imported == null ? ` ${importReport.matched}` : ""}
             </Button>
           </DialogFooter>
         </DialogContent>

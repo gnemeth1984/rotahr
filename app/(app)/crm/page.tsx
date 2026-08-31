@@ -22,6 +22,8 @@ import {
   ShieldCheck,
   X,
   Lightbulb,
+  LayoutDashboard,
+  Megaphone,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,6 +45,25 @@ import {
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
+import CrmDashboardTab from "./CrmDashboardTab";
+import CrmLoyaltyTab from "./CrmLoyaltyTab";
+import CrmCampaignsTab from "./CrmCampaignsTab";
+
+const TABS = [
+  { key: "guests", label: "Guests", icon: Users },
+  { key: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { key: "loyalty", label: "Loyalty", icon: Crown },
+  { key: "campaigns", label: "Campaigns", icon: Megaphone },
+] as const;
+
+type TabKey = (typeof TABS)[number]["key"];
+
+const TIER_STYLES: Record<string, string> = {
+  bronze: "bg-amber-100 text-amber-800 border-amber-300",
+  silver: "bg-slate-100 text-slate-700 border-slate-300",
+  gold: "bg-yellow-100 text-yellow-800 border-yellow-300",
+  vip: "bg-purple-100 text-purple-800 border-purple-300",
+};
 
 const TAG_PRESETS = ["VIP", "Regular", "No-show Risk", "Allergy", "Corporate", "Birthday"];
 
@@ -70,6 +91,10 @@ interface Customer {
   isVip?: boolean;
   isAtRisk?: boolean;
   isNew?: boolean;
+  loyaltyTier?: string;
+  loyaltyPoints?: number;
+  visitCount?: number;
+  totalSpend?: number;
 }
 
 interface CrmStats {
@@ -95,6 +120,7 @@ export default function CrmPage() {
   const [sort, setSort] = useState("lastVisit");
   const [page, setPage] = useState(1);
   const [dismissedSuggestions, setDismissedSuggestions] = useState<string[]>([]);
+  const [tab, setTab] = useState<TabKey>("guests");
 
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -263,6 +289,38 @@ export default function CrmPage() {
         </div>
       </div>
 
+      {/* ── Tabs ── */}
+      <div className="flex gap-1 px-4 pb-3 overflow-x-auto scrollbar-hide">
+        {TABS.map((t) => {
+          const Icon = t.icon;
+          return (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className={cn(
+                "flex flex-shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-all",
+                tab === t.key
+                  ? "border-indigo-400 bg-indigo-50 text-indigo-700"
+                  : "border-slate-200 bg-white text-slate-600"
+              )}
+            >
+              <Icon className="h-3.5 w-3.5" />
+              {t.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {tab !== "guests" && (
+        <div className="flex-1 overflow-y-auto">
+          {tab === "dashboard" && <CrmDashboardTab onOpenCampaigns={() => setTab("campaigns")} />}
+          {tab === "loyalty" && <CrmLoyaltyTab />}
+          {tab === "campaigns" && <CrmCampaignsTab />}
+        </div>
+      )}
+
+      {tab === "guests" && (
+      <>
       {/* ── Stats bar ── */}
       {stats && (
         <div className="px-4 pb-3 grid grid-cols-5 gap-2">
@@ -511,6 +569,35 @@ export default function CrmPage() {
                     </div>
                   )}
 
+                  {/* Loyalty rollups */}
+                  {(c.loyaltyTier || (c.totalSpend ?? 0) > 0) && (
+                    <div className="mb-1.5 flex items-center gap-1.5">
+                      {c.loyaltyTier && (
+                        <span
+                          className={cn(
+                            "rounded-full border px-1.5 py-0.5 text-[9px] font-semibold uppercase",
+                            TIER_STYLES[c.loyaltyTier] ?? "border-slate-200 bg-slate-100 text-slate-600"
+                          )}
+                        >
+                          {c.loyaltyTier}
+                        </span>
+                      )}
+                      {(c.totalSpend ?? 0) > 0 && (
+                        <span className="text-[10px] text-slate-500">
+                          {(c.totalSpend ?? 0).toFixed(0)} lifetime spend
+                        </span>
+                      )}
+                      {(c.visitCount ?? 0) > 0 && (
+                        <span className="text-[10px] text-slate-500">
+                          {c.visitCount} recorded visit{c.visitCount === 1 ? "" : "s"}
+                        </span>
+                      )}
+                      {(c.loyaltyPoints ?? 0) > 0 && (
+                        <span className="text-[10px] text-slate-500">{c.loyaltyPoints} pts</span>
+                      )}
+                    </div>
+                  )}
+
                   {/* Footer: last visit + GDPR */}
                   <div className="flex items-center justify-between text-xs text-slate-400">
                     <span>Last visit: {formatDate(c.lastVisit)}</span>
@@ -537,6 +624,9 @@ export default function CrmPage() {
           </div>
         )}
       </div>
+
+      </>
+      )}
 
       {/* ── Create Dialog ── */}
       <Dialog open={showCreate} onOpenChange={setShowCreate}>

@@ -47,7 +47,13 @@ model Business {
   posSnapshots  PosSnapshot[]
 
   // CRM
-  customers Customer[]
+  customers         Customer[]
+  guestTransactions GuestTransaction[]
+  campaigns         Campaign[]
+  campaignSends     CampaignSend[]
+  loyaltyTiers      LoyaltyTier[]
+  loyaltyRedemptions LoyaltyRedemption[]
+  loyaltySettings   LoyaltySettings?
 
   // Wastage
   wastageRecords WastageRecord[]
@@ -1255,11 +1261,31 @@ model Customer {
 
   smsWhatsappConsent Boolean @default(false)
 
-  reservations  Reservation[]
-  crmNotes      CrmNote[]
-  crmEmails     CrmEmail[]
-  promoOffers   PromoOffer[]
-  guestMessages GuestMessage[]
+  // Loyalty. tier is a LoyaltyTier.key for this business ("bronze" | "silver" |
+  // "gold" | "vip" by default). Points are earned on GuestTransaction spend and
+  // spent through LoyaltyRedemption; the balance is authoritative here.
+  loyaltyTier      String    @default("bronze")
+  loyaltyPoints    Int       @default(0)
+  tierUpdatedAt    DateTime?
+  vipSince         DateTime?
+
+  // Cached rollups recomputed from GuestTransaction + Reservation by
+  // recomputeGuestStats() in lib/crm/stats.ts. Never edited by hand.
+  visitCount      Int       @default(0)
+  totalSpend      Float     @default(0)
+  averageSpend    Float     @default(0)
+  lastVisitAt     DateTime?
+  favouriteDishes String[]  @default([])
+  statsUpdatedAt  DateTime?
+
+  reservations       Reservation[]
+  crmNotes           CrmNote[]
+  crmEmails          CrmEmail[]
+  promoOffers        PromoOffer[]
+  guestMessages      GuestMessage[]
+  transactions       GuestTransaction[]
+  campaignSends      CampaignSend[]
+  loyaltyRedemptions LoyaltyRedemption[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -3012,4 +3038,166 @@ model TemplateRequest {
 
   @@index([status])
   @@index([createdAt])
+}
+
+// ─── CRM: guest spend, loyalty and campaigns ─────────────────────────────────
+
+// One visit's spend, tied to a guest. PosSnapshot is day-level aggregate with
+// no guest identity, so these rows come from manual entry or CSV import today;
+// source "pos" is reserved for a future per-ticket POS feed.
+model GuestTransaction {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  date       DateTime
+  totalSpend Float
+  covers     Int?
+  items      Json? // [{ name, qty, price }] when known, else null
+  itemsText  String? // free-text line list when typed by hand
+  notes      String?
+
+  source String  @default("manual") // "manual" | "csv" | "pos"
+  posRef String? // provider ticket/receipt id, for de-duplication
+
+  reservationId String? // soft link, no FK: reservations can be deleted
+  recordedById  String?
+  recordedBy    String?
+
+  pointsAwarded Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([businessId, date])
+  @@index([customerId, date])
+  @@index([businessId, posRef])
+}
+
+// Per-business tier definition. Seeded with bronze/silver/gold/vip on first use
+// so a venue can rename tiers and move the thresholds without a migration.
+model LoyaltyTier {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  key       String // "bronze" | "silver" | "gold" | "vip"
+  name      String
+  minVisits Int    @default(0)
+  minSpend  Float  @default(0)
+  perks     String? // one perk per line, shown on the guest profile
+  colour    String  @default("slate")
+  sortOrder Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([businessId, key])
+  @@index([businessId])
+}
+
+model LoyaltySettings {
+  id         String   @id @default(cuid())
+  businessId String   @unique
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  enabled           Boolean @default(true)
+  pointsPerCurrency Float   @default(1) // points earned per 1 unit of spend
+  pointValue        Float   @default(0.05) // what one point is worth on redemption
+  vipSpendThreshold Float   @default(500)
+  autoUpgrade       Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model LoyaltyRedemption {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  points      Int
+  reward      String
+  valueAmount Float?
+  notes       String?
+
+  recordedById String?
+  recordedBy   String?
+
+  createdAt DateTime @default(now())
+
+  @@index([businessId, createdAt])
+  @@index([customerId])
+}
+
+// A marketing campaign. Nothing sends by itself: a run builds CampaignSend rows
+// in status "draft" and a manager approves them. automationRule is set when the
+// campaign is driven by a rule instead of a one-off schedule.
+model Campaign {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  name       String
+  segment    String // see SEGMENTS in lib/crm/segments.ts
+  segmentTag String? // only used by the "tag" segment
+  channel    String @default("email") // "email" | "sms"
+  subject String?
+  message String @db.Text
+
+  scheduleAt DateTime?
+  status     String    @default("draft") // "draft" | "scheduled" | "review" | "sent" | "paused" | "cancelled"
+
+  automationRule String? // "no_visit_30" | "birthday" | "high_spender" | "tier_upgrade" | null
+  active         Boolean @default(true)
+
+  lastRunAt   DateTime?
+  createdById String?
+  createdBy   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sends CampaignSend[]
+
+  @@index([businessId, status])
+  @@index([businessId, automationRule])
+}
+
+model CampaignSend {
+  id         String   @id @default(cuid())
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  channel   String
+  toAddress String?
+  subject   String?
+  body      String  @db.Text
+
+  status     String  @default("draft") // "draft" | "approved" | "sent" | "failed" | "skipped"
+  skipReason String? // "no_consent" | "no_address" | "anonymised" | "duplicate"
+
+  approvedById String?
+  approvedAt   DateTime?
+  sentAt       DateTime?
+  errorMessage String?
+  providerId   String?
+
+  dedupeKey String? // rule + customer + period, stops an automation resending
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([campaignId, status])
+  @@index([businessId, status])
+  @@index([customerId])
+  @@unique([campaignId, dedupeKey])
 }

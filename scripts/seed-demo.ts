@@ -1410,6 +1410,270 @@ export async function main(prisma: PrismaClient = new PrismaClient()) {
       { customerId: cust5, authorId: USERS.tony,  note: "Birthday dinner in March was a hit. She posted on Instagram. Consider reaching out in Feb for this year.",       createdAt: days(-90) },
     ],
   });
+  // ── 22b. CRM — spend history, loyalty tiers, campaigns ──────────────────────
+  // The POS feed is day level with no guest identity, so per guest spend is
+  // recorded bill by bill. The demo seeds it the same way a venue would.
+  await prisma.campaignSend.deleteMany({ where: { businessId: BIZ } });
+  await prisma.campaign.deleteMany({ where: { businessId: BIZ } });
+  await prisma.loyaltySettings.deleteMany({ where: { businessId: BIZ } });
+  await prisma.loyaltyTier.deleteMany({ where: { businessId: BIZ } });
+
+  const crmIdentities = [
+    { id: cust1, name: "Niamh Gallagher", email: "niamh.gallagher@email.ie", phone: "087 123 4567" },
+    { id: cust2, name: "Patrick Doyle",   email: "pdoyle@gmail.com",         phone: "086 234 5678" },
+    { id: cust3, name: "Siobhán Ó'Brien", email: "siobhan.ob@outlook.com",   phone: "085 345 6789" },
+    { id: cust4, name: "Colm Farrell",    email: "cfarrell@live.ie",         phone: "083 456 7890" },
+    { id: cust5, name: "Helen Murphy",    email: "hmurphy@gmail.com",        phone: "087 567 8901" },
+  ];
+
+  // Reservations linked to guest identity. Without this the book and the CRM
+  // read as two unrelated systems, which is exactly how it looked before.
+  const finishedToday = await prisma.reservation.findMany({
+    where: { businessId: BIZ, status: "completed" },
+    orderBy: { time: "asc" },
+    select: { id: true },
+    take: 8,
+  });
+  for (let i = 0; i < finishedToday.length; i++) {
+    const g = crmIdentities[i % crmIdentities.length];
+    await prisma.reservation.update({
+      where: { id: finishedToday[i].id },
+      data: { customerId: g.id, customerName: g.name, customerEmail: g.email, customerPhone: g.phone },
+    });
+  }
+
+  const upcomingRes = await prisma.reservation.findMany({
+    where: { businessId: BIZ, status: "confirmed", date: { gt: days(0, 23, 59) } },
+    orderBy: { date: "asc" },
+    select: { id: true },
+    take: 3,
+  });
+  const upcomingOwners = [cust1, cust4, cust2];
+  for (let i = 0; i < upcomingRes.length; i++) {
+    const g = crmIdentities.find((c) => c.id === upcomingOwners[i]) ?? crmIdentities[0];
+    await prisma.reservation.update({
+      where: { id: upcomingRes[i].id },
+      data: { customerId: g.id, customerName: g.name, customerEmail: g.email, customerPhone: g.phone },
+    });
+  }
+
+  // Bills. Amounts and dish lines are fixed rather than random so the loyalty
+  // tiers, the averages and the favourite dishes are the same in every reset.
+  const crmBills: { c: string; off: number; amt: number; covers: number; items: string }[] = [
+    // Niamh — 11 visits, VIP on spend, gold on visits
+    { c: cust1, off: -3,   amt: 142.50, covers: 2, items: "Pan Seared Salmon, Sirloin Steak, House Red Wine, Sticky Toffee Pudding" },
+    { c: cust1, off: -12,  amt: 96.00,  covers: 2, items: "Pan Seared Salmon, Fish and Chips, House Red Wine" },
+    { c: cust1, off: -19,  amt: 128.75, covers: 2, items: "Sirloin Steak, Pan Seared Salmon, House Red Wine, Cheese Board" },
+    { c: cust1, off: -27,  amt: 88.50,  covers: 2, items: "Chicken Supreme, Pan Seared Salmon, House Red Wine" },
+    { c: cust1, off: -34,  amt: 164.00, covers: 4, items: "Sirloin Steak, Seafood Chowder, Pan Seared Salmon, House Red Wine" },
+    { c: cust1, off: -41,  amt: 74.25,  covers: 2, items: "Fish and Chips, Pan Seared Salmon, House Red Wine" },
+    { c: cust1, off: -52,  amt: 118.00, covers: 2, items: "Pan Seared Salmon, Sirloin Steak, Cheese Board" },
+    { c: cust1, off: -63,  amt: 92.50,  covers: 2, items: "Pan Seared Salmon, Seafood Chowder, House Red Wine" },
+    { c: cust1, off: -74,  amt: 135.00, covers: 3, items: "Sirloin Steak, Pan Seared Salmon, House Red Wine, Sticky Toffee Pudding" },
+    { c: cust1, off: -88,  amt: 81.00,  covers: 2, items: "Chicken Supreme, Fish and Chips, House Red Wine" },
+    { c: cust1, off: -101, amt: 189.50, covers: 4, items: "Sirloin Steak, Pan Seared Salmon, Seafood Chowder, House Red Wine, Cheese Board" },
+    // Patrick — 6 visits, silver
+    { c: cust2, off: -5,   amt: 68.00,  covers: 4, items: "Fish and Chips, Chicken Wings, Guinness" },
+    { c: cust2, off: -16,  amt: 54.50,  covers: 3, items: "Fish and Chips, Guinness" },
+    { c: cust2, off: -23,  amt: 72.00,  covers: 4, items: "Beef Burger, Fish and Chips, Guinness" },
+    { c: cust2, off: -37,  amt: 61.00,  covers: 3, items: "Fish and Chips, Chicken Wings, Guinness" },
+    { c: cust2, off: -58,  amt: 58.50,  covers: 3, items: "Beef Burger, Guinness" },
+    { c: cust2, off: -79,  amt: 66.00,  covers: 4, items: "Fish and Chips, Beef Burger, Guinness" },
+    // Siobhán — 3 visits, bronze
+    { c: cust3, off: -9,   amt: 64.00,  covers: 2, items: "Seafood Chowder, Chicken Supreme, Sparkling Water" },
+    { c: cust3, off: -31,  amt: 58.00,  covers: 2, items: "Chicken Supreme, Sparkling Water" },
+    { c: cust3, off: -66,  amt: 71.50,  covers: 2, items: "Seafood Chowder, Sirloin Steak, Sparkling Water" },
+    // Colm — 4 visits, VIP purely on the spend rule
+    { c: cust4, off: -6,   amt: 185.00, covers: 6, items: "Sirloin Steak, Seafood Chowder, Bottle of Malbec" },
+    { c: cust4, off: -21,  amt: 152.50, covers: 5, items: "Sirloin Steak, Chicken Supreme, Bottle of Malbec" },
+    { c: cust4, off: -44,  amt: 168.00, covers: 6, items: "Sirloin Steak, Seafood Chowder, Bottle of Malbec, Cheese Board" },
+    { c: cust4, off: -71,  amt: 141.00, covers: 4, items: "Chicken Supreme, Sirloin Steak, Bottle of Malbec" },
+    // Helen — 2 visits, bronze, birthday in the diary
+    { c: cust5, off: -11,  amt: 52.00,  covers: 2, items: "Chicken Supreme, Prosecco" },
+    { c: cust5, off: -95,  amt: 47.50,  covers: 2, items: "Fish and Chips, Prosecco" },
+  ];
+
+  await prisma.guestTransaction.createMany({
+    data: crmBills.map((b) => ({
+      businessId: BIZ,
+      customerId: b.c,
+      date: days(b.off, 20, 30),
+      totalSpend: b.amt,
+      covers: b.covers,
+      itemsText: b.items,
+      source: "manual",
+      recordedById: USERS.sarah,
+      recordedBy: "Sarah Connolly",
+      pointsAwarded: Math.floor(b.amt),
+    })),
+  });
+
+  await prisma.loyaltySettings.create({
+    data: {
+      businessId: BIZ,
+      enabled: true,
+      pointsPerCurrency: 1,
+      pointValue: 0.05,
+      vipSpendThreshold: 500,
+      autoUpgrade: true,
+    },
+  });
+
+  await prisma.loyaltyTier.createMany({
+    data: [
+      { businessId: BIZ, key: "bronze", name: "Bronze", minVisits: 0,  minSpend: 0,   colour: "amber",  sortOrder: 0, perks: "Points on every visit\nBirthday greeting" },
+      { businessId: BIZ, key: "silver", name: "Silver", minVisits: 5,  minSpend: 0,   colour: "slate",  sortOrder: 1, perks: "Points on every visit\nPriority on waitlist\nComplimentary tea or coffee" },
+      { businessId: BIZ, key: "gold",   name: "Gold",   minVisits: 10, minSpend: 0,   colour: "yellow", sortOrder: 2, perks: "Points on every visit\nPreferred table held to the last minute\nComplimentary dessert on birthday" },
+      { businessId: BIZ, key: "vip",    name: "VIP",    minVisits: 0,  minSpend: 500, colour: "purple", sortOrder: 3, perks: "Everything in Gold\nDirect line to the manager\nFirst refusal on event nights" },
+    ],
+  });
+
+  await prisma.loyaltyRedemption.create({
+    data: {
+      businessId: BIZ,
+      customerId: cust1,
+      points: 200,
+      reward: "Bottle of house Malbec",
+      valueAmount: 10,
+      notes: "Redeemed at the table on her anniversary dinner.",
+      recordedById: USERS.sarah,
+      recordedBy: "Sarah Connolly",
+      createdAt: days(-3, 21),
+    },
+  });
+
+  // Rollups are written here rather than imported from lib/crm/stats so the
+  // seed stays dependency free. They match what a recompute produces.
+  const crmRollups = [
+    { id: cust1, visits: 11, total: 1310.00, avg: 119.09, last: -3,  points: 1107, tier: "vip",    vipOff: -52, dishes: ["Pan Seared Salmon", "House Red Wine", "Sirloin Steak", "Seafood Chowder", "Cheese Board"] },
+    { id: cust2, visits: 6,  total: 380.00,  avg: 63.33,  last: -5,  points: 379,  tier: "silver", vipOff: null, dishes: ["Guinness", "Fish and Chips", "Beef Burger", "Chicken Wings"] },
+    { id: cust3, visits: 3,  total: 193.50,  avg: 64.50,  last: -9,  points: 193,  tier: "bronze", vipOff: null, dishes: ["Sparkling Water", "Chicken Supreme", "Seafood Chowder", "Sirloin Steak"] },
+    { id: cust4, visits: 4,  total: 646.50,  avg: 161.63, last: -6,  points: 646,  tier: "vip",    vipOff: -6,  dishes: ["Bottle of Malbec", "Sirloin Steak", "Seafood Chowder", "Chicken Supreme", "Cheese Board"] },
+    { id: cust5, visits: 2,  total: 99.50,   avg: 49.75,  last: -11, points: 99,   tier: "bronze", vipOff: null, dishes: ["Prosecco", "Chicken Supreme", "Fish and Chips"] },
+  ];
+
+  for (const r of crmRollups) {
+    await prisma.customer.update({
+      where: { id: r.id },
+      data: {
+        visitCount: r.visits,
+        totalSpend: r.total,
+        averageSpend: r.avg,
+        lastVisitAt: days(r.last, 20, 30),
+        favouriteDishes: r.dishes,
+        loyaltyPoints: r.points,
+        loyaltyTier: r.tier,
+        vipSince: r.vipOff === null ? null : days(r.vipOff, 20, 30),
+        tierUpdatedAt: days(r.last, 20, 30),
+        statsUpdatedAt: new Date(),
+      },
+    });
+  }
+
+  // Campaigns. Nothing in the demo ever delivers — sends are drafts sitting in
+  // the review queue, which is how the real thing behaves too.
+  const camp1 = "demo-camp-winback";
+  const camp2 = "demo-camp-birthday";
+  const camp3 = "demo-camp-vip";
+
+  await prisma.campaign.createMany({
+    data: [
+      {
+        id: camp1,
+        businessId: BIZ,
+        name: "We miss you — 30 day win back",
+        segment: "no_visit_30",
+        channel: "email",
+        subject: "It has been a while, {{first_name}}",
+        message:
+          "Hi {{first_name}},\n\nWe noticed it has been over a month since your last visit to {{venue}}. Your table is still here, and so are your {{points}} points.\n\nShow this email on your next visit for a complimentary glass of wine.\n\nSee you soon,\nThe team at {{venue}}",
+        automationRule: "no_visit_30",
+        status: "review",
+        active: true,
+        lastRunAt: days(-1, 7, 50),
+        createdById: USERS.sarah,
+        createdBy: "Sarah Connolly",
+        createdAt: days(-40),
+      },
+      {
+        id: camp2,
+        businessId: BIZ,
+        name: "Birthday treat",
+        segment: "birthday_month",
+        channel: "email",
+        subject: "Happy birthday from {{venue}}",
+        message:
+          "Happy birthday {{first_name}}!\n\nAs a {{tier}} guest of {{venue}}, dessert is on us any time this month. Just mention this email when you book.\n\nWith our best wishes,\nThe team at {{venue}}",
+        automationRule: "birthday",
+        status: "draft",
+        active: true,
+        createdById: USERS.sarah,
+        createdBy: "Sarah Connolly",
+        createdAt: days(-25),
+      },
+      {
+        id: camp3,
+        businessId: BIZ,
+        name: "VIP chef's table invite",
+        segment: "tier_vip",
+        channel: "email",
+        subject: "An invitation for our VIP guests",
+        message:
+          "Hi {{first_name}},\n\nYou have spent {{total_spend}} with us across {{visits}} visits, and we would like to say thank you properly.\n\nWe are holding six seats at the chef's table on the last Thursday of the month. Reply to this email and one is yours.\n\n{{venue}}",
+        status: "draft",
+        active: false,
+        scheduleAt: days(9, 10),
+        createdById: USERS.tony,
+        createdBy: "Tony Brennan",
+        createdAt: days(-8),
+      },
+    ],
+  });
+
+  await prisma.campaignSend.createMany({
+    data: [
+      {
+        campaignId: camp1,
+        businessId: BIZ,
+        customerId: cust3,
+        channel: "email",
+        toAddress: "siobhan.ob@outlook.com",
+        subject: "It has been a while, Siobhán",
+        body:
+          "Hi Siobhán,\n\nWe noticed it has been over a month since your last visit to The Anchor & Tap. Your table is still here, and so are your 193 points.\n\nShow this email on your next visit for a complimentary glass of wine.\n\nSee you soon,\nThe team at The Anchor & Tap",
+        status: "draft",
+        createdAt: days(-1, 7, 50),
+      },
+      {
+        campaignId: camp1,
+        businessId: BIZ,
+        customerId: cust5,
+        channel: "email",
+        toAddress: "hmurphy@gmail.com",
+        subject: "It has been a while, Helen",
+        body:
+          "Hi Helen,\n\nWe noticed it has been over a month since your last visit to The Anchor & Tap. Your table is still here, and so are your 99 points.\n\nShow this email on your next visit for a complimentary glass of wine.\n\nSee you soon,\nThe team at The Anchor & Tap",
+        status: "approved",
+        approvedById: USERS.sarah,
+        approvedAt: days(-1, 9, 15),
+        createdAt: days(-1, 7, 50),
+      },
+      {
+        campaignId: camp1,
+        businessId: BIZ,
+        customerId: cust2,
+        channel: "email",
+        toAddress: null,
+        subject: "It has been a while, Patrick",
+        body: "Skipped before sending.",
+        status: "skipped",
+        skipReason: "no_consent",
+        createdAt: days(-1, 7, 50),
+      },
+    ],
+  });
+  console.log("✅ CRM spend history, loyalty and campaigns created");
+
   console.log("✅ CRM customers + notes created");
 
   // ── 23. Shift Swap Requests ─────────────────────────────────────────────────
