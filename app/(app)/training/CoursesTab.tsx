@@ -13,7 +13,7 @@ import { useRouter } from "next/navigation";
 import {
   GraduationCap, Clock, CheckCircle2, AlertTriangle, Loader2,
   ChevronRight, Users, Utensils, Play, RotateCcw, Flame, PackageOpen, Thermometer,
-  SprayCan, Truck, ShieldCheck, CalendarClock, ClipboardCheck,
+  SprayCan, Truck, ShieldCheck, CalendarClock, ClipboardCheck, ClipboardList,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -45,12 +45,28 @@ export default function CoursesTab({
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [openRoster, setOpenRoster] = useState<string | null>(null);
+  // Courses this person has been told to do, keyed by slug. Loaded separately
+  // so a failure here can never blank the course list itself.
+  const [assigned, setAssigned] = useState<Record<string, any>>({});
 
   useEffect(() => {
     fetch("/api/training/courses")
       .then((r) => r.json())
       .then((d) => { setData(d); setLoading(false); })
       .catch(() => setLoading(false));
+
+    fetch("/api/training/assignments")
+      .then((r) => r.json())
+      .then((d) => {
+        const map: Record<string, any> = {};
+        for (const m of d?.mine || []) {
+          // Soonest due date wins if the same course is assigned twice.
+          const prev = map[m.courseSlug];
+          if (!prev || new Date(m.dueDate) < new Date(prev.dueDate)) map[m.courseSlug] = m;
+        }
+        setAssigned(map);
+      })
+      .catch(() => {});
   }, []);
 
   if (loading) {
@@ -248,6 +264,7 @@ export default function CoursesTab({
       {courses.map((c: any) => {
         const s = STATUS[c.mine?.status] ?? STATUS.NOT_STARTED;
         const done = c.mine?.status === "VALID";
+        const req = assigned[c.slug];
         return (
           <Card key={c.slug} className="overflow-hidden">
             <CardContent className="p-5">
@@ -260,6 +277,21 @@ export default function CoursesTab({
                     <div className="flex flex-wrap items-center gap-2">
                       <h3 className="font-semibold text-slate-900">{c.title}</h3>
                       <Badge variant="outline" className={cn("text-xs", s.cls)}>{s.label}</Badge>
+                      {req && !done && (
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            "text-xs",
+                            req.overdue
+                              ? "bg-red-100 text-red-700 border-red-200"
+                              : "bg-orange-100 text-orange-700 border-orange-200"
+                          )}
+                        >
+                          <ClipboardList className="h-3 w-3 mr-1" />
+                          {req.overdue ? "Overdue, was due " : "Required by "}
+                          {fmt(req.dueDate)}
+                        </Badge>
+                      )}
                       {c.usesMenu && (
                         <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
                           Uses your menu

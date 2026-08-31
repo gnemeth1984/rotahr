@@ -141,6 +141,7 @@
     { "path": "/api/cron/listing-monitor", "schedule": "15 4 * * 6" },
     { "path": "/api/cron/template-gaps", "schedule": "40 6 * * 1" },
     { "path": "/api/cron/asset-digest", "schedule": "0 7 * * 1" },
-    { "path": "/api/cron/asset-reminders", "schedule": "15 7 * * *" }
+    { "path": "/api/cron/asset-reminders", "schedule": "15 7 * * *" },
+    { "path": "/api/cron/course-assignments", "schedule": "30 7 * * *" }
   ]
 }

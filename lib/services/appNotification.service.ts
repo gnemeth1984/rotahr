@@ -2,7 +2,7 @@
 import { prisma } from "@/lib/db";
 import { sendPushToUser } from "./push.service";
 
-export type NotifType = "message" | "shift" | "timeoff" | "booking" | "rota" | "late_checkin" | "cert_expiry" | "logbook" | "navigator";
+export type NotifType = "message" | "shift" | "timeoff" | "booking" | "rota" | "late_checkin" | "cert_expiry" | "logbook" | "navigator" | "course_due";
 
 export async function createNotification({
   userId,

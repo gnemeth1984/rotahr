@@ -7,9 +7,11 @@ import { useSearchParams, useRouter } from "next/navigation";
 import {
   Award, Plus, AlertTriangle, CheckCircle2, Clock, Loader2,
   Trash2, Edit2, X, Upload, Filter, Search, GraduationCap, Utensils, Users,
+  ClipboardList,
 } from "lucide-react";
 import CoursesTab from "./CoursesTab";
 import TeamBoardTab from "./TeamBoardTab";
+import AssignmentsTab from "./AssignmentsTab";
 import AllergenMatrixTab from "./AllergenMatrixTab";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -611,6 +613,7 @@ function TrainingShell() {
     { id: "certificates", label: "Certificates", icon: Award },
     { id: "courses", label: "Courses", icon: GraduationCap },
     { id: "team", label: "Team board", icon: Users },
+    { id: "assignments", label: "Required training", icon: ClipboardList },
     { id: "allergens", label: "Allergen matrix", icon: Utensils },
   ];
 
@@ -655,6 +658,9 @@ function TrainingShell() {
         />
       )}
       {activeTab === "team" && <TeamBoardTab onOpenCourses={() => switchTab("courses")} />}
+      {activeTab === "assignments" && (
+        <AssignmentsTab onOpenCourses={() => switchTab("courses")} />
+      )}
       {activeTab === "allergens" && <AllergenMatrixTab canEdit={isManager} />}
     </div>
   );

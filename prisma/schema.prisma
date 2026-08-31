@@ -76,6 +76,9 @@ model Business {
   // Asset register / service notes
   assets Asset[]
 
+  // In-house training: courses a manager has made required for staff
+  courseAssignments CourseAssignment[]
+
   // Locale / currency
   currency String @default("EUR") // "EUR" | "GBP"
   country  String @default("IE") // "IE" | "GB"
@@ -194,9 +197,10 @@ model Department {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  employees Employee[]
-  opsTasks  OpsTask[]
-  channel   MessageChannel?
+  employees         Employee[]
+  opsTasks          OpsTask[]
+  channel           MessageChannel?
+  courseAssignments CourseAssignment[]
 }
 
 model Employee {
@@ -246,6 +250,7 @@ model Employee {
   tipDistributions          TipDistribution[]
   certifications            TrainingCertification[]
   courseCompletions         CourseCompletion[]
+  courseAssignments         CourseAssignment[]
   opsTasks                  OpsTask[]
   venueId                   String?
   venue                     Venue?                   @relation(fields: [venueId], references: [id], onDelete: SetNull)
@@ -485,7 +490,7 @@ model AppNotification {
   id          String   @id @default(cuid())
   userId      String
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  type        String // "message" | "shift" | "timeoff" | "booking" | "rota" | "late_checkin" | "cert_expiry"
+  type        String // "message" | "shift" | "timeoff" | "booking" | "rota" | "late_checkin" | "cert_expiry" | "logbook" | "navigator" | "course_due"
   title       String
   body        String
   link        String?
@@ -886,6 +891,37 @@ model CourseCompletion {
 
   @@index([businessId, courseSlug, completedAt])
   @@index([employeeId, completedAt])
+}
+
+/// A course a manager has made required for part of the venue, with a due date.
+/// Courses are code, not rows, so courseSlug is validated against COURSES at the
+/// API layer rather than being a foreign key.
+model CourseAssignment {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  courseSlug String
+
+  /// "business" | "department" | "role" | "employee"
+  scope        String
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  /// Employee.role is free text, so this stores the literal string this venue uses.
+  role       String?
+  employeeId String?
+  employee   Employee? @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  dueDate DateTime
+  note    String?
+  active  Boolean @default(true)
+
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([businessId, active])
+  @@index([businessId, courseSlug])
 }
 
 // ── Menu Planning ─────────────────────────────────────────────────────────────
