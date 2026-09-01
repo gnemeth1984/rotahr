@@ -1473,6 +1473,7 @@ export async function main(prisma: PrismaClient = new PrismaClient()) {
     { c: cust1, off: -88,  amt: 81.00,  covers: 2, items: "Chicken Supreme, Fish and Chips, House Red Wine" },
     { c: cust1, off: -101, amt: 189.50, covers: 4, items: "Sirloin Steak, Pan Seared Salmon, Seafood Chowder, House Red Wine, Cheese Board" },
     // Patrick — 6 visits, silver
+    { c: cust2, off: 0,    amt: 74.00,  covers: 4, items: "Fish and Chips, Beef Burger, Chicken Wings, Guinness" },
     { c: cust2, off: -5,   amt: 68.00,  covers: 4, items: "Fish and Chips, Chicken Wings, Guinness" },
     { c: cust2, off: -16,  amt: 54.50,  covers: 3, items: "Fish and Chips, Guinness" },
     { c: cust2, off: -23,  amt: 72.00,  covers: 4, items: "Beef Burger, Fish and Chips, Guinness" },
@@ -1480,17 +1481,17 @@ export async function main(prisma: PrismaClient = new PrismaClient()) {
     { c: cust2, off: -58,  amt: 58.50,  covers: 3, items: "Beef Burger, Guinness" },
     { c: cust2, off: -79,  amt: 66.00,  covers: 4, items: "Fish and Chips, Beef Burger, Guinness" },
     // Siobhán — 3 visits, bronze
-    { c: cust3, off: -9,   amt: 64.00,  covers: 2, items: "Seafood Chowder, Chicken Supreme, Sparkling Water" },
-    { c: cust3, off: -31,  amt: 58.00,  covers: 2, items: "Chicken Supreme, Sparkling Water" },
-    { c: cust3, off: -66,  amt: 71.50,  covers: 2, items: "Seafood Chowder, Sirloin Steak, Sparkling Water" },
+    { c: cust3, off: -38,  amt: 64.00,  covers: 2, items: "Seafood Chowder, Chicken Supreme, Sparkling Water" },
+    { c: cust3, off: -59,  amt: 58.00,  covers: 2, items: "Chicken Supreme, Sparkling Water" },
+    { c: cust3, off: -84,  amt: 71.50,  covers: 2, items: "Seafood Chowder, Sirloin Steak, Sparkling Water" },
     // Colm — 4 visits, VIP purely on the spend rule
     { c: cust4, off: -6,   amt: 185.00, covers: 6, items: "Sirloin Steak, Seafood Chowder, Bottle of Malbec" },
     { c: cust4, off: -21,  amt: 152.50, covers: 5, items: "Sirloin Steak, Chicken Supreme, Bottle of Malbec" },
     { c: cust4, off: -44,  amt: 168.00, covers: 6, items: "Sirloin Steak, Seafood Chowder, Bottle of Malbec, Cheese Board" },
     { c: cust4, off: -71,  amt: 141.00, covers: 4, items: "Chicken Supreme, Sirloin Steak, Bottle of Malbec" },
     // Helen — 2 visits, bronze, birthday in the diary
-    { c: cust5, off: -11,  amt: 52.00,  covers: 2, items: "Chicken Supreme, Prosecco" },
-    { c: cust5, off: -95,  amt: 47.50,  covers: 2, items: "Fish and Chips, Prosecco" },
+    { c: cust5, off: -47,  amt: 52.00,  covers: 2, items: "Chicken Supreme, Prosecco" },
+    { c: cust5, off: -112, amt: 47.50,  covers: 2, items: "Fish and Chips, Prosecco" },
   ];
 
   await prisma.guestTransaction.createMany({
@@ -1546,10 +1547,10 @@ export async function main(prisma: PrismaClient = new PrismaClient()) {
   // seed stays dependency free. They match what a recompute produces.
   const crmRollups = [
     { id: cust1, visits: 11, total: 1310.00, avg: 119.09, last: -3,  points: 1107, tier: "vip",    vipOff: -52, dishes: ["Pan Seared Salmon", "House Red Wine", "Sirloin Steak", "Seafood Chowder", "Cheese Board"] },
-    { id: cust2, visits: 6,  total: 380.00,  avg: 63.33,  last: -5,  points: 379,  tier: "silver", vipOff: null, dishes: ["Guinness", "Fish and Chips", "Beef Burger", "Chicken Wings"] },
-    { id: cust3, visits: 3,  total: 193.50,  avg: 64.50,  last: -9,  points: 193,  tier: "bronze", vipOff: null, dishes: ["Sparkling Water", "Chicken Supreme", "Seafood Chowder", "Sirloin Steak"] },
+    { id: cust2, visits: 7,  total: 454.00,  avg: 64.86,  last: 0,   points: 453,  tier: "silver", vipOff: null, dishes: ["Guinness", "Fish and Chips", "Beef Burger", "Chicken Wings"] },
+    { id: cust3, visits: 3,  total: 193.50,  avg: 64.50,  last: -38, points: 193,  tier: "bronze", vipOff: null, dishes: ["Sparkling Water", "Chicken Supreme", "Seafood Chowder", "Sirloin Steak"] },
     { id: cust4, visits: 4,  total: 646.50,  avg: 161.63, last: -6,  points: 646,  tier: "vip",    vipOff: -6,  dishes: ["Bottle of Malbec", "Sirloin Steak", "Seafood Chowder", "Chicken Supreme", "Cheese Board"] },
-    { id: cust5, visits: 2,  total: 99.50,   avg: 49.75,  last: -11, points: 99,   tier: "bronze", vipOff: null, dishes: ["Prosecco", "Chicken Supreme", "Fish and Chips"] },
+    { id: cust5, visits: 2,  total: 99.50,   avg: 49.75,  last: -47, points: 99,   tier: "bronze", vipOff: null, dishes: ["Prosecco", "Chicken Supreme", "Fish and Chips"] },
   ];
 
   for (const r of crmRollups) {
