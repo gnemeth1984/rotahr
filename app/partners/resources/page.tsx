@@ -50,9 +50,10 @@ export default function AffiliateResourcesPage() {
           Rotahr with restaurants, bars, cafés and hotels.
         </p>
         <p style={{ marginTop: 14, fontSize: 14, color: "rgba(255,255,255,0.4)", maxWidth: 560, marginLeft: "auto", marginRight: "auto", lineHeight: 1.7 }}>
-          Both PDFs predate the newest modules: guest loyalty tiers and points, in-house staff
-          training courses, and the equipment and service register all shipped after they were
-          made. Worth mentioning live — they are covered in full on the{" "}
+          The pitch deck is current. The walkthrough guide still predates the newest modules:
+          guest loyalty tiers and points, in-house staff training courses, and the equipment and
+          service register all shipped after it was made. Worth mentioning live — they are
+          covered in full on the{" "}
           <a href="/features" style={{ color: "#f97316" }}>features pages</a>.
         </p>
       </div>
