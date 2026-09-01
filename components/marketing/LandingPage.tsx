@@ -72,6 +72,21 @@ const features = [
     desc: "Store contacts, emergency info, PPS numbers and medical details securely in one place.",
   },
   {
+    icon: "🎓",
+    title: "Training & Certifications",
+    desc: "Thirteen in-house courses built from your own menu, equipment and logs. Pass mark, 12-month expiry, printable record. Not accredited.",
+  },
+  {
+    icon: "🔧",
+    title: "Equipment & Servicing",
+    desc: "Every asset with its warranty, service history and paperwork. Warned 30 and 7 days before a service or warranty falls due.",
+  },
+  {
+    icon: "⭐",
+    title: "Guest CRM & Loyalty",
+    desc: "Profiles built from your bookings, with spend history, loyalty tiers and points. Campaigns wait as drafts until you approve them.",
+  },
+  {
     icon: "🤖",
     title: "AI Assistant",
     desc: "Ask about schedules, parse booking requests, forecast staffing needs and detect shift conflicts.",
@@ -102,6 +117,7 @@ const plans = [
       "Clock in/out with geofencing",
       "Reservations & table management",
       "Menu & specials board",
+      "Log book & equipment service register",
       "Bookkeeping & AI receipt scanning",
       "Time-off requests & approvals",
       "Team messaging",
@@ -124,6 +140,8 @@ const plans = [
     features: [
       "Everything in Starter",
       "Up to 30 staff members",
+      "Guest CRM, loyalty tiers & points",
+      "In-house staff training & certification records",
       "Department management",
       "Staff availability management",
       "Payroll summaries",
@@ -264,7 +282,7 @@ export default function LandingPage() {
         </h1>
 
         <p className="text-xl text-slate-500 max-w-2xl mx-auto mb-4">
-          Rotas, clock-in, reservations, bookkeeping, payroll, team messaging and more — all in one place.
+          Rotas, clock-in, reservations, bookkeeping, payroll, staff training, equipment servicing, team messaging and more — all in one place.
         </p>
         <p className="text-base text-slate-600 max-w-xl mx-auto mb-10">
           Replace 4 separate tools with one. Starting at <strong className="text-slate-600">€59/month</strong> incl. VAT —{" "}

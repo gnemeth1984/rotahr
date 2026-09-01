@@ -7,8 +7,8 @@
  * earn its place on specifics only a team that built the module could write —
  * exact temperature thresholds, what the scan reads, what the export contains.
  *
- * Deliberately NOT city-templated: see the warning in locations.ts. Seven pages
- * describing seven genuinely different modules is not a doorway pattern.
+ * Deliberately NOT city-templated: see the warning in locations.ts. Nine pages
+ * describing nine genuinely different modules is not a doorway pattern.
  *
  * Audience is international (Ireland, UK, US, Canada, Australia). Where a rule
  * is jurisdiction-specific, say which jurisdiction rather than assuming Ireland.
@@ -473,13 +473,14 @@ export const features: Feature[] = [
     heading: "A guest database that builds itself from your bookings",
     title: "Restaurant CRM & Guest Database | Rotahr",
     metaDescription:
-      "Customer profiles created automatically from reservations: visit history, no-shows, tags and notes. Consent-gated email, CSV export, duplicate merging.",
+      "Customer profiles created automatically from reservations: visit history, spend, no-shows, tags and notes. Loyalty tiers and points, consent-gated campaigns, CSV export, duplicate merging.",
     answer:
-      "Every reservation in Rotahr creates or updates a guest profile automatically, so you end up with a real customer database — visit counts, no-shows, tags and notes — without anybody maintaining a list.",
+      "Every reservation in Rotahr creates or updates a guest profile automatically, so you end up with a real customer database — visit counts, spend, no-shows, tags and notes — without anybody maintaining a list, and loyalty tiers and points sit on top of it.",
     body: [
       "Most independent venues have no idea who their regulars are, in the sense of being able to name them or reach them. The information exists, spread across a booking diary, a card machine and the memory of whoever is on the door. It's never in one place, so it's never used.",
       "Because profiles are built from bookings you're already taking, the database is a by-product rather than a project. Search and filter by tag, see visit statistics and no-show history, and add the manager notes that make a returning guest feel recognised — the allergy, the usual table, the anniversary.",
       "Email is deliberately consent-gated. You can send to guests who have opted in, and the ones who haven't are excluded rather than quietly included. Duplicate profiles can be merged, and a guest can be anonymised on request in a way that satisfies a deletion request without shredding your booking history.",
+      "On top of the profiles sit loyalty and campaigns. Spend recorded against a guest — entered by hand or imported from a CSV — drives visit counts, average spend and a tier: Bronze, Silver, Gold, and VIP once lifetime spend passes your threshold. Points accrue per unit spent and staff redeem them at the till against a value you set. Campaigns build a list from a segment — lapsed regulars, birthdays this month, VIPs — and queue as a draft for a human to read before anything leaves the building. Nothing sends on its own.",
     ],
     capabilities: [
       {
@@ -508,6 +509,21 @@ export const features: Feature[] = [
           "Merge duplicates created by name variations and phone-number differences, so counts mean something.",
       },
       {
+        title: "Spend history and averages",
+        detail:
+          "Per-guest transactions entered by hand or imported from a CSV, giving lifetime spend, average spend per visit and a favourite-dishes list.",
+      },
+      {
+        title: "Loyalty tiers and points",
+        detail:
+          "Bronze, Silver and Gold on visit count, plus a VIP tier triggered by lifetime spend, with points earned per unit spent and redeemed at the till at a value you set. Thresholds and point value are yours to change.",
+      },
+      {
+        title: "Campaigns with a draft review queue",
+        detail:
+          "Build a list from a segment — lapsed regulars, birthdays this month, VIPs, no-show risks — and the campaign is queued as a draft for someone to read and approve. Nothing is sent autonomously.",
+      },
+      {
         title: "GDPR handling",
         detail:
           "Anonymisation and CSV export, so deletion and access requests have an answer that isn't manual.",
@@ -516,9 +532,10 @@ export const features: Feature[] = [
     bestFor:
       "Venues with a busy diary and no marketing list, and anyone who has wanted to fill a quiet Tuesday and had no one to tell.",
     limits: [
-      "It's not a campaign automation platform. There are no drip sequences, no A/B testing and no segmentation builder — sends are direct and simple.",
+      "It's not a marketing automation platform. Campaigns are queued as drafts for a human to approve, and there are no drip sequences and no A/B testing — deliberately, because an unsupervised send to a guest list is how venues get themselves in trouble.",
+      "Guest spend has no automatic feed from the till. Transactions are entered by hand or imported from a CSV; a connected POS gives you day-level sales, not who spent what.",
       "Guests who never book — walk-ins — don't create profiles, so a wet-led bar will see thinner coverage than a restaurant.",
-      "No loyalty scheme, points or stamp cards.",
+      "Loyalty is points and tiers held in Rotahr and redeemed by a member of staff. There is no plastic card, no wallet pass and no self-serve guest login.",
     ],
     faq: [
       {
@@ -533,8 +550,166 @@ export const features: Feature[] = [
         q: "What if the same guest is in there twice?",
         a: "Merge the profiles. Visit history combines rather than one record being discarded.",
       },
+      {
+        q: "How does the loyalty scheme work?",
+        a: "Guests move through Bronze, Silver and Gold on visit count, and into VIP on lifetime spend. Points accrue per unit spent and staff redeem them at the till against a value you set. Both the thresholds and the point value are configurable.",
+      },
+      {
+        q: "Will a campaign send by itself?",
+        a: "No. A campaign builds its list from a segment and then waits as a draft until somebody approves it. That is deliberate.",
+      },
     ],
     related: ["table-bookings", "bookkeeping-receipts"],
+  },
+
+  {
+    slug: "training-certifications",
+    name: "Training & Certifications",
+    heading: "In-house training built from your own menu, equipment and logs",
+    title: "Staff Training & Certification Tracking | Rotahr",
+    metaDescription:
+      "Thirteen in-house training courses generated from your own menu, equipment register, stock list and HACCP records. 80% pass mark, 12-month expiry, printable record. Not accredited.",
+    answer:
+      "Rotahr builds thirteen short training courses out of your venue's own data — your menu, your equipment register, your stock list, your HACCP units, your rota — so a new starter is tested on the actual allergens and the actual fridges they will work with, and every pass is recorded with an expiry date. This is in-house training, not an accredited qualification.",
+    body: [
+      "Induction training in a small venue is usually a conversation on a Tuesday afternoon that nobody writes down. The generic e-learning alternative teaches a fictional kitchen: a menu that isn't yours, equipment you don't own, chemicals you don't stock. Staff click through it, the certificate goes in a drawer, and nothing about how your venue actually runs has been learned or evidenced.",
+      "Because Rotahr already holds the menu and its allergen matrix, the stock list, the cleaning logs, the delivery log, the HACCP units and the equipment register, the course content is generated from them. The allergen course asks about dishes on your own menu. The fire safety course names your own equipment. The working time course follows the rule set for your region. Change the menu and the course changes with it.",
+      "Assign a course to one person or the whole team, then use the team board — every staff member against every course in one grid — to see who to chase first. A pass needs 80%, lasts twelve months, prints as a certificate, and sits on that employee's profile beside their external certificates so the expiry tracker chases it before it lapses. An owner without a staff record can take any course too, marked as a practice run so it stays out of the team's records.",
+    ],
+    capabilities: [
+      {
+        title: "Thirteen courses, generated from your data",
+        detail:
+          "Allergen awareness from your menu, fire safety from your equipment register, manual handling from your stock list, food hygiene and HACCP system awareness from your own HACCP units, cleaning chemical safety from your cleaning logs, deliveries and goods-in from your delivery log, guest data privacy from your guest records, working time and breaks from your rota, plus front-of-house allergen service, knife and equipment safety, stock and waste cost, and opening and closing checks.",
+      },
+      {
+        title: "Assign and chase",
+        detail:
+          "Assign to one person or the whole team with a due date, and outstanding assignments get chased rather than remembered by a manager.",
+      },
+      {
+        title: "Team board",
+        detail:
+          "Every staff member against every course in a single grid, so the gaps and the people to chase first are visible without opening thirteen reports.",
+      },
+      {
+        title: "Pass mark and 12-month expiry",
+        detail:
+          "80% to pass, valid for twelve months, then it reappears as due. Retakes are allowed and the latest result is the one that counts.",
+      },
+      {
+        title: "Printable certificate",
+        detail:
+          "Each pass produces a certificate you can print or save as a PDF for the training folder an inspector asks to see.",
+      },
+      {
+        title: "History on the employee profile",
+        detail:
+          "Which courses a person has taken, when they passed and when it expires, alongside the external certificates Rotahr already tracks.",
+      },
+    ],
+    bestFor:
+      "Venues that induct staff constantly and have nothing written down to prove any of it, and anyone whose training records are currently a drawer.",
+    limits: [
+      "This is in-house training, not an accredited qualification. Rotahr is not an awarding body and these courses carry no accreditation. Where your jurisdiction requires accredited or externally certified training, you still buy that separately — Rotahr records it and tracks its expiry, it does not replace it.",
+      "Course content is only as good as the data behind it. A half-filled allergen matrix or an empty equipment register produces a thin course.",
+      "Text and questions only. No video, no SCORM and no library of third-party courses.",
+      "Written for the jurisdictions Rotahr supports — Ireland, the UK, the US, Canada and Australia — and not a substitute for local legal advice.",
+    ],
+    faq: [
+      {
+        q: "Is the training accredited?",
+        a: "No. These are in-house courses built from your own data, and Rotahr is not an awarding body. They evidence that you trained your team on your own systems. They do not replace an accredited qualification where one is legally required.",
+      },
+      {
+        q: "Will it satisfy an inspector?",
+        a: "It gives you what most small venues cannot produce on the spot: a dated record of who was trained on what, with a pass mark and a printable certificate. Whether that is sufficient depends on your jurisdiction and the role. For anything that requires accredited certification, keep buying it and record it in Rotahr alongside.",
+      },
+      {
+        q: "What happens after twelve months?",
+        a: "The pass expires and the course reappears as due for that person, exactly the way an external certificate expiry is tracked.",
+      },
+      {
+        q: "Can I take a course myself as the owner?",
+        a: "Yes. An owner without a staff record can take any course, and the attempt is marked as a practice run so it never lands in the team's records.",
+      },
+    ],
+    related: ["haccp-food-safety", "staff-scheduling"],
+  },
+
+  {
+    slug: "equipment-register",
+    name: "Equipment & Service Register",
+    heading: "Every asset, its service history and its paperwork in one place",
+    title: "Equipment & Service Register for Venues | Rotahr",
+    metaDescription:
+      "Log every asset with purchase price, warranty, service interval and documents. Warnings 30 and 7 days before a service, warranty or replacement date, plus a Monday morning digest.",
+    answer:
+      "Rotahr keeps a register of every piece of equipment in the venue — what it is, where it lives, what it cost, who to ring, when it was last serviced and when it is next due — with the certificates and invoices attached, and it warns you 30 days and 7 days before anything falls due.",
+    body: [
+      "The gas interlock certificate, the extraction clean, the cellar cooler service, the coffee machine warranty. Every venue has a dozen of these and no system for them. They live in an email, a folder behind the office door, or the memory of whoever rang the engineer last time. Losing track costs you either an unplanned closure or a callout invoice for something that was still under warranty.",
+      "The register lives inside the Log Book, so an asset that has broken and an asset that is due a service sit where a manager already looks every shift. Each asset carries its make, model and serial number, where it is, purchase date and price, warranty provider and expiry, the engineer's company and phone number, a service interval, and a replace-by date — because a machine can be perfectly serviced and still need budgeting for.",
+      "Every visit is logged against the asset: what kind of visit it was, who came, what they did, what it cost and whether the warranty covered it, with the service report or invoice uploaded to the record. Logging a service rolls the next due date forward by the interval, and a one-off date an engineer books survives instead of being overwritten. Warnings arrive 30 and 7 days out, a digest lands every Monday morning with what is due that week, and costs display in your own currency from your business settings.",
+    ],
+    capabilities: [
+      {
+        title: "Asset register",
+        detail:
+          "Name, category, location, make, model and serial number, purchase date and price, and a status: active, faulty, awaiting parts, out of service or retired.",
+      },
+      {
+        title: "Warranty and who to ring",
+        detail:
+          "Warranty provider, expiry and notes alongside the service company, contact name, phone and email, so nobody pays for a callout that was covered.",
+      },
+      {
+        title: "Service history",
+        detail:
+          "Every service, repair, inspection, installation and callout against the asset: date, engineer, company, cost, whether it was under warranty, and what was actually done.",
+      },
+      {
+        title: "Documents and certificates",
+        detail:
+          "Warranties, invoices, service reports, manuals and photos uploaded to the asset or to a specific visit, held in private storage and streamed only to your own team.",
+      },
+      {
+        title: "30 and 7 day advance warnings",
+        detail:
+          "Service dates, warranty expiries and replace-by dates each warn twice, far enough ahead to book an engineer rather than react to a breakdown.",
+      },
+      {
+        title: "Monday morning digest",
+        detail:
+          "A weekly summary of what is due, so the week gets planned before service starts rather than after something fails.",
+      },
+    ],
+    bestFor:
+      "Kitchens and cellars full of equipment on service contracts, and any operator who has paid for a callout that a warranty would have covered.",
+    limits: [
+      "It reminds you, it does not book the engineer. There is no contractor marketplace, no job dispatch and no link into a service company's diary.",
+      "Not fixed-asset accounting. Purchase price and warranty are recorded, but Rotahr does not calculate depreciation or post an asset ledger into the bookkeeping module.",
+      "No barcode or QR asset scanning, and no wired temperature probes — fridge temperatures are logged in the HACCP module by a person.",
+      "Service intervals are yours to set. Rotahr does not know the manufacturer's recommended schedule for your specific machine.",
+    ],
+    faq: [
+      {
+        q: "Where does the register live?",
+        a: "Inside the Log Book, next to the faults and repairs staff already report, so a broken machine and a machine due a service are in one place.",
+      },
+      {
+        q: "How far ahead does it warn me?",
+        a: "Thirty days and again seven days before a service, warranty expiry or replace-by date, plus a digest every Monday morning with the week ahead.",
+      },
+      {
+        q: "Can I store the certificates in it?",
+        a: "Yes. Warranties, invoices, service reports, manuals and photos attach to the asset or to a specific visit, and are held in private storage rather than behind a public link.",
+      },
+      {
+        q: "Does logging a service update the next due date?",
+        a: "It rolls forward by the service interval automatically, and if an engineer books a one-off date that does not match the interval, that date is kept.",
+      },
+    ],
+    related: ["haccp-food-safety", "bookkeeping-receipts"],
   },
 ];
 

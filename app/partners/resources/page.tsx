@@ -49,6 +49,12 @@ export default function AffiliateResourcesPage() {
           Download the pitch deck and product walkthrough guide — built for affiliates sharing
           Rotahr with restaurants, bars, cafés and hotels.
         </p>
+        <p style={{ marginTop: 14, fontSize: 14, color: "rgba(255,255,255,0.4)", maxWidth: 560, marginLeft: "auto", marginRight: "auto", lineHeight: 1.7 }}>
+          Both PDFs predate the newest modules: guest loyalty tiers and points, in-house staff
+          training courses, and the equipment and service register all shipped after they were
+          made. Worth mentioning live — they are covered in full on the{" "}
+          <a href="/features" style={{ color: "#f97316" }}>features pages</a>.
+        </p>
       </div>
 
       <div className="kit">
@@ -73,7 +79,7 @@ export default function AffiliateResourcesPage() {
             floor plan, bookkeeping, HACCP, recipes and payroll — so you can show prospects
             exactly what they're signing up for.
           </p>
-          <div className="card-meta">PDF · 11 pages</div>
+          <div className="card-meta">PDF · 11 pages · made Aug 2026</div>
           <a href="/affiliate-resources/How-to-Use-Rotahr.pdf" download className="dl-btn">
             Download guide
           </a>

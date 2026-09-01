@@ -216,7 +216,7 @@ export default function PitchPage() {
       <section className="hero">
         <div className="hero-label">Pitch Deck · 12 Slides</div>
         <h1>One app to run<br /><span>your entire venue</span></h1>
-        <p>Rotas · Clock-In · Reservations · Bookkeeping · CRM · Menu Specials · POS Integration — built for hospitality teams everywhere.</p>
+        <p>Rotas · Clock-In · Reservations · Bookkeeping · CRM &amp; Loyalty · Staff Training · Equipment Servicing · POS Integration — built for hospitality teams everywhere.</p>
         <a className="btn-primary" href="/auth/signin">Check Our Demo</a>
       </section>
 
@@ -230,14 +230,19 @@ export default function PitchPage() {
                   <div className="slide-title">Built for <span>Hospitality Teams</span></div>
                   <div className="slide-sub">Every feature driven by real feedback from pub, bar &amp; restaurant owners</div>
                   <div className="wn-grid">
-                    <div className="wn-card hl"><div className="wn-new">New</div><div className="wn-icon">📣</div><div className="wn-name">Social Post Creator</div><div className="wn-desc">Turn today's specials into a branded, ready-to-share image in seconds — 10 template styles, then share straight to Facebook, Instagram or WhatsApp from your phone's own share sheet.</div></div>
-                    <div className="wn-card hl"><div className="wn-new">New</div><div className="wn-icon">🌍</div><div className="wn-name">Multi-Currency & Global Ready</div><div className="wn-desc">EUR, USD, GBP, CAD or AUD — tax labels adapt automatically (VAT, Sales Tax, GST/HST). Live in Ireland, the UK &amp; the US, with more regions on the way.</div></div>
-                    <div className="wn-card hl"><div className="wn-new">New</div><div className="wn-icon">🚚</div><div className="wn-name">One-Scan Delivery Notes</div><div className="wn-desc">Snap a photo of a delivery note — AI populates bookkeeping, stock levels and the HACCP delivery check simultaneously. Recipe costs update live.</div></div>
-                    <div className="wn-card hl"><div className="wn-new">New</div><div className="wn-icon">📊</div><div className="wn-name">Reports &amp; Insights</div><div className="wn-desc">Labour cost vs revenue trends over time, overtime tracking, and per-venue breakdowns for multi-site operators — spot problems before they hit your margin.</div></div>
-                    <div className="wn-card hl"><div className="wn-new">New</div><div className="wn-icon">📋</div><div className="wn-name">Manager Log Book</div><div className="wn-desc">Staff report 86'd items and repair issues themselves — managers get notified instantly and can add running updates like "Called Ben, due Tuesday 2pm".</div></div>
-                    <div className="wn-card hl"><div className="wn-new">New</div><div className="wn-icon">🎁</div><div className="wn-name">CRM Promo Offers + QR Redemption</div><div className="wn-desc">Generate a birthday drink, win-back offer, or VIP thank-you in one click — complete with a scannable QR code staff can redeem right at the till.</div></div>
-                    <div className="wn-card hl"><div className="wn-new">New</div><div className="wn-icon">📧</div><div className="wn-name">Send CRM Emails As Yourself</div><div className="wn-desc">Connect your own Gmail so customer emails come from your real inbox — not a generic no-reply address — with your business name and signature added automatically.</div></div>
-                    <div className="wn-card hl"><div className="wn-new">New</div><div className="wn-icon">⚖️</div><div className="wn-name">Region-Aware Overtime Compliance</div><div className="wn-desc">Automatic weekly-hours warnings on the rota — tuned to the right rule for your region: EU/UK Working Time rules, US FLSA, or Australia's Fair Work Act.</div></div>
+                    <div className="wn-card hl"><div className="wn-new">New</div><div className="wn-icon">🎓</div><div className="wn-name">In-House Training Courses</div><div className="wn-desc">Thirteen staff courses generated from your own data — allergens from your menu, fire safety from your equipment register, manual handling from your stock list, working time from your rota. 80% pass mark, 12-month expiry, printable record. In-house training, not an accredited qualification.</div></div>
+                    <div className="wn-card hl"><div className="wn-new">New</div><div className="wn-icon">✅</div><div className="wn-name">Assign, Chase &amp; Team Board</div><div className="wn-desc">Assign a course to one person or the whole team with a due date, then see every staff member against every course in one grid so you know who to chase first. Passes land on the employee profile with an expiry date.</div></div>
+                    <div className="wn-card hl"><div className="wn-new">New</div><div className="wn-icon">🔧</div><div className="wn-name">Equipment &amp; Service Register</div><div className="wn-desc">Every asset with its warranty, service interval, engineer contact, service history and uploaded certificates. Warnings 30 and 7 days before anything falls due, plus a Monday morning digest of the week ahead — inside the Log Book.</div></div>
+                    <div className="wn-card hl"><div className="wn-new">New</div><div className="wn-icon">⭐</div><div className="wn-name">Guest Loyalty Tiers &amp; Points</div><div className="wn-desc">Spend history per guest drives Bronze, Silver, Gold and a VIP tier, with points earned per unit spent and redeemed at the till at a value you set. Campaigns build a list from a segment and queue as a draft — nothing sends on its own.</div></div>
+                    <div className="wn-card hl"><div className="wn-new">New</div><div className="wn-icon">⚠️</div><div className="wn-name">May-Contain Allergen Traces</div><div className="wn-desc">The allergen matrix now records traces separately from ingredients, so &ldquo;may contain&rdquo; gets answered honestly at the table instead of being guessed at.</div></div>
+                    <div className="wn-card"><div className="wn-icon">📣</div><div className="wn-name">Social Post Creator</div><div className="wn-desc">Turn today's specials into a branded, ready-to-share image in seconds — 10 template styles, then share straight to Facebook, Instagram or WhatsApp from your phone's own share sheet.</div></div>
+                    <div className="wn-card"><div className="wn-icon">🌍</div><div className="wn-name">Multi-Currency & Global Ready</div><div className="wn-desc">EUR, USD, GBP, CAD or AUD — tax labels adapt automatically (VAT, Sales Tax, GST/HST). Live in Ireland, the UK &amp; the US, with more regions on the way.</div></div>
+                    <div className="wn-card"><div className="wn-icon">🚚</div><div className="wn-name">One-Scan Delivery Notes</div><div className="wn-desc">Snap a photo of a delivery note — AI populates bookkeeping, stock levels and the HACCP delivery check simultaneously. Recipe costs update live.</div></div>
+                    <div className="wn-card"><div className="wn-icon">📊</div><div className="wn-name">Reports &amp; Insights</div><div className="wn-desc">Labour cost vs revenue trends over time, overtime tracking, and per-venue breakdowns for multi-site operators — spot problems before they hit your margin.</div></div>
+                    <div className="wn-card"><div className="wn-icon">📋</div><div className="wn-name">Manager Log Book</div><div className="wn-desc">Staff report 86'd items and repair issues themselves — managers get notified instantly and can add running updates like "Called Ben, due Tuesday 2pm".</div></div>
+                    <div className="wn-card"><div className="wn-icon">🎁</div><div className="wn-name">CRM Promo Offers + QR Redemption</div><div className="wn-desc">Generate a birthday drink, win-back offer, or VIP thank-you in one click — complete with a scannable QR code staff can redeem right at the till.</div></div>
+                    <div className="wn-card"><div className="wn-icon">📧</div><div className="wn-name">Send CRM Emails As Yourself</div><div className="wn-desc">Connect your own Gmail so customer emails come from your real inbox — not a generic no-reply address — with your business name and signature added automatically.</div></div>
+                    <div className="wn-card"><div className="wn-icon">⚖️</div><div className="wn-name">Region-Aware Overtime Compliance</div><div className="wn-desc">Automatic weekly-hours warnings on the rota — tuned to the right rule for your region: EU/UK Working Time rules, US FLSA, or Australia's Fair Work Act.</div></div>
                     <div className="wn-card"><div className="wn-icon">🪑</div><div className="wn-name">Visual Floor Plan</div><div className="wn-desc">Drag-and-drop table layout matching your real venue — square, round, rectangular or bar/counter seating, freely sized. Live status per table: free, upcoming, confirmed, seated.</div></div>
                     <div className="wn-card"><div className="wn-icon">📸</div><div className="wn-name">Recipe Photos</div><div className="wn-desc">Upload a photo of the finished dish to every recipe so kitchen staff always know exactly how a plate should look before it goes out.</div></div>
                     <div className="wn-card"><div className="wn-icon">⏰</div><div className="wn-name">HACCP Reminder Schedules</div><div className="wn-desc">Set custom reminder times per check type. Notifies whoever's clocked in or on rota, and keeps reminding until the check is logged.</div></div>
@@ -296,6 +301,8 @@ export default function PitchPage() {
                           ["Send-as-yourself CRM Email", true, false, false, false],
                           ["Region-Aware Overtime Compliance", true, false, false, true],
                           ["Social Post Creator (branded specials graphics)", true, false, false, false],
+                          ["Training courses built from your own menu & equipment", true, false, false, false],
+                          ["Equipment service & warranty register", true, false, false, false],
                         ].map(([label, rh, nory, supy, dep]) => (
                           <tr key={String(label)}>
                             <td className="feat">{String(label)}</td>
@@ -342,6 +349,7 @@ export default function PitchPage() {
                         <li>Messaging & announcements</li>
                         <li>AI booking assistant</li>
                         <li>Menu specials board</li>
+                        <li>Log book & equipment service register</li>
                         <li>POS integration (Square)</li>
                       </ul>
                     </div>
@@ -353,7 +361,8 @@ export default function PitchPage() {
                       <div className="price-divider" />
                       <ul className="price-features">
                         <li>Everything in Starter</li>
-                        <li>CRM & customer profiles</li>
+                        <li>CRM, loyalty tiers & campaign drafts</li>
+                        <li>Staff training courses & certification records</li>
                         <li>Bookkeeping, receipts & AI invoice reading</li>
                         <li>Stock, wastage & price variance</li>
                         <li>Recipe costing & GP%</li>

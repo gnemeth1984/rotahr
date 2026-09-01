@@ -313,11 +313,19 @@ export default function ProductTourPage() {
             <h3 className="text-lg font-semibold mb-3">What Rotahr is not</h3>
             <p className="text-slate-300 leading-relaxed">
               Rotahr is not a point of sale. It does not process customer
-              payments, it does not take orders at the table, and it does not
-              host course or training content. &ldquo;Order management&rdquo;
-              above means purchase orders to your suppliers, not customer
-              orders. Rotahr runs the back of house around whatever till you
-              already use.
+              payments and it does not take orders at the table.
+              &ldquo;Order management&rdquo; above means purchase orders to your
+              suppliers, not customer orders. Rotahr runs the back of house
+              around whatever till you already use.
+            </p>
+            <p className="text-slate-300 leading-relaxed mt-4">
+              Rotahr does host training content, but it is in-house training
+              only: thirteen courses generated from your own menu, equipment
+              register, stock list and HACCP units, with a pass mark, a 12-month
+              expiry and a printable record. Rotahr is not an awarding body and
+              none of it is accredited. Where accredited certification is
+              legally required, you buy it elsewhere and Rotahr tracks when it
+              expires.
             </p>
           </div>
         </section>

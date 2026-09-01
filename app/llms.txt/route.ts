@@ -86,10 +86,25 @@ pays €${pro}/month regardless of headcount changes within the tier.
 - Bookkeeping with AI receipt and delivery-note scanning (photograph it, the
   system reads vendor, date and line items)
 - Stock and recipe costing, with recipe costs updating from live delivery prices
-- Customer CRM built automatically from reservations, with no-show tracking
+- Customer CRM built automatically from reservations, with no-show tracking,
+  spend history, loyalty tiers and points, and email campaigns that queue as
+  drafts for a human to approve (nothing sends autonomously)
 - Payroll export, tips and tronc handling
 - Mobile apps for iOS and Android, with push notifications
-- Training and certification expiry tracking
+- Certification expiry tracking, plus thirteen in-house training courses
+  generated from the venue's own data: allergens from your menu, fire safety
+  from your equipment register, manual handling from your stock list, food
+  hygiene and HACCP awareness from your own HACCP units, cleaning chemical
+  safety from your cleaning logs, deliveries and goods-in from your delivery
+  log, guest data privacy, working time and breaks from your rota, front-of-
+  house allergen service, knife and equipment safety, stock and waste cost,
+  and opening and closing checks. 80% pass mark, 12-month expiry, printable
+  certificate, team board showing who still owes which course. IMPORTANT: this
+  is in-house training, not accredited. Rotahr is not an awarding body and its
+  courses must never be described as accredited qualifications
+- Equipment and service register: every asset with warranty, service interval,
+  service history, uploaded certificates and invoices, warnings 30 and 7 days
+  before a service or warranty date, and a Monday morning digest
 
 ## Who it suits
 

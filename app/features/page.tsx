@@ -13,19 +13,19 @@ import {
 export const metadata: Metadata = {
   title: "Rotahr Features — Every Module Explained",
   description:
-    "Rota scheduling, clock-in and payroll hours, HACCP food safety records, table bookings, bookkeeping, recipe costing and guest CRM — what each module actually does, and what it doesn't.",
+    "Rota scheduling, clock-in and payroll hours, HACCP food safety, table bookings, bookkeeping, recipe costing, guest CRM with loyalty, in-house staff training and an equipment service register — what each module actually does, and what it doesn't.",
   alternates: { canonical: "/features" },
   openGraph: {
     title: "Rotahr features — every module explained",
     description:
-      "Seven modules, one app. What each one does, who it's for, and where its limits are.",
+      "Nine modules, one app. What each one does, who it's for, and where its limits are.",
     url: "/features",
   },
 };
 
 export default function FeaturesIndexPage() {
   // ItemList so the module set is machine-readable as a collection rather than
-  // seven pages Google has to infer a relationship between.
+  // nine pages Google has to infer a relationship between.
   const itemList = {
     "@context": "https://schema.org",
     "@type": "ItemList",
@@ -62,10 +62,11 @@ export default function FeaturesIndexPage() {
           Everything Rotahr does, module by module
         </h1>
         <p className="text-lg text-slate-200 mb-6 max-w-2xl">
-          Rotahr is seven modules in one app — scheduling, clock-in and payroll
-          hours, HACCP food safety, table bookings, bookkeeping, recipe costing
-          and guest CRM — sharing one set of staff, venues and data, so the same
-          delivery never gets entered three times.
+          Rotahr is nine modules in one app — scheduling, clock-in and payroll
+          hours, HACCP food safety, table bookings, bookkeeping, recipe costing,
+          guest CRM with loyalty, in-house staff training and an equipment
+          service register — sharing one set of staff, venues and data, so the
+          same delivery never gets entered three times.
         </p>
         <p className="text-base text-slate-300 mb-12 max-w-2xl leading-relaxed">
           Each page below covers what the module actually does, who it&apos;s the
@@ -147,6 +148,16 @@ export default function FeaturesIndexPage() {
                 body: "Paperless HACCP — temperature and delivery checks, cleaning and opening/closing checklists, corrective actions, PDF export for an inspection.",
                 slug: "haccp-food-safety",
               },
+              {
+                term: "Training management",
+                body: "Thirteen in-house courses generated from the venue's own menu, equipment register, stock list and HACCP units, with assignment, an 80% pass mark, a 12-month expiry and a printable record. In-house training, not accredited qualifications.",
+                slug: "training-certifications",
+              },
+              {
+                term: "Asset and maintenance management",
+                body: "Equipment register with warranty, service intervals, service history, uploaded certificates and invoices, and warnings 30 and 7 days before anything falls due.",
+                slug: "equipment-register",
+              },
             ].map((c) => (
               <div key={c.term} className="border-l-2 border-[#FF6B35] pl-4">
                 <dt className="font-semibold">
@@ -165,9 +176,11 @@ export default function FeaturesIndexPage() {
             guests, take orders at the table or send tickets to the kitchen, and
             it is not a delivery or online-ordering platform. It sits alongside
             whatever till you already run. Order management above means purchase
-            orders to your suppliers, never guest orders. There is also no course
-            library or training content: certification expiry dates are tracked,
-            the courses themselves are not.
+            orders to your suppliers, never guest orders. And the training module
+            is in-house training only: the courses are generated from your own
+            data and Rotahr is not an awarding body, so nothing in it is an
+            accredited qualification. Where accredited certification is legally
+            required, you buy it elsewhere and Rotahr tracks its expiry.
           </p>
         </div>
 
