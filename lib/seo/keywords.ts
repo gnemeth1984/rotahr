@@ -183,7 +183,7 @@ const MODIFIERS = [
   // "free" is deliberately absent. It harvested a whole family of
   // "best free ... software" / "... free download" queries that isUsable() now
   // rejects anyway, because somebody searching for free software will not pay
-  // €59/month. Every one of those was ~130 wasted autocomplete calls.
+  // €49/month. Every one of those was ~130 wasted autocomplete calls.
   "for restaurants",
   "for small",
   "app",
@@ -439,7 +439,7 @@ const OFF_VERTICAL = new RegExp(
 );
 
 /**
- * Queries from people who will never buy. Rotahr starts at €59/month; somebody
+ * Queries from people who will never buy. Rotahr starts at €49/month; somebody
  * searching "free download" or "open source" is not a customer at any point in
  * the funnel. We published "best open source shift planning software" on 5
  * August — a real article, real cost, zero possible conversion.

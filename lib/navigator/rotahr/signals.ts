@@ -102,7 +102,7 @@ const d = (n: number) => new Date(Date.now() - n * 864e5);
 const delta = (now: number, prev: number): Delta => ({ now, prev, change: now - prev });
 
 /** Monthly price per plan, EUR incl. VAT, as sold today. */
-const PLAN_PRICE: Record<string, number> = { starter: 59, pro: 119, enterprise: 215 };
+const PLAN_PRICE: Record<string, number> = { starter: 49, pro: 89, enterprise: 215 };
 
 export async function buildSystemPulse(): Promise<SystemPulse> {
   const now = new Date();

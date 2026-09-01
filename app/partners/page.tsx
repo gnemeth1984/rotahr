@@ -150,15 +150,15 @@ export default function PartnersPage() {
             <tbody>
               <tr>
                 <td>Starter (up to 15 staff)</td>
-                <td>€59/mo</td>
-                <td>€11.80/mo</td>
-                <td>€141.60/yr</td>
+                <td>€49/mo</td>
+                <td>€9.80/mo</td>
+                <td>€117.60/yr</td>
               </tr>
               <tr>
                 <td>Pro (up to 30 staff)</td>
-                <td>€119/mo</td>
-                <td>€23.80/mo</td>
-                <td>€285.60/yr</td>
+                <td>€89/mo</td>
+                <td>€17.80/mo</td>
+                <td>€213.60/yr</td>
               </tr>
               <tr>
                 <td>Enterprise (unlimited)</td>

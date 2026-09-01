@@ -7,7 +7,7 @@ From Trustpilot review (March 2026, Tom, GB):
 > Price confirmed at **~£300/site/month**
 
 This means every single-site pub, restaurant, café in Ireland & UK that looks at Nory gets **rejected**.
-Rotahr's starter is €59/mo — that's the exact gap to target.
+Rotahr's starter is €49/mo — that's the exact gap to target.
 
 ## Nory Pain Points (from reviews/research)
 
@@ -33,7 +33,7 @@ Rotahr's starter is €59/mo — that's the exact gap to target.
 | Feature | Rotahr | Nory | Supy | Deputy/Bizimply |
 |---------|--------|------|------|-----------------|
 | Single-site friendly | ✓ | ✗ | ✗ | ✓ |
-| Price | €59/mo | ~£300/mo | Unknown/expensive | ~€80/mo |
+| Price | €49/mo | ~£300/mo | Unknown/expensive | ~€80/mo |
 | Rota + Inventory + CRM in one | ✓ | Partial | ✗ | ✗ |
 | Irish market focus | ✓ | Irish-founded, UK-focused | ✗ | ✗ |
 | Recipe costing + GP% | ✓ | ✓ | ✓ | ✗ |
@@ -45,10 +45,10 @@ Rotahr's starter is €59/mo — that's the exact gap to target.
 ### Tier 1: Single-site Irish pubs/restaurants (Nory rejects these)
 - Any pub/restaurant that has 1 location in Ireland
 - Currently using pen+paper OR Bizimply OR Deputy OR Excel for scheduling
-- Budget-conscious (€59/mo is accessible)
+- Budget-conscious (€49/mo is accessible)
 
 ### Tier 2: Multi-site but small (2-5 sites) — Nory quotes £300/site (£600-1500/mo)
-- Rotahr Pro €119/mo or Enterprise €215/mo is still 60-80% cheaper
+- Rotahr Pro €89/mo or Enterprise €215/mo is still 60-80% cheaper
 
 ### Tier 3: Businesses that commented on Nory/Supy social posts
 
@@ -79,7 +79,7 @@ These are Rotahr targets (single-site, Ireland/small UK):
 Subject: "Nory turned you away? Rotahr won't."
 Body: If you've been told you need multiple locations to use modern ops software, 
 that's wrong. Rotahr was built specifically for single-site Irish hospitality 
-— pubs, restaurants, cafés. €59/month. No minimums.
+— pubs, restaurants, cafés. €49/month. No minimums.
 
 ## Social Media Outreach Plan
 
@@ -102,5 +102,5 @@ that's wrong. Rotahr was built specifically for single-site Irish hospitality
 
 "Nory starts at £300/location and only takes multi-site chains. 
 Supy is built for UAE restaurant groups. 
-Rotahr is €59/month. Built for Irish hospitality. Single or multi-site."
+Rotahr is €49/month. Built for Irish hospitality. Single or multi-site."
 

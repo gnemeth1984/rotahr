@@ -33,7 +33,7 @@ const FLAME = "#FF6B35";
  *
  * `priceLine` is the only place the price is stated, and it must match what the
  * Lemon Squeezy checkout actually charges. Checkout is billed in **euro for
- * every market** — quoting "£50/month" to a UK lead who then lands on a €59
+ * every market** — quoting "£50/month" to a UK lead who then lands on a €49
  * checkout is a false price claim and a refund request later, so non-euro
  * markets get the euro price with an approximate local figure alongside it.
  *
@@ -46,31 +46,31 @@ const MARKETS: Record<
   ie: {
     currency: "€",
     wage: "18",
-    priceLine: "€59/month including 23% Irish VAT",
+    priceLine: "€49/month including 23% Irish VAT",
     site: "https://rotahr.com",
   },
   uk: {
     currency: "£",
     wage: "13",
-    priceLine: "€59/month, billed in euro (roughly £50)",
+    priceLine: "€49/month, billed in euro (roughly £42)",
     site: "https://rotahr.com",
   },
   us: {
     currency: "$",
     wage: "18",
-    priceLine: "€59/month, billed in euro (roughly $65)",
+    priceLine: "€49/month, billed in euro (roughly $54)",
     site: "https://rotahr.com",
   },
   ca: {
     currency: "C$",
     wage: "20",
-    priceLine: "€59/month, billed in euro (roughly C$89)",
+    priceLine: "€49/month, billed in euro (roughly C$74)",
     site: "https://rotahr.com",
   },
   au: {
     currency: "A$",
     wage: "28",
-    priceLine: "€59/month, billed in euro (roughly A$99)",
+    priceLine: "€49/month, billed in euro (roughly A$82)",
     site: "https://rotahr.com",
   },
 };

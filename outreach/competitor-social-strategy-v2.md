@@ -40,7 +40,7 @@
 > 
 > We built Rotahr specifically for food businesses that aren't multi-site restaurant chains. It handles scheduling, AI-powered receipt/invoice scanning, stock management, bookings, and a full expense dashboard — all in one.
 > 
-> No enterprise onboarding. No lock-in. First month free, then from €59/mo.
+> No enterprise onboarding. No lock-in. First month free, then from €49/mo.
 > 
 > Happy to jump on a 15-min call if it sounds relevant — or just try it at rotahr.com.
 > 
@@ -101,7 +101,7 @@ Follow and monitor:
 > 
 > That's exactly who Rotahr was built for.
 > 
-> Single site. Full stack. €59/mo.
+> Single site. Full stack. €49/mo.
 > 
 > rotahr.com"
 

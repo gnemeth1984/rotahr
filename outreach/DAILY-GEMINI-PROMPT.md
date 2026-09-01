@@ -21,8 +21,8 @@ I'm Gabor, founder of **Rotahr** — an all-in-one hospitality management platfo
 - Mobile app (iOS + Android) with push notifications
 
 **Pricing (inc. 23% Irish VAT):**
-- Starter: €59/mo (up to 15 staff)
-- Pro: €119/mo (up to 30 staff)
+- Starter: €49/mo (up to 15 staff)
+- Pro: €89/mo (up to 30 staff)
 - Enterprise: €215/mo (unlimited, multi-venue)
 - **First month free trial on Starter and Pro**
 

@@ -11,7 +11,7 @@ Price confirmed: **~£300/site/month**
 This means every single-site pub, restaurant, café in Ireland + UK that has 
 looked at Nory got turned away. That's millions of businesses.
 
-**Rotahr: €59/mo. No minimum sites. No rejection.**
+**Rotahr: €49/mo. No minimum sites. No rejection.**
 
 ---
 
@@ -30,7 +30,7 @@ kind of work you're doing. Rota builder, stock tracking, receipts, CRM, all in o
 
 Noticed a lot of Irish operators are still using 5 different tools or pen and paper.
 If you've been put off by tools like Nory (they only serve multi-site chains, 
-and charge £300+/month), Rotahr is €59/mo and works for single venues.
+and charge £300+/month), Rotahr is €49/mo and works for single venues.
 
 Free trial, no card needed. Worth 20 mins to look?
 
@@ -83,7 +83,7 @@ then realised they only work for restaurant chains with multiple locations?
 
 That's the gap we built Rotahr to fill.
 
-Rotahr is €59/month. Works for a single pub, café or restaurant. 
+Rotahr is €49/month. Works for a single pub, café or restaurant. 
 No minimum sites. Rota + stock + receipts + CRM all in one.
 
 Irish-built. First month free.
@@ -105,7 +105,7 @@ Heard you're on Deputy (or Bizimply) — good tools for scheduling,
 but they don't do stock control, receipts, supplier invoices, 
 recipe costing, or CRM.
 
-Rotahr does all of that, plus the rota, in one platform at €59/mo.
+Rotahr does all of that, plus the rota, in one platform at €49/mo.
 Free trial, no card needed.
 
 Worth a look: rotahr.com
@@ -122,7 +122,7 @@ Hi [Name],
 I see you work with Irish/UK hospitality operators. 
 If you ever recommend software to clients, Rotahr pays 20% recurring commission.
 
-That's €11.80-€43/month per client, every month, forever.
+That's €9.80-€43/month per client, every month, forever.
 We handle everything — signup, onboarding, support.
 
 Our affiliate page: rotahr.com/partners
@@ -137,7 +137,7 @@ Gabor
 
 Post these angles on LinkedIn + Instagram:
 
-1. **Price proof**: "Nory = £300+/site. Rotahr = €59/mo for a full Irish pub. Same AI features."
+1. **Price proof**: "Nory = £300+/site. Rotahr = €49/mo for a full Irish pub. Same AI features."
 2. **Single-site story**: "Nory rejected this restaurant owner because he had one site. We wouldn't."
 3. **Irish-built**: "Built by an ex-chef from Hungary who moved to Ireland. Built FOR Ireland."
 4. **GP% angle**: "Do you know your GP% per dish right now? Rotahr calculates it live."

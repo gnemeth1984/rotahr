@@ -21,7 +21,7 @@ A few things that are different about Rotahr:
 - **AI invoice & receipt scanning** — photograph a delivery docket, it reads the supplier, line items and costs automatically. You can edit before saving.
 - **Stock management** — track wastage, price variance when suppliers put prices up, and recipe costing so you always know your GP.
 - **Rota + time & attendance** — scheduling, shift swaps, clock-in, all in one place.
-- **No lock-in** — month to month, starts at €59/mo, first month free.
+- **No lock-in** — month to month, starts at €49/mo, first month free.
 
 It's not perfect for every business, but if the core issue was that Nory's reporting and features assumed you were running a full-service kitchen — that's exactly the gap we're trying to fill.
 

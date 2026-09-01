@@ -29,7 +29,7 @@ What's included:
 - **Table bookings** — built in, no third-party fees
 - **Full expense dashboard** — P&L, VAT, CSV export
 
-Starts at €59/mo. First month free. No minimum term.
+Starts at €49/mo. First month free. No minimum term.
 
 Worth 15 minutes? rotahr.com — or reply here.
 

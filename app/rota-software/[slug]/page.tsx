@@ -24,7 +24,7 @@ export async function generateMetadata({
 
   return {
     title: `Rota Software for ${l.city} Pubs, Cafés & Restaurants | Rotahr`,
-    description: `Staff rota, clock-in, HACCP records and bookings in one app for ${l.city} hospitality venues. Flat €59/month, VAT included. Built by a chef.`,
+    description: `Staff rota, clock-in, HACCP records and bookings in one app for ${l.city} hospitality venues. Flat €49/month, VAT included. Built by a chef.`,
     alternates: { canonical: `/rota-software/${l.slug}` },
     openGraph: {
       title: `Rota software for ${l.city} hospitality`,
@@ -97,7 +97,7 @@ export default async function LocationPage({
         <p className="text-lg text-slate-200 mb-6 max-w-2xl">
           Rotahr is rota software for {l.city} pubs, cafés and restaurants that
           handles the rota, clock-in, food safety records, bookings and receipts
-          in one app — flat €59 a month, VAT included, no per-staff pricing.
+          in one app — flat €49 a month, VAT included, no per-staff pricing.
         </p>
         <p className="text-base text-slate-400 mb-10 max-w-2xl">{l.intro}</p>
 

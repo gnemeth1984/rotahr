@@ -15,8 +15,8 @@
  */
 
 export const PRICING = {
-  starter: { price: "€59/month", staff: "up to 15 staff" },
-  pro: { price: "€119/month", staff: "up to 30 staff" },
+  starter: { price: "€49/month", staff: "up to 15 staff" },
+  pro: { price: "€89/month", staff: "up to 30 staff" },
   enterprise: { price: "€215/month", staff: "unlimited staff, multi-venue" },
   trial: "First month free, no card required to start.",
   vat: "All prices include VAT.",
@@ -68,8 +68,8 @@ Pricing page: https://rotahr.com/#pricing
 PICKING A PLAN FOR SOMEONE
 Match on staff count, and always name the CHEAPEST plan that fits. Quoting a
 dearer plan than someone needs reads as a stitch-up and loses the sale.
-- 1-15 staff  → Starter €59/month
-- 16-30 staff → Pro €119/month
+- 1-15 staff  → Starter €49/month
+- 16-30 staff → Pro €89/month
 - 31+ staff, or more than one venue → Enterprise €215/month
 Count staff literally: 14 staff is Starter, not Pro. If they did not say how
 many staff they have, give the range rather than guessing a plan.

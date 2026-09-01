@@ -18,11 +18,11 @@ We've just launched a partner programme for accountants. Here's how it works:
 - They get a **free first month** to try it
 - If they stay, you earn **20% recurring commission every month — for life**
 
-That's €11.80–€43/month per client, with no cap and no expiry.
+That's €9.80–€43/month per client, with no cap and no expiry.
 
 **5 clients on the Pro plan = €1,428/year passive income.** No work required after the intro.
 
-I think it's a genuine win for your clients too — most venues are still juggling 4–6 separate tools (Deputy, Reservio, Xero, spreadsheets). Rotahr replaces all of them for €59–€215/month incl. VAT.
+I think it's a genuine win for your clients too — most venues are still juggling 4–6 separate tools (Deputy, Reservio, Xero, spreadsheets). Rotahr replaces all of them for €49–€215/month incl. VAT.
 
 If you're open to it, you can see the platform in action here:
 👉 **rotahr.com/pitch** — full pitch deck + live demo

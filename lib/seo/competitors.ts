@@ -44,8 +44,8 @@ export interface Competitor {
 }
 
 export const ROTAHR_PRICING = {
-  starter: 59,
-  pro: 119,
+  starter: 49,
+  pro: 89,
   enterprise: 215,
   currency: "EUR",
   note: "Flat monthly, VAT included. Starter up to 15 staff, Pro up to 30.",
@@ -82,7 +82,7 @@ export const competitors: Competitor[] = [
     faqs: [
       {
         q: "Is Rotahr cheaper than Bizimply?",
-        a: "Bizimply doesn't publish its pricing, so nobody can give you an honest comparison without a quote. Rotahr is flat: €59/month up to 15 staff, €119 up to 30, VAT included. The difference that tends to matter more is that Rotahr's price doesn't move when you hire.",
+        a: "Bizimply doesn't publish its pricing, so nobody can give you an honest comparison without a quote. Rotahr is flat: €49/month up to 15 staff, €89 up to 30, VAT included. The difference that tends to matter more is that Rotahr's price doesn't move when you hire.",
       },
       {
         q: "What does Rotahr do that Bizimply doesn't?",
@@ -170,7 +170,7 @@ export const competitors: Competitor[] = [
       },
       {
         q: "How does Deputy's pricing compare?",
-        a: "Deputy publishes per-user pricing in USD — Lite $5, Core $6.50, Pro $9 per user per month, excluding tax. Rotahr is a flat €59/month up to 15 staff and €119 up to 30, VAT included, so the cost is fixed whatever your headcount does.",
+        a: "Deputy publishes per-user pricing in USD — Lite $5, Core $6.50, Pro $9 per user per month, excluding tax. Rotahr is a flat €49/month up to 15 staff and €89 up to 30, VAT included, so the cost is fixed whatever your headcount does.",
       },
       {
         q: "Does Deputy do table bookings?",
@@ -322,7 +322,7 @@ export const competitors: Competitor[] = [
       },
       {
         q: "How much does Rotaready cost?",
-        a: "Access doesn't publish a simple list price — it's quoted, usually as part of their wider Hospitality suite. Rotahr publishes its pricing openly: €59/month up to 15 staff, €119 up to 30, VAT included.",
+        a: "Access doesn't publish a simple list price — it's quoted, usually as part of their wider Hospitality suite. Rotahr publishes its pricing openly: €49/month up to 15 staff, €89 up to 30, VAT included.",
       },
     ],
   },
@@ -361,7 +361,7 @@ export const competitors: Competitor[] = [
     faqs: [
       {
         q: "Is Rotahr cheaper than Ordio?",
-        a: "For a single venue that needs clock-in, yes. Ordio puts time tracking on its Plus plan at €129 per location per month; Rotahr Starter is €59 a month including VAT with clock-in and break tracking in the box. The gap widens with venues, because Ordio charges per location and Rotahr Enterprise is €215 flat for unlimited sites.",
+        a: "For a single venue that needs clock-in, yes. Ordio puts time tracking on its Plus plan at €129 per location per month; Rotahr Starter is €49 a month including VAT with clock-in and break tracking in the box. The gap widens with venues, because Ordio charges per location and Rotahr Enterprise is €215 flat for unlimited sites.",
       },
       {
         q: "What does Rotahr do that Ordio does not?",

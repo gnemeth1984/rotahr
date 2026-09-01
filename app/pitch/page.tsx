@@ -314,7 +314,7 @@ export default function PitchPage() {
                         ))}
                         <tr className="price-row">
                           <td className="feat">Starting price (incl. VAT)</td>
-                          <td className="rh" style={{ color: "#f97316" }}>€59/mo</td>
+                          <td className="rh" style={{ color: "#f97316" }}>€49/mo</td>
                           <td className="oth">€200+/mo</td>
                           <td className="oth">€150+/mo</td>
                           <td className="oth">€80+/mo</td>
@@ -397,8 +397,8 @@ export default function PitchPage() {
                   <div className="partner-title">Earn with Rotahr.<br /><span>20% recurring commission.</span></div>
                   <p className="partner-sub">Accountants, consultants, hospitality advisors — refer clients and earn every month they stay. Payments automated via Lemon Squeezy. No admin, no chasing invoices.</p>
                   <div className="partner-cards">
-                    <div className="pcard"><div className="pcard-plan">Starter</div><div className="pcard-commission">€11.80/mo</div><div className="pcard-sub">per client · forever</div></div>
-                    <div className="pcard"><div className="pcard-plan">Pro</div><div className="pcard-commission">€23.80/mo</div><div className="pcard-sub">per client · forever</div></div>
+                    <div className="pcard"><div className="pcard-plan">Starter</div><div className="pcard-commission">€9.80/mo</div><div className="pcard-sub">per client · forever</div></div>
+                    <div className="pcard"><div className="pcard-plan">Pro</div><div className="pcard-commission">€17.80/mo</div><div className="pcard-sub">per client · forever</div></div>
                     <div className="pcard"><div className="pcard-plan">Enterprise</div><div className="pcard-commission">€43/mo</div><div className="pcard-sub">per client · forever</div></div>
                   </div>
                   <a className="partner-url" href="https://rotahr.lemonsqueezy.com/affiliates" target="_blank" rel="noopener noreferrer">
@@ -421,7 +421,7 @@ export default function PitchPage() {
         <div className="stat"><div className="stat-num">€290</div><div className="stat-label">avg. monthly saving vs. separate tools</div></div>
         <div className="stat"><div className="stat-num">4.8 hrs</div><div className="stat-label">saved per manager per week</div></div>
         <div className="stat"><div className="stat-num">12</div><div className="stat-label">tools replaced by one platform</div></div>
-        <div className="stat"><div className="stat-num">€59</div><div className="stat-label">starting price incl. 23% VAT</div></div>
+        <div className="stat"><div className="stat-num">€49</div><div className="stat-label">starting price incl. 23% VAT</div></div>
       </div>
 
       <section className="bottom-cta">

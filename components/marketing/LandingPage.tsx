@@ -101,13 +101,13 @@ const features = [
 const plans = [
   {
     name: "Starter",
-    price: "€59",
+    price: "€49",
     period: "/month incl. VAT",
     desc: "Perfect for small cafés and independent restaurants.",
     staff: "Up to 15 staff",
     highlight: false,
     // Risk reversal, approved by Gabor Aug 2026. The page previously anchored
-    // EUR59/month with nothing to soften it: plain "Get Started" CTAs and no
+    // EUR49/month with nothing to soften it: plain "Get Started" CTAs and no
     // trial. With no customer logos to lean on, the first month is the only
     // thing that lets someone say yes without a decision.
     offer: "First month free",
@@ -130,7 +130,7 @@ const plans = [
   },
   {
     name: "Pro",
-    price: "€119",
+    price: "€89",
     period: "/month incl. VAT",
     desc: "For busy restaurants and bars with larger teams.",
     staff: "Up to 30 staff",
@@ -191,7 +191,7 @@ const landingFaq = [
   },
   {
     q: "How much does Rotahr cost?",
-    a: "Starter is €59 a month for up to 15 staff, Pro is €119 for up to 30, and Enterprise is €215 for unlimited staff across multiple venues. Tax is included in those prices, there are no setup fees, and the first month is free.",
+    a: "Starter is €49 a month for up to 15 staff, Pro is €89 for up to 30, and Enterprise is €215 for unlimited staff across multiple venues. Tax is included in those prices, there are no setup fees, and the first month is free.",
   },
   {
     q: "Is it priced per member of staff?",
@@ -285,7 +285,7 @@ export default function LandingPage() {
           Rotas, clock-in, reservations, bookkeeping, payroll, staff training, equipment servicing, team messaging and more — all in one place.
         </p>
         <p className="text-base text-slate-600 max-w-xl mx-auto mb-10">
-          Replace 4 separate tools with one. Starting at <strong className="text-slate-600">€59/month</strong> incl. VAT —{" "}
+          Replace 4 separate tools with one. Starting at <strong className="text-slate-600">€49/month</strong> incl. VAT —{" "}
           <strong className="text-emerald-700">first month free</strong>, cancel anytime.
         </p>
 
@@ -345,7 +345,7 @@ export default function LandingPage() {
                 <Image src="/logo-icon.png" alt="" width={20} height={20} className="object-contain" />
                 Rotahr — everything included
               </span>
-              <span className="text-sm font-bold" style={{ color: "#C2410C" }}>from €59/mo</span>
+              <span className="text-sm font-bold" style={{ color: "#C2410C" }}>from €49/mo</span>
             </div>
           </div>
         </div>

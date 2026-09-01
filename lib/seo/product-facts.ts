@@ -17,8 +17,8 @@
 
 /** Live plan pricing, VAT inclusive. Update here and every prompt follows. */
 export const PLANS = [
-  { name: "Starter", price: 59, staff: "up to 15 staff" },
-  { name: "Pro", price: 119, staff: "up to 30 staff" },
+  { name: "Starter", price: 49, staff: "up to 15 staff" },
+  { name: "Pro", price: 89, staff: "up to 30 staff" },
   { name: "Enterprise", price: 215, staff: "unlimited staff, multi-venue" },
 ] as const;
 

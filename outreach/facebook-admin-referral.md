@@ -31,8 +31,8 @@ Here's how it works:
 
 Every business you refer that signs up earns you **20% recurring commission every single month** — for as long as they stay on Rotahr.
 
-💰 €11.80/month per Starter customer
-💰 €23.80/month per Pro customer
+💰 €9.80/month per Starter customer
+💰 €17.80/month per Pro customer
 💰 €43.00/month per Enterprise customer
 
 That's passive income that compounds. Refer 10 businesses and you're looking at €100-€400+ per month, every month, doing nothing extra.
