@@ -65,14 +65,33 @@ export async function GET(req: NextRequest) {
   const now = Date.now();
   const THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000;
 
-  // Enrich with derived stats
+  // Both spellings exist in the wild: the CRM writes "no-show", the older
+  // booking flow and the demo seed write "no_show".
+  const NON_VISIT = new Set(["cancelled", "no-show", "no_show", "noshow"]);
+  const isNoShow = (status: string) => status === "no-show" || status === "no_show" || status === "noshow";
+
+  // Enrich with stats. visitCount / lastVisitAt / totalSpend are maintained by
+  // lib/crm/stats.ts (bills + attended past bookings) and are the source of
+  // truth. We still derive from reservations as a floor so a guest created
+  // before the rollups existed, or one whose stats have not been recomputed
+  // yet, never shows a lower count than their booking history.
   const enriched = customers.map((c) => {
-    const visits = c.reservations.filter((r) => r.status !== "no-show" && r.status !== "cancelled");
-    const noShows = c.reservations.filter((r) => r.status === "no-show");
-    const lastVisit = visits[0]?.date ?? null;
-    const totalVisits = visits.length;
-    const isVip = c.tags.includes("VIP") || totalVisits >= 10;
-    const isAtRisk = totalVisits >= 1 && (!!lastVisit ? now - new Date(lastVisit).getTime() > THIRTY_DAYS : false);
+    const attended = c.reservations.filter(
+      (r) => !NON_VISIT.has(r.status) && new Date(r.date).getTime() <= now
+    );
+    const noShows = c.reservations.filter((r) => isNoShow(r.status));
+
+    const derivedVisits = attended.length;
+    const derivedLast = attended[0]?.date ?? null;
+
+    const totalVisits = Math.max(c.visitCount ?? 0, derivedVisits);
+    const cachedLast = c.lastVisitAt ? new Date(c.lastVisitAt).getTime() : 0;
+    const fallbackLast = derivedLast ? new Date(derivedLast).getTime() : 0;
+    const lastVisitMs = Math.max(cachedLast, fallbackLast);
+    const lastVisit = lastVisitMs ? new Date(lastVisitMs) : null;
+
+    const isVip = c.tags.includes("VIP") || c.loyaltyTier === "vip" || totalVisits >= 10;
+    const isAtRisk = totalVisits >= 1 && (lastVisit ? now - lastVisit.getTime() > THIRTY_DAYS : false);
     const isNew = now - new Date(c.createdAt).getTime() <= THIRTY_DAYS;
     return {
       ...c,
@@ -107,6 +126,7 @@ export async function GET(req: NextRequest) {
   // Sort
   const sorted = filtered.sort((a, b) => {
     if (sort === "visits") return b.totalVisits - a.totalVisits;
+    if (sort === "spend") return (b.totalSpend ?? 0) - (a.totalSpend ?? 0);
     if (sort === "noShows") return b.noShows - a.noShows;
     if (sort === "name") return a.name.localeCompare(b.name);
     // lastVisit (default)
