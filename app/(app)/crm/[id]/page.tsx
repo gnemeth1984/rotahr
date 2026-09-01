@@ -628,9 +628,22 @@ export default function CustomerProfilePage() {
   if (loading) return <div className="p-8 text-gray-400">Loading…</div>;
   if (!customer) return <div className="p-8 text-gray-500">Customer not found.</div>;
 
-  const visits = customer.reservations.filter((r) => r.status !== "no-show" && r.status !== "cancelled");
-  const noShows = customer.reservations.filter((r) => r.status === "no-show");
-  const lastVisit = visits[0]?.date ?? null;
+  // Bookings still drive the reservation history list below, but the headline
+  // counters come from the loyalty rollups (bills + attended past bookings) so
+  // they agree with the Spend history card instead of contradicting it.
+  const NON_VISIT = ["cancelled", "no-show", "no_show", "noshow"];
+  const nowMs = Date.now();
+  const visits = customer.reservations.filter(
+    (r) => !NON_VISIT.includes(r.status) && new Date(r.date).getTime() <= nowMs
+  );
+  const noShows = customer.reservations.filter(
+    (r) => r.status === "no-show" || r.status === "no_show" || r.status === "noshow"
+  );
+  const totalVisits = Math.max(customer.visitCount ?? 0, visits.length);
+  const cachedLastMs = customer.lastVisitAt ? new Date(customer.lastVisitAt).getTime() : 0;
+  const derivedLastMs = visits[0]?.date ? new Date(visits[0].date).getTime() : 0;
+  const lastVisitMs = Math.max(cachedLastMs, derivedLastMs);
+  const lastVisit = lastVisitMs ? new Date(lastVisitMs).toISOString() : null;
 
   // Unified activity timeline: notes + emails + reservations + offers, newest first
   type TimelineItem = {
@@ -767,7 +780,7 @@ export default function CustomerProfilePage() {
       {/* Stats row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
         {[
-          { label: "Total Visits", value: visits.length, icon: <Users className="h-4 w-4" />, color: "text-indigo-600" },
+          { label: "Total Visits", value: totalVisits, icon: <Users className="h-4 w-4" />, color: "text-indigo-600" },
           { label: "No-shows", value: noShows.length, icon: <AlertCircle className="h-4 w-4" />, color: noShows.length > 0 ? "text-red-600" : "text-gray-400" },
           { label: "Last Visit", value: formatDate(lastVisit), icon: <Clock className="h-4 w-4" />, color: "text-gray-700" },
           { label: "Customer Since", value: formatDate(customer.createdAt), icon: <Calendar className="h-4 w-4" />, color: "text-gray-700" },
