@@ -50,10 +50,9 @@ export default function AffiliateResourcesPage() {
           Rotahr with restaurants, bars, cafés and hotels.
         </p>
         <p style={{ marginTop: 14, fontSize: 14, color: "rgba(255,255,255,0.4)", maxWidth: 560, marginLeft: "auto", marginRight: "auto", lineHeight: 1.7 }}>
-          The pitch deck is current. The walkthrough guide still predates the newest modules:
-          guest loyalty tiers and points, in-house staff training courses, and the equipment and
-          service register all shipped after it was made. Worth mentioning live — they are
-          covered in full on the{" "}
+          Both files were rebuilt in September 2026 and cover every current module, including
+          guest loyalty, in-house staff training and the equipment and service register. Full
+          detail on the{" "}
           <a href="/features" style={{ color: "#f97316" }}>features pages</a>.
         </p>
       </div>
@@ -76,11 +75,11 @@ export default function AffiliateResourcesPage() {
           <div className="card-icon">📘</div>
           <h3>How to Use Rotahr</h3>
           <p>
-            A full walkthrough guide with real product screenshots — dashboard, rota, clock,
-            floor plan, bookkeeping, HACCP, recipes and payroll — so you can show prospects
-            exactly what they're signing up for.
+            A full walkthrough of all 11 modules with real product screenshots — dashboard, rota,
+            clock, floor plan, guest CRM, bookkeeping, HACCP, staff training, equipment register,
+            recipes and payroll — plus pricing and what you earn on each plan.
           </p>
-          <div className="card-meta">PDF · 11 pages · made Aug 2026</div>
+          <div className="card-meta">PDF · 15 pages · made Sep 2026</div>
           <a href="/affiliate-resources/How-to-Use-Rotahr.pdf" download className="dl-btn">
             Download guide
           </a>
