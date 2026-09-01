@@ -337,7 +337,7 @@ export default function PitchPage() {
                   <div className="price-grid">
                     <div className="price-card">
                       <div className="plan-label">Starter</div>
-                      <div className="price-amount"><sup>€</sup>59</div>
+                      <div className="price-amount"><sup>€</sup>49</div>
                       <div className="price-per">per month · up to 15 staff</div>
                       <div className="price-divider" />
                       <ul className="price-features">
@@ -356,7 +356,7 @@ export default function PitchPage() {
                     <div className="price-card feat">
                       <div className="pop-tag">Most Popular</div>
                       <div className="plan-label">Pro</div>
-                      <div className="price-amount"><sup>€</sup>119</div>
+                      <div className="price-amount"><sup>€</sup>89</div>
                       <div className="price-per">per month · up to 30 staff</div>
                       <div className="price-divider" />
                       <ul className="price-features">
