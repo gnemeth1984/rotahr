@@ -4,7 +4,8 @@
  * GET  → what Search Console currently knows about the sitemap: when it last
  *        downloaded the file, how many URLs it read, warnings and errors.
  * POST → resubmit it, and fire IndexNow at the same time so Bing/Yandex pick
- *        the new URLs up immediately.
+ *        the new URLs up immediately. IndexNow gets the URLs whose sitemap
+ *        lastmod is inside the last FRESH_DAYS days; `?all=1` sends the lot.
  *
  * Worth being clear about what this does and doesn't do: a registered sitemap
  * is re-fetched by Google on its own schedule, so new pages get discovered
@@ -25,17 +26,62 @@ import { submitToIndexNow } from "@/lib/seo/indexnow";
 
 export const dynamic = "force-dynamic";
 
-/** Read the live sitemap and pull the URLs out of it. */
-async function sitemapUrls(limit = 50): Promise<string[]> {
+/** IndexNow accepts 10,000 URLs per request. Nothing here comes near it. */
+const INDEXNOW_MAX = 10_000;
+
+/** How recently a URL must have changed to be worth pinging. */
+const FRESH_DAYS = 7;
+
+type SitemapEntry = { loc: string; lastmod: Date | null };
+
+/**
+ * Read the live sitemap and pull out every <url> with its <lastmod>.
+ *
+ * Parsed per <url> block rather than by scraping <loc> globally, so a loc and
+ * a lastmod can never be paired up across entry boundaries.
+ */
+async function readSitemap(): Promise<SitemapEntry[]> {
   try {
     const res = await fetch(SITEMAP_URL, { cache: "no-store" });
     if (!res.ok) return [];
     const xml = await res.text();
-    const found = [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1].trim());
-    return found.slice(0, limit);
+
+    return [...xml.matchAll(/<url>([\s\S]*?)<\/url>/g)].flatMap((block) => {
+      const body = block[1];
+      const loc = /<loc>([^<]+)<\/loc>/.exec(body)?.[1]?.trim();
+      if (!loc) return [];
+      const raw = /<lastmod>([^<]+)<\/lastmod>/.exec(body)?.[1]?.trim();
+      const parsed = raw ? new Date(raw) : null;
+      return [
+        {
+          loc,
+          lastmod: parsed && !Number.isNaN(parsed.getTime()) ? parsed : null,
+        },
+      ];
+    });
   } catch {
     return [];
   }
+}
+
+/**
+ * Which URLs to hand IndexNow.
+ *
+ * IndexNow exists to announce new and changed pages, and a fresh-URL ping
+ * carries more weight than a bulk resubmit of pages the engines already have,
+ * so the default is "changed in the last FRESH_DAYS days". `?all=1` overrides
+ * it for a full resubmit.
+ *
+ * A URL with no lastmod is treated as fresh: unknown should not mean skipped.
+ */
+function toPing(entries: SitemapEntry[], all: boolean): string[] {
+  if (all) return entries.map((e) => e.loc).slice(0, INDEXNOW_MAX);
+
+  const cutoff = Date.now() - FRESH_DAYS * 86_400_000;
+  return entries
+    .filter((e) => !e.lastmod || e.lastmod.getTime() >= cutoff)
+    .map((e) => e.loc)
+    .slice(0, INDEXNOW_MAX);
 }
 
 export async function GET(req: Request) {
@@ -67,7 +113,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const urls = await sitemapUrls();
+  const all = new URL(req.url).searchParams.get("all") === "1";
+  const entries = await readSitemap();
+  const urls = toPing(entries, all);
   const indexNow = await submitToIndexNow(urls); // never throws
   let submitted = false;
   let detail = "";
@@ -98,7 +146,10 @@ export async function POST(req: Request) {
   const mine = sitemaps.find((s) => s.path === SITEMAP_URL) ?? null;
   detail = [
     submitted ? `submitted ${SITEMAP_URL}` : `submit failed: ${error}`,
-    `${urls.length} url(s) in sitemap`,
+    `${entries.length} url(s) in sitemap`,
+    all
+      ? `pinged all ${urls.length}`
+      : `pinged ${urls.length} changed in last ${FRESH_DAYS}d`,
     indexNow,
     mine?.lastDownloaded ? `last downloaded ${mine.lastDownloaded}` : "not downloaded yet",
   ].join("; ");
@@ -111,7 +162,10 @@ export async function POST(req: Request) {
     {
       ok: submitted,
       sitemapUrl: SITEMAP_URL,
-      urlCount: urls.length,
+      urlCount: entries.length,
+      pingedCount: urls.length,
+      pingedAll: all,
+      freshDays: FRESH_DAYS,
       indexNow,
       sitemap: mine,
       sitemaps,
