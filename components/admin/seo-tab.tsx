@@ -7,6 +7,8 @@
  *   Harvest keywords  → free research (Google Suggest + Search Console)
  *   Publish article   → writes the next highest-scoring query
  *   Refresh           → improves whatever ranks 4-20
+ *   Submit sitemap    → nudges Google to re-read /sitemap.xml after new pages
+ *                       ship, and pings IndexNow for Bing/Yandex
  *
  * Deliberately shows the setup state up front: without Search Console connected
  * the system still publishes, but it's blind to rankings, and pretending
@@ -24,6 +26,7 @@ import {
   AlertTriangle,
   ExternalLink,
   LineChart,
+  Send,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SeoTrendChart, type TrendPoint, type Delta } from "@/components/admin/seo-trend-chart";
@@ -106,7 +109,7 @@ export function SeoTab() {
     load();
   }, [load]);
 
-  async function run(task: "keywords" | "publish" | "refresh" | "metrics") {
+  async function run(task: "keywords" | "publish" | "refresh" | "metrics" | "sitemap") {
     const endpoint =
       task === "keywords"
         ? "/api/cron/seo-keywords"
@@ -114,6 +117,8 @@ export function SeoTab() {
         ? "/api/cron/generate-blog"
         : task === "metrics"
         ? "/api/cron/seo-metrics"
+        : task === "sitemap"
+        ? "/api/admin/seo/sitemap"
         : "/api/cron/seo-refresh";
 
     setRunning(task);
@@ -138,6 +143,15 @@ export function SeoTab() {
           json.ok
             ? `Synced ${json.days ?? 0} days from Search Console — ${(json.clicks ?? 0).toLocaleString()} clicks, ${(json.impressions ?? 0).toLocaleString()} impressions.`
             : json.reason || "Couldn't sync Search Console."
+        );
+      } else if (task === "sitemap") {
+        // Google gives no "done" signal beyond the 200, so report the two
+        // facts that are actually checkable: URL count and last download.
+        const last = json.sitemap?.lastDownloaded
+          ? `Google last read it ${new Date(json.sitemap.lastDownloaded).toLocaleString()}.`
+          : "Google has not downloaded it yet - that can take a day or two.";
+        setMessage(
+          `Sitemap resubmitted with ${json.urlCount ?? 0} URLs. ${last} ${json.indexNow ?? ""}`.trim()
         );
       } else {
         setMessage(
@@ -230,8 +244,18 @@ export function SeoTab() {
           )}
           Sync Search Console
         </Button>
+        <Button size="sm" variant="outline" onClick={() => run("sitemap")} disabled={!!running}>
+          {running === "sitemap" ? (
+            <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Send className="mr-1.5 h-3.5 w-3.5" />
+          )}
+          Submit sitemap
+        </Button>
         <span className="w-full text-xs text-slate-400 sm:w-auto">
           Runs automatically: metrics daily, one article daily, keywords weekly, one refresh weekly.
+          Submitting the sitemap is optional - Google re-reads it on its own schedule, this just
+          shortens the wait after new pages ship.
         </span>
       </div>
 

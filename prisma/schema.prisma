@@ -1507,7 +1507,7 @@ model SeoMetric {
 
 model SeoRun {
   id        String   @id @default(cuid())
-  task      String // keywords | publish | refresh | index | metrics
+  task      String // keywords | publish | refresh | index | metrics | sitemap
   ok        Boolean  @default(true)
   detail    String   @db.Text
   createdAt DateTime @default(now())

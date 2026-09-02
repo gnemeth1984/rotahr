@@ -13,7 +13,8 @@
  *  1. console.cloud.google.com → new project → enable "Google Search Console API"
  *  2. Create a service account → Keys → Add key → JSON
  *  3. Search Console → rotahr.com → Settings → Users and permissions →
- *     Add user = the service account email, permission "Full"
+ *     Add user = the service account email, permission "Full" (Restricted can
+ *     read reports but cannot submit the sitemap)
  *  4. Env vars: GSC_CLIENT_EMAIL, GSC_PRIVATE_KEY (paste the whole key, \n escaped),
  *     GSC_SITE_URL (e.g. "sc-domain:rotahr.com" for a domain property)
  *
@@ -24,7 +25,13 @@
 import crypto from "crypto";
 
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
-const SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
+/**
+ * Two scopes on purpose. Every reporting call keeps the read-only scope, and
+ * only sitemap submission asks for write, so a mistake in the write path can
+ * never touch the property through the read path. Tokens are cached per scope.
+ */
+const READ_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
+const WRITE_SCOPE = "https://www.googleapis.com/auth/webmasters";
 
 export function gscConfigured(): boolean {
   return !!(process.env.GSC_CLIENT_EMAIL && process.env.GSC_PRIVATE_KEY && process.env.GSC_SITE_URL);
@@ -38,7 +45,7 @@ function b64url(input: Buffer | string): string {
     .replace(/=+$/, "");
 }
 
-let cachedToken: { token: string; expiresAt: number } | null = null;
+const cachedTokens = new Map<string, { token: string; expiresAt: number }>();
 
 /** Exported for the diagnostic route, which needs to separate a credentials
  *  failure from a Search Console permission failure. */
@@ -46,8 +53,9 @@ export async function gscAccessToken(): Promise<string> {
   return accessToken();
 }
 
-async function accessToken(): Promise<string> {
-  if (cachedToken && cachedToken.expiresAt > Date.now() + 60_000) return cachedToken.token;
+async function accessToken(scope: string = READ_SCOPE): Promise<string> {
+  const cached = cachedTokens.get(scope);
+  if (cached && cached.expiresAt > Date.now() + 60_000) return cached.token;
 
   const email = process.env.GSC_CLIENT_EMAIL!;
   // Vercel env vars keep newlines as literal "\n" — restore them or the sign fails.
@@ -58,7 +66,7 @@ async function accessToken(): Promise<string> {
   const claims = b64url(
     JSON.stringify({
       iss: email,
-      scope: SCOPE,
+      scope,
       aud: TOKEN_URL,
       iat: now,
       exp: now + 3600,
@@ -83,7 +91,10 @@ async function accessToken(): Promise<string> {
   }
 
   const json = (await res.json()) as { access_token: string; expires_in: number };
-  cachedToken = { token: json.access_token, expiresAt: Date.now() + json.expires_in * 1000 };
+  cachedTokens.set(scope, {
+    token: json.access_token,
+    expiresAt: Date.now() + json.expires_in * 1000,
+  });
   return json.access_token;
 }
 
@@ -203,4 +214,108 @@ export async function strikingDistance(days = 28, minImpressions = 20) {
       position: r.position,
     }))
     .sort((a, b) => b.impressions - a.impressions);
+}
+
+/* ------------------------------------------------------------------ sitemaps */
+
+const SITEMAP_API = "https://www.googleapis.com/webmasters/v3";
+
+/** The one sitemap we own. app/sitemap.ts generates it, revalidating hourly. */
+export const SITEMAP_URL = "https://rotahr.com/sitemap.xml";
+
+export type GscSitemap = {
+  path: string;
+  lastSubmitted: string | null;
+  lastDownloaded: string | null;
+  isPending: boolean;
+  warnings: number;
+  errors: number;
+  /** Per content type: how many URLs Google read out of the file. */
+  submitted: { type: string; submitted: number; indexed: number }[];
+};
+
+type RawSitemap = {
+  path?: string;
+  lastSubmitted?: string;
+  lastDownloaded?: string;
+  isPending?: boolean;
+  warnings?: string | number;
+  errors?: string | number;
+  contents?: { type?: string; submitted?: string | number; indexed?: string | number }[];
+};
+
+const num = (v: string | number | undefined) => Number(v ?? 0) || 0;
+
+function normalise(raw: RawSitemap): GscSitemap {
+  return {
+    path: raw.path ?? "",
+    lastSubmitted: raw.lastSubmitted ?? null,
+    lastDownloaded: raw.lastDownloaded ?? null,
+    isPending: Boolean(raw.isPending),
+    warnings: num(raw.warnings),
+    errors: num(raw.errors),
+    submitted: (raw.contents ?? []).map((c) => ({
+      type: c.type ?? "web",
+      submitted: num(c.submitted),
+      // Google stopped populating "indexed" for sitemaps years ago; it is
+      // almost always 0 and means nothing. Kept so the shape matches the API.
+      indexed: num(c.indexed),
+    })),
+  };
+}
+
+/**
+ * Every sitemap Search Console knows about for the property, with the bit that
+ * actually matters: lastDownloaded. If that date is recent, Google has already
+ * re-read the file and there is nothing to submit.
+ */
+export async function listSitemaps(): Promise<GscSitemap[]> {
+  if (!gscConfigured()) return [];
+
+  const site = process.env.GSC_SITE_URL!;
+  const token = await accessToken(); // read-only is enough to list
+  const res = await fetch(`${SITEMAP_API}/sites/${encodeURIComponent(site)}/sitemaps`, {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store",
+  });
+
+  if (!res.ok) {
+    throw new Error(`GSC sitemap list failed (${res.status}): ${await res.text()}`);
+  }
+
+  const json = (await res.json()) as { sitemap?: RawSitemap[] };
+  return (json.sitemap ?? []).map(normalise);
+}
+
+/**
+ * (Re)submit the sitemap. This is a nudge, not a prerequisite: once a sitemap
+ * is registered Google re-fetches it on its own schedule, so new pages get
+ * picked up whether or not this ever runs. Submitting just shortens the wait,
+ * and re-submitting an already-registered sitemap is a no-op plus a fresh
+ * crawl hint. Needs the service account to hold "Full" (not "Restricted")
+ * permission on the property.
+ *
+ * Returns 200 with an empty body on success.
+ */
+export async function submitSitemap(feedpath: string = SITEMAP_URL): Promise<void> {
+  if (!gscConfigured()) throw new Error("Search Console is not configured");
+
+  const site = process.env.GSC_SITE_URL!;
+  const token = await accessToken(WRITE_SCOPE);
+  const res = await fetch(
+    `${SITEMAP_API}/sites/${encodeURIComponent(site)}/sitemaps/${encodeURIComponent(feedpath)}`,
+    { method: "PUT", headers: { Authorization: `Bearer ${token}` }, cache: "no-store" }
+  );
+
+  if (!res.ok) {
+    const body = await res.text();
+    // 403 here is nearly always the permission level, not the credentials —
+    // say so, because the fix is one dropdown in Search Console.
+    if (res.status === 403) {
+      throw new Error(
+        `GSC rejected the submit (403). The service account (${process.env.GSC_CLIENT_EMAIL}) needs "Full" permission on ${site}, not "Restricted". ${body}`
+      );
+    }
+    throw new Error(`GSC sitemap submit failed (${res.status}): ${body}`);
+  }
 }
