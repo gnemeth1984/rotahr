@@ -186,6 +186,10 @@ const competitors = [
 // the landing page real substance beyond feature bullets.
 const landingFaq = [
   {
+    q: "What is Rotahr?",
+    a: "Rotahr is a restaurant operations platform for hospitality venues. It combines staff rota scheduling and clock-in, HACCP software for food safety compliance, a restaurant CRM built automatically from your own reservations, table bookings, stock and recipe costing, bookkeeping and in-house staff training in a single app. It suits bars, restaurants, cafés, hotels and takeaways, and it replaces the rota spreadsheet, the paper HACCP diary and the booking diary. Plans start at €49 a month with tax included and the first month free.",
+  },
+  {
     q: "What does Rotahr actually replace?",
     a: "For most venues it replaces four things: the rota spreadsheet plus the staff WhatsApp group, the paper HACCP diary, the booking diary, and the carrier bag of receipts. It does not replace your POS or your payroll bureau — it feeds them.",
   },
@@ -282,7 +286,9 @@ export default function LandingPage() {
         </h1>
 
         <p className="text-xl text-slate-500 max-w-2xl mx-auto mb-4">
-          Rotas, clock-in, reservations, bookkeeping, payroll, staff training, equipment servicing, team messaging and more — all in one place.
+          Rotahr is a restaurant operations platform: staff rotas, clock-in, HACCP software, a built-in
+          restaurant CRM, reservations, bookkeeping, payroll, staff training, equipment servicing and team
+          messaging — all in one place.
         </p>
         <p className="text-base text-slate-600 max-w-xl mx-auto mb-10">
           Replace 4 separate tools with one. Starting at <strong className="text-slate-600">€49/month</strong> incl. VAT —{" "}
@@ -354,7 +360,9 @@ export default function LandingPage() {
       {/* Features */}
       <section id="features" className="max-w-6xl mx-auto px-6 py-24">
         <div className="text-center mb-16">
-          <h2 className="text-3xl font-extrabold mb-4">Everything your venue needs</h2>
+          <h2 className="text-3xl font-extrabold mb-4">
+            Everything your venue needs in one restaurant operations platform
+          </h2>
           <p className="text-slate-500 text-lg max-w-xl mx-auto">
             12 tools in one platform. Built specifically for bars, restaurants and cafés.
           </p>
@@ -620,6 +628,13 @@ export default function LandingPage() {
               <li><Link href="/terms" className="hover:text-slate-900">Terms</Link></li>
             </ul>
           </div>
+        </div>
+        <div className="max-w-6xl mx-auto px-6 pb-8 text-sm text-slate-500 leading-relaxed">
+          <p>
+            Rotahr is a restaurant operations platform for hospitality — rota and scheduling software,
+            HACCP software for food safety compliance, a restaurant CRM built from your own bookings,
+            table reservations, stock, bookkeeping and in-house staff training in one app.
+          </p>
         </div>
         <div className="max-w-6xl mx-auto px-6 pt-8 border-t border-slate-100 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-slate-600">
           <Image src="/logo-light.png" alt="Rotahr" width={80} height={26} className="object-contain" />

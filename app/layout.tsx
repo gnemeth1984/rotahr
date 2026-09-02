@@ -10,8 +10,9 @@ export const metadata = {
   verification: {
     google: "7cibzOGL029tVn1J5xlrUiLUp_dvHZbmzR7WfeHdvOY",
   },
-  title: "Rotahr — All-in-One Venue Management for Hospitality",
-  description: "Staff rotas, table reservations, bookkeeping and HR — all in one app. Built for bars, restaurants and cafes everywhere.",
+  title: "Rotahr — Restaurant Operations Platform: Rota, HACCP & CRM",
+  description:
+    "A restaurant operations platform combining staff rotas, HACCP software and a restaurant CRM with table reservations, bookkeeping and payroll. From €49/month.",
   manifest: "/manifest.json",
   icons: {
     icon: "/favicon.ico",
@@ -27,8 +28,9 @@ export const metadata = {
   },
   openGraph: {
     type: "website",
-    title: "Rotahr — All-in-One Venue Management for Hospitality",
-    description: "Staff rotas, table reservations, bookkeeping and HR — all in one app.",
+    title: "Rotahr — Restaurant Operations Platform: Rota, HACCP & CRM",
+    description:
+      "Restaurant operations platform: staff rotas, HACCP software, restaurant CRM, table reservations and bookkeeping in one app.",
     images: ["/logo-dark.png"],
   },
 }

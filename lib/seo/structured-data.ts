@@ -34,7 +34,20 @@ export function organizationSchema() {
       url: `${SITE_URL}/logo-dark.png`,
     },
     description:
-      "All-in-one venue management for hospitality — staff rotas, clock-in, reservations, HACCP food safety, bookkeeping and payroll in one app.",
+      "Rotahr is a restaurant operations platform for hospitality: staff rotas and clock-in, HACCP software for food safety compliance, a restaurant CRM, table reservations, bookkeeping and payroll in one app.",
+    /**
+     * Legitimate expertise declaration, not a keyword list. `knowsAbout` is the
+     * correct property for the subject areas an organisation is authoritative
+     * on; stuffing the same phrases into `alternateName` would have been
+     * keyword spam in markup, which is a manual-action risk rather than a rank.
+     */
+    knowsAbout: [
+      "Restaurant operations",
+      "HACCP food safety compliance",
+      "Restaurant CRM",
+      "Hospitality staff scheduling",
+      "Hospitality bookkeeping",
+    ],
     founder: {
       "@type": "Person",
       name: "Gabor Nemeth",
@@ -82,7 +95,7 @@ export function softwareApplicationSchema() {
     ],
     url: SITE_URL,
     description:
-      "Venue management software for pubs, cafés, restaurants and hotels: rota scheduling, clock in/out, table reservations, HACCP compliance, stock, bookkeeping and payroll.",
+      "Restaurant operations platform for pubs, cafés, restaurants and hotels: rota scheduling, clock in/out, HACCP software for food safety records, restaurant CRM, table reservations, stock, bookkeeping and payroll.",
     publisher: { "@id": `${SITE_URL}/#organization` },
     offers: [
       { name: "Starter", price: "49", description: "Up to 15 staff" },
