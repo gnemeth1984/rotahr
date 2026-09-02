@@ -23,6 +23,7 @@ import {
   DollarSign,
   CalendarCheck,
   Smartphone,
+  HelpCircle,
   Package,
   ArrowRightLeft,
   Coins,
@@ -616,6 +617,19 @@ export function Sidebar() {
           <Smartphone className="h-4 w-4" />
           Get the App
         </Link>
+        {/* Opens the help assistant. The floating button tucks itself away
+            after a few seconds so it stops covering page buttons, so help
+            needs a permanent home that is never in the way. */}
+        <button
+          className="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors mb-1"
+          onClick={() => {
+            setMobileOpen(false);
+            window.dispatchEvent(new Event("rotahr:help-open"));
+          }}
+        >
+          <HelpCircle className="h-4 w-4" />
+          Help
+        </button>
         {/* Legal links */}
         <div className="flex gap-3 px-3 py-1 mb-1">
           <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-xs text-slate-500 hover:text-slate-300 transition-colors">

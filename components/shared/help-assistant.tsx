@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { usePathname } from "next/navigation";
 import { sanitizeInlineHtml } from "@/lib/sanitize-inline";
 import {
@@ -50,8 +50,51 @@ export function HelpAssistant() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [showQuickTopics, setShowQuickTopics] = useState(true);
+  // Tucked = slid mostly off the right edge, small and faded. See scheduleTuck.
+  const [tucked, setTucked] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const tuckTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  /**
+   * Get out of the way on its own.
+   *
+   * This button floats over every signed-in page, and several pages put their
+   * own action in the same corner (Recipes, Social post, Outreach, the Floor
+   * Plan). A permanent pill there eventually covers a button someone needs.
+   * So after a few idle seconds it slides most of the way off the edge and
+   * fades; hovering it, tapping the sliver, or the sidebar Help entry brings
+   * it straight back.
+   */
+  const scheduleTuck = useCallback(() => {
+    if (tuckTimer.current) clearTimeout(tuckTimer.current);
+    tuckTimer.current = setTimeout(() => setTucked(true), 4000);
+  }, []);
+
+  const wake = useCallback(() => {
+    setTucked(false);
+    scheduleTuck();
+  }, [scheduleTuck]);
+
+  useEffect(() => {
+    if (open) {
+      if (tuckTimer.current) clearTimeout(tuckTimer.current);
+      setTucked(false);
+      return;
+    }
+    scheduleTuck();
+    return () => {
+      if (tuckTimer.current) clearTimeout(tuckTimer.current);
+    };
+  }, [open, pathname, scheduleTuck]);
+
+  // The sidebar Help entry opens this same panel, so help stays reachable
+  // even when the floating button has tucked itself away.
+  useEffect(() => {
+    const onOpen = () => setOpen(true);
+    window.addEventListener("rotahr:help-open", onOpen);
+    return () => window.removeEventListener("rotahr:help-open", onOpen);
+  }, []);
 
   useEffect(() => {
     if (open) {
@@ -120,18 +163,31 @@ export function HelpAssistant() {
 
   return (
     <>
-      {/* Floating button */}
+      {/* Floating button — z-40 on purpose, so a page's own fixed action in the
+          same corner sits above it rather than under it. */}
       <button
         onClick={() => setOpen(!open)}
-        className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 h-12 bg-slate-800 hover:bg-slate-700 text-white rounded-full shadow-lg transition-all hover:scale-105"
-        aria-label="Open help assistant"
+        onPointerEnter={() => !open && wake()}
+        onFocus={() => !open && wake()}
+        className={cn(
+          "fixed z-40 flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-white rounded-full shadow-lg transition-all duration-300",
+          "bottom-4 right-4 sm:bottom-6 sm:right-6",
+          open
+            ? "h-12 w-12 justify-center"
+            : tucked
+              ? "h-9 w-9 justify-center translate-x-[38%] opacity-40 hover:translate-x-0 hover:opacity-100 focus-visible:translate-x-0 focus-visible:opacity-100"
+              : "h-12 px-4 hover:scale-105"
+        )}
+        style={{ marginBottom: "env(safe-area-inset-bottom, 0px)" }}
+        aria-label={open ? "Close help assistant" : "Open help assistant"}
+        title="Help"
       >
         {open ? (
           <X className="h-5 w-5" />
         ) : (
           <>
-            <HelpCircle className="h-5 w-5" />
-            <span className="text-sm font-medium">Help</span>
+            <HelpCircle className={cn("shrink-0", tucked ? "h-4 w-4" : "h-5 w-5")} />
+            {!tucked && <span className="text-sm font-medium">Help</span>}
           </>
         )}
       </button>
@@ -139,7 +195,7 @@ export function HelpAssistant() {
       {/* Panel */}
       <div
         className={cn(
-          "fixed bottom-24 right-6 z-50 w-80 sm:w-96 bg-white border border-slate-200 rounded-2xl shadow-2xl flex flex-col transition-all duration-200",
+          "fixed bottom-20 right-4 sm:bottom-24 sm:right-6 z-50 w-[calc(100vw-2rem)] max-w-sm sm:w-96 bg-white border border-slate-200 rounded-2xl shadow-2xl flex flex-col transition-all duration-200",
           open
             ? "opacity-100 translate-y-0 pointer-events-auto"
             : "opacity-0 translate-y-4 pointer-events-none"
