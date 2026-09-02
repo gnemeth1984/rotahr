@@ -12,14 +12,55 @@ import { CAPTERRA_URL } from "@/lib/capterra";
 
 export const SITE_URL = "https://rotahr.com";
 
-// Profiles that are demonstrably the same entity as this site. A directory
-// listing belongs here: it is the strongest third-party corroboration a young
-// brand has. Anything unset is filtered out rather than emitted as null —
-// invalid JSON-LD is ignored wholesale, so one bad member costs the lot.
-const SAME_AS = [
-  "https://ie.linkedin.com/in/gabor-nemeth-02790a42",
-  CAPTERRA_URL,
-].filter((u): u is string => typeof u === "string" && u.length > 0);
+const notEmpty = (u: string | null | undefined): u is string =>
+  typeof u === "string" && u.length > 0;
+
+/**
+ * ORG-level profiles only. `sameAs` is an identity assertion: "the thing at
+ * this URL is this same entity". A personal LinkedIn profile used to sit here,
+ * which told Google that Rotahr-the-company and Gabor-the-person were one
+ * entity — the exact conflation the rest of this file works to avoid. It now
+ * hangs off the founder Person node below, where it is true.
+ *
+ * A directory listing does belong here: it is the strongest third-party
+ * corroboration a young brand has. Only add a URL that genuinely exists and
+ * genuinely is Rotahr — a `sameAs` pointing at a 404 or at a different company
+ * is a bad signal, not a neutral one.
+ *
+ * Anything unset is filtered out rather than emitted as null: invalid JSON-LD
+ * is ignored wholesale, so one bad member costs the lot.
+ */
+const ORG_SAME_AS = [CAPTERRA_URL].filter(notEmpty);
+
+/** Profiles of the founder as a person, not of the company. */
+const FOUNDER_SAME_AS = ["https://ie.linkedin.com/in/gabor-nemeth-02790a42"].filter(notEmpty);
+
+/** Stable node id for the founder, anchored to the page that describes him. */
+const FOUNDER_ID = `${SITE_URL}/about#gabor-nemeth`;
+
+/**
+ * The founder as a first-class Person entity.
+ *
+ * Two nodes with a link between them beats one node doing both jobs: the
+ * company reconciles against directory listings, the person reconciles against
+ * his own professional profile, and `worksFor` / `founder` tie them together
+ * without either claiming to *be* the other. Emitted inline wherever
+ * `organizationSchema()` is, so the node is self-contained on every page and
+ * there are no dangling `@id` references. The shared `@id` means every copy is
+ * understood as the same entity rather than a new person per page.
+ */
+export function founderSchema() {
+  return {
+    "@type": "Person",
+    "@id": FOUNDER_ID,
+    name: "Gabor Nemeth",
+    jobTitle: "Founder",
+    description: "Former chef, now founder of Rotahr.",
+    url: `${SITE_URL}/about`,
+    worksFor: { "@id": `${SITE_URL}/#organization` },
+    sameAs: FOUNDER_SAME_AS,
+  };
+}
 
 /** Publisher identity — reused so every page points at one consistent entity. */
 export function organizationSchema() {
@@ -48,12 +89,8 @@ export function organizationSchema() {
       "Hospitality staff scheduling",
       "Hospitality bookkeeping",
     ],
-    founder: {
-      "@type": "Person",
-      name: "Gabor Nemeth",
-      jobTitle: "Founder",
-    },
-    sameAs: SAME_AS,
+    founder: founderSchema(),
+    sameAs: ORG_SAME_AS,
   };
 }
 

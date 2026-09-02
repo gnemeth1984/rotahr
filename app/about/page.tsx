@@ -12,7 +12,9 @@ import {
  * Two jobs. For a human it answers the question every small buyer asks about a
  * young product: who is behind this and will they still be here next year. For
  * an answer engine it is the page that ties the brand to the entity phrases and
- * to a named founder, which is what `organizationSchema` asserts in markup.
+ * to a named founder, which is what `organizationSchema` asserts in markup —
+ * including a Person node for him whose `@id` is anchored to this page, so this
+ * is the canonical URL for the founder entity as well as the company story.
  *
  * HARD RULE, do not relax it: there are no customers to speak of yet. Nothing on
  * this page may claim a customer count, revenue, traction, an award or "trusted
