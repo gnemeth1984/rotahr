@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { isSuppressed, normaliseEmail } from "@/lib/email/suppression";
+import { AfterOptOut } from "./AfterOptOut";
 import { ConfirmUnsubscribeButton } from "./ConfirmUnsubscribeButton";
 import { ResubscribeButton } from "./ResubscribeButton";
 
@@ -77,6 +78,7 @@ export default async function UnsubscribePage({
                 </p>
                 <ResubscribeButton email={email} />
               </div>
+              <AfterOptOut />
             </>
           ) : (
             <>

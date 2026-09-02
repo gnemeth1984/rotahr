@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { AfterOptOut } from "./AfterOptOut";
 import { ResubscribeButton } from "./ResubscribeButton";
 
 /**
@@ -35,6 +36,7 @@ export function ConfirmUnsubscribeButton({ email }: { email: string }) {
           <p className="text-xs text-white/40 mb-3">Changed your mind?</p>
           <ResubscribeButton email={email} />
         </div>
+        <AfterOptOut />
       </div>
     );
   }
