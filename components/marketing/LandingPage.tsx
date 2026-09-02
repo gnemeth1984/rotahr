@@ -5,6 +5,9 @@ import { Check, Zap, ArrowRight } from "lucide-react"
 // Aliased: this file already has a local `competitors` array (the
 // "what you'd pay for separate tools" list), which would otherwise collide.
 import { competitors as competitorPages } from "@/lib/seo/competitors"
+// Plan cards live in lib/marketing/plans.ts so this section and /pricing
+// cannot drift apart on price.
+import { plans } from "@/lib/marketing/plans"
 import { locations } from "@/lib/seo/locations"
 import { features as featurePages } from "@/lib/seo/features"
 import { CAPTERRA_URL, hasCapterraListing } from "@/lib/capterra"
@@ -95,81 +98,6 @@ const features = [
     icon: "📱",
     title: "Mobile App",
     desc: "Native iOS & Android app. Push notifications for shifts, bookings, time-off and messages.",
-  },
-]
-
-const plans = [
-  {
-    name: "Starter",
-    price: "€49",
-    period: "/month incl. VAT",
-    desc: "Perfect for small cafés and independent restaurants.",
-    staff: "Up to 15 staff",
-    highlight: false,
-    // Risk reversal, approved by Gabor Aug 2026. The page previously anchored
-    // EUR49/month with nothing to soften it: plain "Get Started" CTAs and no
-    // trial. With no customer logos to lean on, the first month is the only
-    // thing that lets someone say yes without a decision.
-    offer: "First month free",
-    cta: "Start your first month free",
-    features: [
-      "Rota scheduling & publishing",
-      "Clock in/out with geofencing",
-      "Reservations & table management",
-      "Menu & specials board",
-      "Log book & equipment service register",
-      "Bookkeeping & AI receipt scanning",
-      "Time-off requests & approvals",
-      "Team messaging",
-      "Employee profiles",
-      "AI booking assistant",
-      "POS integration (Square)",
-      "Mobile app (iOS & Android)",
-      "Email & push notifications",
-    ],
-  },
-  {
-    name: "Pro",
-    price: "€89",
-    period: "/month incl. VAT",
-    desc: "For busy restaurants and bars with larger teams.",
-    staff: "Up to 30 staff",
-    highlight: true,
-    offer: "First month free",
-    cta: "Start your first month free",
-    features: [
-      "Everything in Starter",
-      "Up to 30 staff members",
-      "Guest CRM, loyalty tiers & points",
-      "In-house staff training & certification records",
-      "Department management",
-      "Staff availability management",
-      "Payroll summaries",
-      "Staffing forecast & AI insights",
-      "VAT & P&L dashboard",
-      "CSV & data export",
-      "Priority support",
-    ],
-  },
-  {
-    name: "Enterprise",
-    price: "€215+",
-    period: "/month incl. VAT",
-    desc: "For multi-venue groups, hotel F&B, and franchises.",
-    staff: "Unlimited staff",
-    highlight: false,
-    offer: null, // custom-priced, handled in conversation
-    cta: "Talk to Us",
-    features: [
-      "Everything in Pro",
-      "Unlimited staff & venues",
-      "Multi-location management",
-      "Custom onboarding & training",
-      "Dedicated account manager",
-      "Priority support",
-      "Custom integrations",
-      "Volume discounts available",
-    ],
   },
 ]
 
@@ -450,6 +378,14 @@ export default function LandingPage() {
           <p className="text-center text-sm text-slate-600 mt-8">
             Enterprise pricing is custom — <Link href="/auth/signin" className="text-orange-700 underline">contact us</Link> to get started.
           </p>
+          {/* The homepage section stays the primary conversion path; /pricing is
+              the canonical page for the detail that does not fit here (flat vs
+              per-head, currencies, who should not buy). */}
+          <p className="text-center text-sm text-slate-600 mt-3">
+            <Link href="/pricing" className="text-orange-700 underline">
+              Full pricing details, currencies and what is not included
+            </Link>
+          </p>
         </div>
       </section>
 
@@ -597,6 +533,8 @@ export default function LandingPage() {
           <div>
             <h3 className="font-semibold text-slate-900 mb-3">More</h3>
             <ul className="space-y-2 text-slate-500">
+              <li><Link href="/pricing" className="hover:text-slate-900">Pricing</Link></li>
+              <li><Link href="/about" className="hover:text-slate-900">About</Link></li>
               <li><Link href="/blog" className="hover:text-slate-900">Blog</Link></li>
               {/* Sitewide link to the template library. Its 27 pages are the
                   top of the funnel — a visitor downloading a temperature log is
