@@ -51,6 +51,7 @@ type LatestRow = {
 type Data = {
   configured: boolean;
   perplexity?: boolean;
+  lastRun?: { ok: boolean; detail: string; at: string } | null;
   prompts: number;
   checks: number;
   byModel: ModelStat[];
@@ -61,7 +62,20 @@ type Data = {
 
 const MODEL_LABEL: Record<string, string> = {
   "gpt-4o-mini": "ChatGPT (training data)",
+  "gpt-4o-mini-search": "ChatGPT (live web search)",
   sonar: "Perplexity (live web)",
+};
+
+/**
+ * Why a card reads 0%. Without this the training-data card looks like a broken
+ * feature rather than the expected baseline for a brand launched this year.
+ */
+const MODEL_NOTE: Record<string, string> = {
+  "gpt-4o-mini":
+    "Answers from a frozen training set that closed before Rotahr existed, so this stays at 0% no matter what you publish. It is the baseline, not the scoreboard.",
+  "gpt-4o-mini-search":
+    "Browses live before answering, which is what chatgpt.com actually does for questions like these. This is the ChatGPT number that can move.",
+  sonar: "Reads live pages, so it reacts within days of publishing. Leading indicator.",
 };
 
 export function AiVisibilityPanel() {
@@ -158,6 +172,16 @@ export function AiVisibilityPanel() {
           </div>
         )}
 
+        {data.lastRun && !data.lastRun.ok && (
+          <div className="flex items-start gap-2 border-b border-red-100 bg-red-50 px-4 py-2.5">
+            <XCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-red-500" />
+            <p className="text-[11px] leading-relaxed text-slate-600">
+              Last check hit an error, so a model may be missing below:{" "}
+              <span className="font-medium text-slate-800">{data.lastRun.detail}</span>
+            </p>
+          </div>
+        )}
+
         {data.checks === 0 ? (
           <p className="px-4 py-6 text-sm text-slate-500">
             No checks run yet. Hit &ldquo;Run check&rdquo; — expect to be absent at first. That
@@ -165,7 +189,7 @@ export function AiVisibilityPanel() {
           </p>
         ) : (
           <>
-            <div className="grid gap-3 p-4 sm:grid-cols-2">
+            <div className="grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-3">
               {data.byModel.map((m) => (
                 <div key={m.model} className="rounded-xl border border-slate-200 p-3">
                   <p className="text-[11px] uppercase tracking-wide text-slate-500">
@@ -190,6 +214,11 @@ export function AiVisibilityPanel() {
                     {m.avgRank ? `Avg place in list: ${m.avgRank.toFixed(1)}` : "Not placed yet"}
                     {m.cited ? ` · cited rotahr.com ${m.cited}×` : ""}
                   </p>
+                  {MODEL_NOTE[m.model] && (
+                    <p className="mt-1.5 text-[11px] leading-relaxed text-slate-400">
+                      {MODEL_NOTE[m.model]}
+                    </p>
+                  )}
                 </div>
               ))}
             </div>
@@ -267,6 +296,13 @@ export function AiVisibilityPanel() {
                 ))}
               </div>
             </div>
+
+            {data.lastRun && (
+              <p className="border-t border-slate-100 px-4 py-2.5 text-[11px] text-slate-400">
+                Last check {new Date(data.lastRun.at).toLocaleString("en-IE")} —{" "}
+                {data.lastRun.detail}
+              </p>
+            )}
           </>
         )}
       </div>

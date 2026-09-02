@@ -141,8 +141,18 @@ export function analyseAnswer(answer: string): Omit<ProbeResult, "model" | "answ
   };
 }
 
+/** Model id stored for the web-search-backed ChatGPT probe. */
+const OPENAI_SEARCH_MODEL = "gpt-4o-mini-search";
+
+/** Note a probe failure so it reaches the dashboard instead of dying in a log. */
+function noteFailure(failures: string[], label: string, e: unknown) {
+  const msg = `${label}: ${e instanceof Error ? e.message : String(e)}`.slice(0, 300);
+  console.error("[ai-visibility] probe failed", msg);
+  if (!failures.includes(msg)) failures.push(msg);
+}
+
 /** Ask OpenAI. Answers from training data — the lagging, "brand memory" signal. */
-async function probeOpenAI(prompt: string): Promise<ProbeResult | null> {
+async function probeOpenAI(prompt: string, failures: string[]): Promise<ProbeResult | null> {
   if (!process.env.OPENAI_API_KEY) return null;
   try {
     const res = await openai.chat.completions.create({
@@ -164,7 +174,51 @@ async function probeOpenAI(prompt: string): Promise<ProbeResult | null> {
     if (!answer) return null;
     return { model: "gpt-4o-mini", answer, ...analyseAnswer(answer) };
   } catch (e) {
-    console.error("[ai-visibility] openai probe failed", e);
+    noteFailure(failures, "gpt-4o-mini", e);
+    return null;
+  }
+}
+
+/**
+ * Ask ChatGPT with web search switched on.
+ *
+ * This is the ChatGPT number that actually means something. chatgpt.com
+ * browses for "best rota app for a small pub" — it does not answer from
+ * memory. The plain probe above can only ever reflect a training set that
+ * closed before Rotahr existed, so it reads 0% forever no matter what we
+ * publish; that card is a baseline, not a scoreboard. This one moves.
+ *
+ * Kept as a separate stored model id so the plain probe keeps its own history
+ * and the two signals stay comparable over time.
+ */
+async function probeOpenAISearch(prompt: string, failures: string[]): Promise<ProbeResult | null> {
+  if (!process.env.OPENAI_API_KEY) return null;
+  try {
+    const res: any = await (openai as any).responses.create({
+      model: "gpt-4o-mini",
+      tools: [{ type: "web_search" }],
+      instructions:
+        "You are a helpful assistant advising a small business owner. Recommend specific named products, in a short ranked list, as you normally would.",
+      input: prompt,
+    });
+    let answer: string = res?.output_text ?? "";
+    if (!answer) return null;
+
+    // Fold the cited source URLs in, same as the Perplexity probe, so `cited`
+    // can tell "named from memory" apart from "read our page just now".
+    const urls = new Set<string>();
+    for (const item of res?.output ?? []) {
+      for (const c of item?.content ?? []) {
+        for (const a of c?.annotations ?? []) {
+          if (a?.type === "url_citation" && a?.url) urls.add(String(a.url));
+        }
+      }
+    }
+    if (urls.size) answer += `\n\nSources:\n${[...urls].join("\n")}`;
+
+    return { model: OPENAI_SEARCH_MODEL, answer, ...analyseAnswer(answer) };
+  } catch (e) {
+    noteFailure(failures, OPENAI_SEARCH_MODEL, e);
     return null;
   }
 }
@@ -177,7 +231,7 @@ async function probeOpenAI(prompt: string): Promise<ProbeResult | null> {
  * Optional — needs PERPLEXITY_API_KEY. Without it the tracker still runs on
  * OpenAI alone.
  */
-async function probePerplexity(prompt: string): Promise<ProbeResult | null> {
+async function probePerplexity(prompt: string, failures: string[]): Promise<ProbeResult | null> {
   const key = process.env.PERPLEXITY_API_KEY;
   if (!key) return null;
   try {
@@ -200,7 +254,7 @@ async function probePerplexity(prompt: string): Promise<ProbeResult | null> {
       cache: "no-store",
     });
     if (!res.ok) {
-      console.error("[ai-visibility] perplexity", res.status, await res.text());
+      noteFailure(failures, "sonar", `HTTP ${res.status} ${(await res.text()).slice(0, 160)}`);
       return null;
     }
     const json = (await res.json()) as {
@@ -217,7 +271,7 @@ async function probePerplexity(prompt: string): Promise<ProbeResult | null> {
 
     return { model: "sonar", answer, ...analyseAnswer(answer) };
   } catch (e) {
-    console.error("[ai-visibility] perplexity probe failed", e);
+    noteFailure(failures, "sonar", e);
     return null;
   }
 }
@@ -247,6 +301,7 @@ export async function runVisibilityCheck(limit = 8): Promise<{
   checked: number;
   mentions: number;
   models: string[];
+  failures?: string[];
   reason?: string;
 }> {
   if (!process.env.OPENAI_API_KEY && !process.env.PERPLEXITY_API_KEY) {
@@ -273,13 +328,20 @@ export async function runVisibilityCheck(limit = 8): Promise<{
   let checked = 0;
   let mentions = 0;
   const models = new Set<string>();
+  // A provider that errors must not vanish into a log line we cannot read in
+  // production. Anything collected here lands on the SeoRun row.
+  const failures: string[] = [];
 
   for (const p of ordered) {
     // Both providers in parallel per prompt, but prompts sequentially — keeps
     // us clear of rate limits without dragging the run out.
-    const results = (await Promise.all([probeOpenAI(p.prompt), probePerplexity(p.prompt)])).filter(
-      (r): r is ProbeResult => r !== null
-    );
+    const results = (
+      await Promise.all([
+        probeOpenAI(p.prompt, failures),
+        probeOpenAISearch(p.prompt, failures),
+        probePerplexity(p.prompt, failures),
+      ])
+    ).filter((r): r is ProbeResult => r !== null);
 
     for (const r of results) {
       await prisma.aiVisibility.create({
@@ -299,32 +361,39 @@ export async function runVisibilityCheck(limit = 8): Promise<{
     }
   }
 
+  const detail =
+    `${ordered.length} prompts, ${checked} answers, Rotahr named in ${mentions} (${[...models].join(" + ")})` +
+    (failures.length ? ` | failed: ${failures.join(" | ")}` : "");
+
   await prisma.seoRun
-    .create({
-      data: {
-        task: "ai-visibility",
-        ok: true,
-        detail: `${ordered.length} prompts, ${checked} answers, Rotahr named in ${mentions} (${[...models].join(" + ")})`,
-      },
-    })
+    .create({ data: { task: "ai-visibility", ok: failures.length === 0, detail } })
     .catch(() => {});
 
-  return { ok: true, checked, mentions, models: [...models] };
+  return { ok: true, checked, mentions, models: [...models], failures };
 }
 
 /** Dashboard payload: current standing, trend, and who's beating us. */
 export async function visibilitySummary() {
-  const [prompts, recent] = await Promise.all([
+  const [prompts, recent, run] = await Promise.all([
     prisma.aiPrompt.count({ where: { active: true } }),
     prisma.aiVisibility.findMany({
       orderBy: { createdAt: "desc" },
       take: 600,
       include: { prompt: { select: { prompt: true, cluster: true, region: true } } },
     }),
+    prisma.seoRun.findFirst({
+      where: { task: "ai-visibility" },
+      orderBy: { createdAt: "desc" },
+      select: { ok: true, detail: true, createdAt: true },
+    }),
   ]);
 
+  const lastRun = run
+    ? { ok: run.ok, detail: run.detail, at: run.createdAt.toISOString() }
+    : null;
+
   if (recent.length === 0) {
-    return { configured: !!process.env.OPENAI_API_KEY, prompts, checks: 0, byModel: [], latest: [], competitors: [], trend: [] };
+    return { configured: !!process.env.OPENAI_API_KEY, prompts, checks: 0, byModel: [], latest: [], competitors: [], trend: [], lastRun };
   }
 
   // Latest answer per prompt+model — the current standing.
@@ -382,6 +451,7 @@ export async function visibilitySummary() {
   return {
     configured: !!process.env.OPENAI_API_KEY || !!process.env.PERPLEXITY_API_KEY,
     perplexity: !!process.env.PERPLEXITY_API_KEY,
+    lastRun,
     prompts,
     checks: recent.length,
     byModel,
