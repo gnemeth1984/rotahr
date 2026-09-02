@@ -68,7 +68,7 @@ flow into staffing levels without re-typing anything.
 | Enterprise | €${enterprise}/month | unlimited | multi-venue |
 
 First month free. Billing available in EUR, GBP, USD, CAD and AUD.
-Pricing page: https://rotahr.com/#pricing
+Pricing page: https://rotahr.com/pricing
 
 The pricing model is the main structural difference from most competitors, which
 charge per employee per month. A 25-staff venue on a €4/user/month competitor pays

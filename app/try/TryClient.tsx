@@ -236,7 +236,7 @@ export default function TryClient() {
         <p className="mt-16 text-center text-xs text-slate-400">
           Demo data is rebuilt a few times a day, so anything you change is
           temporary — poke at whatever you like.{" "}
-          <Link href="/#pricing" className="underline hover:text-slate-600">
+          <Link href="/pricing" className="underline hover:text-slate-600">
             See pricing
           </Link>
         </p>

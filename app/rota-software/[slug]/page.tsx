@@ -109,7 +109,7 @@ export default async function LocationPage({
             Try the live demo
           </Link>
           <Link
-            href="/#pricing"
+            href="/pricing"
             className="border border-white/15 px-6 py-3 rounded-xl hover:bg-white/5 transition-colors"
           >
             See pricing

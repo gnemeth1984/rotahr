@@ -9,7 +9,7 @@ import {
 } from "@/lib/billing/access";
 
 // Public/marketing paths — platform admins can visit these while logged in
-const PUBLIC_PATHS = ["/", "/pricing", "/pitch", "/privacy", "/terms", "/blog"];
+const PUBLIC_PATHS = ["/", "/pricing", "/about", "/pitch", "/privacy", "/terms", "/blog"];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;

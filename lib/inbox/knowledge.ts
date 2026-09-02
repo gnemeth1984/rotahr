@@ -63,7 +63,7 @@ PRICING (VAT included)
 - Enterprise — ${PRICING.enterprise.price}, ${PRICING.enterprise.staff}
 - ${PRICING.trial}
 - ${PRICING.currencies}
-Pricing page: https://rotahr.com/#pricing
+Pricing page: https://rotahr.com/pricing
 
 PICKING A PLAN FOR SOMEONE
 Match on staff count, and always name the CHEAPEST plan that fits. Quoting a

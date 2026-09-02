@@ -296,7 +296,7 @@ export default async function TemplatePage({
           </p>
           <div className="flex flex-wrap gap-3">
             <Link
-              href="/#pricing"
+              href="/pricing"
               className="rounded-xl bg-gradient-to-r from-[#ff6b35] to-[#e8365d] px-5 py-2.5 font-semibold text-white"
             >
               See pricing

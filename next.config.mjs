@@ -68,12 +68,15 @@ const nextConfig = {
       // canonical marketing URL. Permanent so the link equity consolidates.
       { source: "/landing", destination: "/", permanent: true },
 
-      // Both of these were hard 404s. `/demo` is the most natural URL a
-      // visitor guesses when they want to look before signing up, and
-      // `/pricing` is what external links and typed URLs reach for — the nav
-      // only ever used the `#pricing` anchor.
+      // `/demo` was a hard 404 and is the most natural URL a visitor guesses
+      // when they want to look before signing up.
       { source: "/demo", destination: "/try", permanent: false },
-      { source: "/pricing", destination: "/#pricing", permanent: false },
+
+      // NOTE: there used to be a "/pricing -> /#pricing" redirect here, added
+      // back when pricing only existed as a section of the landing page. It
+      // was removed when app/pricing/page.tsx became a real route, because a
+      // redirect in next.config wins over the route and silently shadowed the
+      // new page. Do not put it back.
     ];
   },
 };

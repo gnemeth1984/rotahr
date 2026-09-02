@@ -338,7 +338,7 @@ export default function ProductTourPage() {
           </p>
           <div className="flex flex-wrap gap-3">
             <Link
-              href="/#pricing"
+              href="/pricing"
               className="rounded-xl bg-gradient-to-r from-[#ff6b35] to-[#e8365d] px-6 py-3 font-semibold text-white hover:opacity-90 transition"
             >
               Start free
