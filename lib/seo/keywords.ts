@@ -478,6 +478,72 @@ const DIY_OR_DEV = new RegExp(
   "i"
 );
 
+/**
+ * Someone else's venue is not a keyword. The harvester reads Search Console,
+ * so any query the site happens to pick up impressions for can become the next
+ * article, and that closed a loop: "harbour bar opening hours" got harvested,
+ * an article got written for it, that earned more local-lookup impressions,
+ * which harvested more venue names. Thirteen published posts target queries
+ * like "cafe en seine opening hours" and "faithlegg house hotel phone number".
+ * Nobody searching those buys rota software, and the queries name the exact
+ * operators we want as customers.
+ *
+ * Two gates. An explicit reject for local-lookup intent, then a requirement
+ * that at least one generic buying or research term appears at all: a bare
+ * venue name passes every other filter because there is nothing wrong with it
+ * except that it names a business.
+ */
+const LOCAL_LOOKUP = new RegExp(
+  "\\b(" +
+    [
+      "opening hours", "open(ing)? times", "closing time",
+      "phone number", "contact number", "telephone",
+      "directions to", "tripadvisor",
+      "book a table at", "near me",
+    ].join("|") +
+    ")\\b",
+  "i"
+);
+
+/**
+ * "menu" on its own is deliberately absent from both lists: "menu engineering"
+ * and "menu pricing" are legitimate targets we already rank for, while
+ * "dewdrop bistro menu" is not, and it is the venue name that makes the
+ * difference. Requiring a generic term is what separates them.
+ */
+const GENERIC_INTENT = new RegExp(
+  "\\b(" +
+    [
+      // question and comparison shapes
+      "how", "what", "why", "when", "which", "best", "top", "cheap\\w*",
+      "guide\\w*", "vs", "versus", "alternativ\\w*", "compar\\w*", "tips",
+      // what we sell
+      "software", "app", "apps", "platform", "system\\w*", "tool\\w*",
+      "rota\\w*", "roster\\w*", "schedul\\w*", "shift\\w*", "haccp", "crm",
+      "pos", "clock", "clocking", "attendance", "template\\w*", "checklist\\w*",
+      // money and people
+      "cost\\w*", "pric\\w*", "payroll", "pay", "wage\\w*", "salar\\w*",
+      "profit\\w*", "margin\\w*", "revenue", "labour", "labor", "turnover",
+      "forecast\\w*", "budget\\w*", "staff\\w*", "employee\\w*", "worker\\w*",
+      "hire", "hiring", "recruit\\w*", "train\\w*", "contract\\w*",
+      "holiday\\w*", "leave", "tip", "tronc", "rostering",
+      // operations and compliance
+      "manage\\w*", "managing", "calculat\\w*", "percent\\w*",
+      "complian\\w*", "law", "laws", "legal", "regulation\\w*", "rule\\w*",
+      "audit\\w*", "inspection\\w*", "food safety", "temperature\\w*",
+      "stock", "inventory", "invoice\\w*", "book\\w*", "reservation\\w*",
+      "engineering", "hospitality", "no.show\\w*", "hygiene", "clean\\w*",
+      "waste", "reduc\\w*", "overtime", "onboard\\w*", "team", "paperless",
+      "sheet\\w*", "log", "logs", "record\\w*", "form", "forms", "formula",
+      "database", "customer\\w*", "guests?", "requirement\\w*", "ways to",
+      "floor plan", "seating", "table plan", "rating\\w*",
+      // starting or running a venue
+      "open\\w* a", "start\\w* a", "run(ning)? a", "business plan",
+    ].join("|") +
+    ")\\b",
+  "i"
+);
+
 /** Drop queries that can never convert for a hospitality SaaS. */
 export function isUsable(keyword: string): boolean {
   const k = keyword.trim();
@@ -487,6 +553,8 @@ export function isUsable(keyword: string): boolean {
   if (OFF_VERTICAL.test(k)) return false;
   if (NEVER_CONVERTS.test(k)) return false;
   if (DIY_OR_DEV.test(k)) return false;
+  if (LOCAL_LOOKUP.test(k)) return false;
+  if (!GENERIC_INTENT.test(k)) return false;
   return !STOP_PATTERNS.some((re) => re.test(k));
 }
 

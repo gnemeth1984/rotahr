@@ -30,7 +30,7 @@ export const revalidate = 3600;
  *
  * Bump this when you ship a change to a static marketing page.
  */
-const STATIC_UPDATED = new Date('2026-09-02T00:00:00Z');
+const STATIC_UPDATED = new Date('2026-09-03T00:00:00Z');
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const [posts, venues] = await Promise.all([

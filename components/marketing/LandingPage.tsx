@@ -122,6 +122,10 @@ const landingFaq = [
     a: "For most venues it replaces four things: the rota spreadsheet plus the staff WhatsApp group, the paper HACCP diary, the booking diary, and the carrier bag of receipts. It does not replace your POS or your payroll bureau — it feeds them.",
   },
   {
+    q: "Does Rotahr work for a multi-location group?",
+    a: "Yes. Every location sits under one account with its own address, clock-in geofence, timezone, capacity, equipment list and opening, closing and cleaning checklists. Shifts are assigned to a location, so labour cost and overtime break down per site. Enterprise is the multi-location plan at €215 a month for unlimited staff across your venues. One honest limit: revenue is tracked for the business as a whole rather than per site, because POS snapshots arrive business-wide.",
+  },
+  {
     q: "How much does Rotahr cost?",
     a: "Starter is €49 a month for up to 15 staff, Pro is €89 for up to 30, and Enterprise is €215 for unlimited staff across multiple venues. Tax is included in those prices, there are no setup fees, and the first month is free.",
   },
@@ -214,7 +218,7 @@ export default function LandingPage() {
         </h1>
 
         <p className="text-xl text-slate-500 max-w-2xl mx-auto mb-4">
-          Rotahr is a restaurant operations platform: staff rotas, clock-in, HACCP software, a built-in
+          Rotahr is a restaurant operations platform: staff scheduling and rotas, clock-in, HACCP software, a built-in
           restaurant CRM, reservations, bookkeeping, payroll, staff training, equipment servicing and team
           messaging — all in one place.
         </p>
@@ -292,7 +296,8 @@ export default function LandingPage() {
             Everything your venue needs in one restaurant operations platform
           </h2>
           <p className="text-slate-500 text-lg max-w-xl mx-auto">
-            12 tools in one platform. Built specifically for bars, restaurants and cafés.
+            12 tools in one platform. Built specifically for bars, restaurants and cafés — a single
+            site or a multi-location group.
           </p>
         </div>
         <div className="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">

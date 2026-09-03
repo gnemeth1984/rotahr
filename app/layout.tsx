@@ -12,7 +12,7 @@ export const metadata = {
   },
   title: "Rotahr — Restaurant Operations Platform: Rota, HACCP & CRM",
   description:
-    "A restaurant operations platform combining staff rotas, HACCP software and a restaurant CRM with table reservations, bookkeeping and payroll. From €49/month.",
+    "Restaurant operations platform for hospitality venues: staff scheduling and rotas, HACCP software, restaurant CRM, reservations and payroll. From €49/month.",
   manifest: "/manifest.json",
   icons: {
     icon: "/favicon.ico",
@@ -30,7 +30,7 @@ export const metadata = {
     type: "website",
     title: "Rotahr — Restaurant Operations Platform: Rota, HACCP & CRM",
     description:
-      "Restaurant operations platform: staff rotas, HACCP software, restaurant CRM, table reservations and bookkeeping in one app.",
+      "Restaurant operations platform for hospitality: staff scheduling and rotas, HACCP software, restaurant CRM, table reservations and bookkeeping in one app.",
     images: ["/logo-dark.png"],
   },
 }

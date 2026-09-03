@@ -243,6 +243,66 @@ async function publishScheduledArticle() {
   return { slug: due.slug, title: due.title, coverImage: !!coverImage };
 }
 
+// Truncate on a word boundary and, where possible, at the end of a sentence.
+// The legacy path below used to slice the excerpt at a fixed 160 chars for
+// metaDesc, which cut 51 published posts off mid-word. That string is what
+// Google prints as the snippet, so it has to read as a finished thought.
+function tidyTruncate(text: string, max: number): string {
+  const s = text.replace(/\s+/g, ' ').trim();
+  if (s.length <= max) return s;
+  const window = s.slice(0, max + 1);
+  const sentenceEnd = Math.max(
+    window.lastIndexOf('. '),
+    window.lastIndexOf('! '),
+    window.lastIndexOf('? '),
+  );
+  if (sentenceEnd > max * 0.5) return window.slice(0, sentenceEnd + 1);
+  const space = window.lastIndexOf(' ');
+  const cut = space > 0 ? window.slice(0, space) : s.slice(0, max);
+  return cut.replace(/[,;:.\-]+$/, '') + '...';
+}
+
+// The keyword autopilot asks the model for its own meta fields. This legacy
+// fallback never did, so it shipped a slice of body prose as the description.
+async function metaFor(
+  title: string,
+  content: string,
+): Promise<{ metaTitle: string; metaDesc: string }> {
+  const fallbackTitle = tidyTruncate(title + ' | Rotahr', 70);
+  try {
+    const res = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        {
+          role: 'user',
+          content: `Write search-result metadata for this hospitality blog article.
+
+Title: "${title}"
+Opening: ${content.replace(/\s+/g, ' ').slice(0, 600)}
+
+Return ONLY JSON, no code fences:
+{"metaTitle":"under 60 characters, ends with | Rotahr","metaDesc":"one complete sentence under 150 characters saying what the reader gets and why to click. Never cut off mid-sentence."}`,
+        },
+      ],
+      max_tokens: 300,
+      response_format: { type: 'json_object' },
+    });
+    const parsed = JSON.parse(res.choices[0].message.content || '{}') as {
+      metaTitle?: unknown;
+      metaDesc?: unknown;
+    };
+    const t = typeof parsed.metaTitle === 'string' ? parsed.metaTitle.trim() : '';
+    const d = typeof parsed.metaDesc === 'string' ? parsed.metaDesc.trim() : '';
+    return {
+      metaTitle: t ? tidyTruncate(t, 70) : fallbackTitle,
+      metaDesc: d ? tidyTruncate(d, 158) : '',
+    };
+  } catch (err: any) {
+    console.warn('[Blog] Meta generation failed, falling back: %s', err?.message);
+    return { metaTitle: fallbackTitle, metaDesc: '' };
+  }
+}
+
 async function __cronHandler(req: Request) {
   const authHeader = req.headers.get('authorization');
   const secret = req.headers.get('x-cron-secret') || new URL(req.url).searchParams.get('secret');
@@ -361,7 +421,7 @@ Write the article now:`;
 
     let content = completion.choices[0].message.content || '';
     const plainLines = content.split('\n').filter((l: string) => l.trim() && !l.startsWith('#'));
-    const excerpt = plainLines.slice(0, 2).join(' ').slice(0, 220) + '...';
+    const excerpt = tidyTruncate(plainLines.slice(0, 2).join(' '), 220);
 
     // Internal linking: pull recent posts in the same category (or fall back to any recent posts)
     const sameCategory = await prisma.blogPost.findMany({
@@ -382,6 +442,8 @@ Write the article now:`;
     // Featured cover image (Outrank-style auto image generation)
     const coverImage = await generateCoverImage(topic.title, topic.category);
 
+    const meta = await metaFor(topic.title, content);
+
     const post = await prisma.blogPost.create({
       data: {
         slug,
@@ -390,8 +452,8 @@ Write the article now:`;
         content,
         category: topic.category,
         tags: topic.tags,
-        metaTitle: topic.title + ' | Rotahr',
-        metaDesc: excerpt.slice(0, 160),
+        metaTitle: meta.metaTitle,
+        metaDesc: meta.metaDesc || tidyTruncate(excerpt, 158),
         coverImage: coverImage ?? undefined,
         published: true,
       }
