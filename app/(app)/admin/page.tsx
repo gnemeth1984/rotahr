@@ -27,6 +27,7 @@ import {
   Send,
   Inbox,
   Store,
+  Award,
 } from "lucide-react";
 import { EmailCampaignsTab } from "@/components/admin/email-campaigns-tab";
 import { ActivityTab } from "@/components/admin/activity-tab";
@@ -38,6 +39,7 @@ import { ListingsTab } from "@/components/admin/listings-tab";
 import { LinksTab } from "@/components/admin/links-tab";
 import { VenueEnrichmentTab } from "@/components/admin/venue-enrichment-tab";
 import { TemplatesTab } from "@/components/admin/templates-tab";
+import { FoundingTab } from "@/components/admin/founding-tab";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
@@ -113,6 +115,7 @@ const ADMIN_TABS = [
   "venues",
   "inbox",
   "templates",
+  "founding",
   "seo",
   "audit",
 ] as const;
@@ -628,6 +631,18 @@ export default function AdminPage() {
             <FileText className="h-3.5 w-3.5" /> Templates
           </span>
         </button>
+        <button
+          onClick={() => setActiveTab("founding")}
+          className={`shrink-0 whitespace-nowrap px-3 py-2.5 text-sm font-medium border-b-2 transition-colors sm:px-4 sm:py-2 ${
+            activeTab === "founding"
+              ? "border-emerald-600 text-emerald-700"
+              : "border-transparent text-slate-500 hover:text-slate-700"
+          }`}
+        >
+          <span className="flex items-center gap-1.5">
+            <Award className="h-3.5 w-3.5" /> Founding
+          </span>
+        </button>
       </div>
 
       {/* Analytics tab */}
@@ -659,6 +674,9 @@ export default function AdminPage() {
 
       {/* Free template library: request queue + download counts */}
       {activeTab === "templates" && <TemplatesTab />}
+
+      {/* Founding member programme: applications, spot count, grants */}
+      {activeTab === "founding" && <FoundingTab />}
 
       {/* Users tab */}
       {activeTab === "users" && (

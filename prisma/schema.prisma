@@ -149,6 +149,46 @@ model Business {
   // read-only mode cannot lock out anyone already trading. See lib/billing/access.ts
   trialEndsAt      DateTime?
   lsEndsAt         DateTime?
+
+  // ── Founding member programme ──────────────────────────────────────────────
+  // Pro for 12 months at no cost, in exchange for a short monthly call and a
+  // testimonial if they like it. A grant is just lsPlan = "pro" plus a
+  // trialEndsAt 12 months out, which lib/billing/access.ts already handles —
+  // this flag exists to count, list and revoke the programme, not to gate
+  // anything. See lib/marketing/founding.ts.
+  foundingMember    Boolean   @default(false)
+  foundingGrantedAt DateTime?
+
+  @@index([foundingMember])
+}
+
+/// Application to the founding member programme. Public form, no account
+/// needed, because the whole point is to reach venues that have not signed up.
+model FoundingApplication {
+  id          String  @id @default(cuid())
+  venueName   String
+  contactName String
+  email       String
+  phone       String?
+  venueType   String?
+  staffCount  Int?
+  currentTool String?
+  notes       String? @db.Text
+
+  /// new | contacted | granted | declined | withdrawn
+  status    String  @default("new")
+  adminNote String? @db.Text
+  /// Set once a grant is made, so an application can be traced to a business.
+  grantedBusinessId String?
+
+  ipHash    String? // coarse rate limiting, not identification
+  userAgent String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+  @@index([email])
 }
 
 model User {

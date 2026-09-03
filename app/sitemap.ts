@@ -68,6 +68,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // this is the URL that should rank for "rotahr pricing" style queries.
     { url: `${baseUrl}/pricing`, lastModified: STATIC_UPDATED, changeFrequency: 'monthly', priority: 0.9 },
     { url: `${baseUrl}/about`, lastModified: STATIC_UPDATED, changeFrequency: 'monthly', priority: 0.6 },
+    // Founding member programme. Time-limited offer page, but it is a real
+    // landing page with its own FAQ and it is the strongest conversion path
+    // we have while there are no customers to point at.
+    { url: `${baseUrl}/founding`, lastModified: STATIC_UPDATED, changeFrequency: 'weekly', priority: 0.8 },
     { url: `${baseUrl}/blog`, lastModified: STATIC_UPDATED, changeFrequency: 'daily', priority: 0.8 },
     { url: `${baseUrl}/pitch`, lastModified: STATIC_UPDATED, changeFrequency: 'monthly', priority: 0.5 },
     { url: `${baseUrl}/partners`, lastModified: STATIC_UPDATED, changeFrequency: 'monthly', priority: 0.6 },

@@ -8,6 +8,9 @@ import { competitors as competitorPages } from "@/lib/seo/competitors"
 // Plan cards live in lib/marketing/plans.ts so this section and /pricing
 // cannot drift apart on price.
 import { plans } from "@/lib/marketing/plans"
+// Founding programme copy and the real granted-spot count. The number shown
+// here is read from the database, never hardcoded — see the note in that file.
+import { foundingStatus, TERM_MONTHS } from "@/lib/marketing/founding"
 import { locations } from "@/lib/seo/locations"
 import { features as featurePages } from "@/lib/seo/features"
 import { CAPTERRA_URL, hasCapterraListing } from "@/lib/capterra"
@@ -151,7 +154,10 @@ const landingFaq = [
   },
 ]
 
-export default function LandingPage() {
+export default async function LandingPage() {
+  // Async because the founding band shows the real number of spots left.
+  // `/` is an async server component already, so this costs nothing extra.
+  const founding = await foundingStatus()
   return (
     <div className="min-h-screen bg-white text-slate-900">
       <script
@@ -390,6 +396,67 @@ export default function LandingPage() {
             <Link href="/pricing" className="text-orange-700 underline">
               Full pricing details, currencies and what is not included
             </Link>
+          </p>
+        </div>
+      </section>
+
+      {/*
+        Founding member band.
+
+        Sits immediately after pricing because it answers the objection the
+        price just created. The spot count is the live database number, so once
+        every spot is gone this switches itself to a waiting list rather than
+        dangling an offer that no longer exists.
+      */}
+      <section className="py-20" style={{ background: "linear-gradient(135deg, #0f1c35, #1b2b4d)" }}>
+        <div className="max-w-4xl mx-auto px-6 text-center text-white">
+          <p className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-4 py-1.5 text-sm font-semibold text-orange-200">
+            <Zap className="w-4 h-4" />
+            {founding.full
+              ? "All founding spots are taken"
+              : `${founding.remaining} of ${founding.total} founding spots left`}
+          </p>
+          <h2 className="mt-5 text-3xl font-extrabold sm:text-4xl">
+            {founding.full
+              ? "The founding programme is full"
+              : `The first ${founding.total} venues get Pro free for ${TERM_MONTHS} months`}
+          </h2>
+          <p className="mt-4 text-lg text-slate-300 leading-relaxed">
+            {founding.full ? (
+              <>
+                Every spot has been granted. You can still join the waiting list
+                &mdash; if one frees up, or we open a second round, you hear
+                first.
+              </>
+            ) : (
+              <>
+                Rotahr is new and we would rather have {founding.total} venues
+                using it properly than a pile of signups that never log in. So
+                the first {founding.total} get the full Pro plan free for a
+                year. In return: a 20 minute call once a month, and tell us what
+                breaks.
+              </>
+            )}
+          </p>
+          <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+            <Link
+              href="/founding"
+              className="inline-flex items-center gap-2 rounded-xl px-6 py-3 text-sm font-semibold text-white transition-all hover:opacity-90"
+              style={{ background: "linear-gradient(135deg, #F97316, #EC4899)" }}
+            >
+              {founding.full ? "Join the waiting list" : "Apply for a founding spot"}
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+            <Link
+              href="/founding"
+              className="text-sm text-slate-300 underline hover:text-white"
+            >
+              What we ask in return, and what Rotahr still cannot do
+            </Link>
+          </div>
+          <p className="mt-6 text-xs text-slate-400">
+            No card, no contract, no auto-charge at the end. You keep every
+            record you enter either way.
           </p>
         </div>
       </section>
