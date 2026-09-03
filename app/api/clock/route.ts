@@ -106,11 +106,14 @@ export async function POST(req: NextRequest) {
   if (type === "in") {
     const biz = await prisma.business.findUnique({
       where: { id: businessId },
-      select: { lsStatus: true, trialEndsAt: true },
+      select: { lsStatus: true, trialEndsAt: true, foundingMember: true },
     });
+    // A founding member past their term is in "rota" mode, where clocking in
+    // stays free forever — so only true read-only blocks it here.
     const access = computeAccess({
       lsStatus: biz?.lsStatus,
       trialEndsAt: biz?.trialEndsAt,
+      foundingMember: biz?.foundingMember,
     });
     if (access.mode === "readonly") {
       return NextResponse.json(readOnlyPayload(access), { status: 402 });

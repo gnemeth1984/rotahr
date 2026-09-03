@@ -419,7 +419,7 @@ export default async function LandingPage() {
           <h2 className="mt-5 text-3xl font-extrabold sm:text-4xl">
             {founding.full
               ? "The founding programme is full"
-              : `The first ${founding.total} venues get Pro free for ${TERM_MONTHS} months`}
+              : `${TERM_MONTHS} months of Pro free, then keep the rota free forever`}
           </h2>
           <p className="mt-4 text-lg text-slate-300 leading-relaxed">
             {founding.full ? (
@@ -432,9 +432,10 @@ export default async function LandingPage() {
               <>
                 Rotahr is new and we would rather have {founding.total} venues
                 using it properly than a pile of signups that never log in. So
-                the first {founding.total} get the full Pro plan free for a
-                year. In return: a 20 minute call once a month, and tell us what
-                breaks.
+                the first {founding.total} get the full Pro plan free for{" "}
+                {TERM_MONTHS} months, and after that the rota, clock in/out and
+                the staff app stay free for good. In return: a 20 minute call
+                once a month, and tell us what breaks.
               </>
             )}
           </p>

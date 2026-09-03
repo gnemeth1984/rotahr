@@ -7,7 +7,9 @@
  * queue, and grant a spot to a real business.
  *
  * Granting needs a business that already exists, because a grant just flips
- * lsPlan to pro and pushes trialEndsAt out 12 months on that business. So the
+ * lsPlan to pro and pushes trialEndsAt out 3 months on that business, and sets
+ * foundingMember so that when the term lapses they land in the free rota tier
+ * instead of read-only (lib/billing/access.ts, mode "rota"). So the
  * flow is: applicant signs up normally, then you grant their business here.
  * Prospect pages (marketing pages for venues we don't run) are hidden from the
  * picker - they have no users, so granting one would do nothing.
@@ -197,7 +199,7 @@ export function FoundingTab() {
   async function revoke(businessId: string, name: string) {
     if (
       !window.confirm(
-        `Remove ${name} from the founding programme?\n\nThis only clears the founding flag. Their plan and free-year date are left exactly as they are, so nothing goes read-only.`,
+        `Remove ${name} from the founding programme?\n\nThis only clears the founding flag. Their plan and free-term date are left exactly as they are, so nothing changes today. It does mean that when their term lapses they drop to read-only like any other trial, instead of keeping the free rota tier.`,
       )
     )
       return;
@@ -252,7 +254,7 @@ export function FoundingTab() {
           </h2>
           <p className="text-sm text-slate-500">
             {taken} of {total} spots granted &middot; {remaining} left &middot;
-            Pro free for 12 months
+            Pro free for 3 months, then the free rota tier
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -522,8 +524,9 @@ export function FoundingTab() {
           </div>
         )}
         <p className="px-4 py-3 text-xs text-slate-500">
-          Revoking only clears the founding flag. The plan and free-year date
-          stay put, so no live venue drops into read-only by accident.
+          Revoking only clears the founding flag. The plan and free-term date
+          stay put, so no live venue changes today &mdash; but they lose the
+          free rota tier when their term lapses.
         </p>
       </div>
 
@@ -538,7 +541,7 @@ export function FoundingTab() {
                 </h3>
                 <p className="text-xs text-slate-500">
                   {picking === "blank"
-                    ? "Pick the business to put on Pro free for 12 months."
+                    ? "Pick the business to put on Pro free for 3 months."
                     : `For ${picking.venueName} (${picking.email}). Pick their business.`}
                 </p>
               </div>
@@ -609,8 +612,9 @@ export function FoundingTab() {
               )}
 
               <p className="mt-3 text-xs text-slate-500">
-                Sets plan to Pro and pushes the trial end date out 12 months.
-                Nothing is charged and nothing touches Lemon Squeezy.
+                Sets plan to Pro and pushes the trial end date out 3 months.
+                After that they keep the free rota tier, not read-only. Nothing
+                is charged and nothing touches Lemon Squeezy.
               </p>
               <a
                 href="/founding"

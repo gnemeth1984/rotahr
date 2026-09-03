@@ -40,7 +40,7 @@ const pricingFaq = [
   },
   {
     q: "Is there a free trial?",
-    a: "The first month is free on Starter and Pro, with no card needed to start. There is no free forever tier. Right now the first 20 venues can also apply for the founding programme at /founding, which is the full Pro plan free for 12 months in exchange for a short call once a month. If you only want the free parts, the template library at /templates is completely ungated: no email address, no sign-up.",
+    a: "The first month is free on Starter and Pro, with no card needed to start. There is no free forever tier. Right now the first 20 venues can also apply for the founding programme at /founding, which is the full Pro plan free for 3 months and then the rota, clock in/out and the staff app free forever, in exchange for a short call once a month. If you only want the free parts, the template library at /templates is completely ungated: no email address, no sign-up.",
   },
   {
     q: "What is included in the price?",

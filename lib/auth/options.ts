@@ -87,7 +87,12 @@ export const authOptions: NextAuthOptions = {
           if (dbUser.businessId) {
             const biz = await prisma.business.findUnique({
               where: { id: dbUser.businessId },
-              select: { lsPlan: true, lsStatus: true, trialEndsAt: true },
+              select: {
+                lsPlan: true,
+                lsStatus: true,
+                trialEndsAt: true,
+                foundingMember: true,
+              },
             });
             token.lsPlan = biz?.lsPlan ?? null;
             // Ride along on the query we were already making, so middleware can
@@ -98,10 +103,17 @@ export const authOptions: NextAuthOptions = {
             token.trialEndsAt = biz?.trialEndsAt
               ? biz.trialEndsAt.toISOString()
               : null;
+            // Founding members keep the rota tier free forever once their term
+            // lapses. Middleware cannot see the database, so the flag has to
+            // ride the token — without it every founding member would drop
+            // straight to read-only, which is the exact promise we made not to
+            // break. See lib/billing/access.ts, mode "rota".
+            token.foundingMember = Boolean(biz?.foundingMember);
           } else {
             token.lsPlan = null;
             token.lsStatus = null;
             token.trialEndsAt = null;
+            token.foundingMember = false;
           }
 
           // Fetch employee permissions (additive grants for non-managers)
@@ -152,6 +164,7 @@ export const authOptions: NextAuthOptions = {
         session.user.lsPlan = (token.lsPlan as string | null) ?? null;
         session.user.lsStatus = (token.lsStatus as string | null) ?? null;
         session.user.trialEndsAt = (token.trialEndsAt as string | null) ?? null;
+        session.user.foundingMember = Boolean(token.foundingMember);
         session.user.isPlatformAdmin = Boolean(token.isPlatformAdmin);
       }
       return session;

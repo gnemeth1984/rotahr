@@ -151,11 +151,13 @@ model Business {
   lsEndsAt         DateTime?
 
   // ── Founding member programme ──────────────────────────────────────────────
-  // Pro for 12 months at no cost, in exchange for a short monthly call and a
-  // testimonial if they like it. A grant is just lsPlan = "pro" plus a
-  // trialEndsAt 12 months out, which lib/billing/access.ts already handles —
-  // this flag exists to count, list and revoke the programme, not to gate
-  // anything. See lib/marketing/founding.ts.
+  // Pro for 3 months at no cost, in exchange for a short monthly call and a
+  // testimonial if they like it. A grant is lsPlan = "pro" plus a trialEndsAt
+  // 3 months out, which lib/billing/access.ts already handles.
+  // This flag ALSO gates one thing: when the term lapses, a founding member
+  // lands in access mode "rota" (rotas, clock in/out and the staff app stay
+  // free forever, up to 30 staff) instead of read-only. It rides the JWT so
+  // Edge middleware can read it. See lib/marketing/founding.ts.
   foundingMember    Boolean   @default(false)
   foundingGrantedAt DateTime?
 

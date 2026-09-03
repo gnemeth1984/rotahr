@@ -4,6 +4,7 @@ import type { NextRequest } from "next/server";
 import {
   computeAccess,
   isAlwaysWritable,
+  isRotaWritable,
   isWriteMethod,
   readOnlyPayload,
 } from "@/lib/billing/access";
@@ -44,7 +45,15 @@ export async function middleware(request: NextRequest) {
           const state = computeAccess({
             lsStatus: token.lsStatus as string | null | undefined,
             trialEndsAt: token.trialEndsAt as string | null | undefined,
+            foundingMember: Boolean(token.foundingMember),
           });
+
+          // Founding members whose term has lapsed land in "rota" mode: the
+          // rota, clock in/out and the staff app keep writing, everything else
+          // is read-only. See lib/billing/access.ts, ROTA_WRITABLE.
+          if (state.mode === "rota" && !isRotaWritable(pathname)) {
+            return NextResponse.json(readOnlyPayload(state), { status: 402 });
+          }
 
           if (state.mode === "readonly") {
             return NextResponse.json(readOnlyPayload(state), { status: 402 });

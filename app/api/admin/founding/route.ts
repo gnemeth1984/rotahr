@@ -9,14 +9,17 @@
  *
  * Platform admin only, same guard as /api/admin/businesses.
  *
- * A grant deliberately writes nothing new into the access model: lsPlan = "pro"
- * and trialEndsAt = now + 12 months is a state lib/billing/access.ts already
- * handles correctly, so there is no second code path to keep in sync.
+ * A grant is lsPlan = "pro" plus trialEndsAt = now + TERM_MONTHS, a state
+ * lib/billing/access.ts already handles, plus the foundingMember flag. That
+ * flag is what sends them to access mode "rota" (the free rota tier) rather
+ * than read-only once the term lapses.
  *
  * A revoke clears the founding flag and LEAVES BILLING ALONE. Setting
  * trialEndsAt to now would drop a live venue into read-only mid-service, which
  * is not something an admin should be able to do by accident from a list view.
- * If the free year genuinely needs to end early, change the trial date
+ * Note that clearing the flag does remove the permanent free rota tier, so a
+ * revoked member behaves like any other expired trial when their term ends.
+ * If the free term genuinely needs to end early, change the trial date
  * explicitly instead.
  */
 

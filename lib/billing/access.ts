@@ -37,7 +37,25 @@
  * close.
  */
 
-export type AccessMode = "full" | "readonly";
+/**
+ * THE THIRD MODE: "rota"
+ *
+ * Founding members were promised something stronger than read-only. After
+ * their free months lapse they keep the rota free forever — build and publish
+ * rotas, staff clock in and out, and the staff mobile app — for up to
+ * ROTA_STAFF_CAP staff. Everything else (timesheet edits, messaging, time off,
+ * payroll summaries, HACCP, reservations, bookkeeping) becomes read-only, and
+ * as always stays readable and exportable.
+ *
+ * Note the deliberate asymmetry inside that: clocking in and out WRITES, but
+ * editing a timesheet by hand does not. Clocking creates the record; correcting
+ * it afterwards is a paid feature. Hours totals stay readable either way,
+ * because everything is always readable.
+ *
+ * This mode is only ever reached by a founding member. An ordinary expired
+ * trial still goes to "readonly", unchanged.
+ */
+export type AccessMode = "full" | "rota" | "readonly";
 
 export type AccessReason =
   | "subscribed"
@@ -45,7 +63,8 @@ export type AccessReason =
   | "no_deadline"
   | "unknown"
   | "trial_expired"
-  | "subscription_lapsed";
+  | "subscription_lapsed"
+  | "founding_lapsed";
 
 export interface AccessState {
   mode: AccessMode;
@@ -62,6 +81,12 @@ export interface AccessInput {
   lsStatus?: string | null;
   /** Business.trialEndsAt — null means no deadline, i.e. never restrict. */
   trialEndsAt?: Date | string | null;
+  /**
+   * Business.foundingMember. Founding members land in "rota" mode instead of
+   * "readonly" when their term lapses, because that is what we promised them.
+   * Everyone else is unaffected by this flag.
+   */
+  foundingMember?: boolean | null;
   now?: Date;
 }
 
@@ -131,7 +156,20 @@ export function computeAccess(input: AccessInput): AccessState {
     };
   }
 
-  // Expired, and not paying. The only path to read-only.
+  // Expired, and not paying. The only path out of full access.
+  //
+  // Founding members do not fall to read-only here. They keep the rota, clock
+  // in/out and the staff app for good — see the "rota" mode note at the top.
+  if (input.foundingMember) {
+    return {
+      mode: "rota",
+      reason: "founding_lapsed",
+      daysLeft: 0,
+      trialEndsAt: ends,
+      warn: true,
+    };
+  }
+
   return {
     mode: "readonly",
     reason: input.lsStatus === "cancelled" || input.lsStatus === "past_due"
@@ -178,6 +216,35 @@ export function isAlwaysWritable(pathname: string): boolean {
   );
 }
 
+/**
+ * API paths that stay writable in "rota" mode, on top of ALWAYS_WRITABLE.
+ *
+ * This list IS the founding promise, so it is exactly as wide as the words we
+ * used publicly and no wider: build and publish rotas, clock in and out, and
+ * run the staff app. Every entry needs a reason, and anything a venue would
+ * pay for stays out — timesheet edits, messaging, time off, payroll, HACCP,
+ * reservations and bookkeeping are read-only in this mode.
+ */
+export const ROTA_WRITABLE: readonly string[] = [
+  "/api/shifts", // build, edit, copy, template and publish the rota
+  "/api/employee", // you cannot roster staff you cannot add or edit
+  "/api/employees", // same, older plural route still in use
+  "/api/department", // rotas are grouped by department
+];
+
+export function isRotaWritable(pathname: string): boolean {
+  return ROTA_WRITABLE.some(
+    (p) => pathname === p || pathname.startsWith(p + "/"),
+  );
+}
+
+/**
+ * Staff ceiling on the free rota tier. Matches the Pro cap, so a founding
+ * member never loses staff they already had when the term lapses — they just
+ * cannot grow past it without paying.
+ */
+export const ROTA_STAFF_CAP = 30;
+
 /** Methods that create or change data. */
 export function isWriteMethod(method: string): boolean {
   const m = method.toUpperCase();
@@ -190,7 +257,9 @@ export function readOnlyPayload(state: AccessState) {
     error: "read_only",
     reason: state.reason,
     message:
-      state.reason === "subscription_lapsed"
+      state.mode === "rota"
+        ? "Your founding free months have ended. Your rota, clock in/out and the staff app stay free for up to 30 staff. This part needs a plan — timesheet edits, messaging, time off, payroll summaries, HACCP, reservations and bookkeeping are read-only, and everything you have recorded stays readable and exportable."
+        : state.reason === "subscription_lapsed"
         ? "Your subscription has lapsed, so Rotahr is read-only. Everything you have recorded stays readable and exportable. Restart your plan to add new records."
         : "Your free trial has ended, so Rotahr is read-only. Everything you have recorded stays readable and exportable. Choose a plan to start adding new records again.",
     trialEndsAt: state.trialEndsAt?.toISOString() ?? null,

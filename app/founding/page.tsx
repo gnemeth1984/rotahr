@@ -10,6 +10,8 @@ import {
   FOUNDING_ASKS,
   FOUNDING_CAVEATS,
   FOUNDING_GETS,
+  FOUNDING_KEEPS,
+  FOUNDING_LOCKED,
   TERM_MONTHS,
   TOTAL_SPOTS,
   foundingStatus,
@@ -21,14 +23,15 @@ import {
  * WHY THIS PAGE EXISTS
  *
  * Rotahr has no customers yet, so it has no logos, no reviews and no case
- * studies. That is the actual obstacle, not the price. This page trades twelve
- * months of Pro for the thing the product needs more than revenue right now:
- * real venues using it daily, and a monthly conversation about where it breaks.
+ * studies. That is the actual obstacle, not the price. This page trades three
+ * months of Pro, plus the rota free forever after that, for the thing the
+ * product needs more than revenue right now: real venues using it daily, and a
+ * monthly conversation about where it breaks.
  *
  * TONE RULES FOR THIS PAGE
  *
  * It says outright that we are new and have no customers. That is not modesty,
- * it is the only honest reason a free year makes sense, and an operator can
+ * it is the only honest reason a free offer makes sense, and an operator can
  * smell a fake scarcity play immediately. The spot counter is read from the
  * database — see lib/marketing/founding.ts. The limitations section is not
  * optional: someone finding out about the missing importer on day three is a
@@ -44,24 +47,24 @@ import {
 export const revalidate = 300;
 
 export const metadata = {
-  title: "Founding Members — Rotahr Free for 12 Months",
+  title: "Founding Members — 3 Months Free, Then Keep the Rota Free",
   description:
-    "The first 20 venues get Rotahr Pro free for 12 months. Rotas, clock-in, HACCP and reservations, in exchange for a monthly call about what needs fixing. No card.",
+    "The first 20 venues get Rotahr Pro free for 3 months, then keep rotas, clock in/out and the staff app free forever. In exchange, a monthly call about what needs fixing. No card.",
   alternates: { canonical: "/founding" },
 };
 
 const foundingFaq = [
   {
     q: "What is the Rotahr founding member programme?",
-    a: `The first ${TOTAL_SPOTS} venues to join get Rotahr Pro free for ${TERM_MONTHS} months. In exchange they agree to a 20 minute call once a month about what is working and what is not, and a testimonial at the end if they genuinely like it by then. There is no card and nothing to cancel.`,
+    a: `The first ${TOTAL_SPOTS} venues to join get Rotahr Pro free for ${TERM_MONTHS} months. When those months end you keep the rota free forever, whether you pay or not. In exchange they agree to a 20 minute call once a month about what is working and what is not, and a testimonial at the end if they genuinely like it by then. There is no card and nothing to cancel.`,
   },
   {
     q: "Why is it free?",
-    a: "Rotahr is new and does not have customers yet. What it needs first is venues using it every day and telling us where it gets in the way, which is worth more at this stage than the monthly fee. The honest trade is a free year for your time and your feedback.",
+    a: "Rotahr is new and does not have customers yet. What it needs first is venues using it every day and telling us where it gets in the way, which is worth more at this stage than the monthly fee. The honest trade is free months for your time and your feedback.",
   },
   {
-    q: "What happens after the 12 months?",
-    a: "You decide whether to pay. If you do nothing, the account drops to read only: you keep every rota, timesheet, HACCP record and invoice you entered and can still read and export all of it, forever. We never delete or lock your records to make you subscribe, because HACCP logs and timesheets are evidence you may legally need.",
+    q: `What happens after the ${TERM_MONTHS} months?`,
+    a: `You decide whether to pay, and if you do nothing you are not thrown out. Building and publishing rotas, staff clocking in and out, and the staff app on iOS and Android stay free forever for up to 30 staff. Editing timesheets by hand, payroll summaries, team messaging, time off, HACCP, reservations and bookkeeping need a plan from then on — but you keep every record you entered and can read and export all of it, forever. We never delete or lock your records to make you subscribe, because HACCP logs and timesheets are evidence you may legally need.`,
   },
   {
     q: "Is there a catch?",
@@ -69,7 +72,7 @@ const foundingFaq = [
   },
   {
     q: "Do I have to give a testimonial?",
-    a: "Only if you actually like it. A review promised before someone has used the product is worthless to the next person reading it, so it is not a condition of the free year.",
+    a: "Only if you actually like it. A review promised before someone has used the product is worthless to the next person reading it, so it is not a condition of the free months.",
   },
 ];
 
@@ -117,11 +120,13 @@ export default async function FoundingPage() {
           Founding members
         </span>
         <h1 className="mt-6 text-4xl font-extrabold leading-tight sm:text-5xl">
-          The first {TOTAL_SPOTS} venues get Rotahr free for a year
+          {TERM_MONTHS} months free. Then keep the rota free, forever.
         </h1>
         <p className="mx-auto mt-5 max-w-2xl text-lg text-slate-600">
-          Everything on Pro, free for {TERM_MONTHS} months. What we want back is not your money,
-          it&apos;s 20 minutes on a call once a month telling us what&apos;s getting in your way.
+          The first {TOTAL_SPOTS} venues get everything on Pro free for {TERM_MONTHS} months. After
+          that, rotas, clock in/out and the staff app stay free whether you pay or not. What we want
+          back is not your money, it&apos;s 20 minutes on a call once a month telling us
+          what&apos;s getting in your way.
         </p>
 
         <div className="mt-8 inline-flex flex-col items-center gap-3">
@@ -145,7 +150,7 @@ export default async function FoundingPage() {
       {/* The honest reason */}
       <section className="mx-auto max-w-3xl px-6 pb-16">
         <div className="rounded-2xl border border-slate-200 bg-slate-50 p-8">
-          <h2 className="text-xl font-bold">Why we&apos;re giving away a year</h2>
+          <h2 className="text-xl font-bold">Why we&apos;re giving this away</h2>
           <p className="mt-4 text-slate-600">
             Because Rotahr is new and doesn&apos;t have customers yet. That&apos;s the plain
             version. It was built by a chef who spent years doing rotas on paper and payroll on a
@@ -154,8 +159,9 @@ export default async function FoundingPage() {
             rather find them with you than sell around them.
           </p>
           <p className="mt-4 text-slate-600">
-            So the trade is straightforward. You get a full year of the complete platform for
-            nothing. I get to watch real venues use it and hear what&apos;s annoying before I have
+            So the trade is straightforward. You get {TERM_MONTHS} months of the complete platform
+            for nothing, and the rota for nothing after that, for good. I get to watch real venues
+            use it and hear what&apos;s annoying before I have
             hundreds of customers and it&apos;s expensive to change. That&apos;s worth more to me
             right now than {TOTAL_SPOTS} monthly subscriptions.
           </p>
@@ -204,6 +210,53 @@ export default async function FoundingPage() {
               subscription while you aren&apos;t looking.
             </p>
           </div>
+        </div>
+      </section>
+
+      {/* After the term — the part every free offer hides. Stated plainly. */}
+      <section className="mx-auto max-w-5xl px-6 pb-20">
+        <div className="rounded-2xl border-2 border-slate-900 p-8">
+          <h2 className="text-2xl font-extrabold">
+            And after the {TERM_MONTHS} months?
+          </h2>
+          <p className="mt-3 text-slate-600">
+            You are not thrown out and nothing is deleted. The rota is yours to keep, free, whether
+            you ever pay us or not &mdash; because a venue that stops being able to publish next
+            week&apos;s rota has to go back to paper, and we are not doing that to you to win an
+            argument about &euro;89.
+          </p>
+          <div className="mt-8 grid gap-8 md:grid-cols-2">
+            <div>
+              <h3 className="text-sm font-bold uppercase tracking-wide text-emerald-700">
+                Free forever
+              </h3>
+              <ul className="mt-4 space-y-3">
+                {FOUNDING_KEEPS.map((item) => (
+                  <li key={item} className="flex items-start gap-2.5 text-sm text-slate-600">
+                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div>
+              <h3 className="text-sm font-bold uppercase tracking-wide text-slate-500">
+                Needs a plan
+              </h3>
+              <ul className="mt-4 space-y-3">
+                {FOUNDING_LOCKED.map((item) => (
+                  <li key={item} className="flex items-start gap-2.5 text-sm text-slate-600">
+                    <Clock className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+          <p className="mt-8 rounded-xl bg-slate-50 px-4 py-3 text-xs text-slate-500">
+            No card at any point, so nothing starts charging you when the {TERM_MONTHS} months end.
+            If you want the rest, you choose a plan yourself.
+          </p>
         </div>
       </section>
 

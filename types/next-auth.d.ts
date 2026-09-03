@@ -12,6 +12,7 @@ declare module "next-auth" {
       lsPlan: string | null;
       lsStatus: string | null;
       trialEndsAt: string | null;
+      foundingMember: boolean;
       isPlatformAdmin: boolean;
     } & DefaultSession["user"];
   }
@@ -26,6 +27,7 @@ declare module "next-auth/jwt" {
     lsPlan: string | null;
     lsStatus: string | null;
     trialEndsAt: string | null;
+    foundingMember: boolean;
     isPlatformAdmin: boolean;
   }
 }
