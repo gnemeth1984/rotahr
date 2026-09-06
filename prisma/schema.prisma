@@ -3243,3 +3243,50 @@ model CampaignSend {
   @@index([customerId])
   @@unique([campaignId, dedupeKey])
 }
+
+// ---------------------------------------------------------------------------
+// Lead Finder (admin only)
+//
+// Venues found on OpenStreetMap that have no website. These are PHONE leads,
+// not email leads, which is why they do not live in OutreachLead: that model
+// requires a unique email and nothing here has one. Do not invent an
+// info@ address to force a row in there. The August 2026 bounce wave came
+// from exactly that.
+//
+// Nothing in the email sequence ever touches this table.
+// ---------------------------------------------------------------------------
+model CallLead {
+  id String @id @default(cuid())
+
+  osmType String // "node" | "way" | "relation"
+  osmId   String // OSM element id, unique per type
+  osmKey  String @unique // "node/123456" - the real dedupe key
+
+  name     String
+  category String  @default("restaurant") // restaurant | bar | cafe | pub | fast_food
+  phone    String?
+  email    String? // rare, but OSM sometimes has one
+  address  String  @default("")
+  city     String  @default("")
+  region   String  @default("")
+  country  String  @default("") // ISO2 from Nominatim, lowercased
+
+  lat Float?
+  lng Float?
+
+  // Signals shown in the UI. A venue is NOT excluded for having these.
+  facebook  String?
+  instagram String?
+
+  status String  @default("new") // new | called | no_answer | callback | not_interested | signed
+  notes  String? @db.Text
+  source String? // the search that found it, eg "osm:Galway"
+
+  calledAt  DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([status, createdAt])
+  @@index([country, status])
+  @@index([city])
+}
