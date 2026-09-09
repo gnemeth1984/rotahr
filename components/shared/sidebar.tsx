@@ -13,6 +13,7 @@ import {
   X,
   Briefcase,
   BookOpen,
+  Film,
   TableProperties,
   BookMarked,
   Sparkles,
@@ -326,6 +327,18 @@ const navItems = [
     href: "/blog",
     label: "Blog",
     icon: Newspaper,
+    roles: [Role.EMPLOYEE, Role.MANAGER, Role.ADMIN],
+    permission: null,
+    featureKey: null,
+    plans: null,
+  },
+  // Same public page marketing links to. Staff get it in the nav because
+  // "how do I do X" is a training problem, not a marketing one, and a
+  // separate in-app copy would be one more thing to keep in sync.
+  {
+    href: "/tutorials",
+    label: "Tutorials",
+    icon: Film,
     roles: [Role.EMPLOYEE, Role.MANAGER, Role.ADMIN],
     permission: null,
     featureKey: null,

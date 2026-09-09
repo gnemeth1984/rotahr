@@ -26,6 +26,11 @@ const securityHeaders = [
       "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://app.lemonsqueezy.com https://assets.lemonsqueezy.com",
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob: https://*.googleusercontent.com https://*.vercel-storage.com https://*.public.blob.vercel-storage.com",
+      // Tutorial videos on /tutorials stream straight from Vercel Blob.
+      // <video> is governed by media-src, which does NOT inherit from
+      // img-src and falls back to default-src 'self' when absent - so
+      // without this line playback is blocked silently.
+      "media-src 'self' blob: https://*.vercel-storage.com https://*.public.blob.vercel-storage.com",
       "font-src 'self'",
       "connect-src 'self' https://*.vercel-storage.com https://api.openai.com https://api.lemonsqueezy.com https://app.lemonsqueezy.com",
       // The Lemon Squeezy overlay checkout renders inside an iframe it injects.

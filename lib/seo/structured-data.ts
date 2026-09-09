@@ -221,3 +221,45 @@ export function jsonLdProps(schema: object | object[]) {
     dangerouslySetInnerHTML: { __html: JSON.stringify(schema) },
   } as const;
 }
+
+/**
+ * VideoObject for a tutorial on /tutorials.
+ *
+ * Google needs `thumbnailUrl` to consider a video for the video rich result.
+ * We deliberately do not upload poster images (the browser shows the first
+ * frame instead), so there is nothing honest to put there for most rows and
+ * the field is omitted rather than filled with the site logo - a thumbnail
+ * that is not a frame of the video is exactly what the video guidelines say
+ * not to do, and a wrong one is worse than none.
+ *
+ * `contentUrl` is the raw blob URL so a crawler can fetch the file directly.
+ * `uploadDate` must be ISO 8601 with an offset.
+ */
+export function videoSchema(v: {
+  title: string;
+  description: string;
+  slug: string;
+  videoUrl: string;
+  posterUrl?: string | null;
+  durationSeconds?: number | null;
+  createdAt: Date | string;
+}) {
+  const iso = typeof v.createdAt === "string" ? v.createdAt : v.createdAt.toISOString();
+  const schema: Record<string, unknown> = {
+    "@context": "https://schema.org",
+    "@type": "VideoObject",
+    name: v.title,
+    description: v.description || v.title,
+    contentUrl: v.videoUrl,
+    embedUrl: `${SITE_URL}/tutorials#${v.slug}`,
+    uploadDate: iso,
+    publisher: { "@id": `${SITE_URL}/#organization` },
+  };
+  if (v.posterUrl) schema.thumbnailUrl = [v.posterUrl];
+  if (v.durationSeconds && v.durationSeconds > 0) {
+    // ISO 8601 duration, eg PT3M41S.
+    const total = Math.round(v.durationSeconds);
+    schema.duration = `PT${Math.floor(total / 60)}M${total % 60}S`;
+  }
+  return schema;
+}

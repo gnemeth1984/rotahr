@@ -3290,3 +3290,46 @@ model CallLead {
   @@index([country, status])
   @@index([city])
 }
+
+// ---------------------------------------------------------------------------
+// Tutorial — short how-to videos for the public /tutorials page.
+//
+// Deliberately NOT tenant-scoped: these are Rotahr's own product videos, one
+// global library, uploaded by the platform admin only. There is no businessId
+// and there must never be one, or every venue would start seeing an empty
+// tutorials page.
+//
+// videoUrl points at a PUBLIC Vercel Blob. Public on purpose: a private blob
+// would have to be proxied byte-for-byte through a serverless function, which
+// is wrong for video (no range requests, no CDN, function time burned on
+// streaming). Nothing here is confidential - it is marketing material.
+//
+// Uploads go through the client upload flow (@vercel/blob/client), not a
+// server route, because Vercel caps serverless request bodies at ~4.5MB and a
+// real screen recording is far bigger than that.
+//
+// `category` exists but the UI renders one flat ordered list for now. It is
+// here so grouping can be switched on later without a migration.
+// ---------------------------------------------------------------------------
+model Tutorial {
+  id String @id @default(cuid())
+
+  slug        String  @unique
+  title       String
+  description String  @db.Text
+  category    String  @default("general")
+
+  videoUrl        String // public Vercel Blob URL
+  posterUrl       String? // optional; browsers fall back to the first frame
+  durationSeconds Int? // filled from the video element on upload
+  fileSizeBytes   Int?
+
+  sortOrder Int     @default(0)
+  published Boolean @default(false)
+  views     Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([published, sortOrder])
+}

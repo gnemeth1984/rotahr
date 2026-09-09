@@ -10,7 +10,19 @@ import {
 } from "@/lib/billing/access";
 
 // Public/marketing paths — platform admins can visit these while logged in
-const PUBLIC_PATHS = ["/", "/pricing", "/about", "/pitch", "/privacy", "/terms", "/blog", "/founding"];
+const PUBLIC_PATHS = [
+  "/",
+  "/pricing",
+  "/about",
+  "/pitch",
+  "/privacy",
+  "/terms",
+  "/blog",
+  "/founding",
+  // Tutorial videos. Public on purpose: this is what someone watches before
+  // deciding to sign up, so it must work with no session at all.
+  "/tutorials",
+];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;

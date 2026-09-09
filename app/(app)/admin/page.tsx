@@ -29,6 +29,7 @@ import {
   Store,
   Award,
   PhoneCall,
+  Film,
 } from "lucide-react";
 import { EmailCampaignsTab } from "@/components/admin/email-campaigns-tab";
 import { ActivityTab } from "@/components/admin/activity-tab";
@@ -42,6 +43,7 @@ import { VenueEnrichmentTab } from "@/components/admin/venue-enrichment-tab";
 import { TemplatesTab } from "@/components/admin/templates-tab";
 import { FoundingTab } from "@/components/admin/founding-tab";
 import { LeadFinderTab } from "@/components/admin/lead-finder-tab";
+import { TutorialsTab } from "@/components/admin/tutorials-tab";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
@@ -119,6 +121,7 @@ const ADMIN_TABS = [
   "templates",
   "founding",
   "lead-finder",
+  "tutorials",
   "seo",
   "audit",
 ] as const;
@@ -658,6 +661,18 @@ export default function AdminPage() {
             <PhoneCall className="h-3.5 w-3.5" /> Lead Finder
           </span>
         </button>
+        <button
+          onClick={() => setActiveTab("tutorials")}
+          className={`shrink-0 whitespace-nowrap px-3 py-2.5 text-sm font-medium border-b-2 transition-colors sm:px-4 sm:py-2 ${
+            activeTab === "tutorials"
+              ? "border-emerald-600 text-emerald-700"
+              : "border-transparent text-slate-500 hover:text-slate-700"
+          }`}
+        >
+          <span className="flex items-center gap-1.5">
+            <Film className="h-3.5 w-3.5" /> Tutorials
+          </span>
+        </button>
       </div>
 
       {/* Analytics tab */}
@@ -695,6 +710,9 @@ export default function AdminPage() {
 
       {/* Lead Finder: OSM venues with no website, for cold calling */}
       {activeTab === "lead-finder" && <LeadFinderTab />}
+
+      {/* Tutorial videos shown on the public /tutorials page */}
+      {activeTab === "tutorials" && <TutorialsTab />}
 
       {/* Users tab */}
       {activeTab === "users" && (

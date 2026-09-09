@@ -103,6 +103,14 @@ function SignInForm() {
     <>
       <DemoNudge />
 
+      <p className="mb-5 text-center text-xs text-slate-500">
+        Never used it before?{" "}
+        <Link href="/tutorials" className="font-medium underline hover:text-slate-700">
+          Watch the short tutorial videos
+        </Link>{" "}
+        &mdash; no login needed.
+      </p>
+
       <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
         {/* Google */}
         <Button
