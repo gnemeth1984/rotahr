@@ -15,6 +15,9 @@ import {
   Send,
   Archive,
   Sparkles,
+  SpellCheck,
+  PenLine,
+  Undo2,
   AlertTriangle,
   Mail,
   CheckCircle2,
@@ -83,6 +86,10 @@ export function InboxTab() {
   const [selected, setSelected] = useState<InboxMessage | null>(null);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
+  // What the draft said before the last polish. Undo exists because a rewrite he
+  // dislikes must never cost him the wording he typed.
+  const [prePolish, setPrePolish] = useState<string | null>(null);
+  const [polishing, setPolishing] = useState<"fix" | "rewrite" | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -105,6 +112,7 @@ export function InboxTab() {
 
   useEffect(() => {
     setDraft(selected?.draftBody ?? "");
+    setPrePolish(null);
   }, [selected]);
 
   async function sync() {
@@ -175,6 +183,45 @@ export function InboxTab() {
       toast.error(e instanceof Error ? e.message : "Send failed");
     } finally {
       setBusy(false);
+    }
+  }
+
+  /**
+   * Send what is in the textarea to the model and put the result back.
+   * Never sends mail. Never saves. He still reads it and clicks Send himself.
+   */
+  async function polish(mode: "fix" | "rewrite") {
+    const text = draft.trim();
+    if (!text) return toast.error("Write something first");
+    const before = draft;
+    setPolishing(mode);
+    try {
+      const res = await fetch("/api/inbox/polish", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ text, mode, messageId: selected?.id }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Polish failed");
+
+      // The server refuses a polish that invented a link or a figure and hands
+      // back the original. Surfacing this as a warning rather than a silent
+      // no-op matters: he needs to know the model tried it.
+      if (json.refused) {
+        toast.warning(json.refused);
+        return;
+      }
+      if (json.text === before) {
+        toast.success(mode === "fix" ? "Nothing to correct" : "Already reads well");
+        return;
+      }
+      setPrePolish(before);
+      setDraft(json.text);
+      toast.success(mode === "fix" ? "Corrected" : "Rewritten - read it before sending");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Polish failed");
+    } finally {
+      setPolishing(null);
     }
   }
 
@@ -372,6 +419,55 @@ export function InboxTab() {
                       placeholder="No draft — write the reply yourself."
                       className="w-full rounded-lg border border-slate-300 p-3 text-sm focus:border-emerald-500 focus:outline-none"
                     />
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <span className="text-xs text-slate-500">Your words:</span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={busy || !!polishing || !draft.trim()}
+                        onClick={() => polish("fix")}
+                        title="Spelling, grammar and punctuation only. Keeps your wording."
+                      >
+                        {polishing === "fix" ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <SpellCheck className="mr-2 h-4 w-4" />
+                        )}
+                        Fix
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={busy || !!polishing || !draft.trim()}
+                        onClick={() => polish("rewrite")}
+                        title="Rewrites your draft properly. Same meaning, nothing added."
+                      >
+                        {polishing === "rewrite" ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <PenLine className="mr-2 h-4 w-4" />
+                        )}
+                        Rewrite
+                      </Button>
+                      {prePolish !== null && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={busy || !!polishing}
+                          onClick={() => {
+                            setDraft(prePolish);
+                            setPrePolish(null);
+                            toast.success("Back to your version");
+                          }}
+                        >
+                          <Undo2 className="mr-2 h-4 w-4" /> Undo
+                        </Button>
+                      )}
+                    </div>
+                    <p className="mt-1 text-xs text-slate-400">
+                      Fix and Rewrite only edit what you typed. They never add a price, a link
+                      or a promise you did not write.
+                    </p>
                   </div>
 
                   <div className="flex flex-wrap gap-2">
@@ -385,7 +481,7 @@ export function InboxTab() {
                       disabled={busy}
                       onClick={() => patch(selected.id, { regenerate: true }, "Draft regenerated")}
                     >
-                      <Sparkles className="mr-2 h-4 w-4" /> Regenerate
+                      <Sparkles className="mr-2 h-4 w-4" /> Redraft from their email
                     </Button>
                     <Button
                       variant="outline"
