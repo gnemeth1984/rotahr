@@ -32,7 +32,7 @@ Here's what you get:
 - Bookings assistant that flags when you need more cover
 - Manager dashboard: costs, hours, P&L at a glance
 
-No contracts. No setup fees. First month free.
+No contracts. No setup fees. First 3 months free.
 
 **[Start your free trial → rotahr.vercel.app](https://rotahr.vercel.app)**
 
@@ -76,7 +76,7 @@ With Rotahr your team gets:
 
 **[See how it works → rotahr.vercel.app](https://rotahr.vercel.app)**
 
-First month is on us. No card needed to start.
+The first 3 months are on us. No card needed to start.
 
 — The Rotahr Team
 

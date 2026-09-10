@@ -118,8 +118,8 @@ export function renderEmail(
         <p style="margin:0 0 14px">Hi,</p>
         <p style="margin:0 0 14px">I ran kitchens for years before I built software. The job I hated most was the rota &mdash; Sunday night, spreadsheet open, six texts about who can't do Thursday.</p>
         <p style="margin:0 0 14px">So I built Rotahr. It's the tool I wanted back then: build the rota in minutes, staff clock in from their phones, swaps and time off handled in the app instead of the group chat, and the wage cost updating as you drag shifts around.</p>
-        <p style="margin:0 0 18px">${m.priceLine}, first month free, no card. If it's not saving you a Sunday evening by the end of it, walk away.</p>
-        <p style="margin:0 0 18px">${ctaButton(tryUrl("outreach"), "Try it free for a month")}</p>
+        <p style="margin:0 0 18px">${m.priceLine}, first 3 months free, no card. If it's not saving you a Sunday evening by the end of it, walk away.</p>
+        <p style="margin:0 0 18px">${ctaButton(tryUrl("outreach"), "Try it free for 3 months")}</p>
         <p style="margin:0 0 14px">Or reply to this email and ask me anything &mdash; it comes straight to me.</p>
       `,
         email,
@@ -162,7 +162,7 @@ export function renderEmail(
         <p style="margin:0 0 14px">Hi,</p>
         <p style="margin:0 0 14px">Rough maths, and you'll know your own numbers better than I do. If a manager on ${m.currency}${m.wage}/hour spends three hours a week on the rota, that's roughly ${m.currency}${Math.round(Number(m.wage) * 3 * 4.33)} a month spent on admin nobody thanks them for.</p>
         <p style="margin:0 0 14px">Rotahr is ${m.priceLine}. Even if it only halves the time, it pays for itself &mdash; and that's before the no-shows you catch and the hours that stop getting logged wrong.</p>
-        <p style="margin:0 0 18px">First month is free and there's no card involved, so the only thing you're risking is ten minutes setting it up.</p>
+        <p style="margin:0 0 18px">The first 3 months are free and there's no card involved, so the only thing you're risking is ten minutes setting it up.</p>
         <p style="margin:0 0 18px">${ctaButton(tryUrl("followup3"), "Start the free month")}</p>
       `,
         email,

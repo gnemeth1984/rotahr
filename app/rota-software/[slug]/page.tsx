@@ -160,7 +160,7 @@ export default async function LocationPage({
         <div className="rounded-2xl bg-gradient-to-r from-[#FF6B35] to-[#E8365D] p-8 text-center mb-14">
           <h2 className="text-2xl font-bold mb-3">Have a look yourself</h2>
           <p className="mb-6 text-white/90">
-            Live demo, nothing to sign up for. First month free if you keep it.
+            Live demo, nothing to sign up for. 3 months free if you keep it.
           </p>
           <Link
             href="/try"

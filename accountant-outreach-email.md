@@ -15,7 +15,7 @@ I'm Gabor, founder of **Rotahr** (rotahr.com) — an all-in-one management platf
 We've just launched a partner programme for accountants. Here's how it works:
 
 - You refer any of your hospitality clients to Rotahr
-- They get a **free first month** to try it
+- They get a **free first 3 months** to try it
 - If they stay, you earn **20% recurring commission every month — for life**
 
 That's €9.80–€43/month per client, with no cap and no expiry.

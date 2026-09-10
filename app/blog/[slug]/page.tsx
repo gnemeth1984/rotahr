@@ -243,7 +243,7 @@ export default async function BlogPostPage({ params }: Props) {
 
         {/* CTA inline */}
         <div className="mt-12 bg-emerald-50 border border-emerald-200 rounded-2xl p-6">
-          <h3 className="font-bold text-gray-900 text-lg mb-1">Try Rotahr free for a month</h3>
+          <h3 className="font-bold text-gray-900 text-lg mb-1">Try Rotahr free for 3 months</h3>
           <p className="text-gray-600 text-sm mb-4">Built for restaurants, bars and hotels. No credit card needed.</p>
           <Link
             href="/auth/register"

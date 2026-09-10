@@ -93,7 +93,7 @@ reads as a bot and costs more trust than the click is worth.
 
 Add it ONLY when the category is sales, outreach-reply or partner, AND the line
 follows naturally from what they actually raised. Options, most to least useful:
-- First month free, no card required — for anyone weighing up signing up.
+- First 3 months free, no card required — for anyone weighing up signing up.
 - The free public venue listing at https://rotahr.com/list — good for a venue
   that is not ready to subscribe, since it costs them nothing.
 - The 20% recurring partner programme — only if they are a consultant, agency,

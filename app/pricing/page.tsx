@@ -25,14 +25,14 @@ import {
 export const metadata = {
   title: "Pricing — Rotahr Restaurant Operations Platform",
   description:
-    "Rotahr pricing: flat monthly fee per venue, never per employee. Starter EUR 49, Pro EUR 89, Enterprise EUR 215, tax included, first month free. Rota, HACCP software and restaurant CRM in one platform.",
+    "Rotahr pricing: flat monthly fee per venue, never per employee. Starter EUR 49, Pro EUR 89, Enterprise EUR 215, tax included, 3 months free. Rota, HACCP software and restaurant CRM in one platform.",
   alternates: { canonical: "/pricing" },
 };
 
 const pricingFaq = [
   {
     q: "How much does Rotahr cost?",
-    a: "Rotahr costs €49 a month for Starter (up to 15 staff), €89 a month for Pro (up to 30 staff) and from €215 a month for Enterprise (unlimited staff across multiple venues). Tax is included in those prices, there are no setup fees, and the first month is free on Starter and Pro. It is one flat fee per venue, not a per-employee price.",
+    a: "Rotahr costs €49 a month for Starter (up to 15 staff), €89 a month for Pro (up to 30 staff) and from €215 a month for Enterprise (unlimited staff across multiple venues). Tax is included in those prices, there are no setup fees, and the first 3 months are free. It is one flat fee per venue, not a per-employee price.",
   },
   {
     q: "Does Rotahr charge per employee?",
@@ -40,7 +40,7 @@ const pricingFaq = [
   },
   {
     q: "Is there a free trial?",
-    a: "The first month is free on Starter and Pro, with no card needed to start. There is no free forever tier. Right now the first 20 venues can also apply for the founding programme at /founding, which is the full Pro plan free for 3 months and then the rota, clock in/out and the staff app free forever, in exchange for a short call once a month. If you only want the free parts, the template library at /templates is completely ungated: no email address, no sign-up.",
+    a: "Yes. The first 3 months are free on every plan, with no card needed to start. There is no free forever tier for everyone, but the first 20 venues can apply for the founding programme at /founding, which keeps the rota, clock in/out and the staff app free forever after those 3 months, in exchange for a short call once a month. If you only want the free parts, the template library at /templates is completely ungated: no email address, no sign-up.",
   },
   {
     q: "What is included in the price?",
@@ -97,11 +97,11 @@ export default function PricingPage() {
           <strong className="text-slate-900">€49 a month</strong> for up to 15 staff, Pro is{" "}
           <strong className="text-slate-900">€89</strong> for up to 30, and Enterprise starts at{" "}
           <strong className="text-slate-900">€215</strong> for unlimited staff across multiple
-          venues. Tax is included, there are no setup fees, and the first month is free.
+          venues. Tax is included, there are no setup fees, and the first 3 months are free.
         </p>
         <p className="mt-6 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-4 py-1.5 text-sm font-semibold text-emerald-700">
           <Check className="w-4 h-4" />
-          First month free on Starter and Pro &middot; no card needed
+          3 months free &middot; no card needed
         </p>
       </section>
 
@@ -261,7 +261,7 @@ export default function PricingPage() {
           </li>
           <li>
             <strong className="text-slate-900">If you want a free forever plan.</strong> There
-            isn&apos;t one. There is a free first month, and a genuinely free{" "}
+            isn&apos;t one. There are 3 free months, and a genuinely free{" "}
             <Link href="/templates" className="text-orange-700 underline">
               template library
             </Link>{" "}
@@ -297,7 +297,7 @@ export default function PricingPage() {
       <section className="max-w-4xl mx-auto px-6 py-20 text-center">
         <h2 className="text-3xl font-extrabold mb-4">Try it on your own rota</h2>
         <p className="text-slate-600 mb-8 max-w-xl mx-auto leading-relaxed">
-          The first month is free on Starter and Pro, and you can look around the full product
+          The first 3 months are free on every plan, and you can look around the full product
           without signing up at all.
         </p>
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
@@ -306,7 +306,7 @@ export default function PricingPage() {
             className="px-8 py-3 rounded-xl text-white font-semibold hover:opacity-90 transition-all"
             style={{ background: "linear-gradient(135deg, #F97316, #EC4899)" }}
           >
-            Start your first month free
+            Start your 3 months free
           </Link>
           <Link
             href="/try"

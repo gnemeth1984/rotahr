@@ -166,7 +166,7 @@ export default function PitchDeckClient() {
         <h2 style={{fontSize:'clamp(28px,4vw,44px)',fontWeight:800,marginBottom:12,letterSpacing:'-0.5px'}}>
           Ready to simplify<br/><span style={{color:'#f97316'}}>your venue?</span>
         </h2>
-        <p style={{color:'rgba(255,255,255,0.5)',fontSize:16,marginBottom:32}}>First month free. No credit card required. Cancel anytime.</p>
+        <p style={{color:'rgba(255,255,255,0.5)',fontSize:16,marginBottom:32}}>First 3 months free. No credit card required. Cancel anytime.</p>
         <a href="/auth/register" style={{background:'#f97316',color:'#fff',padding:'16px 36px',borderRadius:'100px',fontSize:16,fontWeight:600,textDecoration:'none'}}>
           Get Started Free — rotahr.com
         </a>

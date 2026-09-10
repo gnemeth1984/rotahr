@@ -383,7 +383,7 @@ export default function PitchPage() {
                       </ul>
                     </div>
                   </div>
-                  <div className="price-footnote">All prices include VAT/tax · First month free on Starter & Pro</div>
+                  <div className="price-footnote">All prices include VAT/tax · First 3 months free</div>
                 </div>
               </div>
             </div>
@@ -426,7 +426,7 @@ export default function PitchPage() {
 
       <section className="bottom-cta">
         <h2>Ready to simplify<br /><span>your venue?</span></h2>
-        <p>First month free. No credit card required. Cancel anytime.</p>
+        <p>First 3 months free. No credit card required. Cancel anytime.</p>
         <a className="btn-primary" href="/auth/signin" style={{ fontSize: "16px", padding: "16px 36px" }}>
           Check Our Demo — rotahr.com
         </a>

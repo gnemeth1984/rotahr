@@ -148,7 +148,7 @@ export default async function BlogPage() {
         {/* CTA */}
         <div className="mt-16 bg-emerald-600 rounded-2xl p-8 text-center text-white">
           <h3 className="text-2xl font-bold mb-2">Ready to simplify your rota?</h3>
-          <p className="text-emerald-100 mb-6">Join the restaurants, bars and cafes already using Rotahr. First month free.</p>
+          <p className="text-emerald-100 mb-6">Built for restaurants, bars and cafes. 3 months free, no card needed.</p>
           <Link
             href="/auth/register"
             className="inline-block bg-white text-emerald-700 font-semibold px-8 py-3 rounded-xl hover:bg-emerald-50 transition-colors"

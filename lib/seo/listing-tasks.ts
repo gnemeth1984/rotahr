@@ -37,7 +37,7 @@ export const OPEN_LIMIT = 2;
  * after the sentence stopped being convenient — on the exact pages a prospective
  * buyer checks to decide whether the vendor is real.
  */
-const PITCH_SYSTEM = `You write submission copy for Rotahr, an all-in-one operations app for hospitality businesses: staff rota scheduling, clock-in with break tracking, table bookings with a floor plan, payroll export, HACCP food-safety logs, stock and recipe costing, bookkeeping with receipt scanning, team messaging and a customer CRM. Built by a former chef. Sold to restaurants, pubs, cafes and hotels in Ireland, the UK, the US, Canada and Australia. Pricing is EUR 59 / 119 / 215 per month including VAT, first month free. Site: https://rotahr.com
+const PITCH_SYSTEM = `You write submission copy for Rotahr, an all-in-one operations app for hospitality businesses: staff rota scheduling, clock-in with break tracking, table bookings with a floor plan, payroll export, HACCP food-safety logs, stock and recipe costing, bookkeeping with receipt scanning, team messaging and a customer CRM. Built by a former chef. Sold to restaurants, pubs, cafes and hotels in Ireland, the UK, the US, Canada and Australia. Pricing is EUR 49 / 89 / 215 per month including VAT, first 3 months free. Site: https://rotahr.com
 
 Sign-off facts, use these verbatim when a signature is needed - the sender is Gabor Nemeth, Founder of Rotahr, sales@rotahr.com, https://rotahr.com
 

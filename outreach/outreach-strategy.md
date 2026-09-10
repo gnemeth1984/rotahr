@@ -86,7 +86,7 @@ That's the gap we built Rotahr to fill.
 Rotahr is €49/month. Works for a single pub, café or restaurant. 
 No minimum sites. Rota + stock + receipts + CRM all in one.
 
-Irish-built. First month free.
+Irish-built. First 3 months free.
 
 Demo at rotahr.com — or happy to jump on a 20-minute call.
 

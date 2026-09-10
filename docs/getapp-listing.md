@@ -66,7 +66,7 @@ Combined must stay under 4000 characters — re-count after any edit.
 > table-side ordering, no course or training content. Rotahr runs alongside your
 > till.
 >
-> First month free, no card required. Support comes from the founder directly.
+> First 3 months free, no card required. Support comes from the founder directly.
 
 ---
 
@@ -142,7 +142,7 @@ it is believable. Trim from the bottom if the field is short.
 > and one login, replacing the paper rota, the WhatsApp group and the shoebox.
 >
 > **Get answers from the person who built it.** Support comes from the founder, a
-> former chef, with no ticket queue. First month free, no card required.
+> former chef, with no ticket queue. First 3 months free, no card required.
 
 ---
 

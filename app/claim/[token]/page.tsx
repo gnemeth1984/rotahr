@@ -50,7 +50,7 @@ export default async function ClaimPage({
         <p className="text-sm text-slate-400 mb-8">
           Set a password and the page is yours — opening hours, menu, photos and
           bookings all become editable. The rest of Rotahr comes with it, free for
-          the first month.
+          your first 3 months.
         </p>
         <ClaimForm token={token} slug={business.slug} />
       </div>

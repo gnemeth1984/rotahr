@@ -57,7 +57,7 @@ function welcomeHtml(firstName: string, businessName?: string): string {
       </p>
 
       <p style="color: #64748b; font-size: 14px;">
-        Your first month is free — no card needed until it ends.
+        Your first 3 months are free — no card needed until they end.
       </p>
 
       <p style="color: #475569; font-size: 14px;">

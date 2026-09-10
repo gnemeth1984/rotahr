@@ -32,7 +32,7 @@ export const PRODUCT_FACTS = `FACTS ABOUT ROTAHR — these are authoritative. Ne
 Pricing (flat monthly fee per venue, VAT included, NOT per employee):
 ${PLANS.map((p) => `- ${p.name}: EUR ${p.price}/month, ${p.staff}`).join("\n")}
 - Billing currencies supported: EUR, GBP, USD, CAD, AUD.
-- First month free.
+- First 3 months free on every plan, no card required.
 - CRITICAL: Rotahr NEVER charges per employee, per user or per seat. That flat
   pricing is its main commercial difference from Deputy, When I Work, 7shifts
   and Homebase, which all bill per head. If you write that Rotahr costs "X per
@@ -60,7 +60,7 @@ inventing weaknesses:
   suite with a decade of third-party integrations.
 - Flat per-venue pricing is poor value for a very small team: a venue with 3 or 4
   staff may pay less on a per-employee plan elsewhere.
-- No free forever tier, only a free first month.
+- No free forever tier for a normal signup, only the free first 3 months. The 20 founding members are the exception: they keep the rota, clock in/out and the staff app free forever after those months.
 
 Founded by a former chef, self-funded, based in Ireland, selling into Ireland,
 the UK, the US, Canada and Australia.`;

@@ -181,8 +181,16 @@ export function computeAccess(input: AccessInput): AccessState {
   };
 }
 
-/** Length of a new trial. Matches what the pricing page promises. */
-export const TRIAL_DAYS = 30;
+/**
+ * Length of a new trial. Matches what the pricing page promises.
+ *
+ * 90 days, not "three calendar months": the pricing copy says 3 months free and
+ * this is the number that makes that sentence true for every signup, not just
+ * for the 20 founding members. If you lower it, lower the copy in the same
+ * commit -- lib/marketing/plans.ts, app/pricing/page.tsx and the surfaces
+ * listed there all quote this promise verbatim.
+ */
+export const TRIAL_DAYS = 90;
 
 export function newTrialEndsAt(from: Date = new Date()): Date {
   return new Date(from.getTime() + TRIAL_DAYS * DAY_MS);

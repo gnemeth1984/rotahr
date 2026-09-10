@@ -83,14 +83,14 @@ export default function RegisterPage() {
             <Briefcase className="h-8 w-8 text-blue-400" />
             <span className="text-2xl font-bold text-white">Rotahr</span>
           </Link>
-          <h1 className="text-slate-400 mt-2 text-sm font-normal">Create your free account</h1>
+          <h1 className="text-slate-400 mt-2 text-sm font-normal">Create your free account &mdash; 3 months free, no card</h1>
         </div>
 
         <div className="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-8 backdrop-blur-sm">
           {/* Free trial badge */}
           <div className="mb-6 text-center">
             <span className="inline-block bg-green-500/20 border border-green-500/30 text-green-300 text-xs font-semibold px-3 py-1 rounded-full">
-              Simple, transparent pricing from €49/month incl. VAT
+              3 months free, then from €49/month incl. VAT · no card needed
             </span>
           </div>
 

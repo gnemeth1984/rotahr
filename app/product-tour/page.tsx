@@ -333,7 +333,7 @@ export default function ProductTourPage() {
         <section className="mt-20 border-t border-white/10 pt-10">
           <h2 className="text-2xl font-bold mb-3">See it with your own data</h2>
           <p className="text-slate-300 mb-6 max-w-2xl leading-relaxed">
-            First month is free and there is no card required. Support comes from
+            The first 3 months are free and there is no card required. Support comes from
             the founder — a former chef — not a ticket queue.
           </p>
           <div className="flex flex-wrap gap-3">

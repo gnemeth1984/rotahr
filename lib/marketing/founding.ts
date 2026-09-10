@@ -3,10 +3,16 @@
  *
  * WHAT THIS IS
  *
- * The first 20 venues get Pro free for 3 months. When those months end, they
- * keep the rota free forever — building and publishing rotas, staff clock in
- * and out, and the staff mobile app, for up to 30 staff. Everything else goes
- * read-only, and as always stays readable and exportable.
+ * Every signup gets 3 free months (TRIAL_DAYS in lib/billing/access.ts). What
+ * the first 20 venues get on top of that is the part that matters: when those
+ * months end they keep the rota free forever — building and publishing rotas,
+ * staff clock in and out, and the staff mobile app, for up to 30 staff.
+ * Everything else goes read-only, and as always stays readable and exportable.
+ *
+ * So do not sell this programme on the free months. Sell it on "free forever
+ * after", on feature requests going to the front of the queue, and on talking
+ * to the founder instead of a ticket. Those three are the only things a
+ * founding member has that a normal signup does not.
  *
  * In exchange they agree to a short call once a month and a testimonial *if*
  * they end up liking it. That conditional matters: a testimonial promised in
@@ -51,14 +57,14 @@ export const GRANTED_PLAN = "pro";
 
 /** What a founding member gets. Every line must be true today, not planned. */
 export const FOUNDING_GETS = [
-  "Everything on Pro, free for 3 months — up to 30 staff",
+  "When the 3 months end, you keep the rota free forever — even if you never pay us a cent",
+  "Everything on Pro for your first 3 months, same as any signup — up to 30 staff",
   "Rotas, clock-in with geofencing, timesheets and payroll summaries",
   "HACCP temperature, cleaning, delivery and opening/closing logs with PDF export for inspections",
   "Reservations, floor plan and the customer CRM",
   "Bookkeeping with AI receipt and delivery note scanning",
   "The iOS and Android app for your whole team",
   "Your feature requests go to the front of the queue, and you talk to the founder, not a ticket",
-  "When the 3 months end, you keep the rota free forever — even if you never pay us a cent",
 ] as const;
 
 /**

@@ -320,7 +320,7 @@ export default async function FoundingPage() {
             <Link href="/pricing" className="text-orange-700 underline">
               See normal pricing
             </Link>{" "}
-            &mdash; the first month is free on Starter and Pro either way.
+            &mdash; the first 3 months are free either way. What you give up is the rota staying free after that.
           </p>
         </div>
       </section>

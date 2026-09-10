@@ -19,7 +19,7 @@ Rotahr is an all-in-one management platform built specifically for hospitality b
 ✅ CRM & customer tracking
 ✅ Full mobile app (iOS & Android)
 
-First month is completely free — no card needed.
+The first 3 months are completely free — no card needed.
 
 ---
 

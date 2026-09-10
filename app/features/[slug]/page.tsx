@@ -154,7 +154,7 @@ export default async function FeaturePage({
         <div className="rounded-2xl bg-gradient-to-r from-[#FF6B35] to-[#E8365D] p-8 text-center mb-16">
           <h2 className="text-2xl font-bold mb-3">See it with real data</h2>
           <p className="mb-6 text-white/90">
-            A full demo venue, nothing to sign up for. First month free if you keep it.
+            A full demo venue, nothing to sign up for. 3 months free if you keep it.
           </p>
           <Link
             href="/try"

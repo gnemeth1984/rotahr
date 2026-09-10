@@ -238,7 +238,7 @@ export default function SignInPage() {
         <p className="mt-4 text-center text-sm text-slate-600">
           Don&apos;t have an account?{" "}
           <Link href="/auth/register" className="font-medium underline" style={{ color: "#C2410C" }}>
-            Start your first month free
+            Start your 3 months free
           </Link>
         </p>
         <p className="mt-3 text-center text-xs text-slate-400">

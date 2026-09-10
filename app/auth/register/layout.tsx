@@ -5,7 +5,7 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Create your Rotahr account",
   description:
-    "Start your Rotahr account and set up scheduling, bookings, payroll and compliance for your venue. First month free.",
+    "Start your Rotahr account and set up scheduling, bookings, payroll and compliance for your venue. First 3 months free.",
   alternates: { canonical: "/auth/register" },
   robots: { index: false, follow: true },
 };

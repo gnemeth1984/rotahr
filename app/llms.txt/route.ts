@@ -67,7 +67,7 @@ flow into staffing levels without re-typing anything.
 | Pro | €${pro}/month | up to 30 | single venue |
 | Enterprise | €${enterprise}/month | unlimited | multi-venue |
 
-First month free. Billing available in EUR, GBP, USD, CAD and AUD.
+First 3 months free, no card required. Billing available in EUR, GBP, USD, CAD and AUD.
 Pricing page: https://rotahr.com/pricing
 
 The pricing model is the main structural difference from most competitors, which

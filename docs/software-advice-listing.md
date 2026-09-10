@@ -70,7 +70,7 @@ content claims. Every capability below is in the shipped product.
 > Runs in any browser and as an iOS and Android app, with push notifications for
 > published rotas, shift changes and due food safety checks. Supports EUR, GBP,
 > USD, CAD and AUD, with tax wording matching your country. Support comes from
-> the founder directly, with no ticket queue in the way. First month free, no
+> the founder directly, with no ticket queue in the way. First 3 months free, no
 > card required.
 
 ---

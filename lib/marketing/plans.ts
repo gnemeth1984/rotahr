@@ -32,12 +32,14 @@ export const plans: MarketingPlan[] = [
     desc: "Perfect for small cafés and independent restaurants.",
     staff: "Up to 15 staff",
     highlight: false,
-    // Risk reversal, approved by Gabor Aug 2026. The page previously anchored
-    // EUR49/month with nothing to soften it: plain "Get Started" CTAs and no
-    // trial. With no customer logos to lean on, the first month is the only
-    // thing that lets someone say yes without a decision.
-    offer: "First month free",
-    cta: "Start your first month free",
+    // Risk reversal, approved by Gabor Aug 2026, widened to 3 months Sep 2026.
+    // The page previously anchored EUR49/month with nothing to soften it: plain
+    // "Get Started" CTAs and no trial. With no customer logos to lean on, the
+    // free months are the only thing that lets someone say yes without a
+    // decision. The number here is TRIAL_DAYS in lib/billing/access.ts, and it
+    // applies to every signup -- not only to founding members.
+    offer: "3 months free",
+    cta: "Start your 3 months free",
     features: [
       "Rota scheduling & publishing",
       "Clock in/out with geofencing",
@@ -61,8 +63,8 @@ export const plans: MarketingPlan[] = [
     desc: "For busy restaurants and bars with larger teams.",
     staff: "Up to 30 staff",
     highlight: true,
-    offer: "First month free",
-    cta: "Start your first month free",
+    offer: "3 months free",
+    cta: "Start your 3 months free",
     features: [
       "Everything in Starter",
       "Up to 30 staff members",
@@ -84,7 +86,9 @@ export const plans: MarketingPlan[] = [
     desc: "For multi-venue groups, hotel F&B, and franchises.",
     staff: "Unlimited staff",
     highlight: false,
-    offer: null, // custom-priced, handled in conversation
+    // Custom-priced and handled in conversation, but the free months are not a
+    // Starter/Pro perk -- TRIAL_DAYS applies to an Enterprise account too.
+    offer: "3 months free",
     cta: "Talk to Us",
     features: [
       "Everything in Pro",

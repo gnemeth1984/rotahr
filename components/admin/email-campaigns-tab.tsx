@@ -74,7 +74,7 @@ const EMAIL_SEQUENCES = [
 <li>Bookings assistant that flags when you need more cover</li>
 <li>Manager dashboard: costs, hours, P&amp;L at a glance</li>
 </ul>
-<p>No contracts. No setup fees. First month free.</p>
+<p>No contracts. No setup fees. First 3 months free.</p>
 <p><a href="https://rotahr.vercel.app" style="background:#10b981;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;display:inline-block;font-weight:600">Start your free trial →</a></p>
 <p>Takes 5 minutes to set up. Your next rota will take half the time.</p>
 <p>— The Rotahr Team</p>
@@ -100,7 +100,7 @@ const EMAIL_SEQUENCES = [
 <p>Rotahr costs €79/month.</p>
 <p>You do the maths.</p>
 <p><a href="https://rotahr.vercel.app" style="background:#10b981;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;display:inline-block;font-weight:600">See how it works →</a></p>
-<p>First month is on us. No card needed to start.</p>
+<p>The first 3 months are on us. No card needed to start.</p>
 <p>— The Rotahr Team</p>
 <p style="font-size:12px;color:#888"><a href="{{unsubscribe}}">Unsubscribe</a></p>
 </div>`,

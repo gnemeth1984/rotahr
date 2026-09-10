@@ -118,7 +118,7 @@ const competitors = [
 const landingFaq = [
   {
     q: "What is Rotahr?",
-    a: "Rotahr is a restaurant operations platform for hospitality venues. It combines staff rota scheduling and clock-in, HACCP software for food safety compliance, a restaurant CRM built automatically from your own reservations, table bookings, stock and recipe costing, bookkeeping and in-house staff training in a single app. It suits bars, restaurants, cafés, hotels and takeaways, and it replaces the rota spreadsheet, the paper HACCP diary and the booking diary. Plans start at €49 a month with tax included and the first month free.",
+    a: "Rotahr is a restaurant operations platform for hospitality venues. It combines staff rota scheduling and clock-in, HACCP software for food safety compliance, a restaurant CRM built automatically from your own reservations, table bookings, stock and recipe costing, bookkeeping and in-house staff training in a single app. It suits bars, restaurants, cafés, hotels and takeaways, and it replaces the rota spreadsheet, the paper HACCP diary and the booking diary. Plans start at €49 a month with tax included and the first 3 months free.",
   },
   {
     q: "What does Rotahr actually replace?",
@@ -130,7 +130,7 @@ const landingFaq = [
   },
   {
     q: "How much does Rotahr cost?",
-    a: "Starter is €49 a month for up to 15 staff, Pro is €89 for up to 30, and Enterprise is €215 for unlimited staff across multiple venues. Tax is included in those prices, there are no setup fees, and the first month is free.",
+    a: "Starter is €49 a month for up to 15 staff, Pro is €89 for up to 30, and Enterprise is €215 for unlimited staff across multiple venues. Tax is included in those prices, there are no setup fees, and the first 3 months are free.",
   },
   {
     q: "Is it priced per member of staff?",
@@ -230,7 +230,7 @@ export default async function LandingPage() {
         </p>
         <p className="text-base text-slate-600 max-w-xl mx-auto mb-10">
           Replace 4 separate tools with one. Starting at <strong className="text-slate-600">€49/month</strong> incl. VAT —{" "}
-          <strong className="text-emerald-700">first month free</strong>, cancel anytime.
+          <strong className="text-emerald-700">3 months free</strong>, cancel anytime.
         </p>
 
         {/*
@@ -327,7 +327,7 @@ export default async function LandingPage() {
             <p className="text-slate-500 text-lg">All prices include VAT/tax. No setup fees. Cancel anytime.</p>
             <p className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-4 py-1.5 text-sm font-semibold text-emerald-700">
               <Check className="w-4 h-4" />
-              First month free on Starter and Pro
+              3 months free on every plan
             </p>
           </div>
 
@@ -537,7 +537,7 @@ export default async function LandingPage() {
           <Image src="/logo-dark.png" alt="Rotahr" width={130} height={42} className="object-contain mx-auto mb-8" />
           <h2 className="text-3xl font-extrabold text-white mb-4">Ready to simplify your operations?</h2>
           <p className="text-slate-400 text-lg mb-10 max-w-xl mx-auto">
-            Set your venue up in an evening. First month free, no card needed — or look
+            Set your venue up in an evening. 3 months free, no card needed — or look
             around the live demo first and decide after.
           </p>
           <Link

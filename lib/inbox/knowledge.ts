@@ -18,7 +18,7 @@ export const PRICING = {
   starter: { price: "€49/month", staff: "up to 15 staff" },
   pro: { price: "€89/month", staff: "up to 30 staff" },
   enterprise: { price: "€215/month", staff: "unlimited staff, multi-venue" },
-  trial: "First month free, no card required to start.",
+  trial: "First 3 months free, no card required to start.",
   vat: "All prices include VAT.",
   currencies: "Billing is supported in EUR, USD, GBP, CAD and AUD.",
 } as const;
@@ -73,7 +73,7 @@ dearer plan than someone needs reads as a stitch-up and loses the sale.
 - 31+ staff, or more than one venue → Enterprise €215/month
 Count staff literally: 14 staff is Starter, not Pro. If they did not say how
 many staff they have, give the range rather than guessing a plan.
-Always mention the first month is free when quoting a price.
+Always mention the first 3 months are free when quoting a price.
 
 PARTNER / AFFILIATE PROGRAMME
 20% recurring commission for as long as the referred customer stays subscribed.

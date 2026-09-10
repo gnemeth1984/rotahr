@@ -40,7 +40,7 @@
 > 
 > We built Rotahr specifically for food businesses that aren't multi-site restaurant chains. It handles scheduling, AI-powered receipt/invoice scanning, stock management, bookings, and a full expense dashboard — all in one.
 > 
-> No enterprise onboarding. No lock-in. First month free, then from €49/mo.
+> No enterprise onboarding. No lock-in. First 3 months free, then from €49/mo.
 > 
 > Happy to jump on a 15-min call if it sounds relevant — or just try it at rotahr.com.
 > 
@@ -74,7 +74,7 @@ These threads are active (June 2026):
 - r/Restaurant_Managers: "Best scheduling app"
 
 **Comment template** (don't pitch, add value):
-> "If you're based in Ireland or UK, worth checking out Rotahr — it's built specifically for hospitality here. Covers scheduling, stock, AI invoice scanning, and bookings in one app rather than 4 separate tools. rotahr.com — first month free."
+> "If you're based in Ireland or UK, worth checking out Rotahr — it's built specifically for hospitality here. Covers scheduling, stock, AI invoice scanning, and bookings in one app rather than 4 separate tools. rotahr.com — first 3 months free."
 
 ---
 
