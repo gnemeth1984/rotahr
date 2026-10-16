@@ -440,4 +440,92 @@ export const haccpTemplates: FreeTemplate[] = [
       "haccp reheating record excel",
     ],
   },
+  {
+    slug: "allergen-matrix",
+    category: "haccp",
+    name: "Allergen matrix",
+    h1: "Free allergen matrix template",
+    title: "Free Allergen Matrix Template | Rotahr",
+    metaDescription:
+      "Free allergen matrix template in PDF and Excel. One row per dish, the 14 EU/UK recognised allergens as columns, built to be re-checked every time a recipe or supplier changes.",
+    answer:
+      "This free allergen matrix template — printable PDF or editable Excel — lists every dish on your menu down the side and the 14 EU/UK recognised allergens across the top, so front of house can answer an allergy question from the sheet instead of guessing or interrupting the pass.",
+    body: [
+      "An allergen matrix is only as good as the day it was last checked against the actual recipe. A sauce that used to be dairy-free and now has a splash of cream in it is the realistic way this goes wrong — not a dish invented from scratch, but a small change nobody updated the sheet for. The header field for the last review date exists so that gap is visible rather than assumed away.",
+      "The 14 allergens listed are the ones named in EU Regulation 1169/2011 and carried into UK law (gluten-containing cereals, crustaceans, egg, fish, peanuts, soybeans, milk, nuts, celery, mustard, sesame, sulphur dioxide/sulphites, lupin, molluscs). Outside the EU/UK, the list of what has to be declared differs — the US FDA names nine major allergens including sesame as of 2023, and other countries vary again. Relabel the columns if you are trading somewhere else; do not assume the EU list is universal.",
+      "Mark a cell with the dish's own ingredients, not with what a similar dish elsewhere usually contains. 'Contains' and 'may contain traces of' are different claims with different legal weight in most jurisdictions — this template deliberately keeps one mark per cell and leaves the notes column for you to write out cross-contamination risk in your own words rather than inventing a third symbol that means something different to every member of staff.",
+      "This sheet is a reference tool for staff, not a substitute for getting proper legal advice on allergen labelling in your jurisdiction, and not a guarantee a dish is safe for a given guest — a server should always flag a serious allergy to the kitchen directly, every time, regardless of what the matrix says.",
+    ],
+    sheet: {
+      kind: "log",
+      orientation: "landscape",
+      headerFields: ["Venue / site", "Menu reviewed on", "Reviewed by"],
+      columns: [
+        { name: "Dish", width: 4 },
+        { name: "Gluten", width: 1 },
+        { name: "Crustaceans", width: 1 },
+        { name: "Egg", width: 1 },
+        { name: "Fish", width: 1 },
+        { name: "Peanuts", width: 1 },
+        { name: "Soya", width: 1 },
+        { name: "Milk", width: 1 },
+        { name: "Nuts", width: 1 },
+        { name: "Celery", width: 1 },
+        { name: "Mustard", width: 1 },
+        { name: "Sesame", width: 1 },
+        { name: "Sulphites", width: 1 },
+        { name: "Lupin", width: 1 },
+        { name: "Molluscs", width: 1 },
+      ],
+      extraColumns: [
+        { name: "Cross-contamination notes", hint: "Shared fryer, shared board, etc.", width: 3 },
+      ],
+      rowCount: 20,
+      footerNotes: [
+        "Mark each cell against the dish's actual recipe, not against a similar dish — use a short code (e.g. C = contains, T = may contain traces) and print the key you use at the top of the sheet.",
+        "Re-check the whole matrix whenever a recipe, supplier or ingredient changes, not just on a fixed schedule.",
+        "This is a reference for staff, not a legal determination. Check your own jurisdiction's allergen labelling rules, and always flag a serious allergy to the kitchen directly.",
+      ],
+    },
+    howToUse: [
+      "List every dish currently on the menu down the left, including specials once they're confirmed.",
+      "Go through each dish's actual recipe — not memory — and mark the allergen columns it genuinely contains.",
+      "Use the notes column for cross-contamination risk: shared fryer oil, a shared board, or an open-plan kitchen.",
+      "Date and initial the review field so anyone reading the sheet knows how current it is.",
+      "Re-check and update it the same day any recipe, supplier or ingredient changes — don't wait for the next scheduled review.",
+      "Keep a printed copy where front of house can reach it immediately, and train staff to still flag a serious allergy to the kitchen directly.",
+    ],
+    whatsIncluded: [
+      "Printable PDF, landscape A4, 20 dish rows against the 14 EU/UK recognised allergens",
+      "Editable Excel (.xlsx) version you can extend as your menu grows",
+      "CSV version for importing into another system",
+      "Cross-contamination notes column alongside the allergen grid",
+      "Header fields for last review date and who reviewed it",
+    ],
+    faqs: [
+      {
+        q: "Which allergens does the matrix cover?",
+        a: "The 14 named in EU Regulation 1169/2011 and carried into UK law: gluten-containing cereals, crustaceans, egg, fish, peanuts, soybeans, milk, nuts, celery, mustard, sesame, sulphur dioxide/sulphites, lupin and molluscs. If you trade outside the EU/UK, check your own jurisdiction's list — the US FDA, for example, names nine major allergens including sesame.",
+      },
+      {
+        q: "How often should an allergen matrix be updated?",
+        a: "Any time a recipe, supplier or ingredient changes — not on a fixed monthly or quarterly schedule. A sheet that's accurate for last month's menu but wrong for today's is worse than no sheet, because staff trust it.",
+      },
+      {
+        q: "Is this template legally sufficient on its own?",
+        a: "It's a reference tool to help staff answer questions accurately and quickly. Allergen labelling law varies by jurisdiction and this template doesn't replace getting your own legal advice on what your business is required to disclose and how.",
+      },
+      {
+        q: "What's the difference between 'contains' and 'may contain traces'?",
+        a: "'Contains' means the allergen is a deliberate ingredient. 'May contain traces' flags cross-contamination risk — shared equipment, shared oil, an open kitchen. The two carry different legal weight in most jurisdictions, so mark them differently and use the notes column to explain the traces risk rather than guessing at a single symbol.",
+      },
+    ],
+    related: ["delivery-check-record", "haccp-corrective-action-log", "fridge-freezer-temperature-log"],
+    keywords: [
+      "free allergen matrix template",
+      "restaurant allergen chart template",
+      "food allergen matrix excel",
+      "14 allergens menu chart template",
+    ],
+  },
 ];
