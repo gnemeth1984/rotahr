@@ -1,0 +1,27 @@
+Staff availability form
+Venue / site,
+Week / period this covers,
+Return this form by,
+
+Staff name,Mon,Tue,Wed,Thu,Fri,Sat,Sun,Notes,Max hours this period,Earliest start / latest finish
+,,,,,,,,,,
+,,,,,,,,,,
+,,,,,,,,,,
+,,,,,,,,,,
+,,,,,,,,,,
+,,,,,,,,,,
+,,,,,,,,,,
+,,,,,,,,,,
+,,,,,,,,,,
+,,,,,,,,,,
+,,,,,,,,,,
+,,,,,,,,,,
+,,,,,,,,,,
+,,,,,,,,,,
+,,,,,,,,,,
+,,,,,,,,,,
+
+"""Can't"" is a hard constraint — a shift against it is a mistake, not a judgement call. ""Prefer not"" is a preference you can still use if the rota needs it."
+"Collect this before you write the rota, not after. Changes after publishing go through a shift swap, not a rewrite of this form."
+"Agree a return deadline and chase anyone who hasn't submitted — a blank row isn't ""available for anything,"" it's missing information."
+Free template from Rotahr — rotahr.com/templates

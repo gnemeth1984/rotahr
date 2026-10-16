@@ -301,4 +301,92 @@ export const rotaTemplates: FreeTemplate[] = [
       "time off request form hospitality",
     ],
   },
+  {
+    slug: "staff-availability-form",
+    category: "rota",
+    name: "Staff availability form",
+    h1: "Free staff availability form template",
+    title: "Free Staff Availability Form Template | Rotahr",
+    metaDescription:
+      "Free staff availability form template in PDF and Excel. Collects when each team member can work before you build the rota, instead of chasing it shift by shift.",
+    answer:
+      "This free staff availability form template — printable PDF or editable Excel — collects when every team member can and can't work for the coming week or rota period, so the rota gets built from real availability instead of a round of individual messages.",
+    body: [
+      "A rota built before availability is collected is a rota you rewrite. Chasing it person by person after the fact — \"can you do Thursday?\", \"actually I can't do mornings now\" — is where most of the lost time in rota-building actually goes. Collecting availability on one sheet before you start writing shifts turns that back-and-forth into a single pass.",
+      "This is especially sharp for casual, part-time and multi-job staff, who are the people most likely to have availability that changes week to week — a student with changing term hours, someone covering a second job, a parent around a childcare rota. Asking once, in writing, removes the guesswork rather than relying on whoever remembers to mention a clash.",
+      "The form separates \"can work\" from \"prefers not to\" deliberately. Treating a preference as an unavailability shrinks the usable rota for no reason; treating a hard unavailability as a preference is how someone ends up rostered on the one day they told you they couldn't do it.",
+      "Set a submission deadline and hold it. Availability collected after the rota is published is a change request, not availability — handle it through a shift swap rather than reopening shifts you've already confirmed to everyone else.",
+    ],
+    sheet: {
+      kind: "log",
+      orientation: "landscape",
+      headerFields: [
+        "Venue / site",
+        "Week / period this covers",
+        "Return this form by",
+      ],
+      columns: [
+        { name: "Staff name", width: 2 },
+        { name: "Mon", hint: "Available / Prefer not / Can't", width: 2 },
+        { name: "Tue", hint: "Available / Prefer not / Can't", width: 2 },
+        { name: "Wed", hint: "Available / Prefer not / Can't", width: 2 },
+        { name: "Thu", hint: "Available / Prefer not / Can't", width: 2 },
+        { name: "Fri", hint: "Available / Prefer not / Can't", width: 2 },
+        { name: "Sat", hint: "Available / Prefer not / Can't", width: 2 },
+        { name: "Sun", hint: "Available / Prefer not / Can't", width: 2 },
+        { name: "Notes", hint: "Fixed commitments, max hours, anything else", width: 4 },
+      ],
+      extraColumns: [
+        { name: "Max hours this period", width: 1 },
+        { name: "Earliest start / latest finish", width: 2 },
+      ],
+      rowCount: 16,
+      footerNotes: [
+        "\"Can't\" is a hard constraint — a shift against it is a mistake, not a judgement call. \"Prefer not\" is a preference you can still use if the rota needs it.",
+        "Collect this before you write the rota, not after. Changes after publishing go through a shift swap, not a rewrite of this form.",
+        "Agree a return deadline and chase anyone who hasn't submitted — a blank row isn't \"available for anything,\" it's missing information.",
+      ],
+    },
+    howToUse: [
+      "Set the period the form covers and a clear return deadline, and share it with enough notice to actually get answers.",
+      "Have each person mark every day as available, prefer not, or can't — a blank cell should be followed up, not assumed.",
+      "Ask for any fixed commitments (second job, school run, caring responsibilities) in the notes column rather than guessed from past rotas.",
+      "Build the rota against the \"can't\" column first as a hard filter, then use \"prefer not\" and the max-hours column to balance who gets what.",
+      "Keep the submitted sheets with your rota records so a hours or scheduling query can be checked against what was actually declared.",
+      "Reissue the form every time the period's working pattern is likely to have changed, rather than reusing one submission indefinitely.",
+    ],
+    whatsIncluded: [
+      "Printable PDF, landscape A4, 16 staff rows per period",
+      "Editable Excel (.xlsx) version for building the rota straight off the same sheet",
+      "CSV version for import",
+      "Available / prefer not / can't rated separately for every day",
+      "Notes column for fixed commitments and constraints",
+      "Spreadsheet-only columns for maximum hours and earliest start / latest finish",
+    ],
+    faqs: [
+      {
+        q: "What's the difference between availability and a holiday request?",
+        a: "Availability is the standing pattern of when someone can generally work; a holiday request form is for a specific, approved block of time off within that pattern. Collect availability every rota period and keep holiday requests as their own record.",
+      },
+      {
+        q: "How is \"prefer not\" different from \"can't\"?",
+        a: "\"Can't\" is a hard constraint — a clash with another job, caring responsibilities, or something that makes the shift physically impossible. \"Prefer not\" is a preference you can still roster against if the week needs covering. Treating the two the same either over-restricts the rota or breaks a genuine commitment.",
+      },
+      {
+        q: "How often should staff submit availability?",
+        a: "Whenever it's likely to have changed — weekly for staff with variable commitments, less often for a stable team. Reusing one old submission for someone whose circumstances have changed is how the rota ends up fighting their actual life.",
+      },
+      {
+        q: "What happens if someone doesn't return the form by the deadline?",
+        a: "Follow it up before you publish the rota — a missing row is not the same as full availability. Agreeing what happens by default (held over from last period, or excluded from that rota) in advance avoids a dispute after shifts are already assigned.",
+      },
+    ],
+    related: ["weekly-staff-rota", "shift-swap-request-form", "holiday-request-form"],
+    keywords: [
+      "staff availability form template",
+      "employee availability form pdf free",
+      "work availability sheet hospitality",
+      "casual staff availability template excel",
+    ],
+  },
 ];
