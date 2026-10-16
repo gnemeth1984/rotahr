@@ -644,6 +644,11 @@ export default async function LandingPage() {
                   top of the funnel — a visitor downloading a temperature log is
                   the exact person who later needs the HACCP module. */}
               <li><Link href="/templates" className="hover:text-slate-900">Free templates</Link></li>
+              {/* Free calculators: low-friction top-of-funnel, same reasoning
+                  as /templates above. */}
+              <li><Link href="/tools" className="hover:text-slate-900">Free tools</Link></li>
+              <li><Link href="/roi-calculator" className="hover:text-slate-900">ROI calculator</Link></li>
+              <li><Link href="/resources" className="hover:text-slate-900">Resources</Link></li>
               <li><Link href="/list" className="hover:text-slate-900">List your venue — free</Link></li>
               {/* Sitewide link to the directory, so the 81 venue pages it links
                   are two clicks from the landing page instead of unreachable. */}

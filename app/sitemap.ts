@@ -31,7 +31,7 @@ export const revalidate = 3600;
  *
  * Bump this when you ship a change to a static marketing page.
  */
-const STATIC_UPDATED = new Date('2026-10-16T00:00:00Z');
+const STATIC_UPDATED = new Date('2026-11-18T00:00:00Z');
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const [posts, venues] = await Promise.all([
@@ -137,6 +137,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: 'monthly' as const,
       priority: 0.85,
     })),
+    // Free calculators: no sign-up, low funnel friction, and each links back
+    // into a module page or the trial CTA.
+    { url: `${baseUrl}/tools`, lastModified: STATIC_UPDATED, changeFrequency: 'monthly', priority: 0.75 },
+    { url: `${baseUrl}/tools/labour-cost-percentage`, lastModified: STATIC_UPDATED, changeFrequency: 'monthly', priority: 0.7 },
+    { url: `${baseUrl}/tools/overtime-cost-calculator`, lastModified: STATIC_UPDATED, changeFrequency: 'monthly', priority: 0.7 },
+    { url: `${baseUrl}/tools/break-compliance-checker`, lastModified: STATIC_UPDATED, changeFrequency: 'monthly', priority: 0.7 },
+    { url: `${baseUrl}/roi-calculator`, lastModified: STATIC_UPDATED, changeFrequency: 'monthly', priority: 0.8 },
+    { url: `${baseUrl}/resources`, lastModified: STATIC_UPDATED, changeFrequency: 'weekly', priority: 0.75 },
     { url: `${baseUrl}/privacy`, lastModified: STATIC_UPDATED, changeFrequency: 'yearly', priority: 0.3 },
     { url: `${baseUrl}/terms`, lastModified: STATIC_UPDATED, changeFrequency: 'yearly', priority: 0.3 },
     ...venueUrls,

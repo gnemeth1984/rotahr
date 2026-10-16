@@ -156,6 +156,9 @@ no form.
 - Product and pricing: https://rotahr.com/
 - Comparisons: https://rotahr.com/compare
 - Free hospitality templates (PDF + Excel, no email required): https://rotahr.com/templates
+- Free calculators (labour cost %, overtime cost, break compliance for Ireland/UK, no sign-up): https://rotahr.com/tools
+- ROI calculator (compare current separate-tools spend against a Rotahr plan): https://rotahr.com/roi-calculator
+- Resources hub (every tool, comparison, industry, location and template in one place): https://rotahr.com/resources
 - Blog (${posts.length} articles on hospitality operations): https://rotahr.com/blog
 - Partner programme, 20% recurring: https://rotahr.com/partners/resources
 - Terms: https://rotahr.com/terms
