@@ -4,6 +4,7 @@ import { listPublicVenueSlugs } from '@/lib/public-page/data';
 import { competitors } from '@/lib/seo/competitors';
 import { locations } from '@/lib/seo/locations';
 import { features } from '@/lib/seo/features';
+import { industries } from '@/lib/seo/industries';
 import { freeTemplates } from '@/lib/templates';
 
 // Canonical production domain. Must stay rotahr.com — the Vercel subdomain
@@ -30,7 +31,7 @@ export const revalidate = 3600;
  *
  * Bump this when you ship a change to a static marketing page.
  */
-const STATIC_UPDATED = new Date('2026-09-09T00:00:00Z');
+const STATIC_UPDATED = new Date('2026-10-16T00:00:00Z');
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const [posts, venues] = await Promise.all([
@@ -97,6 +98,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.75,
     })),
     { url: `${baseUrl}/features`, lastModified: STATIC_UPDATED, changeFrequency: 'monthly', priority: 0.8 },
+    // Industry pages: "restaurant scheduling software" style queries, matched
+    // to how a venue actually runs rather than a module name.
+    { url: `${baseUrl}/industries`, lastModified: STATIC_UPDATED, changeFrequency: 'monthly', priority: 0.8 },
+    ...industries.map(i => ({
+      url: `${baseUrl}/industries/${i.slug}`,
+      lastModified: STATIC_UPDATED,
+      changeFrequency: 'monthly' as const,
+      priority: 0.85,
+    })),
     // Screenshot tour of the signed-in app. Public on purpose: buyers want to
     // see inside before they sign up, and software-directory reviewers cannot
     // verify a capability that only exists behind a login.
