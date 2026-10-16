@@ -14,6 +14,8 @@ import { foundingStatus, TERM_MONTHS } from "@/lib/marketing/founding"
 import { locations } from "@/lib/seo/locations"
 import { features as featurePages } from "@/lib/seo/features"
 import { CAPTERRA_URL, hasCapterraListing } from "@/lib/capterra"
+import { industries } from "@/lib/seo/industries"
+import { AcquisitionBanner } from "@/components/marketing/AcquisitionBanner"
 import {
   organizationSchema,
   softwareApplicationSchema,
@@ -169,11 +171,13 @@ export default async function LandingPage() {
         ])}
       />
       {/* Nav */}
+      <AcquisitionBanner />
       <header className="border-b border-slate-100 sticky top-0 bg-white/95 backdrop-blur z-50">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
           <Image src="/logo-light.png" alt="Rotahr" width={110} height={36} className="object-contain" priority />
           <nav className="hidden md:flex items-center gap-8 text-sm text-slate-600">
             <Link href="/features" className="hover:text-slate-900 transition-colors">Features</Link>
+            <Link href="/industries" className="hover:text-slate-900 transition-colors">Industries</Link>
             <a href="#pricing" className="hover:text-slate-900 transition-colors">Pricing</a>
             <Link href="/compare" className="hover:text-slate-900 transition-colors">Compare</Link>
             <Link href="/templates" className="hover:text-slate-900 transition-colors">
@@ -196,7 +200,7 @@ export default async function LandingPage() {
               className="text-sm px-4 py-2 rounded-lg font-medium text-white transition-all hover:opacity-90"
               style={{ background: "linear-gradient(135deg, #F97316, #EC4899)" }}
             >
-              Get Started
+              Start Free Trial
             </Link>
           </div>
         </div>
@@ -217,16 +221,17 @@ export default async function LandingPage() {
         </div>
 
         <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight leading-tight mb-6">
-          One app to run<br />
+          Hospitality Staff Scheduling<br />
           <span className="bg-clip-text text-transparent" style={{ backgroundImage: "linear-gradient(135deg, #F97316, #EC4899)" }}>
-            your entire venue
+            Without the WhatsApp Chaos
           </span>
         </h1>
 
         <p className="text-xl text-slate-500 max-w-2xl mx-auto mb-4">
-          Rotahr is a restaurant operations platform: staff scheduling and rotas, clock-in, HACCP software, a built-in
-          restaurant CRM, reservations, bookkeeping, payroll, staff training, equipment servicing and team
-          messaging — all in one place.
+          Rotahr helps hospitality managers plan rotas, manage staff availability
+          and review labour costs in one place — plus HACCP software, a built-in
+          restaurant CRM, reservations, bookkeeping, payroll, staff training,
+          equipment servicing and team messaging, all in the same app.
         </p>
         <p className="text-base text-slate-600 max-w-xl mx-auto mb-10">
           Replace 4 separate tools with one. Starting at <strong className="text-slate-600">€49/month</strong> incl. VAT —{" "}
@@ -253,19 +258,45 @@ export default async function LandingPage() {
             className="flex items-center gap-2 text-white px-8 py-3.5 rounded-xl text-base font-semibold hover:opacity-90 transition-all shadow-lg w-full sm:w-auto"
             style={{ background: "linear-gradient(135deg, #F97316, #EC4899)", boxShadow: "0 8px 24px #F9731630" }}
           >
-            Get Started <ArrowRight className="w-4 h-4" />
+            Start Free 3-Month Trial <ArrowRight className="w-4 h-4" />
           </Link>
           <Link
             href="/try"
             className="flex items-center justify-center gap-2 border-2 px-8 py-3.5 rounded-xl text-base font-semibold transition-colors w-full sm:w-auto"
             style={{ borderColor: "#F97316", color: "#C2410C" }}
           >
-            Explore the live demo
+            Try Live Demo
           </Link>
         </div>
         <p className="text-sm text-slate-500 mt-4">
           The demo is a real venue with staff, rotas and bookings already in it —
-          no signup, no card. Or <a href="#pricing" className="underline decoration-slate-300 underline-offset-4 hover:text-slate-700">jump to pricing</a>.
+          no signup, no card. Or{" "}
+          <Link href="/templates" className="underline decoration-slate-300 underline-offset-4 hover:text-slate-700">
+            view free templates
+          </Link>{" "}
+          · <a href="#pricing" className="underline decoration-slate-300 underline-offset-4 hover:text-slate-700">jump to pricing</a>.
+        </p>
+      </section>
+
+      {/* Industries — Phase 1 internal linking into /industries/[slug] */}
+      <section className="max-w-6xl mx-auto px-6 pb-16">
+        <p className="text-center text-sm font-semibold text-slate-500 mb-6">Built for your type of venue</p>
+        <div className="grid sm:grid-cols-3 gap-4">
+          {industries.slice(0, 3).map((ind) => (
+            <Link
+              key={ind.slug}
+              href={`/industries/${ind.slug}`}
+              className="rounded-2xl border border-slate-200 p-6 hover:border-orange-300 hover:shadow-sm transition-all"
+            >
+              <h3 className="font-semibold text-slate-900 mb-2">{ind.name}</h3>
+              <p className="text-sm text-slate-500 leading-relaxed">{ind.answer}</p>
+            </Link>
+          ))}
+        </div>
+        <p className="text-center text-sm mt-6">
+          <Link href="/industries" className="text-orange-600 hover:text-orange-700 font-medium">
+            See cafes, catering and every other venue type →
+          </Link>
         </p>
       </section>
 

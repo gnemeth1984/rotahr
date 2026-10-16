@@ -12,6 +12,7 @@ import {
   SITE_URL,
 } from "@/lib/seo/structured-data";
 import TemplateRequestForm from "./TemplateRequestForm";
+import { AcquisitionBanner } from "@/components/marketing/AcquisitionBanner";
 
 export const metadata: Metadata = {
   title: "Free Hospitality Templates — PDF & Excel | Rotahr",
@@ -43,6 +44,8 @@ export default function TemplatesHubPage() {
   };
 
   return (
+    <>
+    <AcquisitionBanner />
     <main className="min-h-screen bg-[#0A1427] text-white">
       <script
         {...jsonLdProps([
@@ -200,5 +203,6 @@ export default function TemplatesHubPage() {
         </section>
       </div>
     </main>
+    </>
   );
 }
