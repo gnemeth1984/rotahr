@@ -115,6 +115,66 @@ export const locations: Location[] = [
     ],
     areas: ["Viking Triangle", "John Roberts Square", "Tramore", "Dungarvan", "Ardkeen"],
   },
+  {
+    slug: "london",
+    city: "London",
+    county: "Greater London",
+    country: "UK",
+    intro:
+      "London hospitality runs across 33 separate boroughs, each with its own environmental health team, on some of the highest rent and staff-turnover numbers in UK hospitality — margin is won or lost on labour cost, not covers.",
+    localPoints: [
+      "Food hygiene inspections are run borough by borough under the Food Hygiene Rating Scheme (FHRS), so the sticker in the window and the record behind it both need to be right for whichever council covers your postcode.",
+      "The highest staff turnover of any UK hospitality market means a rota is rarely settled — per-head pricing punishes exactly that churn.",
+      "Rent and National Living Wage increases have both moved sharply in recent years, which makes knowing real labour cost percentage week to week, not just at month end, the difference between a profitable shift and a losing one.",
+      "A mix of tourist footfall in the West End and local trade in the boroughs means demand swings street by street, not just citywide.",
+    ],
+    areas: ["Soho", "Shoreditch", "Camden", "Clapham", "Borough Market"],
+  },
+  {
+    slug: "manchester",
+    city: "Manchester",
+    county: "Greater Manchester",
+    country: "UK",
+    intro:
+      "Manchester's independent food and drink scene — the Northern Quarter especially — has grown fast on a young, student-heavy workforce and a nightlife trade that runs late and changes week to week.",
+    localPoints: [
+      "A large student population from the University of Manchester and Manchester Metropolitan means availability resets every term — onboarding new staff onto a rota is a constant job, not a one-off.",
+      "Late-licence, nightlife-driven trade makes break timing and end-of-shift records worth getting right under the Working Time Regulations.",
+      "Manchester City Council runs food hygiene inspections under the national FHRS scheme — the same 0–5 rating used across England, so a clean paper trail for temperature and delivery checks matters at inspection.",
+      "Christmas Markets and match-day surges around the city centre create short, severe demand spikes that need fast cover, not a week's notice.",
+    ],
+    areas: ["Northern Quarter", "Ancoats", "Deansgate", "Chorlton", "Spinningfields"],
+  },
+  {
+    slug: "edinburgh",
+    city: "Edinburgh",
+    county: "City of Edinburgh",
+    country: "UK",
+    intro:
+      "Edinburgh's trade is defined by August: the Fringe and the wider festival season bring the single sharpest demand spike of any UK city, on top of a trade that is otherwise steady and tourist-driven year-round.",
+    localPoints: [
+      "The Fringe alone brings on roughly 100 seasonal staff a year just for the festival organisations, and venues across the city hire similarly hard for August — a flat monthly price beats per-head pricing badly across that swing.",
+      "Scotland runs its own food hygiene scheme, the Food Hygiene Information Scheme (FHIS) — a pass/improvement-required result rather than England's 0–5 FHRS score — run by the City of Edinburgh Council, so records need to be ready for a different inspection format.",
+      "Scottish employment law tracks the UK-wide Working Time Regulations 1998, but statutory and public holiday patterns differ from both England and Ireland, so a rota built around the wrong calendar causes real pay errors.",
+      "Old Town and New Town trade is dense and largely independent, with a short, brutal peak season and a much quieter winter.",
+    ],
+    areas: ["Old Town", "New Town", "Leith", "Grassmarket", "Stockbridge"],
+  },
+  {
+    slug: "belfast",
+    city: "Belfast",
+    county: "Antrim",
+    country: "UK",
+    intro:
+      "Belfast's food scene has grown quickly around the Cathedral Quarter and Titanic Quarter, trading on a mix of local regulars and a tourism trade built on the Titanic story and the Causeway Coastal route — and on employment rules that are genuinely distinct from the rest of the UK.",
+    localPoints: [
+      "Northern Ireland runs its own employment law rather than following Great Britain's directly — the Working Time Regulations (Northern Ireland) 2016 set a 20-minute break after six hours' continuous work and a 12-week averaging reference period, against 52 weeks in the rest of the UK, so a rota built on GB defaults can get entitlements wrong.",
+      "Food hygiene inspections follow the FHRS scheme used in England and Wales, run locally by Belfast City Council — the same 0–5 rating, different council and different inspection calendar to London or Manchester.",
+      "Titanic Quarter and city-centre tourism trade brings a strong summer peak on top of steady local trade, so staffing needs to flex without a full seasonal rebuild.",
+      "A growing but still tight independent scene means the person building the rota is usually also running the floor.",
+    ],
+    areas: ["Cathedral Quarter", "Titanic Quarter", "Lisburn Road", "Stranmillis", "Ballyhackamore"],
+  },
 ];
 
 export function getLocation(slug: string) {
