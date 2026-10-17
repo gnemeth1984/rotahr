@@ -34,14 +34,22 @@ export async function generateMetadata({
   };
 }
 
-const MODULES = [
-  { name: "Rota & shifts", desc: "Build it once. Staff see it on their phone. Swaps come to you, not a group chat." },
-  { name: "Clock in & out", desc: "On the phone, at the venue. Hours land straight into payroll, with Irish break rules built in." },
-  { name: "HACCP records", desc: "Temperature checks, deliveries and cleaning lists. Print the lot for an inspector in one tap." },
-  { name: "Bookings & floor plan", desc: "Your real table layout on screen. See what's free tonight at a glance." },
-  { name: "Receipts & books", desc: "Photograph a receipt and it reads itself. Costs, VAT and P&L without the shoebox." },
-  { name: "Stock & recipes", desc: "Know what a dish actually costs when supplier prices move." },
-];
+// Clock-in copy names the specific statutory regime, so it has to branch on
+// country rather than default to Ireland for every page.
+function modulesFor(country: "Ireland" | "UK") {
+  const breakRules =
+    country === "UK"
+      ? "with UK Working Time Regulations rest-break rules built in"
+      : "with Irish Organisation of Working Time Act break rules built in";
+  return [
+    { name: "Rota & shifts", desc: "Build it once. Staff see it on their phone. Swaps come to you, not a group chat." },
+    { name: "Clock in & out", desc: `On the phone, at the venue. Hours land straight into payroll, ${breakRules}.` },
+    { name: "HACCP records", desc: "Temperature checks, deliveries and cleaning lists. Print the lot for an inspector in one tap." },
+    { name: "Bookings & floor plan", desc: "Your real table layout on screen. See what's free tonight at a glance." },
+    { name: "Receipts & books", desc: "Photograph a receipt and it reads itself. Costs, VAT and P&L without the shoebox." },
+    { name: "Stock & recipes", desc: "Know what a dish actually costs when supplier prices move." },
+  ];
+}
 
 export default async function LocationPage({
   params,
@@ -130,7 +138,7 @@ export default async function LocationPage({
 
         <h2 className="text-2xl font-bold mb-6">What&apos;s included</h2>
         <div className="grid sm:grid-cols-2 gap-4 mb-14">
-          {MODULES.map((m) => (
+          {modulesFor(l.country).map((m) => (
             <div
               key={m.name}
               className="rounded-2xl border border-white/10 bg-white/5 p-5"
@@ -152,8 +160,9 @@ export default async function LocationPage({
             install on a back-office machine.
           </p>
           <p className="text-sm text-slate-400">
-            Prices in euro, VAT included, with Irish public holiday and break
-            entitlement rules built in.
+            {l.country === "UK"
+              ? "Billed in GBP, VAT included, with UK bank holiday and Working Time Regulations rest-break rules built in."
+              : "Prices in euro, VAT included, with Irish public holiday and break entitlement rules built in."}
           </p>
         </div>
 

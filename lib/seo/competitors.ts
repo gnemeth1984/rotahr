@@ -288,6 +288,97 @@ export const competitors: Competitor[] = [
     ],
   },
   {
+    slug: "homebase",
+    name: "Homebase",
+    short: "Homebase",
+    positioning:
+      "US-focused team management app for hourly workforces — scheduling, time clock and hiring, sold per location with payroll as a separate add-on.",
+    pricingModel: "per-location",
+    pricingSummary:
+      "Published per location, per month, billed monthly or annually: Basic $0 (1 location, up to 10 employees), Essentials $30, Plus $70 (unlimited employees from Essentials up), All-in-One $120. Payroll is a separate add-on: $49/month base fee plus $6 per employee paid, or $29/month flat for teams up to 5.",
+    pricingSource: "https://joinhomebase.com/pricing",
+    pricingChecked: "2026-11-18",
+    exampleCost12:
+      "$70/month on Plus for one location (unlimited employees), without payroll. Add payroll and it's $70 + $49 + $6×12 = $191/month.",
+    whereTheyWin: [
+      "A genuine free tier — Basic is $0 for one location with up to 10 employees, with basic scheduling and time tracking included.",
+      "Priced per location rather than per user on the paid tiers, so growing headcount within a venue doesn't move the bill.",
+      "Built-in hiring tools — job post boosts and a dedicated hiring assistant add-on, which Rotahr doesn't offer.",
+      "A large, well-reviewed US install base with POS integrations tuned to American point-of-sale systems.",
+      "Add-ons are itemised rather than bundled, so you can add just Tip Manager or just Task Manager without upgrading the whole plan.",
+    ],
+    gaps: [
+      "Payroll is a bolt-on priced per employee paid ($6/employee on top of a $49 base fee), not included in the plan price the way Rotahr includes payroll preparation from Starter.",
+      "Nothing for front of house — no table bookings, floor plan or customer list.",
+      "No food safety / HACCP module.",
+      "Built and priced for the US market — scheduling rules, POS integrations and payroll are tuned to US employment law, not Irish or UK statutory breaks, VAT or Form 46G.",
+      "The useful features — AI scheduling assistant, PTO controls, labor cost management — sit on Plus and All-in-One, not Basic or Essentials.",
+    ],
+    verdict:
+      "A strong, cheap starting point if you're a single US location and happy to add payroll separately. It isn't built around Irish or UK rules, and it stays staff-only — reservations and food safety stay in other tools.",
+    pickThemIf:
+      "You operate in the US, want a free or near-free starting tier, and are comfortable paying for payroll and hiring as separate add-ons.",
+    faqs: [
+      {
+        q: "Is Rotahr cheaper than Homebase?",
+        a: "For a single Irish or UK venue, yes once payroll is in the picture — Homebase's Plus plan is $70/month and payroll adds a $49 base fee plus $6 per employee paid on top, while Rotahr Starter is €49/month including VAT with payroll preparation, HACCP, bookings and bookkeeping all in the one price.",
+      },
+      {
+        q: "Does Homebase work for Irish or UK hospitality businesses?",
+        a: "Homebase is built and marketed around US employment law, payroll and POS systems. It can be used outside the US for basic scheduling, but it doesn't carry Irish statutory break tracking, UK-specific rules, VAT handling or Form 46G the way Rotahr does.",
+      },
+      {
+        q: "What does Rotahr do that Homebase does not?",
+        a: "Table bookings with a floor plan, a customer list built from reservations, HACCP food safety records, receipt scanning and bookkeeping, and recipe costing. Homebase is a staff scheduling and time-tracking tool with hiring add-ons — those other areas stay in separate systems.",
+      },
+    ],
+  },
+  {
+    slug: "when-i-work",
+    name: "When I Work",
+    short: "When I Work",
+    positioning:
+      "Per-user employee scheduling, time tracking and team messaging app, aimed at small and multi-site hourly workforces.",
+    pricingModel: "per-user",
+    pricingSummary:
+      "Published per user, per month: $2.50/user/month for a single location or schedule, $5/user/month for multiple locations or schedules. Enterprise pricing is quote-based.",
+    pricingSource: "https://wheniwork.com/pricing",
+    pricingChecked: "2026-11-18",
+    exampleCost12:
+      "$2.50 × 12 staff = $30/month on the single-location plan, rising to $60/month on the multi-location plan.",
+    whereTheyWin: [
+      "Per-user pricing is genuinely cheap at low headcount — a small team pays very little on the single-location plan.",
+      "Every plan carries the full feature set — scheduling, time tracking with GPS clock-in, and messaging — with no feature gating between tiers, only a location/user-count split.",
+      "A current partner offer bundles six months of free Rippling payroll and HR for new customers.",
+      "Large scale and long track record — over 200,000 workplaces and a million-plus users across 50+ countries, per their own figures.",
+    ],
+    gaps: [
+      "Per-user pricing works against you as you add staff — a 25-person venue pays $62.50–$125/month for scheduling alone, before anything else.",
+      "Nothing for front of house — no table bookings, floor plan or customer list.",
+      "No food safety / HACCP module, no bookkeeping or receipt scanning, no recipe costing.",
+      "Payroll isn't native — it's a free six-month bridge into Rippling, a separate third-party product, not a feature built into When I Work itself.",
+      "Not built around Irish or UK statutory break entitlements, VAT or Form 46G.",
+    ],
+    verdict:
+      "A clean, affordable scheduling and time-tracking tool at low headcount, with payroll handed off to a partner rather than built in. It stops at staff operations — reservations and food safety stay elsewhere.",
+    pickThemIf:
+      "You want the cheapest possible per-user entry price for scheduling and time tracking alone, you're happy adopting Rippling for payroll, and you don't need reservations or food safety in the same product.",
+    faqs: [
+      {
+        q: "Is Rotahr cheaper than When I Work?",
+        a: "It depends on headcount. At $2.50/user/month, a very small team can be cheaper on When I Work's single-location plan than Rotahr's €49 Starter. Past roughly 20 staff, or on the $5/user multi-location plan, the per-user model overtakes Rotahr's flat €49–€89/month — and that's before adding bookings, HACCP or bookkeeping, which Rotahr includes and When I Work doesn't have at all.",
+      },
+      {
+        q: "Does When I Work include payroll?",
+        a: "Not natively. They currently offer six months of free Rippling payroll and HR to new customers as a partner bridge, but payroll itself runs in Rippling, a separate product, rather than inside When I Work. Rotahr prepares payroll inside the same app from the Starter plan.",
+      },
+      {
+        q: "What does Rotahr do that When I Work does not?",
+        a: "Table bookings and a floor plan, a customer list, HACCP food safety records, receipt scanning and bookkeeping, and recipe costing — When I Work is a scheduling, time-tracking and messaging tool, so those stay in other systems.",
+      },
+    ],
+  },
+  {
     slug: "rotaready",
     name: "Rotaready",
     short: "Rotaready",
