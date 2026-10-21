@@ -12,6 +12,7 @@
  */
 
 import OpenAI from "openai";
+import { lazyClient } from "@/lib/lazy-client";
 import { prisma } from "@/lib/prisma";
 import { generateCoverImage, slugify } from "@/lib/blog/cover-image";
 import { submitToIndexNow } from "@/lib/seo/indexnow";
@@ -37,7 +38,8 @@ import {
   stripPlaceholderLinks,
 } from "@/lib/seo/product-facts";
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+// Lazy: constructing OpenAI without a key throws, which used to break `next build`.
+const openai = lazyClient(() => new OpenAI({ apiKey: process.env.OPENAI_API_KEY }));
 const SITE = "https://rotahr.com";
 
 async function log(task: string, ok: boolean, detail: string) {

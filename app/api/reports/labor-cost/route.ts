@@ -22,6 +22,18 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const weeks = Math.min(26, Math.max(4, parseInt(searchParams.get("weeks") || "12", 10)));
 
+  // Optional: report on one venue only. Validated against this business.
+  const venueParam = searchParams.get("venueId");
+  let venueId: string | null = null;
+  if (venueParam) {
+    const v = await prisma.venue.findFirst({
+      where: { id: venueParam, businessId },
+      select: { id: true },
+    });
+    if (!v) return NextResponse.json({ error: "Venue not found" }, { status: 404 });
+    venueId = v.id;
+  }
+
   const business = await prisma.business.findUnique({
     where: { id: businessId },
     select: { weeklyRevenueTarget: true },
@@ -47,7 +59,7 @@ export async function GET(req: NextRequest) {
     }),
     prisma.posSnapshot.findMany({
       where: { businessId, date: { gte: rangeStart } },
-      select: { date: true, totalRevenue: true },
+      select: { date: true, totalRevenue: true, venueId: true },
     }),
     prisma.venue.findMany({
       where: { businessId, active: true },
@@ -78,7 +90,11 @@ export async function GET(req: NextRequest) {
     return ws.toISOString();
   }
 
-  for (const s of shifts) {
+  // Weekly series: whole business, or just the chosen venue.
+  const seriesShifts = venueId ? shifts.filter((s) => s.venueId === venueId) : shifts;
+  const seriesSnapshots = venueId ? snapshots.filter((s) => s.venueId === venueId) : snapshots;
+
+  for (const s of seriesShifts) {
     const key = bucketKeyFor(new Date(s.startTime));
     const bucket = weekBuckets[key];
     if (!bucket) continue;
@@ -90,13 +106,20 @@ export async function GET(req: NextRequest) {
     bucket.labourCost += hours * rate + ot * rate * 1.5;
   }
 
-  // Per-venue breakdown (labour cost only — revenue isn't tracked per-venue yet,
-  // POS snapshots are business-wide). Only meaningful for multi-venue businesses.
-  const venueTotals: Record<string, { venueId: string | null; venueName: string; labourCost: number; totalHours: number; overtimeHours: number }> = {};
+  // Per-venue breakdown over the whole range. Revenue comes from POS snapshots
+  // attributed to the venue (Settings → POS → venue); no target fallback here,
+  // so labour % is only shown where real takings exist.
+  type VenueTotal = { venueId: string | null; venueName: string; labourCost: number; totalHours: number; overtimeHours: number; revenue: number };
+  const venueTotals: Record<string, VenueTotal> = {};
   for (const v of venues) {
-    venueTotals[v.id] = { venueId: v.id, venueName: v.name, labourCost: 0, totalHours: 0, overtimeHours: 0 };
+    venueTotals[v.id] = { venueId: v.id, venueName: v.name, labourCost: 0, totalHours: 0, overtimeHours: 0, revenue: 0 };
   }
-  venueTotals["__unassigned__"] = { venueId: null, venueName: "Unassigned", labourCost: 0, totalHours: 0, overtimeHours: 0 };
+  venueTotals["__unassigned__"] = { venueId: null, venueName: "Unassigned", labourCost: 0, totalHours: 0, overtimeHours: 0, revenue: 0 };
+
+  for (const snap of snapshots) {
+    const key = snap.venueId && venueTotals[snap.venueId] ? snap.venueId : "__unassigned__";
+    venueTotals[key].revenue += snap.totalRevenue;
+  }
 
   for (const s of shifts) {
     const hours = (new Date(s.endTime).getTime() - new Date(s.startTime).getTime()) / 3_600_000;
@@ -109,23 +132,27 @@ export async function GET(req: NextRequest) {
   }
 
   const venueBreakdown = Object.values(venueTotals)
-    .filter((v) => v.totalHours > 0)
+    .filter((v) => v.totalHours > 0 || v.revenue > 0)
     .map((v) => ({
       ...v,
+      revenue: v.revenue > 0 ? Math.round(v.revenue * 100) / 100 : null,
+      labourPct: v.revenue > 0 ? Math.round((v.labourCost / v.revenue) * 1000) / 10 : null,
       labourCost: Math.round(v.labourCost * 100) / 100,
       totalHours: Math.round(v.totalHours * 10) / 10,
       overtimeHours: Math.round(v.overtimeHours * 10) / 10,
     }))
     .sort((a, b) => b.labourCost - a.labourCost);
 
-  for (const snap of snapshots) {
+  for (const snap of seriesSnapshots) {
     const key = bucketKeyFor(new Date(snap.date));
     const bucket = weekBuckets[key];
     if (!bucket) continue;
     bucket.revenue += snap.totalRevenue;
   }
 
-  const fallbackRevenue = business?.weeklyRevenueTarget ?? null;
+  // The weekly revenue target is business-wide, so it is never used as a
+  // stand-in for one venue's takings.
+  const fallbackRevenue = venueId ? null : business?.weeklyRevenueTarget ?? null;
 
   const result = Object.values(weekBuckets)
     .sort((a, b) => a.weekStart.getTime() - b.weekStart.getTime())
@@ -153,6 +180,10 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     weeks: result,
     venueBreakdown: venues.length > 1 ? venueBreakdown : [],
+    venues: venues.length > 1 ? venues : [],
+    venueId,
+    unattributedRevenue:
+      Math.round((venueTotals["__unassigned__"]?.revenue ?? 0) * 100) / 100,
     summary: {
       avgLabourPct: avgLabourPct !== null ? Math.round(avgLabourPct * 10) / 10 : null,
       totalLabourCost: Math.round(totalLabourCost * 100) / 100,

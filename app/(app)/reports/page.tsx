@@ -36,6 +36,8 @@ interface VenueRow {
   labourCost: number;
   totalHours: number;
   overtimeHours: number;
+  revenue: number | null;
+  labourPct: number | null;
 }
 
 interface Summary {
@@ -57,19 +59,28 @@ export default function ReportsPage() {
   const [weeks, setWeeks] = useState<WeekRow[]>([]);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [venueBreakdown, setVenueBreakdown] = useState<VenueRow[]>([]);
+  const [venues, setVenues] = useState<{ id: string; name: string }[]>([]);
+  const [venueFilter, setVenueFilter] = useState<string>("");
+  const [unattributedRevenue, setUnattributedRevenue] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     setLoading(true);
-    fetch(`/api/reports/labor-cost?weeks=${weeksParam}`)
+    const qs = new URLSearchParams({ weeks: String(weeksParam) });
+    if (venueFilter) qs.set("venueId", venueFilter);
+    fetch(`/api/reports/labor-cost?${qs}`)
       .then((r) => r.json())
       .then((d) => {
         setWeeks(d.weeks || []);
         setSummary(d.summary || null);
         setVenueBreakdown(d.venueBreakdown || []);
+        setVenues(d.venues || []);
+        setUnattributedRevenue(d.unattributedRevenue || 0);
       })
       .finally(() => setLoading(false));
-  }, [weeksParam]);
+  }, [weeksParam, venueFilter]);
+
+  const selectedVenueName = venues.find((v) => v.id === venueFilter)?.name ?? null;
 
   const symbol = "€"; // TODO: derive from business currency setting if needed elsewhere
 
@@ -91,7 +102,22 @@ export default function ReportsPage() {
             Labour cost vs revenue over time — spot patterns before they hit your margin.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {venues.length > 0 && (
+            <select
+              aria-label="Venue"
+              className="h-9 rounded-md border border-slate-200 bg-white px-3 text-sm"
+              value={venueFilter}
+              onChange={(e) => setVenueFilter(e.target.value)}
+            >
+              <option value="">All venues</option>
+              {venues.map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.name}
+                </option>
+              ))}
+            </select>
+          )}
           {RANGE_OPTIONS.map((opt) => (
             <Button
               key={opt.value}
@@ -114,10 +140,17 @@ export default function ReportsPage() {
           {summary && !summary.hasRevenueData && (
             <div className="mt-6 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
               <Info className="mt-0.5 h-4 w-4 shrink-0" />
-              <span>
-                No POS revenue data connected yet — revenue figures below are estimated from your weekly
-                revenue target (set on the Rota page). Connect a POS under Settings for real figures.
-              </span>
+              {selectedVenueName ? (
+                <span>
+                  No POS takings are attributed to {selectedVenueName} in this period, so labour % can&apos;t
+                  be worked out for it. Choose the till&apos;s venue under Settings → POS.
+                </span>
+              ) : (
+                <span>
+                  No POS revenue data connected yet — revenue figures below are estimated from your weekly
+                  revenue target (set on the Rota page). Connect a POS under Settings for real figures.
+                </span>
+              )}
             </div>
           )}
 
@@ -267,7 +300,16 @@ export default function ReportsPage() {
               <CardHeader>
                 <CardTitle className="text-base">Labour cost by venue</CardTitle>
                 <p className="text-xs text-slate-400">
-                  Revenue isn't tracked per-venue yet, so this shows labour cost and hours only.
+                  Revenue is POS takings attributed to each venue. Labour % is blank where a venue has no
+                  takings in this period.
+                  {unattributedRevenue > 0 && (
+                    <>
+                      {" "}
+                      {symbol}
+                      {unattributedRevenue.toLocaleString("en-IE", { maximumFractionDigits: 0 })} of takings
+                      isn&apos;t tied to a venue — set it under Settings → POS.
+                    </>
+                  )}
                 </p>
               </CardHeader>
               <CardContent>
@@ -277,6 +319,8 @@ export default function ReportsPage() {
                       <tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-400">
                         <th className="py-2 pr-4">Venue</th>
                         <th className="py-2 pr-4 text-right">Labour cost</th>
+                        <th className="py-2 pr-4 text-right">Revenue</th>
+                        <th className="py-2 pr-4 text-right">Labour %</th>
                         <th className="py-2 pr-4 text-right">Total hours</th>
                         <th className="py-2 text-right">Overtime hours</th>
                       </tr>
@@ -288,6 +332,14 @@ export default function ReportsPage() {
                           <td className="py-2.5 pr-4 text-right text-slate-700">
                             {symbol}
                             {v.labourCost.toLocaleString("en-IE", { maximumFractionDigits: 0 })}
+                          </td>
+                          <td className="py-2.5 pr-4 text-right text-slate-700">
+                            {v.revenue !== null
+                              ? `${symbol}${v.revenue.toLocaleString("en-IE", { maximumFractionDigits: 0 })}`
+                              : "—"}
+                          </td>
+                          <td className="py-2.5 pr-4 text-right text-slate-700">
+                            {v.labourPct !== null ? `${v.labourPct}%` : "—"}
                           </td>
                           <td className="py-2.5 pr-4 text-right text-slate-700">{v.totalHours}h</td>
                           <td className="py-2.5 text-right text-slate-700">{v.overtimeHours}h</td>

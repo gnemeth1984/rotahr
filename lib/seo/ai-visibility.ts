@@ -24,9 +24,11 @@
  */
 
 import OpenAI from "openai";
+import { lazyClient } from "@/lib/lazy-client";
 import { prisma } from "@/lib/prisma";
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+// Lazy: constructing OpenAI without a key throws, which used to break `next build`.
+const openai = lazyClient(() => new OpenAI({ apiKey: process.env.OPENAI_API_KEY }));
 
 /** Competitors we want to know about when we lose. Lowercase, matched on word boundaries. */
 const COMPETITOR_NAMES = [

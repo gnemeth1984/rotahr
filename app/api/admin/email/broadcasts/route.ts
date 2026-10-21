@@ -2,9 +2,9 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { isSuperAdminEmail } from "@/lib/auth/super-admins";
-import { Resend } from "resend";
+import { lazyResend } from "@/lib/email/resend-client";
 
-const resend = new Resend(process.env.RESEND_API_KEY!);
+const resend = lazyResend();
 
 // GET /api/admin/email/broadcasts
 export async function GET() {

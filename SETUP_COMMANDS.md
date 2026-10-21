@@ -44,7 +44,7 @@ npm run dev
 | POST | /api/manager/add | ADMIN |
 | GET | /api/manager/list | ADMIN, MANAGER |
 | POST | /api/employee/add | ADMIN, MANAGER |
-| GET | /api/employee/list | ADMIN, MANAGER |
+| GET | /api/employee/list | Any member (ADMIN/MANAGER: full record; others: name/role/department/venue only, plus own contact details) |
 | GET | /api/employee/:id | ADMIN, MANAGER |
 | PUT | /api/employee/:id | ADMIN, MANAGER |
 | POST | /api/department/create | ADMIN, MANAGER |

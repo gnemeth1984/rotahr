@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import OpenAI from 'openai';
+import { lazyClient } from '@/lib/lazy-client';
 import { generateCoverImage, slugify } from '@/lib/blog/cover-image';
 import { publishNextArticle, harvestKeywords } from '@/lib/seo/autopilot';
 import { wrapCron } from "@/lib/cron-run";
@@ -9,7 +10,8 @@ import { wrapCron } from "@/lib/cron-run";
 // evaluated at build time — doing so ran the handler during `next build`.
 export const dynamic = "force-dynamic";
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+// Lazy: constructing OpenAI without a key throws, which used to break `next build`.
+const openai = lazyClient(() => new OpenAI({ apiKey: process.env.OPENAI_API_KEY }));
 
 export const runtime = 'nodejs';
 export const maxDuration = 300; // article + FAQ expansion + cover image

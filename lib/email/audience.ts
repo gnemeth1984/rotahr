@@ -20,7 +20,7 @@ import { isUnroutableAddress } from "@/lib/email/send";
  * may only export request handlers — an extra export there fails the build.
  */
 function client(): Resend {
-  return new Resend(process.env.RESEND_API_KEY!);
+  return new Resend(process.env.RESEND_API_KEY);
 }
 
 export interface PurgeResult {

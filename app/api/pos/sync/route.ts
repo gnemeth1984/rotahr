@@ -7,6 +7,7 @@ import { fetchLightspeedDayData, refreshLightspeedToken } from "@/lib/pos/lights
 import { fetchSquareDayData, refreshSquareToken } from "@/lib/pos/square";
 import { demoDayData } from "@/lib/pos/demo";
 import { resolveVenueId } from "@/lib/venues/resolve";
+import { upsertPosSnapshot } from "@/lib/pos/snapshots";
 
 async function ensureFreshAccessToken(
   conn: {
@@ -76,26 +77,14 @@ export async function POST() {
     // Demo businesses run on a generated till feed — no tokens, no external call.
     if (conn.provider === "demo") {
       const snapshot = demoDayData(today, Number(conn.locationId) || 1);
-      await prisma.posSnapshot.upsert({
-        where: { businessId_date: { businessId, date: today } },
-        create: {
-          businessId, venueId, date: today, provider: "demo",
-          totalRevenue: snapshot.totalRevenue,
-          totalCovers: snapshot.totalCovers,
-          totalTransactions: snapshot.totalTransactions,
-          hourlyData: snapshot.hourlyData,
-          topItems: snapshot.topItems,
-          rawMeta: { syncedAt: new Date().toISOString(), provider: "demo", sample: true },
-        },
-        update: {
-          venueId,
-          totalRevenue: snapshot.totalRevenue,
-          totalCovers: snapshot.totalCovers,
-          totalTransactions: snapshot.totalTransactions,
-          hourlyData: snapshot.hourlyData,
-          topItems: snapshot.topItems,
-          rawMeta: { syncedAt: new Date().toISOString(), provider: "demo", sample: true },
-        },
+      await upsertPosSnapshot(businessId, venueId, today, {
+        provider: "demo",
+        totalRevenue: snapshot.totalRevenue,
+        totalCovers: snapshot.totalCovers,
+        totalTransactions: snapshot.totalTransactions,
+        hourlyData: snapshot.hourlyData,
+        topItems: snapshot.topItems,
+        rawMeta: { syncedAt: new Date().toISOString(), provider: "demo", sample: true },
       });
       await prisma.posConnection.update({
         where: { businessId },
@@ -119,29 +108,14 @@ export async function POST() {
       throw new Error("Unknown provider");
     }
 
-    await prisma.posSnapshot.upsert({
-      where: { businessId_date: { businessId, date: today } },
-      create: {
-        businessId,
-        venueId,
-        date: today,
-        provider: conn.provider,
-        totalRevenue: snapshot.totalRevenue,
-        totalCovers: snapshot.totalCovers,
-        totalTransactions: snapshot.totalTransactions,
-        hourlyData: snapshot.hourlyData,
-        topItems: snapshot.topItems,
-        rawMeta: { syncedAt: new Date().toISOString(), provider: conn.provider },
-      },
-      update: {
-        venueId,
-        totalRevenue: snapshot.totalRevenue,
-        totalCovers: snapshot.totalCovers,
-        totalTransactions: snapshot.totalTransactions,
-        hourlyData: snapshot.hourlyData,
-        topItems: snapshot.topItems,
-        rawMeta: { syncedAt: new Date().toISOString(), provider: conn.provider },
-      },
+    await upsertPosSnapshot(businessId, venueId, today, {
+      provider: conn.provider,
+      totalRevenue: snapshot.totalRevenue,
+      totalCovers: snapshot.totalCovers,
+      totalTransactions: snapshot.totalTransactions,
+      hourlyData: snapshot.hourlyData,
+      topItems: snapshot.topItems,
+      rawMeta: { syncedAt: new Date().toISOString(), provider: conn.provider },
     });
 
     await prisma.posConnection.update({

@@ -3,9 +3,10 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { isSuperAdminEmail } from "@/lib/auth/super-admins";
 import { Resend } from "resend";
+import { lazyResend } from "@/lib/email/resend-client";
 import { purgeUnroutableContacts } from "@/lib/email/audience";
 
-const resend = new Resend(process.env.RESEND_API_KEY!);
+const resend = lazyResend();
 
 // GET /api/admin/email/broadcasts/[id] — get single broadcast with stats
 export async function GET(

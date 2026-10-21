@@ -1290,14 +1290,15 @@ model PosSnapshot {
   topItems          Json? // [{ name: "Guinness", count: 45, revenue: 202.50 }, ...]
   rawMeta           Json? // minimal provenance metadata, no customer PII
   // Venue the takings belong to. Nullable: legacy rows and businesses with no
-  // venue mapping. Unique stays (businessId, date) while PosConnection is one
-  // per business; multi-location POS will need (businessId, venueId, date).
+  // venue mapping. The unique index is NULLS NOT DISTINCT (see migration
+  // 20261023090000), so there is still at most one unattributed row per day.
+  // Write through lib/pos/snapshots.ts — Prisma can't upsert on a null key part.
   venueId           String?
   venue             Venue?   @relation(fields: [venueId], references: [id], onDelete: SetNull)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
-  @@unique([businessId, date])
+  @@unique([businessId, venueId, date])
   @@index([businessId, date])
   @@index([venueId, date])
 }

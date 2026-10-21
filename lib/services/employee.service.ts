@@ -64,6 +64,41 @@ export function accountStatusOf(
   return user.password || user.lastLoginAt ? "active" : "invited";
 }
 
+/**
+ * The fields any member of the business may see about a colleague. Contact
+ * details, pay, permissions and login status are manager-only — except on the
+ * caller's own row.
+ */
+export function toDirectoryEntry<
+  T extends {
+    id: string;
+    firstName: string;
+    lastName: string;
+    role: string;
+    active: boolean;
+    userId: string | null;
+    departmentId: string | null;
+    venueId?: string | null;
+    department?: { id: string; name: string } | null;
+    email?: string;
+    phone?: string | null;
+  }
+>(e: T, viewerUserId: string) {
+  const self = !!e.userId && e.userId === viewerUserId;
+  return {
+    id: e.id,
+    firstName: e.firstName,
+    lastName: e.lastName,
+    role: e.role,
+    active: e.active,
+    departmentId: e.departmentId,
+    venueId: e.venueId ?? null,
+    department: e.department ?? null,
+    isSelf: self,
+    ...(self ? { email: e.email, phone: e.phone ?? null } : {}),
+  };
+}
+
 export const employeeService = {
   async add(data: z.infer<typeof addEmployeeSchema>) {
     const exists = await prisma.employee.findUnique({ where: { email: data.email } });

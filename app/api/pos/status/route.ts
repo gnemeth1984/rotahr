@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { resolveVenueId } from "@/lib/venues/resolve";
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -26,11 +27,18 @@ export async function GET() {
       locationId: true,
       accountId: true,
       tokenExpiry: true,
+      venueId: true,
     },
   });
 
+  const venues = await prisma.venue.findMany({
+    where: { businessId: session.user.businessId!, active: true },
+    select: { id: true, name: true, isDefault: true },
+    orderBy: [{ isDefault: "desc" }, { name: "asc" }],
+  });
+
   if (!conn) {
-    return NextResponse.json({ connected: false, available });
+    return NextResponse.json({ connected: false, available, venues });
   }
 
   return NextResponse.json({
@@ -42,5 +50,9 @@ export async function GET() {
     locationId: conn.locationId,
     accountId: conn.accountId,
     tokenExpiry: conn.tokenExpiry,
+    venueId: conn.venueId,
+    // where the next sync will attribute takings (picked venue, else automatic)
+    effectiveVenueId: conn.venueId ?? (await resolveVenueId(session.user.businessId!)),
+    venues,
   });
 }

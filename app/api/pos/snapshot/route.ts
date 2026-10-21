@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getDaySnapshot } from "@/lib/pos/snapshots";
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -12,6 +13,17 @@ export async function GET(req: NextRequest) {
   const businessId = session.user.businessId!;
   const { searchParams } = new URL(req.url);
   const dateParam = searchParams.get("date"); // optional YYYY-MM-DD
+  // optional: one venue's takings + labour. Omitted = whole business.
+  const venueParam = searchParams.get("venueId");
+  let venueId: string | undefined;
+  if (venueParam) {
+    const v = await prisma.venue.findFirst({
+      where: { id: venueParam, businessId },
+      select: { id: true },
+    });
+    if (!v) return NextResponse.json({ error: "Venue not found" }, { status: 404 });
+    venueId = v.id;
+  }
 
   let targetDate: Date;
   if (dateParam) {
@@ -21,9 +33,7 @@ export async function GET(req: NextRequest) {
     targetDate.setUTCHours(0, 0, 0, 0);
   }
 
-  const snapshot = await prisma.posSnapshot.findUnique({
-    where: { businessId_date: { businessId, date: targetDate } },
-  });
+  const snapshot = await getDaySnapshot(businessId, targetDate, venueId);
 
   if (!snapshot) {
     return NextResponse.json({ snapshot: null });
@@ -37,6 +47,7 @@ export async function GET(req: NextRequest) {
   const shifts = await prisma.shift.findMany({
     where: {
       employee: { businessId },
+      ...(venueId ? { venueId } : {}),
       startTime: { gte: shiftStart, lte: shiftEnd },
       published: true,
     },

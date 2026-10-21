@@ -3,12 +3,13 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Resend } from "resend";
+import { lazyResend } from "@/lib/email/resend-client";
 import { z } from "zod";
 import { sendViaGmail } from "@/lib/google/gmail";
 import { isDemoEmail, isDemoBusinessId } from "@/lib/demo/reset";
 import { isUnroutableAddress } from "@/lib/email/send";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = lazyResend();
 
 const emailSchema = z.object({
   subject: z.string().min(1),

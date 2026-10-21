@@ -7,6 +7,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,6 +35,7 @@ import {
   Clock,
   AlertCircle,
   ShieldCheck,
+  MapPin,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -37,7 +47,12 @@ interface PosStatus {
   lastSyncAt?: string;
   locationId?: string;
   accountId?: string;
+  venueId?: string | null;
+  effectiveVenueId?: string | null;
+  venues?: { id: string; name: string; isDefault: boolean }[];
 }
+
+const AUTO = "__auto__";
 
 // Square is the only till offered in the UI. The Lightspeed OAuth code stays in
 // lib/pos/lightspeed.ts and the connect/callback routes, but it is not listed
@@ -57,6 +72,9 @@ export default function PosSettingsPage() {
   const [status, setStatus] = useState<PosStatus | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [venueChoice, setVenueChoice] = useState<string>(AUTO);
+  const [moveHistory, setMoveHistory] = useState(false);
+  const [savingVenue, setSavingVenue] = useState(false);
 
   useEffect(() => {
     fetchStatus();
@@ -73,6 +91,7 @@ export default function PosSettingsPage() {
       const res = await fetch("/api/pos/status");
       const data = await res.json();
       setStatus(data);
+      setVenueChoice(data.venueId ?? AUTO);
     } catch {
       toast.error("Failed to fetch POS status");
     } finally {
@@ -105,7 +124,49 @@ export default function PosSettingsPage() {
     }
   }
 
-  const connectedProvider = PROVIDERS.find((p) => p.id === status?.provider);
+  async function handleSaveVenue() {
+    setSavingVenue(true);
+    try {
+      const res = await fetch("/api/pos/connection", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          venueId: venueChoice === AUTO ? null : venueChoice,
+          reassignHistory: moveHistory,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      toast.success(
+        data.movedSnapshots > 0
+          ? `Venue saved. ${data.movedSnapshots} day${data.movedSnapshots === 1 ? "" : "s"} of takings moved.`
+          : "Venue saved"
+      );
+      setMoveHistory(false);
+      fetchStatus();
+    } catch (err) {
+      toast.error(`Couldn't save venue: ${err instanceof Error ? err.message : err}`);
+    } finally {
+      setSavingVenue(false);
+    }
+  }
+
+  // Demo tills (sample businesses) aren't offered in the connect list, but a
+  // connected one still needs its card.
+  const connectedProvider =
+    PROVIDERS.find((p) => p.id === status?.provider) ??
+    (status?.connected && status.provider
+      ? {
+          id: status.provider,
+          name: status.provider === "demo" ? "Demo till (sample data)" : status.provider,
+          description: "",
+          logo: "🧾",
+        }
+      : undefined);
+  const venues = status?.venues ?? [];
+  const effectiveVenueName =
+    venues.find((v) => v.id === status?.effectiveVenueId)?.name ?? null;
+  const venueDirty = (status?.venueId ?? AUTO) !== venueChoice;
 
   return (
     <div className="max-w-3xl mx-auto py-8 px-4 space-y-8">
@@ -181,6 +242,57 @@ export default function PosSettingsPage() {
                 </div>
               )}
             </div>
+
+            {venues.length > 0 && (
+              <>
+                <Separator />
+                <div className="space-y-3" data-testid="pos-venue">
+                  <div>
+                    <p className="text-sm font-medium flex items-center gap-1.5">
+                      <MapPin className="h-4 w-4" /> Venue for these takings
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {effectiveVenueName
+                        ? <>Takings are currently counted under <strong>{effectiveVenueName}</strong>.</>
+                        : <>Takings aren&apos;t tied to a venue yet, so per-venue labour % can&apos;t use them.</>}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <Select value={venueChoice} onValueChange={setVenueChoice}>
+                      <SelectTrigger className="w-64 bg-white dark:bg-background" aria-label="POS venue">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={AUTO}>Automatic (only / default venue)</SelectItem>
+                        {venues.map((v) => (
+                          <SelectItem key={v.id} value={v.id}>
+                            {v.name}{v.isDefault ? " (default)" : ""}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={handleSaveVenue}
+                      disabled={savingVenue || (!venueDirty && !moveHistory)}
+                    >
+                      {savingVenue ? "Saving…" : "Save venue"}
+                    </Button>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="pos-move-history"
+                      checked={moveHistory}
+                      onCheckedChange={(v) => setMoveHistory(v === true)}
+                    />
+                    <Label htmlFor="pos-move-history" className="text-xs font-normal text-muted-foreground">
+                      Also move past takings to this venue (today&apos;s always moves)
+                    </Label>
+                  </div>
+                </div>
+              </>
+            )}
 
             <Separator />
 
