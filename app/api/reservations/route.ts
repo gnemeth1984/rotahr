@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth/options";
 import { prisma } from "@/lib/db";
 import { logActivity } from "@/lib/services/activity.service";
+import { resolveVenueId } from "@/lib/venues/resolve";
 
 export async function GET(req: NextRequest) {
   try {
@@ -64,7 +65,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { customerName, customerEmail, customerPhone, partySize, date, time, notes, marketingConsent, occasion, menuRequired, tableId } = body;
+    const { customerName, customerEmail, customerPhone, partySize, date, time, notes, marketingConsent, occasion, menuRequired, tableId, venueId: requestedVenueId } = body;
 
     if (!customerName || !partySize || !date || !time || !customerPhone) {
       return NextResponse.json({ error: "Missing required fields (name, phone, party size, date, time)" }, { status: 400 });
@@ -110,9 +111,12 @@ export async function POST(req: NextRequest) {
       // Non-fatal — reservation still saves
     }
 
+    const venueId = await resolveVenueId(businessId, requestedVenueId);
+
     const reservation = await prisma.reservation.create({
       data: {
         businessId,
+        venueId,
         customerName,
         customerEmail: customerEmail || null,
         customerPhone: customerPhone || null,

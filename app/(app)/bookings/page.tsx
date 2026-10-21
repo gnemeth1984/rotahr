@@ -54,9 +54,11 @@ import {
   List,
   LayoutGrid,
   Mail,
+  UserX,
 } from "lucide-react";
 import { UserRole as Role } from "@/types/roles";
 import { cn } from "@/lib/utils";
+import { NO_SHOW, normaliseReservationStatus } from "@/lib/reservations/status";
 
 interface Booking {
   id: string;
@@ -132,7 +134,16 @@ const STATUS_STYLES: Record<string, string> = {
   pending:   "bg-amber-100 text-amber-700 border-amber-200",
   cancelled: "bg-red-100 text-red-600 border-red-200",
   seated:    "bg-blue-100 text-blue-700 border-blue-200",
+  completed: "bg-slate-100 text-slate-600 border-slate-200",
+  no_show:   "bg-gray-200 text-gray-700 border-gray-300",
 };
+
+function statusLabel(status?: string | null) {
+  if (!status) return "";
+  const s = normaliseReservationStatus(status) ?? status;
+  if (s === NO_SHOW) return "No-show";
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
 
 function formatDate(dateStr: string) {
   const d = new Date(dateStr);
@@ -371,6 +382,18 @@ function BookingsInner() {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status: "cancelled" }),
+    });
+    fetchBookings();
+  }
+
+  // The guest never arrived. Recorded against their CRM profile as a no-show
+  // (and excluded from visit counts), which "Cancel" would not distinguish.
+  async function handleNoShow(id: string) {
+    setActionSheetOpen(false);
+    await fetch(`/api/reservations/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: NO_SHOW }),
     });
     fetchBookings();
   }
@@ -664,7 +687,7 @@ function BookingsInner() {
                       "text-xs font-medium px-2 py-0.5 rounded-full border",
                       STATUS_STYLES[b.status] ?? "bg-slate-100 text-slate-500"
                     )}>
-                      {b.status.charAt(0).toUpperCase() + b.status.slice(1)}
+                      {statusLabel(b.status)}
                     </span>
                   </div>
 
@@ -767,7 +790,7 @@ function BookingsInner() {
                 "text-xs font-medium px-2.5 py-1 rounded-full border",
                 STATUS_STYLES[activeBooking?.status ?? ""] ?? "bg-slate-100"
               )}>
-                {activeBooking?.status?.charAt(0).toUpperCase()}{activeBooking?.status?.slice(1)}
+                {statusLabel(activeBooking?.status)}
               </span>
             </div>
           </SheetHeader>
@@ -827,8 +850,20 @@ function BookingsInner() {
                 />
               )}
 
+              {/* No-show (manager) — only for a booking that was still expected */}
+              {isManager &&
+                ["confirmed", "seated", "pending"].includes(activeBooking?.status ?? "") && (
+                <ActionRow
+                  icon={<UserX className="h-4 w-4" />}
+                  label="Mark as No-show"
+                  color="text-gray-700"
+                  bg="bg-gray-100"
+                  onClick={() => activeBooking && handleNoShow(activeBooking.id)}
+                />
+              )}
+
               {/* Cancel */}
-              {activeBooking?.status !== "cancelled" && (
+              {activeBooking?.status !== "cancelled" && activeBooking?.status !== NO_SHOW && (
                 <ActionRow
                   icon={<X className="h-4 w-4" />}
                   label="Cancel Booking"

@@ -24,6 +24,7 @@ export async function requireRole(role: Role) {
   const user = await requireAuth();
   const roleHierarchy = {
     ["STAFF"]: 0,
+    [Role.EMPLOYEE]: 0,
     [Role.MANAGER]: 1,
     [Role.ADMIN]: 2,
   };

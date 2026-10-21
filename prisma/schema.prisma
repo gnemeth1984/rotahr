@@ -19,6 +19,10 @@ model Business {
   geoLng    Float? // premises longitude
   geoRadius Int    @default(200) // metres
 
+  // Inbound /api/webhooks auth: SHA-256 hex of the business's webhook secret.
+  // The plaintext is shown once when generated and never stored.
+  webhookSecretHash String? @unique
+
   // Labour cost / revenue target (used in rota live cost banner)
   weeklyRevenueTarget Float? // manager-set revenue target for current week
   venues              Venue[]
@@ -418,11 +422,15 @@ model Reservation {
   business         Business  @relation(fields: [businessId], references: [id])
   customerId       String?
   customer         Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  venueId          String?
+  venue            Venue?    @relation(fields: [venueId], references: [id], onDelete: SetNull)
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
   notifications BookingNotification[]
   flags         BookingFlag[]
+
+  @@index([venueId, date])
 }
 
 model BookingNotification {
@@ -472,6 +480,9 @@ model ClockEvent {
   shiftId    String?
   latitude   Float? // where employee clocked in/out
   longitude  Float?
+  // Server-side geofence result: inside | outside | no_location | not_configured
+  geoStatus    String?
+  geoDistanceM Int? // metres from the premises pin, when both points are known
 
   employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 }
@@ -798,6 +809,9 @@ model Venue {
   shifts         Shift[]
   shiftTemplates ShiftTemplate[]
   checklists     VenueChecklist[]
+  reservations   Reservation[]
+  posSnapshots   PosSnapshot[]
+  posConnections PosConnection[]
   logEntries     LogEntry[]
   opsTasks       OpsTask[]
 
@@ -1255,6 +1269,8 @@ model PosConnection {
   tokenExpiry  DateTime?
   locationId   String? // Square location ID or Lightspeed businessId
   accountId    String? // Lightspeed account ID
+  venueId      String? // which Venue this POS location's takings belong to
+  venue        Venue?    @relation(fields: [venueId], references: [id], onDelete: SetNull)
   connectedAt  DateTime  @default(now())
   lastSyncAt   DateTime?
   createdAt    DateTime  @default(now())
@@ -1273,11 +1289,17 @@ model PosSnapshot {
   hourlyData        Json? // [{ hour: 9, revenue: 450.00, transactions: 12 }, ...]
   topItems          Json? // [{ name: "Guinness", count: 45, revenue: 202.50 }, ...]
   rawMeta           Json? // minimal provenance metadata, no customer PII
+  // Venue the takings belong to. Nullable: legacy rows and businesses with no
+  // venue mapping. Unique stays (businessId, date) while PosConnection is one
+  // per business; multi-location POS will need (businessId, venueId, date).
+  venueId           String?
+  venue             Venue?   @relation(fields: [venueId], references: [id], onDelete: SetNull)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
   @@unique([businessId, date])
   @@index([businessId, date])
+  @@index([venueId, date])
 }
 
 // ─── CRM ─────────────────────────────────────────────────────────────────────
@@ -3238,10 +3260,10 @@ model CampaignSend {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@unique([campaignId, dedupeKey])
   @@index([campaignId, status])
   @@index([businessId, status])
   @@index([customerId])
-  @@unique([campaignId, dedupeKey])
 }
 
 // ---------------------------------------------------------------------------

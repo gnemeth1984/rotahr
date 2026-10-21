@@ -50,6 +50,20 @@ export const updateEmployeeSchema = z.object({
   emergencyRel: z.string().nullable().optional(),
 });
 
+/**
+ * "none"    – no login (never invited)
+ * "invited" – User exists but has never set a password or signed in
+ * "active"  – has a password or has signed in (e.g. via Google)
+ */
+export type AccountStatus = "none" | "invited" | "active";
+export function accountStatusOf(
+  userId: string | null,
+  user: { password: string | null; lastLoginAt: Date | null } | null
+): AccountStatus {
+  if (!userId || !user) return "none";
+  return user.password || user.lastLoginAt ? "active" : "invited";
+}
+
 export const employeeService = {
   async add(data: z.infer<typeof addEmployeeSchema>) {
     const exists = await prisma.employee.findUnique({ where: { email: data.email } });
@@ -75,7 +89,7 @@ export const employeeService = {
   async list(businessId: string, departmentId?: string) {
     // NOTE: Never include ppsn, bankIban, bankBic, address, emergencyName/Phone/Rel
     // in list results — these are only returned by getById (manager/admin only route).
-    return prisma.employee.findMany({
+    const rows = await prisma.employee.findMany({
       where: {
         businessId,
         ...(departmentId ? { departmentId } : {}),
@@ -99,21 +113,28 @@ export const employeeService = {
         updatedAt: true,
         department: { select: { id: true, name: true } },
         _count: { select: { shifts: true } },
+        // Only used to derive accountStatus below; stripped before returning.
+        user: { select: { password: true, lastLoginAt: true } },
       },
       orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
     });
+    return rows.map(({ user, ...e }) => ({ ...e, accountStatus: accountStatusOf(e.userId, user) }));
   },
 
   async getById(id: string, businessId: string) {
     // Full record — only called by manager/admin routes
-    return prisma.employee.findFirst({
+    const row = await prisma.employee.findFirst({
       where: { id, businessId },
       include: {
         department: true,
         shifts: { orderBy: { date: "asc" }, take: 20 },
         timeOffRequests: { orderBy: { createdAt: "desc" }, take: 10 },
+        user: { select: { password: true, lastLoginAt: true } },
       },
     });
+    if (!row) return row;
+    const { user, ...e } = row;
+    return { ...e, accountStatus: accountStatusOf(e.userId, user) };
   },
 
   async update(id: string, businessId: string, data: z.infer<typeof updateEmployeeSchema>) {

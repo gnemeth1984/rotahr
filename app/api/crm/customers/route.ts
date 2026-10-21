@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import { isNonAttending, normaliseReservationStatus, NO_SHOW } from "@/lib/reservations/status";
 
 const createSchema = z.object({
   name: z.string().min(1),
@@ -65,10 +66,9 @@ export async function GET(req: NextRequest) {
   const now = Date.now();
   const THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000;
 
-  // Both spellings exist in the wild: the CRM writes "no-show", the older
-  // booking flow and the demo seed write "no_show".
-  const NON_VISIT = new Set(["cancelled", "no-show", "no_show", "noshow"]);
-  const isNoShow = (status: string) => status === "no-show" || status === "no_show" || status === "noshow";
+  // Canonical value is "no_show" (lib/reservations/status.ts); the helpers
+  // still accept legacy spellings in case any slipped past the migration.
+  const isNoShow = (status: string) => normaliseReservationStatus(status) === NO_SHOW;
 
   // Enrich with stats. visitCount / lastVisitAt / totalSpend are maintained by
   // lib/crm/stats.ts (bills + attended past bookings) and are the source of
@@ -77,7 +77,7 @@ export async function GET(req: NextRequest) {
   // yet, never shows a lower count than their booking history.
   const enriched = customers.map((c) => {
     const attended = c.reservations.filter(
-      (r) => !NON_VISIT.has(r.status) && new Date(r.date).getTime() <= now
+      (r) => !isNonAttending(r.status) && new Date(r.date).getTime() <= now
     );
     const noShows = c.reservations.filter((r) => isNoShow(r.status));
 

@@ -8,6 +8,7 @@ import {
   User, Mail, Lock, Bell, ShieldAlert, Loader2, Check, Eye, EyeOff, Globe,
 } from "lucide-react";
 import PushSubscribeButton from "@/components/PushSubscribeButton";
+import WebhookSecretCard from "@/components/settings/WebhookSecretCard";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -376,6 +377,8 @@ export default function GeneralSettingsPage() {
           </CardContent>
         </Card>
       )}
+
+      {isAdmin && <WebhookSecretCard />}
 
       {/* Danger zone */}
       <Card className="border-red-200">

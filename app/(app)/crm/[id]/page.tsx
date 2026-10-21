@@ -49,6 +49,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { OFFER_PRESETS } from "@/lib/crm/offer-presets";
+import { isNonAttending, normaliseReservationStatus, NO_SHOW } from "@/lib/reservations/status";
 
 const TAG_PRESETS = ["VIP", "Regular", "No-show Risk", "Allergy", "Corporate", "Birthday"];
 const TAG_COLORS: Record<string, string> = {
@@ -64,6 +65,7 @@ const STATUS_STYLES: Record<string, string> = {
   confirmed: "bg-green-100 text-green-700",
   pending: "bg-yellow-100 text-yellow-700",
   cancelled: "bg-red-100 text-red-700",
+  no_show: "bg-gray-200 text-gray-600",
   "no-show": "bg-gray-200 text-gray-600",
   completed: "bg-blue-100 text-blue-700",
 };
@@ -631,13 +633,12 @@ export default function CustomerProfilePage() {
   // Bookings still drive the reservation history list below, but the headline
   // counters come from the loyalty rollups (bills + attended past bookings) so
   // they agree with the Spend history card instead of contradicting it.
-  const NON_VISIT = ["cancelled", "no-show", "no_show", "noshow"];
   const nowMs = Date.now();
   const visits = customer.reservations.filter(
-    (r) => !NON_VISIT.includes(r.status) && new Date(r.date).getTime() <= nowMs
+    (r) => !isNonAttending(r.status) && new Date(r.date).getTime() <= nowMs
   );
   const noShows = customer.reservations.filter(
-    (r) => r.status === "no-show" || r.status === "no_show" || r.status === "noshow"
+    (r) => normaliseReservationStatus(r.status) === NO_SHOW
   );
   const totalVisits = Math.max(customer.visitCount ?? 0, visits.length);
   const cachedLastMs = customer.lastVisitAt ? new Date(customer.lastVisitAt).getTime() : 0;

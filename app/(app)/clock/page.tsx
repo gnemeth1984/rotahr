@@ -47,8 +47,8 @@ type GeoSettings = {
 type GeoState =
   | { status: "idle" }
   | { status: "checking" }
-  | { status: "ok"; lat: number; lng: number; distance: number }
-  | { status: "outside"; lat: number; lng: number; distance: number }
+  | { status: "ok"; lat: number; lng: number; distance: number; accuracy?: number }
+  | { status: "outside"; lat: number; lng: number; distance: number; accuracy?: number }
   | { status: "no-premises" }   // manager hasn't set location yet
   | { status: "denied" }        // user blocked location
   | { status: "unavailable" };  // browser doesn't support
@@ -74,6 +74,7 @@ export default function ClockPage() {
   const [events, setEvents] = useState<ClockEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [clocking, setClocking] = useState(false);
+  const [clockError, setClockError] = useState<string | null>(null);
   const [staffStatuses, setStaffStatuses] = useState<StaffStatus[]>([]);
   const [now, setNow] = useState(new Date());
   const [breakActionLoading, setBreakActionLoading] = useState(false);
@@ -116,7 +117,8 @@ export default function ClockPage() {
     if (res.ok) {
       const d = await res.json();
       const g = d.geo as GeoSettings;
-      setGeoSettings(g);
+      // Check against the fence the server enforces (venue pin, else business pin).
+      setGeoSettings((d.effective as GeoSettings) ?? g);
       setGeoForm({
         lat: g.geoLat?.toString() ?? "",
         lng: g.geoLng?.toString() ?? "",
@@ -150,14 +152,14 @@ export default function ClockPage() {
 
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        const { latitude, longitude } = pos.coords;
+        const { latitude, longitude, accuracy } = pos.coords;
         const dist = Math.round(
           haversine(latitude, longitude, geoSettings.geoLat!, geoSettings.geoLng!)
         );
         if (dist <= geoSettings.geoRadius) {
-          setGeoState({ status: "ok", lat: latitude, lng: longitude, distance: dist });
+          setGeoState({ status: "ok", lat: latitude, lng: longitude, distance: dist, accuracy });
         } else {
-          setGeoState({ status: "outside", lat: latitude, lng: longitude, distance: dist });
+          setGeoState({ status: "outside", lat: latitude, lng: longitude, distance: dist, accuracy });
         }
       },
       (err) => {
@@ -199,31 +201,41 @@ export default function ClockPage() {
   const hoursWorked = Math.floor(totalMinutes / 60);
   const minsWorked = Math.floor(totalMinutes % 60);
 
-  // Can clock in/out?
+  const hasOpenShift = isClockedIn || isOnBreak;
+
+  // Can clock in/out? Clocking IN needs to be on premises (the server enforces
+  // this too). Clocking OUT always works — the server records where it happened.
   const canClock =
+    hasOpenShift ||
     geoState.status === "ok" ||
     geoState.status === "no-premises"; // if no premises set, allow (manager hasn't configured yet)
 
   // ── Clock in/out ───────────────────────────────────────────────────────────
 
-  const hasOpenShift = isClockedIn || isOnBreak;
-
   async function clockInOut() {
     if (!canClock) return;
     setClocking(true);
+    setClockError(null);
 
-    const lat = geoState.status === "ok" ? geoState.lat : undefined;
-    const lng = geoState.status === "ok" ? geoState.lng : undefined;
+    const hasFix = geoState.status === "ok" || geoState.status === "outside";
+    const lat = hasFix ? geoState.lat : undefined;
+    const lng = hasFix ? geoState.lng : undefined;
+    const accuracy = hasFix ? geoState.accuracy : undefined;
 
-    await fetch("/api/clock", {
+    const res = await fetch("/api/clock", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         type: hasOpenShift ? "out" : "in",
         latitude: lat,
         longitude: lng,
+        accuracy,
       }),
     });
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}));
+      setClockError(d.error || d.message || "Couldn't record that — please try again.");
+    }
     notifiedLevelRef.current = "none";
     await fetchEvents();
     if (isManager) await fetchStaff();
@@ -414,12 +426,18 @@ export default function ClockPage() {
         </button>
       </div>
 
+      {clockError && (
+        <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700">
+          {clockError}
+        </div>
+      )}
+
       {/* Outside zone warning */}
       {geoState.status === "outside" && (
         <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-4 text-sm text-red-700">
           <p className="font-semibold mb-0.5">You are not on the premises</p>
           <p className="text-red-500">
-            You need to be within {geoSettings?.geoRadius}m of {geoSettings?.geoLat?.toFixed(4)}, {geoSettings?.geoLng?.toFixed(4)} to clock in or out.
+            You need to be within {geoSettings?.geoRadius}m of {geoSettings?.geoLat?.toFixed(4)}, {geoSettings?.geoLng?.toFixed(4)} to clock in.
             Move closer and tap the refresh button above.
           </p>
         </div>
@@ -508,9 +526,9 @@ export default function ClockPage() {
 
         <p className="text-sm text-slate-500">
           {!canClock && geoState.status === "outside"
-            ? "Move to premises to clock in/out"
+            ? "Move to premises to clock in"
             : !canClock && geoState.status === "denied"
-            ? "Allow location access to clock in/out"
+            ? "Allow location access to clock in"
             : !canClock && geoState.status === "checking"
             ? "Checking your location…"
             : isOnBreak

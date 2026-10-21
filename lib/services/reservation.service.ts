@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { prisma } from "@/lib/db";
 import { z } from "zod";
+import { resolveVenueId } from "@/lib/venues/resolve";
 
 export const createReservationSchema = z.object({
   customerName: z.string().min(1).max(100),
@@ -13,6 +14,7 @@ export const createReservationSchema = z.object({
   dietary: z.string().max(500).optional(),
   occasion: z.string().max(100).optional(),
   tableId: z.string().optional(),
+  venueId: z.string().optional(),
   kitchenNotes: z.string().optional(),
   upsellNotes: z.string().optional(),
   aiWarnings: z.string().optional(),
@@ -29,9 +31,11 @@ export const reservationService = {
     businessId: string,
     createdById?: string
   ) {
+    const venueId = await resolveVenueId(businessId, data.venueId);
     return prisma.reservation.create({
       data: {
         businessId,
+        venueId,
         createdById: createdById ?? null,
         customerName: data.customerName,
         customerPhone: data.customerPhone,

@@ -29,9 +29,10 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Too many login attempts. Please try again later.");
         }
 
-        const user = await prisma.user.findUnique({
-          where: { email: credentials.email },
-        });
+        // Invited staff accounts are stored lower-case; older accounts may not be.
+        const user =
+          (await prisma.user.findUnique({ where: { email: credentials.email } })) ??
+          (await prisma.user.findUnique({ where: { email: credentials.email.trim().toLowerCase() } }));
         if (!user?.password) return null;
         const valid = await bcrypt.compare(credentials.password, user.password);
         if (!valid) return null;
@@ -77,9 +78,13 @@ export const authOptions: NextAuthOptions = {
           select: { role: true, id: true, businessId: true },
         });
         if (dbUser) {
+          // "STAFF" is the legacy column default; the app (sidebar, invites)
+          // uses EMPLOYEE for non-managers, so normalise it here.
           token.role = isSuperAdmin
             ? UserRole.ADMIN
-            : (dbUser.role ?? UserRole.MANAGER);
+            : dbUser.role === UserRole.STAFF
+              ? UserRole.EMPLOYEE
+              : (dbUser.role ?? UserRole.MANAGER);
           token.id = dbUser.id;
           token.businessId = dbUser.businessId ?? null;
 

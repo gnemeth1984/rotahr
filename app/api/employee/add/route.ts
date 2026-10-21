@@ -4,6 +4,7 @@ import { requireRole, isResponse } from "@/lib/auth/middleware";
 import { employeeService, addEmployeeSchema } from "@/lib/services/employee.service";
 import { prisma } from "@/lib/db";
 import { computeAccess, ROTA_STAFF_CAP } from "@/lib/billing/access";
+import { inviteEmployee } from "@/lib/services/invite.service";
 
 export async function POST(req: NextRequest) {
   const session = await requireRole("ADMIN", "MANAGER");
@@ -58,7 +59,20 @@ export async function POST(req: NextRequest) {
 
   try {
     const employee = await employeeService.add(parsed.data);
-    return NextResponse.json({ employee }, { status: 201 });
+
+    // Optional: send the login invite straight away. A failed email never
+    // fails the add — the manager can resend from the employee page.
+    let invite = null;
+    if (body?.sendInvite === true) {
+      const r = await inviteEmployee({
+        employeeId: employee.id,
+        businessId: session.user.businessId,
+        invitedBy: { id: session.user.id, name: session.user.name, email: session.user.email },
+      });
+      invite = r.ok ? { ok: true, status: r.status } : { ok: false, error: r.error };
+    }
+
+    return NextResponse.json({ employee, invite }, { status: 201 });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 400 });
   }

@@ -12,6 +12,7 @@ function ResetForm() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const token = searchParams.get("token") ?? "";
+  const isInvite = searchParams.get("invite") === "1";
 
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -59,11 +60,14 @@ function ResetForm() {
       <div className="flex items-center justify-center w-12 h-12 bg-green-600/20 rounded-full mx-auto">
         <CheckCircle className="h-6 w-6 text-green-400" />
       </div>
-      <p className="text-white font-medium">Password updated!</p>
+      <p className="text-white font-medium">{isInvite ? "You're all set!" : "Password updated!"}</p>
       <p className="text-slate-400 text-sm">Redirecting you to sign in…</p>
     </div>
   ) : (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {isInvite && (
+        <p className="text-slate-300 text-sm text-center">Choose a password to finish setting up your Rotahr account.</p>
+      )}
       {error && (
         <p className="text-red-400 text-sm text-center bg-red-900/20 p-3 rounded-lg">{error}</p>
       )}
@@ -98,7 +102,7 @@ function ResetForm() {
       </div>
       <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 gap-2" disabled={loading}>
         {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lock className="h-4 w-4" />}
-        Set new password
+        {isInvite ? "Create my account" : "Set new password"}
       </Button>
     </form>
   );

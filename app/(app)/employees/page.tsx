@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { getInitials } from "@/lib/utils";
-import { Users, Search, Pencil, Plus, Loader2, Phone, ShieldCheck, Info } from "lucide-react";
+import { Users, Search, Pencil, Plus, Loader2, Phone, ShieldCheck, Info, Send } from "lucide-react";
 import { UserRole as Role } from "@/types/roles";
 
 const GRANTABLE_PERMISSIONS = [
@@ -51,6 +51,7 @@ interface Employee {
   permissions: string[];
   department?: { id: string; name: string } | null;
   _count?: { shifts: number };
+  accountStatus?: "none" | "invited" | "active";
 }
 
 interface Department {
@@ -81,6 +82,10 @@ export default function EmployeesPage() {
   const [addForm, setAddForm] = useState(EMPTY_FORM);
   const [addError, setAddError] = useState("");
   const [addSaving, setAddSaving] = useState(false);
+  const [sendInvite, setSendInvite] = useState(true);
+
+  const [invitingId, setInvitingId] = useState<string | null>(null);
+  const [inviteMsg, setInviteMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   const [editEmployee, setEditEmployee] = useState<Employee | null>(null);
   const [editForm, setEditForm] = useState(EMPTY_FORM);
@@ -131,15 +136,47 @@ export default function EmployeesPage() {
           hourlyRate: addForm.hourlyRate ? parseFloat(addForm.hourlyRate) : undefined,
           contractType: addForm.contractType || undefined,
           startDate: addForm.startDate || undefined,
+          sendInvite,
         }),
       });
       const data = await res.json();
-      if (!res.ok) { setAddError(data.error ?? "Failed to add employee"); return; }
+      if (!res.ok) { setAddError(data.message ?? data.error ?? "Failed to add employee"); return; }
+      if (data.invite) {
+        setInviteMsg(
+          data.invite.ok
+            ? { ok: true, text: `Invite sent to ${addForm.email}.` }
+            : { ok: false, text: `Employee added, but the invite failed: ${data.invite.error}` }
+        );
+      }
       setAddOpen(false);
       setAddForm(EMPTY_FORM);
       fetchAll();
     } finally {
       setAddSaving(false);
+    }
+  };
+
+  // ── Invite ───────────────────────────────────────────────────────────────
+
+  const handleInvite = async (emp: Employee) => {
+    setInvitingId(emp.id);
+    setInviteMsg(null);
+    try {
+      const res = await fetch(`/api/employee/${emp.id}/invite`, { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setInviteMsg({ ok: false, text: data.error ?? "Failed to send invite" });
+      } else {
+        setInviteMsg({
+          ok: true,
+          text: data.status === "linked"
+            ? `${emp.firstName} already has a login — linked to their account.`
+            : `Invite sent to ${data.email ?? emp.email}.`,
+        });
+        fetchAll();
+      }
+    } finally {
+      setInvitingId(null);
     }
   };
 
@@ -324,6 +361,12 @@ export default function EmployeesPage() {
         )}
       </div>
 
+      {inviteMsg && (
+        <p className={`text-sm rounded-md px-3 py-2 ${inviteMsg.ok ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"}`}>
+          {inviteMsg.text}
+        </p>
+      )}
+
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
         <Input placeholder="Search by name or email…" className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
@@ -365,6 +408,12 @@ export default function EmployeesPage() {
                       </Link>
                       <Badge variant={roleColor(emp.role)} className="capitalize text-xs">{emp.role}</Badge>
                       {!emp.active && <Badge variant="destructive" className="text-xs">Inactive</Badge>}
+                      {isManager && emp.accountStatus === "invited" && (
+                        <Badge variant="outline" className="text-xs text-amber-700 border-amber-300">Invite pending</Badge>
+                      )}
+                      {isManager && emp.accountStatus === "none" && (
+                        <Badge variant="outline" className="text-xs text-slate-500">No login</Badge>
+                      )}
                     </div>
                     <p className="text-sm text-slate-500 mt-0.5">{emp.email}</p>
                     <div className="flex items-center gap-3 mt-0.5 flex-wrap">
@@ -388,6 +437,18 @@ export default function EmployeesPage() {
                     <p className="text-xs text-slate-400 hidden sm:block flex-shrink-0">
                       {emp._count.shifts} shift{emp._count.shifts !== 1 ? "s" : ""}
                     </p>
+                  )}
+                  {isManager && emp.active && emp.accountStatus && emp.accountStatus !== "active" && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 gap-1.5 flex-shrink-0"
+                      disabled={invitingId === emp.id}
+                      onClick={() => handleInvite(emp)}
+                    >
+                      {invitingId === emp.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+                      <span className="hidden sm:inline">{emp.accountStatus === "invited" ? "Resend" : "Invite"}</span>
+                    </Button>
                   )}
                   {isManager && (
                     <Button size="icon" variant="ghost" className="h-8 w-8 flex-shrink-0" onClick={() => openEdit(emp)}>
@@ -419,6 +480,20 @@ export default function EmployeesPage() {
                 <a href="/privacy" target="_blank" rel="noopener noreferrer" className="underline hover:text-blue-900">Privacy Policy</a> for full details.
               </p>
             </div>
+
+            <label className="flex items-start gap-2 cursor-pointer">
+              <Checkbox
+                checked={sendInvite}
+                onCheckedChange={(c: boolean | "indeterminate") => setSendInvite(c === true)}
+                className="mt-0.5"
+              />
+              <span className="text-sm text-slate-700">
+                Send invite email
+                <span className="block text-xs text-slate-500">
+                  They get a link to set a password and use the staff app (shifts, clock in, swaps, time off). Expires in 7 days.
+                </span>
+              </span>
+            </label>
 
             {addError && <p className="text-sm text-red-500">{addError}</p>}
             <DialogFooter>

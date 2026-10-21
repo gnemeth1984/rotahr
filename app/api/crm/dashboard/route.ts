@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { readLoyaltyConfig, tierName } from "@/lib/crm/loyalty";
 import { birthdayWithinDays } from "@/lib/crm/segments";
+import { NON_ATTENDING_STATUSES } from "@/lib/reservations/status";
 
 /**
  * Unified CRM dashboard numbers.
@@ -105,7 +106,7 @@ export async function GET() {
       take: 500,
     }),
     prisma.reservation.count({
-      where: { businessId, date: { gte: now }, status: { notIn: ["cancelled", "no-show"] } },
+      where: { businessId, date: { gte: now }, status: { notIn: [...NON_ATTENDING_STATUSES] } },
     }),
     prisma.guestTransaction.findMany({
       where: { businessId },

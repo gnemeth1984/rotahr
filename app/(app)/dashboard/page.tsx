@@ -22,6 +22,7 @@ import { UserRole as Role } from "@/types/roles";
 import { cn } from "@/lib/utils";
 import NationalDaysWidget from "@/app/components/NationalDaysWidget";
 import PosRevenueWidget from "@/app/components/PosRevenueWidget";
+import { CLOSED_STATUSES, normaliseReservationStatus } from "@/lib/reservations/status";
 
 interface DashboardData {
   todayReservations: number;
@@ -143,7 +144,7 @@ export default function DashboardPage() {
 
         const upcoming = reservations
           .filter((r: any) =>
-            r.status !== "CANCELLED" && r.status !== "NO_SHOW" && r.status !== "COMPLETED"
+            !CLOSED_STATUSES.includes(normaliseReservationStatus(r.status) as any)
           )
           .slice(0, 6)
           .map((r: any) => ({

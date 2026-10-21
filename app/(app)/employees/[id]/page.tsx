@@ -11,7 +11,7 @@ import {
   Loader2, ChevronRight, CheckCircle2, XCircle, Building2,
   FileText, Upload, Trash2, Plus, CheckSquare, Square, ExternalLink,
   FolderOpen, ClipboardList, Edit2, Save, X, MapPin, Globe,
-  CreditCard, ShieldAlert, Contact, GraduationCap, Printer,
+  CreditCard, ShieldAlert, Contact, GraduationCap, Printer, Send,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -32,6 +32,7 @@ import { UserRole as Role } from "@/types/roles";
 
 interface EmployeeProfile {
   id: string;
+  accountStatus?: "none" | "invited" | "active";
   firstName: string;
   lastName: string;
   email: string;
@@ -178,6 +179,29 @@ export default function EmployeeProfilePage() {
   const isManager = session?.user?.role === Role.MANAGER || session?.user?.role === Role.ADMIN;
 
   const [employee, setEmployee] = useState<EmployeeProfile | null>(null);
+  const [inviting, setInviting] = useState(false);
+  const [inviteMsg, setInviteMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const sendInvite = async () => {
+    if (!employee) return;
+    setInviting(true);
+    setInviteMsg(null);
+    try {
+      const res = await fetch(`/api/employee/${employee.id}/invite`, { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setInviteMsg({ ok: false, text: data.error ?? "Failed to send invite" });
+        return;
+      }
+      setInviteMsg({
+        ok: true,
+        text: data.status === "linked" ? "Linked to their existing login." : `Invite sent to ${data.email ?? employee.email}.`,
+      });
+      setEmployee({ ...employee, accountStatus: data.status === "linked" ? "active" : "invited" });
+    } finally {
+      setInviting(false);
+    }
+  };
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [timeoff, setTimeoff] = useState<TimeOff[]>([]);
   const [certs, setCerts] = useState<Cert[]>([]);
@@ -514,7 +538,25 @@ export default function EmployeeProfilePage() {
                   {employee.active ? "Active" : "Inactive"}
                 </Badge>
                 <Badge variant="outline" className="capitalize">{employee.role}</Badge>
+                {employee.accountStatus === "active" && (
+                  <Badge variant="outline" className="text-xs text-green-700 border-green-300">Has login</Badge>
+                )}
+                {employee.accountStatus === "invited" && (
+                  <Badge variant="outline" className="text-xs text-amber-700 border-amber-300">Invite pending</Badge>
+                )}
+                {employee.accountStatus === "none" && (
+                  <Badge variant="outline" className="text-xs text-slate-500">No login</Badge>
+                )}
+                {employee.active && employee.accountStatus && employee.accountStatus !== "active" && (
+                  <Button size="sm" variant="outline" className="h-7 gap-1.5" onClick={sendInvite} disabled={inviting}>
+                    {inviting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+                    {employee.accountStatus === "invited" ? "Resend invite" : "Invite to Rotahr"}
+                  </Button>
+                )}
               </div>
+              {inviteMsg && (
+                <p className={`text-xs mt-1.5 ${inviteMsg.ok ? "text-green-600" : "text-red-500"}`}>{inviteMsg.text}</p>
+              )}
               <div className="flex flex-wrap gap-x-5 gap-y-1 mt-2">
                 <span className="flex items-center gap-1.5 text-sm text-slate-500">
                   <Mail className="h-3.5 w-3.5" /> {employee.email}

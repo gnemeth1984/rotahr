@@ -55,7 +55,8 @@ export type ActivityAction =
   | "crm_email_sent"
   // admin
   | "settings_changed"
-  | "employee_added";
+  | "employee_added"
+  | "staff_invited";
 
 export async function logActivity({
   businessId,

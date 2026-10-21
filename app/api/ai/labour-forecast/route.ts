@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth/options";
 import { prisma } from "@/lib/prisma";
+import { NON_ATTENDING_STATUSES } from "@/lib/reservations/status";
 
 // Service periods (hours)
 const LUNCH = { start: 11, end: 16 };
@@ -62,7 +63,7 @@ export async function GET(req: NextRequest) {
     where: {
       businessId: user.businessId,
       date: { gte: weekStart, lte: weekEnd },
-      status: { notIn: ["cancelled", "no_show"] },
+      status: { notIn: [...NON_ATTENDING_STATUSES] },
     },
     select: { date: true, partySize: true, time: true },
   });

@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { readLoyaltyConfig, qualifyingTier, type LoyaltyConfig } from "@/lib/crm/loyalty";
+import { isNonAttending } from "@/lib/reservations/status";
 
 /**
  * Guest rollups.
@@ -19,8 +20,6 @@ import { readLoyaltyConfig, qualifyingTier, type LoyaltyConfig } from "@/lib/crm
  * spend by visits that have no bill attached would understate every guest
  * whose earlier bookings predate the transactions feature.
  */
-
-const NON_VISIT_STATUSES = new Set(["cancelled", "no-show", "no_show", "noshow"]);
 
 function dayKey(d: Date): string {
   return `${d.getUTCFullYear()}-${d.getUTCMonth() + 1}-${d.getUTCDate()}`;
@@ -86,7 +85,7 @@ export async function recomputeGuestStats(
     if (!lastVisit || t.date > lastVisit) lastVisit = t.date;
   }
   for (const r of reservations) {
-    if (NON_VISIT_STATUSES.has((r.status || "").toLowerCase())) continue;
+    if (isNonAttending(r.status)) continue;
     // A booking in the future is not a visit yet.
     if (r.date.getTime() > Date.now()) continue;
     visitDays.add(dayKey(r.date));

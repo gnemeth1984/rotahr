@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { notifyUsers } from "@/lib/services/appNotification.service";
 import { sendEmailQuiet } from "@/lib/email/send";
+import { resolveVenueId } from "@/lib/venues/resolve";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -229,9 +230,13 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // The public page is per-business, so attribute to the only/default venue.
+  const venueId = await resolveVenueId(business.id);
+
   const reservation = await prisma.reservation.create({
     data: {
       businessId: business.id,
+      venueId,
       customerName: name,
       customerPhone: phone,
       customerEmail: email || null,

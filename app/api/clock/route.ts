@@ -7,6 +7,7 @@ import { prisma } from "@/lib/db";
 import { computeShiftState, getBreakEntitlement } from "@/lib/services/clock.service";
 import { logActivity } from "@/lib/services/activity.service";
 import { computeAccess, readOnlyPayload } from "@/lib/billing/access";
+import { evaluateGeofence, resolveGeofence } from "@/lib/geo/geofence";
 
 // GET — current clock status + today's events
 export async function GET(req: NextRequest) {
@@ -19,7 +20,7 @@ export async function GET(req: NextRequest) {
   const employeeId = searchParams.get("employeeId");
   const allStaff = searchParams.get("allStaff") === "true";
 
-  const me = await prisma.employee.findFirst({ where: { userId: session.user.id } });
+  const me = await prisma.employee.findFirst({ where: { userId: session.user.id, businessId } });
   const role = session.user.role;
 
   // Manager: all staff status view
@@ -90,7 +91,7 @@ export async function POST(req: NextRequest) {
 
   const businessId = session.user.businessId;
   if (!businessId) return NextResponse.json({ error: "No business associated" }, { status: 400 });
-  const { type, note, latitude, longitude } = await req.json();
+  const { type, note, latitude, longitude, accuracy } = await req.json();
 
   if (!["in", "out", "break_start", "break_end"].includes(type)) {
     return NextResponse.json({ error: "type must be 'in', 'out', 'break_start' or 'break_end'" }, { status: 400 });
@@ -120,8 +121,36 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const me = await prisma.employee.findFirst({ where: { userId: session.user.id } });
+  const me = await prisma.employee.findFirst({
+    where: { userId: session.user.id, businessId },
+    select: { id: true, venueId: true },
+  });
   if (!me) return NextResponse.json({ error: "Employee not found" }, { status: 404 });
+
+  // Server-side geofence. The browser check on the clock page is advisory only —
+  // anyone can POST here directly — so the decision has to be made again here.
+  //
+  // Clock IN is blocked when the premises pin is set and the device is not
+  // within the radius (or sends no location). Clock OUT and breaks are never
+  // blocked — an open timesheet someone cannot close is a payroll problem —
+  // but every event records where it happened so a manager can review it.
+  const fence = await resolveGeofence(businessId, me.venueId);
+  const geo = evaluateGeofence(fence, latitude, longitude, accuracy);
+  if (type === "in" && fence && geo.status !== "inside") {
+    return NextResponse.json(
+      {
+        error:
+          geo.status === "no_location"
+            ? "Location is required to clock in here. Allow location access and try again."
+            : `You are ${geo.distanceM}m from the premises — you need to be within ${fence.radius}m to clock in.`,
+        code: geo.status === "no_location" ? "GEO_REQUIRED" : "GEO_OUTSIDE",
+        geoStatus: geo.status,
+        distanceM: geo.distanceM,
+        radiusM: fence.radius,
+      },
+      { status: 403 }
+    );
+  }
 
   if (type === "break_start" || type === "break_end") {
     const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
@@ -147,9 +176,16 @@ export async function POST(req: NextRequest) {
       employeeId: me.id,
       businessId,
       type,
-      note: note ?? null,
-      latitude: latitude != null ? parseFloat(latitude) : null,
-      longitude: longitude != null ? parseFloat(longitude) : null,
+      note:
+        geo.status === "outside" || (geo.status === "no_location" && type === "out")
+          ? [note, `[Geofence: ${geo.status === "outside" ? `${geo.distanceM}m from premises` : "no location sent"}]`]
+              .filter(Boolean)
+              .join(" ")
+          : note ?? null,
+      latitude: geo.lat,
+      longitude: geo.lng,
+      geoStatus: geo.status,
+      geoDistanceM: geo.distanceM,
     },
   });
 

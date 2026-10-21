@@ -35,6 +35,12 @@ async function getCustomer(id: string, businessId: string) {
   });
 }
 
+/** Tenant guard: returns true only if the customer belongs to this business. */
+async function ownsCustomer(id: string, businessId: string) {
+  const c = await prisma.customer.findFirst({ where: { id, businessId }, select: { id: true } });
+  return !!c;
+}
+
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const session = await getServerSession(authOptions);
@@ -52,6 +58,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const session = await getServerSession(authOptions);
   if (!session?.user?.businessId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!["ADMIN", "MANAGER"].includes(session.user.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+  if (!(await ownsCustomer(id, session.user.businessId))) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
 
   const body = await req.json();
 
@@ -108,8 +118,12 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   if (!session?.user?.businessId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!["ADMIN", "MANAGER"].includes(session.user.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
+  if (!(await ownsCustomer(id, session.user.businessId))) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
   // Soft-anonymise (GDPR compliant)
-  const updated = await prisma.customer.update({
+  await prisma.customer.update({
     where: { id },
     data: {
       name: "Deleted User",

@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { prisma } from "@/lib/db";
+import { NON_ATTENDING_STATUSES } from "@/lib/reservations/status";
 
 export interface ConflictReport {
   hasConflicts: boolean;
@@ -44,7 +45,7 @@ export async function detectConflicts(
         lte: endOfDay,
       },
       status: {
-        notIn: ["CANCELLED", "NO_SHOW"],
+        notIn: [...NON_ATTENDING_STATUSES],
       },
     },
     orderBy: { time: "asc" },
@@ -157,7 +158,7 @@ export async function checkSingleReservationConflicts(
       tableId,
       date: { gte: dateStart, lte: dateEnd },
       time: { gte: windowStart, lte: windowEnd },
-      status: { notIn: ["CANCELLED", "NO_SHOW"] },
+      status: { notIn: [...NON_ATTENDING_STATUSES] },
       ...(excludeReservationId ? { NOT: { id: excludeReservationId } } : {}),
     },
   });

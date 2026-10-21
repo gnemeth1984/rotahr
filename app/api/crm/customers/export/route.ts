@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { isNonAttending, normaliseReservationStatus, NO_SHOW } from "@/lib/reservations/status";
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -17,10 +18,10 @@ export async function GET(req: NextRequest) {
   });
 
   const rows = customers.map((c) => {
-    const visits = c.reservations.filter((r) => r.status !== "no-show" && r.status !== "cancelled").length;
-    const noShows = c.reservations.filter((r) => r.status === "no-show").length;
+    const visits = c.reservations.filter((r) => !isNonAttending(r.status)).length;
+    const noShows = c.reservations.filter((r) => normaliseReservationStatus(r.status) === NO_SHOW).length;
     const lastVisit = c.reservations
-      .filter((r) => r.status !== "no-show" && r.status !== "cancelled")
+      .filter((r) => !isNonAttending(r.status))
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0]?.date;
 
     return [

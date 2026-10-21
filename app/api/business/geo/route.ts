@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth/options";
 import { prisma } from "@/lib/db";
+import { resolveGeofence } from "@/lib/geo/geofence";
 
 // GET — return current geo settings for the business
 export async function GET(req: NextRequest) {
@@ -17,7 +18,18 @@ export async function GET(req: NextRequest) {
     select: { geoLat: true, geoLng: true, geoRadius: true, name: true },
   });
 
-  return NextResponse.json({ geo: business });
+  // The fence the server will actually enforce for this user (their venue's pin
+  // if set, else the business pin), so the clock page checks the same thing.
+  const me = await prisma.employee.findFirst({
+    where: { userId: session.user.id, businessId },
+    select: { venueId: true },
+  });
+  const fence = await resolveGeofence(businessId, me?.venueId);
+  const effective = fence
+    ? { geoLat: fence.lat, geoLng: fence.lng, geoRadius: fence.radius, source: fence.source }
+    : { geoLat: null, geoLng: null, geoRadius: business?.geoRadius ?? 200, source: null };
+
+  return NextResponse.json({ geo: business, effective });
 }
 
 // PATCH — update geo settings (managers/admins only)

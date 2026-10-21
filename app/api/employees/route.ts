@@ -81,8 +81,28 @@ export async function PATCH(req: NextRequest) {
       );
     }
 
+    const businessId = (session.user as any).businessId as string | undefined;
+    if (!businessId) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    // Changing your own role could lock the business out of admin access.
+    if (result.data.role && userId === session.user.id) {
+      return NextResponse.json({ error: "You cannot change your own role" }, { status: 400 });
+    }
+
+    // Tenant isolation: the target user must belong to the caller's business.
+    // 404 (not 403) so the endpoint can't be used to probe other tenants' user ids.
+    const target = await prisma.user.findFirst({
+      where: { id: userId, businessId },
+      select: { id: true },
+    });
+    if (!target) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
     const updated = await prisma.user.update({
-      where: { id: userId },
+      where: { id: target.id },
       data: result.data,
       select: {
         id: true,

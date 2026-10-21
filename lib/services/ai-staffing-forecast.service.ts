@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { prisma } from "@/lib/db";
+import { NON_ATTENDING_STATUSES } from "@/lib/reservations/status";
 
 export interface StaffingForecast {
   date: string;
@@ -41,7 +42,7 @@ export async function generateStaffingForecast(
     where: {
       businessId,
       date: { gte: startOfDay, lte: endOfDay },
-      status: { notIn: ["CANCELLED", "NO_SHOW"] },
+      status: { notIn: [...NON_ATTENDING_STATUSES] },
     },
   });
 

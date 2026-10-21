@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth/options";
 import { prisma } from "@/lib/db";
 import { UserRole as Role } from "@/types/roles";
+import { normaliseReservationStatus, RESERVATION_STATUSES } from "@/lib/reservations/status";
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   try {
@@ -42,7 +43,20 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     const isManager = userRole === Role.MANAGER || userRole === Role.ADMIN;
 
     const body = await req.json();
-    const { customerName, customerEmail, customerPhone, partySize, date, time, notes, status, occasion, menuRequired, tableId } = body;
+    const { customerName, customerEmail, customerPhone, partySize, date, time, notes, occasion, menuRequired, tableId } = body;
+
+    // Reservation.status is free text, so normalise to the one canonical set
+    // ("no-show"/"NO_SHOW" → "no_show") and refuse anything else.
+    let status: string | undefined;
+    if (body.status !== undefined) {
+      status = normaliseReservationStatus(body.status) ?? undefined;
+      if (!status) {
+        return NextResponse.json(
+          { error: `Invalid status. Use one of: ${RESERVATION_STATUSES.join(", ")}` },
+          { status: 400 }
+        );
+      }
+    }
 
     // Non-managers can only cancel — not edit details
     if (!isManager) {

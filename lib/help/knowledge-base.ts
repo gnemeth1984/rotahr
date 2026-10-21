@@ -112,7 +112,7 @@ export const HELP_ENTRIES: HelpEntry[] = [
     keywords: ["employee", "staff", "add employee", "new employee", "team member"],
     roles: ["ADMIN", "MANAGER"],
     answer:
-      "To manage employees:\n\n1. Go to **Employees** in the sidebar\n2. Click **Add Employee** to create a new profile\n3. Fill in name, email, role, hourly rate, and job title\n4. The employee will receive an invite email to set up their account\n\nClick any employee to edit their profile or view their hours/pay history.",
+      "To manage employees:\n\n1. Go to **Employees** in the sidebar\n2. Click **Add Employee** to create a new profile\n3. Fill in name, email, role, hourly rate, and job title\n4. Open the employee and click **Invite to Rotahr** (or tick *Send invite* when adding them). They get an email with a link to set their password; it expires after 7 days and you can resend it\n\nClick any employee to edit their profile or view their hours/pay history.",
   },
   {
     keywords: ["role", "permission", "admin", "manager", "staff role", "access"],

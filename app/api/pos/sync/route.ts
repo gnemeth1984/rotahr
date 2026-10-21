@@ -6,6 +6,7 @@ import { decryptToken, encryptToken } from "@/lib/pos/encrypt";
 import { fetchLightspeedDayData, refreshLightspeedToken } from "@/lib/pos/lightspeed";
 import { fetchSquareDayData, refreshSquareToken } from "@/lib/pos/square";
 import { demoDayData } from "@/lib/pos/demo";
+import { resolveVenueId } from "@/lib/venues/resolve";
 
 async function ensureFreshAccessToken(
   conn: {
@@ -67,6 +68,10 @@ export async function POST() {
   const today = new Date();
   today.setUTCHours(0, 0, 0, 0);
 
+  // Attribute the day's takings to a site: the connection's venue if one was
+  // picked, else the business's only/default venue (null if ambiguous).
+  const venueId = conn.venueId ?? (await resolveVenueId(businessId));
+
   try {
     // Demo businesses run on a generated till feed — no tokens, no external call.
     if (conn.provider === "demo") {
@@ -74,7 +79,7 @@ export async function POST() {
       await prisma.posSnapshot.upsert({
         where: { businessId_date: { businessId, date: today } },
         create: {
-          businessId, date: today, provider: "demo",
+          businessId, venueId, date: today, provider: "demo",
           totalRevenue: snapshot.totalRevenue,
           totalCovers: snapshot.totalCovers,
           totalTransactions: snapshot.totalTransactions,
@@ -83,6 +88,7 @@ export async function POST() {
           rawMeta: { syncedAt: new Date().toISOString(), provider: "demo", sample: true },
         },
         update: {
+          venueId,
           totalRevenue: snapshot.totalRevenue,
           totalCovers: snapshot.totalCovers,
           totalTransactions: snapshot.totalTransactions,
@@ -117,6 +123,7 @@ export async function POST() {
       where: { businessId_date: { businessId, date: today } },
       create: {
         businessId,
+        venueId,
         date: today,
         provider: conn.provider,
         totalRevenue: snapshot.totalRevenue,
@@ -127,6 +134,7 @@ export async function POST() {
         rawMeta: { syncedAt: new Date().toISOString(), provider: conn.provider },
       },
       update: {
+        venueId,
         totalRevenue: snapshot.totalRevenue,
         totalCovers: snapshot.totalCovers,
         totalTransactions: snapshot.totalTransactions,
