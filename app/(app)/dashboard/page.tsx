@@ -22,6 +22,7 @@ import { UserRole as Role } from "@/types/roles";
 import { cn } from "@/lib/utils";
 import NationalDaysWidget from "@/app/components/NationalDaysWidget";
 import PosRevenueWidget from "@/app/components/PosRevenueWidget";
+import { SetupChecklist } from "@/components/dashboard/SetupChecklist";
 import { CLOSED_STATUSES, normaliseReservationStatus } from "@/lib/reservations/status";
 
 interface DashboardData {
@@ -217,6 +218,9 @@ export default function DashboardPage() {
         </h1>
         <p className="text-sm text-slate-500 mt-0.5">{todayStr}</p>
       </div>
+
+      {/* First-run setup — managers only, hides itself once done */}
+      {isManager && <SetupChecklist />}
 
       {/* Stats */}
       {loading ? (

@@ -26,7 +26,8 @@ import {
 } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { getInitials } from "@/lib/utils";
-import { Users, Search, Pencil, Plus, Loader2, Phone, ShieldCheck, Info, Send } from "lucide-react";
+import { Users, Search, Pencil, Plus, Loader2, Phone, ShieldCheck, Info, Send, Upload } from "lucide-react";
+import { ImportStaffDialog } from "@/components/employees/import-staff-dialog";
 import { UserRole as Role } from "@/types/roles";
 
 const GRANTABLE_PERMISSIONS = [
@@ -97,7 +98,14 @@ export default function EmployeesPage() {
   const isManager =
     session?.user?.role === Role.MANAGER || session?.user?.role === Role.ADMIN;
 
+  const [importOpen, setImportOpen] = useState(false);
+
   useEffect(() => { fetchAll(); }, []);
+
+  // /employees?import=1 — deep link from the dashboard setup checklist.
+  useEffect(() => {
+    if (isManager && new URLSearchParams(window.location.search).get("import") === "1") setImportOpen(true);
+  }, [isManager]);
 
   const fetchAll = async () => {
     setLoading(true);
@@ -355,10 +363,16 @@ export default function EmployeesPage() {
           </p>
         </div>
         {isManager && (
-          <Button onClick={() => { setAddForm(EMPTY_FORM); setAddError(""); setAddOpen(true); }} className="gap-2">
-            <Plus className="h-4 w-4" />
-            Add Employee
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={() => setImportOpen(true)} className="gap-2" data-testid="import-open">
+              <Upload className="h-4 w-4" />
+              Import CSV
+            </Button>
+            <Button onClick={() => { setAddForm(EMPTY_FORM); setAddError(""); setAddOpen(true); }} className="gap-2">
+              <Plus className="h-4 w-4" />
+              Add Employee
+            </Button>
+          </div>
         )}
       </div>
 
@@ -461,6 +475,10 @@ export default function EmployeesPage() {
             </Card>
           ))}
         </div>
+      )}
+
+      {isManager && (
+        <ImportStaffDialog open={importOpen} onOpenChange={setImportOpen} onImported={fetchAll} />
       )}
 
       {/* Add Dialog */}

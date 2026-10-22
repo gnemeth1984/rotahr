@@ -29,8 +29,10 @@ export function OnboardingBanner() {
   const isPlatformAdmin =
     session?.user?.role === Role.ADMIN && !(session?.user as any)?.businessId;
 
-  // Don't show on the onboarding page itself
-  const isOnOnboarding = pathname === "/onboarding";
+  // Don't show on the onboarding page itself, nor on the dashboard, which has
+  // its own activation checklist (components/dashboard/SetupChecklist) — two
+  // competing "setup x/y" prompts on one screen is confusing.
+  const isOnOnboarding = pathname === "/onboarding" || pathname === "/dashboard";
 
   useEffect(() => {
     if (!isManager || isOnOnboarding || isPlatformAdmin) return;

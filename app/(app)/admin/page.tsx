@@ -30,6 +30,7 @@ import {
   Award,
   PhoneCall,
   Film,
+  Filter,
 } from "lucide-react";
 import { EmailCampaignsTab } from "@/components/admin/email-campaigns-tab";
 import { ActivityTab } from "@/components/admin/activity-tab";
@@ -44,6 +45,7 @@ import { TemplatesTab } from "@/components/admin/templates-tab";
 import { FoundingTab } from "@/components/admin/founding-tab";
 import { LeadFinderTab } from "@/components/admin/lead-finder-tab";
 import { TutorialsTab } from "@/components/admin/tutorials-tab";
+import { FunnelTab } from "@/components/admin/funnel-tab";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
@@ -110,6 +112,7 @@ interface AnalyticsData {
 
 const ADMIN_TABS = [
   "users",
+  "funnel",
   "analytics",
   "activity",
   "email",
@@ -467,6 +470,8 @@ export default function AdminPage() {
         <p className="text-slate-500 text-sm mt-1">
           {activeTab === "users"
             ? "All registered users across Rotahr"
+            : activeTab === "funnel"
+            ? "Visit → demo → signup → staff → rota → invite → paid, and the setup emails each trial is due"
             : activeTab === "analytics"
             ? "Landing page visitor analytics"
             : activeTab === "activity"
@@ -503,6 +508,18 @@ export default function AdminPage() {
         >
           <span className="flex items-center gap-1.5">
             <Users className="h-3.5 w-3.5" /> Users
+          </span>
+        </button>
+        <button
+          onClick={() => setActiveTab("funnel")}
+          className={`shrink-0 whitespace-nowrap px-3 py-2.5 text-sm font-medium border-b-2 transition-colors sm:px-4 sm:py-2 ${
+            activeTab === "funnel"
+              ? "border-emerald-600 text-emerald-700"
+              : "border-transparent text-slate-500 hover:text-slate-700"
+          }`}
+        >
+          <span className="flex items-center gap-1.5">
+            <Filter className="h-3.5 w-3.5" /> Funnel
           </span>
         </button>
         <button
@@ -674,6 +691,8 @@ export default function AdminPage() {
           </span>
         </button>
       </div>
+
+      {activeTab === "funnel" && <FunnelTab />}
 
       {/* Analytics tab */}
       {activeTab === "analytics" && <AnalyticsTab />}
