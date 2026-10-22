@@ -40,8 +40,23 @@ export async function POST(req: NextRequest) {
     return dow - 1;          // Mon=0, Tue=1, ...
   }
 
-  const created = await prisma.$transaction(
-    templates.map((t) => {
+  // Shifts already in that week for this business's staff, so applying the
+  // same template twice (or after a partial apply) doesn't double-book anyone.
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekStart.getDate() + 7);
+  weekEnd.setDate(weekEnd.getDate() + 1); // overnight shifts ending Monday
+  const bizEmpIds = (
+    await prisma.employee.findMany({ where: { businessId }, select: { id: true } })
+  ).map((e) => e.id);
+  const existing = await prisma.shift.findMany({
+    where: { employeeId: { in: bizEmpIds }, startTime: { gte: weekStart, lt: weekEnd } },
+    select: { employeeId: true, startTime: true },
+  });
+  const taken = new Set(existing.map((s) => `${s.employeeId}|${s.startTime.getTime()}`));
+  let skipped = 0;
+  let unassignedSkipped = 0;
+
+  const planned = templates.map((t) => {
       const shiftDate = new Date(weekStart);
       shiftDate.setDate(weekStart.getDate() + dayOffset(t.dayOfWeek));
 
@@ -53,20 +68,34 @@ export async function POST(req: NextRequest) {
       // Handle overnight (end < start)
       if (endTime <= startTime) endTime.setDate(endTime.getDate() + 1);
 
-      return prisma.shift.create({
-        data: {
-          date: shiftDate,
-          startTime,
-          endTime,
-          role: t.role ?? null,
-          published: false,
-          employeeId: t.employeeId ?? null,
-          venueId: t.venueId ?? null,
-          overtimeHours: 0,
-        },
-      });
-    })
-  );
+      return {
+        date: shiftDate,
+        startTime,
+        endTime,
+        role: t.role ?? null,
+        published: false,
+        employeeId: t.employeeId ?? null,
+        venueId: t.venueId ?? null,
+        overtimeHours: 0,
+      };
+    });
+  const toCreate = planned.filter((d) => {
+    // A shift with no employee has no link to the business (Shift has no
+    // businessId), so nobody could ever see or delete it. Don't create those.
+    if (!d.employeeId) {
+      unassignedSkipped++;
+      return false;
+    }
+    const k = `${d.employeeId}|${d.startTime.getTime()}`;
+    if (taken.has(k)) {
+      skipped++;
+      return false;
+    }
+    taken.add(k);
+    return true;
+  });
 
-  return NextResponse.json({ created: created.length, templateName, week: monday });
+  const created = await prisma.$transaction(toCreate.map((data) => prisma.shift.create({ data })));
+
+  return NextResponse.json({ created: created.length, skipped, unassignedSkipped, templateName, week: monday });
 }

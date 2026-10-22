@@ -54,16 +54,22 @@ export async function POST(req: NextRequest) {
   toSunday.setHours(23, 59, 59, 999);
   to.setHours(0, 0, 0, 0);
 
-  const existingCount = await prisma.shift.count({
+  const existingInTarget = await prisma.shift.findMany({
     where: {
       employeeId: { in: Array.from(empIds) },
       date: { gte: to, lte: toSunday },
     },
+    select: { employeeId: true, startTime: true },
   });
+  const existingCount = existingInTarget.length;
+  // Same person, same start time = already copied. Lets "Copy prev week" be
+  // pressed twice without double-booking anyone.
+  const taken = new Set(existingInTarget.map((s) => `${s.employeeId}|${s.startTime.getTime()}`));
+  let skipped = 0;
+  let unassignedSkipped = 0;
 
   // Create copies
-  const created = await prisma.$transaction(
-    sourceShifts.map((s) => {
+  const planned = sourceShifts.map((s) => {
       const newDate = new Date(s.date);
       newDate.setDate(newDate.getDate() + dayDiff);
       const newStart = new Date(s.startTime);
@@ -71,23 +77,39 @@ export async function POST(req: NextRequest) {
       const newEnd = new Date(s.endTime);
       newEnd.setDate(newEnd.getDate() + dayDiff);
 
-      return prisma.shift.create({
-        data: {
-          date: newDate,
-          startTime: newStart,
-          endTime: newEnd,
-          role: s.role,
-          published: false, // always create as draft
-          employeeId: keepAssignments ? s.employeeId : null,
-          venueId: s.venueId ?? null,
-          overtimeHours: 0,
-        },
-      });
-    })
-  );
+      return {
+        date: newDate,
+        startTime: newStart,
+        endTime: newEnd,
+        role: s.role,
+        published: false, // always create as draft
+        employeeId: keepAssignments ? s.employeeId : null,
+        venueId: s.venueId ?? null,
+        overtimeHours: 0,
+      };
+    });
+  const toCreate = planned.filter((d) => {
+    // A shift with no employee has no link to the business (Shift has no
+    // businessId), so nobody could ever see or delete it. Don't create those.
+    if (!d.employeeId) {
+      unassignedSkipped++;
+      return false;
+    }
+    const k = `${d.employeeId}|${d.startTime.getTime()}`;
+    if (taken.has(k)) {
+      skipped++;
+      return false;
+    }
+    taken.add(k);
+    return true;
+  });
+
+  const created = await prisma.$transaction(toCreate.map((data) => prisma.shift.create({ data })));
 
   return NextResponse.json({
     copied: created.length,
+    skipped,
+    unassignedSkipped,
     targetWeek: toMonday,
     existingShiftsInTarget: existingCount,
   });

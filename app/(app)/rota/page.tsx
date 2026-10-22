@@ -440,6 +440,8 @@ function RotaInner() {
       .catch(() => {});
   }, [isManager]);
 
+  const [rotaNotice, setRotaNotice] = useState<{ ok: boolean; text: string } | null>(null);
+
   async function saveAsTemplate() {
     const name = templateNameInput.trim();
     if (!name) return;
@@ -460,23 +462,44 @@ function RotaInner() {
     }
   }
 
+  async function reloadWeekShifts() {
+    const from = toDateStr(weekStart);
+    const to = toDateStr(addDays(weekStart, 6));
+    const shiftsRes = await fetch(`/api/shifts/list?from=${from}&to=${to}`);
+    if (!shiftsRes.ok) return;
+    const shiftsData = await shiftsRes.json();
+    setShifts(shiftsData.shifts ?? []);
+  }
+
   async function applyTemplate(name: string) {
     if (applyingTemplate) return;
     setApplyingTemplate(true);
     setTemplateMenuOpen(false);
+    setRotaNotice(null);
     try {
       const monday = toDateStr(weekStart);
-      await fetch("/api/shifts/templates/apply", {
+      const res = await fetch("/api/shifts/templates/apply", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ templateName: name, monday }),
       });
-      // Refresh shifts
-      const from = toDateStr(weekStart);
-      const to = toDateStr(addDays(weekStart, 6));
-      const shiftsRes = await fetch(`/api/shifts?from=${from}&to=${to}`);
-      const shiftsData = await shiftsRes.json();
-      setShifts(shiftsData.shifts ?? shiftsData ?? []);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setRotaNotice({ ok: false, text: data.error ?? "Couldn't apply the template." });
+        return;
+      }
+      await reloadWeekShifts();
+      const n = data.created ?? 0;
+      const skipped = data.skipped ?? 0;
+      setRotaNotice({
+        ok: true,
+        text:
+          n === 0 && skipped > 0
+            ? `"${name}" is already on this week — nothing added.`
+            : `Added ${n} draft shift${n === 1 ? "" : "s"} from "${name}"${skipped ? ` (${skipped} already there)` : ""}. Publish when ready.`,
+      });
+    } catch {
+      setRotaNotice({ ok: false, text: "Couldn't apply the template." });
     } finally {
       setApplyingTemplate(false);
     }
@@ -717,21 +740,33 @@ function RotaInner() {
     const fromMonday = toDateStr(addDays(weekStart, -7));
     const toMonday = toDateStr(weekStart);
     setCopyingWeek(true);
+    setRotaNotice(null);
     try {
       const res = await fetch("/api/shifts/copy-week", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ fromMonday, toMonday, keepAssignments: true }),
       });
-      const data = await res.json();
-      if (res.ok) {
-        // Refresh shifts
-        const from = toDateStr(weekStart);
-        const to = toDateStr(addDays(weekStart, 6));
-        const shiftsRes = await fetch(`/api/shifts?from=${from}&to=${to}`);
-        const shiftsData = await shiftsRes.json();
-        setShifts(shiftsData.shifts ?? shiftsData ?? []);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setRotaNotice({
+          ok: false,
+          text: res.status === 404 ? "Last week has no shifts to copy." : data.error ?? "Couldn't copy last week.",
+        });
+        return;
       }
+      await reloadWeekShifts();
+      const n = data.copied ?? 0;
+      const skipped = data.skipped ?? 0;
+      setRotaNotice({
+        ok: true,
+        text:
+          n === 0 && skipped > 0
+            ? "Last week is already copied into this week — nothing added."
+            : `Copied ${n} shift${n === 1 ? "" : "s"} from last week as drafts${skipped ? ` (${skipped} already there)` : ""}. Publish when ready.`,
+      });
+    } catch {
+      setRotaNotice({ ok: false, text: "Couldn't copy last week." });
     } finally {
       setCopyingWeek(false);
     }
@@ -1066,6 +1101,20 @@ function RotaInner() {
           </div>
         )}
       </div>
+
+      {rotaNotice && (
+        <div
+          className={`flex items-start justify-between gap-3 rounded-lg border px-3 py-2 text-sm ${
+            rotaNotice.ok ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-red-200 bg-red-50 text-red-700"
+          }`}
+          data-testid="rota-notice"
+        >
+          <span>{rotaNotice.text}</span>
+          <button onClick={() => setRotaNotice(null)} className="opacity-60 hover:opacity-100" aria-label="Dismiss">
+            ×
+          </button>
+        </div>
+      )}
 
       {/* ── Save Template Dialog ── */}
       {saveTemplateOpen && (
