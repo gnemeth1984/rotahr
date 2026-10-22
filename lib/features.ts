@@ -186,6 +186,15 @@ export const FEATURE_DEFINITIONS = [
 
   // ── AI & Tools ───────────────────────────────────────────────────────────
   {
+    key: "copilot",
+    label: "Manager Copilot",
+    description: "A daily brief for managers: compliance gaps, margin hits from supplier price rises, waste, the covers forecast with staffing, and no-show risks. Read-only — it suggests, you decide.",
+    category: "AI & Tools",
+    defaultRoles: ["MANAGER", "ADMIN"],
+    canDisable: true,
+    canRestrictToRoles: ["MANAGER", "ADMIN"],
+  },
+  {
     key: "ai",
     label: "AI Tools",
     description: "AI-powered scheduling suggestions, cost optimisation, and booking assistant configuration.",

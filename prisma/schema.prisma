@@ -27,6 +27,11 @@ model Business {
   weeklyRevenueTarget Float? // manager-set revenue target for current week
   venues              Venue[]
 
+  // Wave 1 — Manager Copilot (tenant Ops Navigator)
+  stockPriceChanges StockPriceChange[]
+  opsBriefs         OpsBrief[]
+  copilotSettings   CopilotSettings?
+
   users              User[]
   departments        Department[]
   employees          Employee[]
@@ -662,6 +667,7 @@ model StockItem {
   orderItems      OrderItem[]
   dishIngredients DishIngredient[]
   wastageRecords  WastageRecord[]
+  priceChanges    StockPriceChange[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -3355,4 +3361,54 @@ model Tutorial {
   updatedAt DateTime @updatedAt
 
   @@index([published, sortOrder])
+}
+/// One row per change of StockItem.lastPrice (price per PACK). Written by
+/// lib/stock/price-history.ts from every path that updates lastPrice, so
+/// Margin Guard can show which dishes lost margin and by how much.
+model StockPriceChange {
+  id          String    @id @default(cuid())
+  businessId  String
+  business    Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  stockItemId String
+  stockItem   StockItem @relation(fields: [stockItemId], references: [id], onDelete: Cascade)
+  oldPrice    Float?
+  newPrice    Float?
+  /// Pack size at the time of the change, so per-unit history stays correct
+  /// if the pack size is edited later.
+  packSize    Float?
+  /// stock-edit | receipt | delivery-note | statement | order
+  source      String
+  changedById String?
+  createdAt   DateTime  @default(now())
+
+  @@index([businessId, createdAt])
+  @@index([stockItemId, createdAt])
+}
+
+/// Cached Manager Copilot brief for one business, venue scope and local date.
+/// venueKey is the venue id or "all" (a plain string so the unique key never
+/// contains NULL). Rebuilt on demand; never the source of truth.
+model OpsBrief {
+  id            String   @id @default(cuid())
+  businessId    String
+  business      Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  venueKey      String
+  date          String // YYYY-MM-DD, venue-local
+  data          Json
+  summary       String?  @db.Text
+  summarySource String   @default("rules") // rules | llm
+  generatedAt   DateTime @default(now())
+
+  @@unique([businessId, venueKey, date])
+  @@index([businessId, generatedAt])
+}
+
+/// Manager Copilot thresholds. A separate table (not AISettings columns) so
+/// that code deployed before the migration never selects a missing column.
+model CopilotSettings {
+  businessId  String   @id
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  /// Margin Guard flags dishes whose GP% falls below this.
+  targetGpPct Float    @default(70)
+  updatedAt   DateTime @updatedAt
 }

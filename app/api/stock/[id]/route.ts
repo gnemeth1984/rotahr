@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requirePermission, isResponse } from "@/lib/auth/middleware";
 import { prisma } from "@/lib/db";
+import { updateStockItemTracked } from "@/lib/stock/price-history";
 import { z } from "zod";
 
 const updateSchema = z.object({
@@ -36,11 +37,12 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const data: any = { ...result.data };
   if (data.lastOrdered) data.lastOrdered = new Date(data.lastOrdered);
 
-  const item = await prisma.stockItem.update({
-    where: { id: params.id },
-    data,
+  const item = await updateStockItemTracked(businessId, existing.id, data, {
+    source: "stock-edit",
+    changedById: session.user.id,
     include: { supplier: { select: { id: true, name: true } } },
   });
+  if (!item) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   return NextResponse.json({ item });
 }

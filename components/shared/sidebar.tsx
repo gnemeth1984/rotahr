@@ -45,6 +45,7 @@ import {
   ScanLine,
   Sun,
   Compass,
+  Gauge,
   ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -282,6 +283,15 @@ const navItems = [
   },
   // ── Always visible (plan-agnostic) ───────────────────────────────────────
   {
+    href: "/copilot",
+    label: "Manager Copilot",
+    icon: Gauge,
+    roles: [Role.MANAGER, Role.ADMIN],
+    permission: "copilot",
+    featureKey: "copilot" as FeatureKey,
+    plans: null,
+  },
+  {
     href: "/ai",
     label: "AI Tools",
     icon: Sparkles,
@@ -380,7 +390,7 @@ const NAV_GROUPS: { id: string; label: string; hrefs: string[] }[] = [
   {
     id: "daily",
     label: "Daily",
-    hrefs: ["/dashboard", "/today", "/clock", "/messages", "/log-book"],
+    hrefs: ["/dashboard", "/today", "/copilot", "/clock", "/messages", "/log-book"],
   },
   {
     id: "team",

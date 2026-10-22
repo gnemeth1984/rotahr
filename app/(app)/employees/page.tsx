@@ -37,6 +37,7 @@ const GRANTABLE_PERMISSIONS = [
   { key: "bookings", label: "Bookings (manage)" },
   { key: "training", label: "Training & Certs (all staff)" },
   { key: "reports", label: "Dashboard reports" },
+  { key: "copilot", label: "Manager Copilot" },
 ] as const;
 
 interface Employee {

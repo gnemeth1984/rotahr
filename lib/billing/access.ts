@@ -216,6 +216,7 @@ export const ALWAYS_WRITABLE: readonly string[] = [
   "/api/unsubscribe", // legally must keep working
   "/api/demo", // demo tenants are not real customers
   "/api/navigator", // private super-admin tool, not tenant data
+  "/api/copilot/ask", // POST only to carry the question; reads, never writes
 ];
 
 export function isAlwaysWritable(pathname: string): boolean {

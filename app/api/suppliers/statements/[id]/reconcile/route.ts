@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenant, isResponse, notFound } from "@/lib/auth/tenant";
 import { prisma } from "@/lib/prisma";
+import { updateStockItemTracked } from "@/lib/stock/price-history";
 
 // Tenant isolation: the statement was fetched by raw ID with no business check,
 // so a manager could accept another business's supplier statement — which then
@@ -41,10 +42,20 @@ export async function POST(
       const items = (statement.aiExtracted as LineItem[] | null) ?? [];
       for (const li of items) {
         if (li.sku && li.unitPrice) {
-          await prisma.stockItem.updateMany({
+          // Per item (not updateMany) so each price move lands in the history
+          // Margin Guard reads.
+          const matches = await prisma.stockItem.findMany({
             where: { businessId: t.businessId, sku: li.sku },
-            data: { lastPrice: li.unitPrice, lastOrdered: new Date() },
+            select: { id: true },
           });
+          for (const m of matches) {
+            await updateStockItemTracked(
+              t.businessId,
+              m.id,
+              { lastPrice: li.unitPrice, lastOrdered: new Date() },
+              { source: "statement", changedById: t.userId },
+            );
+          }
         }
       }
     }

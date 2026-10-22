@@ -12,6 +12,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requirePermission, isResponse } from "@/lib/auth/middleware";
 import { prisma } from "@/lib/db";
+import { updateStockItemTracked } from "@/lib/stock/price-history";
 import { logActivity } from "@/lib/services/activity.service";
 
 export const maxDuration = 30;
@@ -82,32 +83,30 @@ export async function POST(req: NextRequest) {
     for (const item of items) {
       let stockItemId: string;
 
-      if (item.existingItemId) {
-        await prisma.stockItem.update({
-          where: { id: item.existingItemId },
-          data: {
+      // existingItemId comes from the request body: only honour it for this
+      // tenant's own item (it used to update any business's stock by id).
+      const tracked = item.existingItemId
+        ? await updateStockItemTracked(businessId, item.existingItemId, {
             currentStock: { increment: item.quantity },
             ...(item.unitPrice != null ? { lastPrice: item.unitPrice } : {}),
             lastOrdered: dateObj,
             lastExpenseId: expenseId ?? undefined,
-          },
-        });
-        stockItemId = item.existingItemId;
+          }, { source: "delivery-note", changedById: session.user.id })
+        : null;
+      if (tracked) {
+        stockItemId = tracked.id;
       } else {
         const existing = await prisma.stockItem.findFirst({
           where: { businessId, name: { equals: item.name, mode: "insensitive" } },
         });
         if (existing) {
-          await prisma.stockItem.update({
-            where: { id: existing.id },
-            data: {
+          await updateStockItemTracked(businessId, existing.id, {
               currentStock: { increment: item.quantity },
               ...(item.unitPrice != null ? { lastPrice: item.unitPrice } : {}),
               lastOrdered: dateObj,
               lastExpenseId: expenseId ?? undefined,
               ...(supplierId ? { supplierId } : {}),
-            },
-          });
+            }, { source: "delivery-note", changedById: session.user.id });
           stockItemId = existing.id;
         } else {
           const created = await prisma.stockItem.create({
