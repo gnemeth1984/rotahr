@@ -31,7 +31,7 @@ import {
 
 const TITLE = "Rotahr Product Tour — Real Screens From Inside the App";
 const DESCRIPTION =
-  "Actual screenshots of Rotahr in use: rota and labour cost, table floor plan and reservations, HACCP records, stock levels, supplier purchase orders and statement reconciliation, and recipe costing.";
+  "Actual screenshots of Rotahr in use: rota and labour cost, table floor plan and reservations, HACCP records, stock levels, supplier purchase orders and statement reconciliation, recipe costing, and the Manager Copilot daily brief.";
 
 export const metadata: Metadata = {
   title: TITLE,
@@ -161,6 +161,18 @@ const SHOTS: Shot[] = [
       "Cost per portion, sell price and GP% per dish",
       "Ingredient quantities with their individual costs",
       "Low-GP dishes surfaced automatically",
+    ],
+  },
+  {
+    file: "copilot.png",
+    heading: "Manager Copilot daily brief",
+    criterion: "Reporting and analytics · operations insights",
+    body:
+      "One page that reads the rest of the system: the HACCP checks nobody logged, the supplier price rise that took GP off the ribeye, the noon peak the rota is short for, and tonight's covers at a glance. Every line links to the screen where it gets fixed. It suggests; it never changes anything itself.",
+    points: [
+      "Today's five priorities across compliance, margin, waste, bookings and no-shows",
+      "Supplier price rises re-costed against a target GP (70% by default)",
+      "Ask box for plain-English questions about the venue's own data",
     ],
   },
 ];

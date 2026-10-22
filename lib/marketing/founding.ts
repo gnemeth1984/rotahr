@@ -105,7 +105,7 @@ export const FOUNDING_CAVEATS = [
   "There is no importer yet. Your staff list and rota get typed in, or we do it with you on the first call.",
   "Break-time rules are modelled on Irish law. Outside Ireland the tracking still works, but check the thresholds against your own rules.",
   "The app is English only.",
-  "Revenue is tracked for the business as a whole, not per site, because POS snapshots arrive business-wide.",
+  "Revenue per site needs each POS connection assigned to a venue. Takings from a POS left unassigned show as unattributed, not against any one site.",
   "Rotahr records what you did; it does not make you compliant. An inspector still wants to see the records, and this is where you keep them.",
 ] as const;
 

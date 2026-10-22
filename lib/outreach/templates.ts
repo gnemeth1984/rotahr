@@ -133,7 +133,8 @@ export function renderEmail(
         <p style="margin:0 0 14px">Hi,</p>
         <p style="margin:0 0 14px">I emailed last week about Rotahr and know how a week in hospitality goes, so I'll keep this short.</p>
         <p style="margin:0 0 14px">The bit most managers notice first: the rota takes about twenty minutes instead of an evening, and you can see the wage cost as you build it rather than finding out on payroll day.</p>
-        <p style="margin:0 0 18px">There's a live demo you can click around without signing up for anything &mdash; real ${segLower} data, nothing to fill in.</p>
+        <p style="margin:0 0 14px">New this month: a Manager Copilot page that reads the rest of the app for you each morning &mdash; the fridge check nobody logged, the dish a supplier price rise has quietly made unprofitable, the lunch peak that's a person short, the booking that probably won't turn up. It suggests; it never changes anything on its own. Included on every plan.</p>
+        <p style="margin:0 0 18px">There's a live demo you can click around without signing up for anything &mdash; real ${segLower} data, nothing to fill in, Copilot included.</p>
         <p style="margin:0 0 18px">${ctaButton(tryUrl("followup1"), "Have a look at the demo")}</p>
         <p style="margin:0 0 14px">Happy to walk you through it in fifteen minutes if that's easier. Just reply.</p>
       `,
@@ -161,9 +162,9 @@ export function renderEmail(
         `
         <p style="margin:0 0 14px">Hi,</p>
         <p style="margin:0 0 14px">Rough maths, and you'll know your own numbers better than I do. If a manager on ${m.currency}${m.wage}/hour spends three hours a week on the rota, that's roughly ${m.currency}${Math.round(Number(m.wage) * 3 * 4.33)} a month spent on admin nobody thanks them for.</p>
-        <p style="margin:0 0 14px">Rotahr is ${m.priceLine}. Even if it only halves the time, it pays for itself &mdash; and that's before the no-shows you catch and the hours that stop getting logged wrong.</p>
+        <p style="margin:0 0 14px">Rotahr is ${m.priceLine}. Even if it only halves the time, it pays for itself &mdash; and that's before the no-shows you catch, the hours that stop getting logged wrong, and the supplier price rises the Copilot flags before they eat a month of margin.</p>
         <p style="margin:0 0 18px">The first 3 months are free and there's no card involved, so the only thing you're risking is ten minutes setting it up.</p>
-        <p style="margin:0 0 18px">${ctaButton(tryUrl("followup3"), "Start the free month")}</p>
+        <p style="margin:0 0 18px">${ctaButton(tryUrl("followup3"), "Start your 3 free months")}</p>
       `,
         email,
         "Cheers,"

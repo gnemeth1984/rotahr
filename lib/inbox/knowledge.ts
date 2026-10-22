@@ -45,7 +45,17 @@ WHAT IT DOES
 - Bookkeeping: photograph a receipt and AI reads it; expense categories, P&L,
   VAT/tax reporting, CSV export.
 - Stock and recipes: recipe costing that updates when delivery prices change,
-  photos of finished dishes for plating reference.
+  a price history for every supplier item, photos of finished dishes for
+  plating reference.
+- Manager Copilot (included on every plan): one read-only daily brief from the
+  venue's own data — missed HACCP checks, dishes hit by a supplier price rise
+  (target GP 70% by default), waste, a 7-day covers forecast against rota
+  staffing, and no-show risk with a drafted confirmation message — plus an Ask
+  box. It never sends or changes anything itself, and guest/staff names,
+  emails and phones are stripped before anything reaches the AI.
+  https://rotahr.com/features/manager-copilot
+- Multi-venue: each POS connection can be assigned to a venue, so revenue and
+  labour % show per site.
 - HACCP / food safety: paperless temperature checks, delivery checks, cleaning
   and opening/closing checklists, corrective action log, PDF export for
   inspections, and scheduled reminders to whoever is clocked in.

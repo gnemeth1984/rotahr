@@ -46,6 +46,7 @@ function welcomeHtml(firstName: string, businessName?: string): string {
         <li><strong>Add your team</strong> — names and emails are enough to start.</li>
         <li><strong>Build a week</strong> — drag shifts onto the rota, then publish. Staff are notified instantly.</li>
         <li><strong>Turn on what you need</strong> — bookings, HACCP checks, bookkeeping and payroll are all in the sidebar.</li>
+        <li><strong>Check the Manager Copilot each morning</strong> — once a week or two of shifts, bookings and checks are in, it puts missed HACCP checks, margin hits from supplier price rises, short-staffed hours and likely no-shows on one page. It suggests; it never changes anything.</li>
       </ol>
 
       <p style="margin: 24px 0;">

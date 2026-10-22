@@ -48,10 +48,19 @@ What Rotahr actually includes (do not credit it with anything else):
 - Digital HACCP food safety records: temperature checks, cleaning, opening and
   closing checks, delivery checks, corrective action log, PDF export for
   inspections
-- Recipe costing and stock, delivery note scanning
+- Recipe costing and stock, delivery note scanning, supplier price history
+  recorded from stock edits, receipts, delivery notes and statement
+  reconciliation
+- Manager Copilot: a read-only daily brief built from the venue's own data —
+  missed HACCP checks, margin hit by supplier price rises (target GP 70% by
+  default, editable), waste, booking forecast vs rota staffing, no-show risk —
+  plus an Ask box. Included on every plan. It never sends, publishes or changes
+  anything, and names, emails, phones and IDs are stripped before anything
+  reaches the AI model
 - Payroll reports, tips and tronc distribution
 - Customer CRM, staff training and certification expiry tracking
-- Multi-venue support, mobile app for iOS and Android
+- Multi-venue support (POS revenue and labour % per venue), mobile app for iOS
+  and Android
 
 Honest limitations — use these when a section calls for balance, rather than
 inventing weaknesses:

@@ -7,8 +7,8 @@
  * earn its place on specifics only a team that built the module could write —
  * exact temperature thresholds, what the scan reads, what the export contains.
  *
- * Deliberately NOT city-templated: see the warning in locations.ts. Nine pages
- * describing nine genuinely different modules is not a doorway pattern.
+ * Deliberately NOT city-templated: see the warning in locations.ts. Ten pages
+ * describing ten genuinely different modules is not a doorway pattern.
  *
  * Audience is international (Ireland, UK, US, Canada, Australia). Where a rule
  * is jurisdiction-specific, say which jurisdiction rather than assuming Ireland.
@@ -48,6 +48,87 @@ export interface Feature {
 }
 
 export const features: Feature[] = [
+  {
+    slug: "manager-copilot",
+    name: "Manager Copilot",
+    heading: "A morning brief that tells the manager what needs doing today",
+    title: "Manager Copilot: Daily Ops Brief for Venues | Rotahr",
+    metaDescription:
+      "One daily brief from your own rota, bookings, HACCP logs, stock and supplier prices: missed checks, margin hit by price rises, waste, covers vs staffing, no-show risk. Included on every plan.",
+    answer:
+      "Rotahr's Manager Copilot reads the venue's own rota, bookings, HACCP logs, stock and supplier prices and turns them into one short brief each day: what is overdue, which dishes a price rise has hurt, what is being binned, whether the rota matches the covers coming in, and which bookings might not turn up.",
+    body: [
+      "Everything a manager needs to know at 10am is already in the system somewhere: the fridge check nobody logged, the supplier invoice that put ribeye up 14%, the Saturday prep that keeps going in the bin, the guest who has not shown up twice before and is booked for eight tonight. The problem is that it lives on six different screens, and nobody has time to open six screens before service.",
+      "The Copilot runs five checks over that data and puts the results on one page, with the most urgent five at the top. Each finding says what happened, why it matters and what to do about it, and links straight to the screen where you fix it. A Tonight panel shows covers, bookings, the busiest hour, allergy tables and occasions at a glance.",
+      "The checks are plain rules, not guesses. A missed check is a scheduled HACCP check more than an hour past due with nothing logged. A margin hit is a recipe re-costed at the new supplier price against your own target gross profit. A no-show risk is built from that guest's own history and the venue's no-show rate, and the reason is printed next to it. AI is used only to word the summary and to answer questions typed into the Ask box. If the AI is unavailable, the same findings show in plain text.",
+      "It is read-only. The Copilot suggests a menu price, drafts a confirmation message for a risky booking and points out a short-staffed hour, but it never changes a price, sends a message or touches the rota. The manager decides.",
+    ],
+    capabilities: [
+      {
+        title: "Compliance Monitor",
+        detail:
+          "Scheduled HACCP checks that were missed today or yesterday, failed checks with no later pass or corrective action, certificates expired or expiring within 30 days on staff who are rostered, less than 11 hours' rest between shifts, dishes whose allergen matrix was never confirmed, and overdue tasks.",
+      },
+      {
+        title: "Margin Guard",
+        detail:
+          "Every supplier price change is now recorded, whether it came from a stock edit, a receipt, a delivery note or a statement reconciliation. When one moves, the Copilot re-costs the dishes that use it, shows GP before and after, and suggests the menu price that would hold your target. The target defaults to 70% and the manager can change it.",
+      },
+      {
+        title: "Stock Waste Advisor",
+        detail:
+          "Waste over the last four weeks against the four weeks before, the items costing most, expiry waste traced back to what was ordered, over-prep that clusters on one weekday, and items at or below their reorder level.",
+      },
+      {
+        title: "Booking Forecast",
+        detail:
+          "Final covers for each of the next 7 days, worked out from how fast bookings came in on the same weekday in previous weeks. That forecast is then compared with the kitchen, floor and bar staff on the rota at the peak hour.",
+      },
+      {
+        title: "No-show Guard",
+        detail:
+          "Upcoming bookings most likely not to turn up, scored from the guest's own previous no-shows and cancellations, party size and lead time, with the reason shown. Each one comes with a confirmation message drafted for the manager to copy.",
+      },
+      {
+        title: "Ask in plain English",
+        detail:
+          "Questions like \"which dishes lost margin?\" or \"who might not show tomorrow?\" go to the right check, and the answer comes with the findings behind it.",
+      },
+      {
+        title: "Guest and staff details stay out of the AI",
+        detail:
+          "Before anything goes to the AI model, names, emails, phone numbers and record IDs are stripped, including any typed into a question. If personal data is detected, the request is blocked rather than sent.",
+      },
+    ],
+    bestFor:
+      "General managers and owner-operators who arrive at 10am with forty minutes before lunch service and want one list instead of six screens, and groups where the owner wants every site's manager working from the same priorities.",
+    limits: [
+      "It only knows what is recorded. Margin Guard needs costed recipes with stock prices, the Booking Forecast needs a few weeks of booking history, and the Compliance Monitor needs HACCP checks to be scheduled.",
+      "Suggestions only. It will not change a price, publish a rota or text a guest. Those stay manual on purpose.",
+      "Rest-period rules follow the EU Working Time Directive (11 hours, Ireland and the UK) and a 10-hour minimum for Australia. Check the threshold against your own award or contract.",
+      "The brief is in English only.",
+    ],
+    faq: [
+      {
+        q: "Does the Manager Copilot cost extra?",
+        a: "No. It is included on Starter, Pro and Enterprise at no extra charge, and it can be switched off per business in settings.",
+      },
+      {
+        q: "Who can see it?",
+        a: "Admins and managers. A member of staff can be given access individually, for example a head chef who should see Margin Guard and the waste report. It is always limited to your own business.",
+      },
+      {
+        q: "Does it contact guests or change anything?",
+        a: "No. It drafts a confirmation message and suggests a price, but nothing is sent or changed unless a manager does it themselves.",
+      },
+      {
+        q: "Does the AI see my guests' names or phone numbers?",
+        a: "No. The checks run on your data inside Rotahr. Only the anonymised findings are sent to the AI model, with names, emails, phone numbers and IDs removed, and the request is blocked if any personal data slips through.",
+      },
+    ],
+    related: ["stock-recipe-costing", "table-bookings", "haccp-food-safety"],
+  },
+
   {
     slug: "staff-scheduling",
     name: "Rota & scheduling",
@@ -114,7 +195,7 @@ export const features: Feature[] = [
         a: "Yes. Cover requests and their responses stay attached to the shift, so you can see at a glance who declined rather than asking the same person twice.",
       },
     ],
-    related: ["time-tracking-payroll", "haccp-food-safety"],
+    related: ["time-tracking-payroll", "manager-copilot", "haccp-food-safety"],
   },
 
   {
@@ -256,7 +337,7 @@ export const features: Feature[] = [
         a: "Marketing email is gated on consent, reservations can be anonymised, and the customer record supports GDPR anonymisation and export rather than only deletion.",
       },
     ],
-    related: ["guest-crm", "staff-scheduling"],
+    related: ["guest-crm", "manager-copilot", "staff-scheduling"],
   },
 
   {
@@ -423,6 +504,16 @@ export const features: Feature[] = [
           "Recipes read the last price paid per stock item, so a supplier increase flows through to every affected dish automatically.",
       },
       {
+        title: "Supplier price history",
+        detail:
+          "Every price change on a stock item is recorded with the date and where it came from: a stock edit, a scanned receipt, a delivery note or a supplier statement reconciliation. You can see when ribeye went up, and by how much.",
+      },
+      {
+        title: "Margin Guard in the Manager Copilot",
+        detail:
+          "When a supplier price moves, the Copilot's Margin Guard lists the dishes it hurt, shows gross profit before and after, and suggests the menu price that would hold your target GP (70% by default). It suggests only; menu prices never change on their own.",
+      },
+      {
         title: "Delivery note scanning",
         detail:
           "One photo reads vendor, date and line items, then updates stock, the expense and the HACCP delivery check.",
@@ -457,14 +548,14 @@ export const features: Feature[] = [
       },
       {
         q: "Can I see which dishes stopped being profitable?",
-        a: "Yes. Because costs update from real prices, margin per dish moves on its own and the losers become visible.",
+        a: "Yes. Because costs update from real prices, margin per dish moves on its own and the losers become visible. The Manager Copilot also flags them in the daily brief as soon as a supplier price rise pushes a dish below your target gross profit.",
       },
       {
         q: "Does it work without a POS?",
         a: "Yes for costing and delivery-fed stock. Sales-driven depletion is where a connected POS adds real value.",
       },
     ],
-    related: ["bookkeeping-receipts", "haccp-food-safety"],
+    related: ["manager-copilot", "bookkeeping-receipts", "haccp-food-safety"],
   },
 
   {

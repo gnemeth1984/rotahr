@@ -1306,6 +1306,23 @@ export async function main(prisma: PrismaClient = new PrismaClient()) {
   });
   console.log("✅ Supplier order lists created");
 
+  // ── 19c. Supplier price history (feeds the Copilot's Margin Guard) ──────────
+  // Rows cascade away with the stock items above. Wrapped because an
+  // environment whose StockPriceChange migration has not been applied yet must
+  // still get the rest of the demo.
+  try {
+    await prisma.stockPriceChange.createMany({
+      data: [
+        { businessId: BIZ, stockItemId: si3,  oldPrice: 116.00, newPrice: 132.00, packSize: 5, source: "delivery-note", createdAt: days(-4, 9, 40) },
+        { businessId: BIZ, stockItemId: si5,  oldPrice: 46.50,  newPrice: 51.00,  packSize: 3, source: "receipt",       createdAt: days(-3, 11, 15) },
+        { businessId: BIZ, stockItemId: si11, oldPrice: 36.00,  newPrice: 41.00,  packSize: 5, source: "statement",     createdAt: days(-12, 15, 5) },
+      ],
+    });
+    console.log("✅ Supplier price history created");
+  } catch (err) {
+    console.warn("⚠️  Supplier price history skipped:", (err as Error)?.message?.split("\n")[0]);
+  }
+
   // ── 20. Dishes / Recipes ────────────────────────────────────────────────────
   await prisma.dishIngredient.deleteMany({ where: { dish: { businessId: BIZ } } });
   await prisma.dish.deleteMany({ where: { businessId: BIZ } });

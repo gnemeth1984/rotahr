@@ -11,6 +11,20 @@ export interface HelpEntry {
 }
 
 export const HELP_ENTRIES: HelpEntry[] = [
+  // ── MANAGER COPILOT ───────────────────────────────────────────────────────
+  {
+    keywords: ["copilot", "daily brief", "morning brief", "priorities", "margin guard", "no-show guard", "booking forecast", "waste advisor", "compliance monitor"],
+    roles: ["ADMIN", "MANAGER"],
+    answer:
+      "**Manager Copilot** (sidebar → **Copilot**) is one daily brief built from your own rota, bookings, HACCP logs, stock and supplier prices.\n\n• **Today's priorities** — the five most urgent findings, each linking to the screen where you fix it\n• **Tonight** — covers, bookings, busiest hour, allergy tables and occasions\n• **Compliance Monitor** — missed or failed HACCP checks, expiring certificates on rostered staff, short rest between shifts\n• **Margin Guard** — dishes hit by a supplier price rise, with a suggested menu price for your target GP (70% by default, editable)\n• **Stock Waste Advisor** — waste trends, top waste items, low stock\n• **Booking Forecast** — covers for the next 7 days compared with rota staffing at the peak hour\n• **No-show Guard** — risky bookings with the reason and a drafted confirmation message to copy\n• **Ask** — type a question like \"which dishes lost margin?\"\n\nIt is read-only: nothing is sent or changed automatically. Names, emails, phones and IDs are stripped before anything goes to the AI.",
+  },
+  {
+    keywords: ["copilot access", "give copilot", "turn off copilot", "disable copilot", "copilot permission"],
+    roles: ["ADMIN", "MANAGER"],
+    answer:
+      "**Copilot access**\n\n• Admins and managers see it by default.\n• To give a staff member access (e.g. a head chef), open **Employees**, edit the person and tick the **Manager Copilot** permission.\n• To switch it off or restrict it to admins, go to **Settings → Features** and find **Manager Copilot** under AI & Tools.\n\nIt is included on every plan at no extra cost.",
+  },
+
   // ── ROTA ──────────────────────────────────────────────────────────────────
   {
     keywords: ["rota", "schedule", "roster", "week", "publish"],

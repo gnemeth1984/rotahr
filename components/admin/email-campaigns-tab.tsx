@@ -54,31 +54,40 @@ interface Contact {
 
 // ─── Pre-written email sequences ──────────────────────────────────────────
 
+// Every template is a Resend broadcast: personalisation and the unsubscribe
+// link must use Resend's own placeholders, {{{contact.first_name|there}}} and
+// {{{RESEND_UNSUBSCRIBE_URL}}}. The old "[First Name]" / "{{unsubscribe}}"
+// tokens went out literally. Facts (prices, trial length, URLs) must match
+// lib/marketing/plans.ts and lib/seo/product-facts.ts.
+const BTN = "background:#FF6B35;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;display:inline-block;font-weight:600";
+const WRAP = "font-family:Georgia,serif;max-width:600px;margin:0 auto;padding:32px 24px;color:#1a1a1a";
+const FOOT = `<p style="font-size:12px;color:#888"><a href="{{{RESEND_UNSUBSCRIBE_URL}}}">Unsubscribe</a> · Rotahr · Ireland</p>`;
+
 const EMAIL_SEQUENCES = [
   {
     id: 1,
     label: "Email 1 — Cold Intro",
     subject: "Your rota is costing you more than you think",
     previewText: "Most managers spend 4+ hours a week on scheduling. There's a fix.",
-    html: `<div style="font-family:Georgia,serif;max-width:600px;margin:0 auto;padding:32px 24px;color:#1a1a1a">
-<p>Hi [First Name],</p>
+    html: `<div style="${WRAP}">
+<p>Hi {{{contact.first_name|there}}},</p>
 <p>If you're still building your rota in Excel — or worse, WhatsApp — you already know the drill.</p>
 <p>Someone calls in sick Sunday morning. You spend 45 minutes scrambling to find cover. Half your staff don't confirm shifts until the night before. And somehow, every week, it's the same chaos.</p>
 <p>It doesn't have to be that way.</p>
-<p><strong>Rotahr</strong> is built specifically for hospitality teams. Rota planning, staff scheduling, time-off requests, and team messaging — all in one place. Your managers save hours every week. Your staff always know where they stand.</p>
+<p><strong>Rotahr</strong> is built specifically for hospitality teams. Rota planning, clock-in, HACCP records, bookings, stock and bookkeeping — all in one place. Your managers save hours every week. Your staff always know where they stand.</p>
 <ul>
 <li>Drag-and-drop rota builder — publish in minutes, not hours</li>
 <li>Instant shift notifications to staff (app + email)</li>
 <li>Time-off requests handled in the app — no more DMs</li>
-<li>Clock in/out tracking per shift</li>
-<li>Bookings assistant that flags when you need more cover</li>
+<li>Clock in/out with an on-site geofence</li>
+<li>New: a Manager Copilot morning brief — missed HACCP checks, dishes hit by supplier price rises, covers vs staffing and likely no-shows on one page</li>
 <li>Manager dashboard: costs, hours, P&amp;L at a glance</li>
 </ul>
-<p>No contracts. No setup fees. First 3 months free.</p>
-<p><a href="https://rotahr.vercel.app" style="background:#10b981;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;display:inline-block;font-weight:600">Start your free trial →</a></p>
-<p>Takes 5 minutes to set up. Your next rota will take half the time.</p>
+<p>From €49 a month, flat — never per employee. No contracts, no setup fees, first 3 months free.</p>
+<p><a href="https://rotahr.com/try" style="${BTN}">See the live demo →</a></p>
+<p>Takes 5 minutes to look around. No signup needed for the demo.</p>
 <p>— The Rotahr Team</p>
-<p style="font-size:12px;color:#888">You're receiving this because you manage a hospitality venue in Ireland. <a href="{{unsubscribe}}">Unsubscribe</a></p>
+<p style="font-size:12px;color:#888">You're receiving this because you manage a hospitality venue. <a href="{{{RESEND_UNSUBSCRIBE_URL}}}">Unsubscribe</a> · Rotahr · Ireland</p>
 </div>`,
   },
   {
@@ -86,45 +95,49 @@ const EMAIL_SEQUENCES = [
     label: "Email 2 — Real Cost (Day 3)",
     subject: "How much is bad scheduling actually costing you?",
     previewText: "It's not just the time. It's the money walking out the door.",
-    html: `<div style="font-family:Georgia,serif;max-width:600px;margin:0 auto;padding:32px 24px;color:#1a1a1a">
-<p>Hi [First Name],</p>
+    html: `<div style="${WRAP}">
+<p>Hi {{{contact.first_name|there}}},</p>
 <p>Bad scheduling has a price. Most owners never add it up.</p>
 <p>Here's a rough breakdown for a 15-person team:</p>
 <ul>
 <li><strong>4 hrs/week</strong> building the rota manually = ~€3,000/year of manager time</li>
 <li><strong>1 no-show per week</strong> = lost covers, stressed staff, angry customers</li>
 <li><strong>Overtime errors</strong> from manual tracking = payroll overpays you'll never catch</li>
-<li><strong>High turnover</strong> from poor communication = €2,000–€5,000 per staff replacement</li>
+<li><strong>A supplier price rise nobody noticed</strong> = a best-seller quietly losing margin for months</li>
 </ul>
-<p>That's easily <strong>€10,000+ a year</strong> bleeding out quietly.</p>
-<p>Rotahr costs €79/month.</p>
-<p>You do the maths.</p>
-<p><a href="https://rotahr.vercel.app" style="background:#10b981;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;display:inline-block;font-weight:600">See how it works →</a></p>
+<p>Those add up quickly, and they leak out quietly.</p>
+<p>Rotahr starts at €49 a month, VAT included — a flat fee, never per employee. Its new Manager Copilot flags the no-show risks, the short-staffed hours and the dishes a price rise has hurt before service, not at month end.</p>
+<p>You do the maths: <a href="https://rotahr.com/roi-calculator">rotahr.com/roi-calculator</a></p>
+<p><a href="https://rotahr.com/pricing" style="${BTN}">See pricing →</a></p>
 <p>The first 3 months are on us. No card needed to start.</p>
 <p>— The Rotahr Team</p>
-<p style="font-size:12px;color:#888"><a href="{{unsubscribe}}">Unsubscribe</a></p>
+${FOOT}
 </div>`,
   },
   {
     id: 3,
-    label: "Email 3 — Social Proof (Day 7)",
-    subject: '"I got 6 hours back this week"',
-    previewText: "What a Dublin bar manager said after switching to Rotahr.",
-    html: `<div style="font-family:Georgia,serif;max-width:600px;margin:0 auto;padding:32px 24px;color:#1a1a1a">
-<p>Hi [First Name],</p>
-<p>Sarah runs a 22-person team across a bar and kitchen in Dublin.</p>
-<p>Before Rotahr, she spent Sunday evenings building the rota. Then Monday chasing confirmations. Then Tuesday dealing with cover requests in a WhatsApp group with 22 people in it.</p>
-<p>After switching to Rotahr:</p>
-<blockquote style="border-left:3px solid #10b981;padding-left:16px;margin:16px 0;font-style:italic">"I published the rota in 20 minutes. Staff got notified instantly. One person requested a swap through the app, it was sorted in an hour. I got my Sunday evening back."</blockquote>
+    label: "Email 3 — A Sunday in Rotahr (Day 7)",
+    subject: "What Sunday evening looks like with the rota already done",
+    previewText: "Publish in 20 minutes, swaps sorted in the app, Monday brief waiting.",
+    // Was a quoted testimonial from a named Dublin manager. There is no such
+    // customer on record, so it is now a walkthrough of the demo venue instead.
+    html: `<div style="${WRAP}">
+<p>Hi {{{contact.first_name|there}}},</p>
+<p>Here's how the week starts at The Anchor &amp; Tap, the demo gastropub you can open on our site with no signup.</p>
+<ul>
+<li><strong>Sunday:</strong> next week's rota is copied from this week, tweaked and published. Every staff member gets it on their phone.</li>
+<li><strong>Monday morning:</strong> a swap request comes in through the app and the manager approves it in one tap — no WhatsApp thread.</li>
+<li><strong>10am:</strong> the Manager Copilot has the day on one page: two fridge checks nobody logged yesterday, ribeye up 14% from the supplier and three dishes losing GP, and a lunch peak that's short on the floor.</li>
+</ul>
 <p><strong>What changes for your team:</strong></p>
 <ul>
 <li>Staff stop texting you for shift info</li>
 <li>Time-off requests go through the app, not your personal phone</li>
 <li>You see costs, hours and coverage gaps before they become problems</li>
 </ul>
-<p><a href="https://rotahr.vercel.app" style="background:#10b981;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;display:inline-block;font-weight:600">Start free — no card required →</a></p>
+<p><a href="https://rotahr.com/try" style="${BTN}">Open the demo venue →</a></p>
 <p>— The Rotahr Team</p>
-<p style="font-size:12px;color:#888"><a href="{{unsubscribe}}">Unsubscribe</a></p>
+${FOOT}
 </div>`,
   },
   {
@@ -132,66 +145,114 @@ const EMAIL_SEQUENCES = [
     label: "Email 4 — AI Bookkeeping (Day 14)",
     subject: "Your receipts are piling up. Let AI sort them.",
     previewText: "Snap a photo. Rotahr reads it and logs the expense automatically.",
-    html: `<div style="font-family:Georgia,serif;max-width:600px;margin:0 auto;padding:32px 24px;color:#1a1a1a">
-<p>Hi [First Name],</p>
+    html: `<div style="${WRAP}">
+<p>Hi {{{contact.first_name|there}}},</p>
 <p>Most hospitality managers are running their bookkeeping the same way they ran their rota in 2015 — badly.</p>
 <p>Rotahr has a built-in expense tracker with AI receipt reading.</p>
 <ol>
-<li><strong>Snap a photo</strong> of any receipt</li>
+<li><strong>Snap a photo</strong> of any receipt or delivery note</li>
 <li><strong>AI reads it automatically</strong> — vendor, amount, VAT, category — all pre-filled</li>
 <li><strong>You confirm or edit</strong>, then save</li>
 <li><strong>Dashboard updates instantly</strong> — category totals, monthly spend, P&amp;L, VAT summary</li>
 </ol>
+<p>New: every supplier price that changes on the way in is now recorded, so the Manager Copilot can tell you which dishes lost margin — and what menu price would hold your target GP.</p>
 <p>At the end of the month you have a clean expense report ready for your accountant. Not a box of crumpled receipts.</p>
-<p><a href="https://rotahr.vercel.app" style="background:#10b981;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;display:inline-block;font-weight:600">Try it free →</a></p>
+<p><a href="https://rotahr.com/features/bookkeeping-receipts" style="${BTN}">See how it works →</a></p>
 <p>— The Rotahr Team</p>
-<p style="font-size:12px;color:#888"><a href="{{unsubscribe}}">Unsubscribe</a></p>
+${FOOT}
 </div>`,
   },
   {
     id: 5,
     label: "Email 5 — Objections (Day 21)",
-    subject: '"We\'re too small for software like this"',
+    subject: `"We're too small for software like this"`,
     previewText: "If you have more than 3 staff, you're not too small.",
-    html: `<div style="font-family:Georgia,serif;max-width:600px;margin:0 auto;padding:32px 24px;color:#1a1a1a">
-<p>Hi [First Name],</p>
+    html: `<div style="${WRAP}">
+<p>Hi {{{contact.first_name|there}}},</p>
 <p>We hear this a lot.</p>
 <p><em>"We're only a small team."<br/>"We don't have time to set something new up."<br/>"Excel works fine for now."</em></p>
-<p>Here's the thing — Rotahr is built for exactly that team. The 8-person cafe. The 15-person bar. The hotel with rotating shift patterns and seasonal staff.</p>
-<p>Setup takes under 10 minutes:</p>
+<p>Here's the thing — Rotahr is built for exactly that team. The 8-person café. The 15-person bar. The hotel with rotating shift patterns and seasonal staff. And because pricing is flat, hiring for the summer doesn't change your bill.</p>
+<p>Getting started:</p>
 <ol>
-<li>Add your venue and staff</li>
-<li>Import or build your first rota</li>
-<li>Staff get invited by text or email — they download the app, done</li>
+<li>Add your venue and staff (or we do it with you on a call)</li>
+<li>Build your first rota</li>
+<li>Staff get an email invite, set their own password and download the app — done</li>
 </ol>
 <p>And if Excel is "working fine" — ask yourself: how many hours did you spend on it last week?</p>
-<p><a href="https://rotahr.vercel.app" style="background:#10b981;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;display:inline-block;font-weight:600">Start free, set up in 10 minutes →</a></p>
+<p><a href="https://rotahr.com/pricing" style="${BTN}">Start your 3 months free →</a></p>
 <p>Still not sure? Reply to this email. I'll answer any question directly.</p>
 <p>— Gabor, Rotahr</p>
-<p style="font-size:12px;color:#888"><a href="{{unsubscribe}}">Unsubscribe</a></p>
+${FOOT}
 </div>`,
   },
   {
     id: 6,
     label: "Email 6 — Last Call (Day 30)",
     subject: "Last one from me — then I'll leave you alone",
-    previewText: "One month free. Still on the table.",
-    html: `<div style="font-family:Georgia,serif;max-width:600px;margin:0 auto;padding:32px 24px;color:#1a1a1a">
-<p>Hi [First Name],</p>
+    previewText: "3 months free. Still on the table.",
+    html: `<div style="${WRAP}">
+<p>Hi {{{contact.first_name|there}}},</p>
 <p>This is the last email in this sequence.</p>
 <p>If Rotahr isn't for you, no hard feelings — unsubscribe below and I won't bother you again.</p>
-<p>But if any of this has been nagging at you — the Sunday rota, the WhatsApp chaos, the receipts in a drawer — the free trial is still there.</p>
+<p>But if any of this has been nagging at you — the Sunday rota, the WhatsApp chaos, the receipts in a drawer — the free months are still there.</p>
 <p><strong>What you get:</strong></p>
 <ul>
-<li>Full access for 30 days, no card required</li>
-<li>Rota builder, staff app, expense tracker, bookings assistant, dashboard</li>
+<li>Full access for 3 months, no card required</li>
+<li>Rota builder, staff app, HACCP records, bookings, expense tracker and the Manager Copilot daily brief</li>
 <li>Support from a real person if you get stuck</li>
 </ul>
-<p><strong>What it costs to try:</strong> Nothing.</p>
-<p><a href="https://rotahr.vercel.app" style="background:#10b981;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;display:inline-block;font-weight:600">Start your free trial →</a></p>
+<p><strong>What it costs to try:</strong> Nothing. After that, from €49 a month, flat.</p>
+<p><a href="https://rotahr.com/pricing" style="${BTN}">Start your 3 months free →</a></p>
 <p>If you do sign up and want help getting set up, just reply to this email.</p>
 <p>— Gabor, Rotahr</p>
-<p style="font-size:12px;color:#888"><a href="{{unsubscribe}}">Unsubscribe</a> · Rotahr · Dublin, Ireland</p>
+${FOOT}
+</div>`,
+  },
+  {
+    id: 7,
+    label: "What's new — Manager Copilot (prospects)",
+    subject: "New in Rotahr: a 10am brief that tells you what needs doing",
+    previewText: "Missed checks, margin hits, short-staffed hours and no-show risks on one page.",
+    html: `<div style="${WRAP}">
+<p>Hi {{{contact.first_name|there}}},</p>
+<p>Everything a manager needs to know before lunch service is usually in five different places: the fridge check nobody logged, the supplier invoice that put ribeye up 14%, the prep that keeps going in the bin, the table of eight that didn't show last time.</p>
+<p>We've just shipped the <strong>Manager Copilot</strong>: one page each morning that reads all of it for you.</p>
+<ul>
+<li><strong>Compliance Monitor</strong> — missed or failed HACCP checks, expiring certificates on rostered staff, short rest between shifts</li>
+<li><strong>Margin Guard</strong> — dishes hit by a supplier price rise, with the menu price that would hold your target GP (70% by default)</li>
+<li><strong>Stock Waste Advisor</strong> — what's being binned, and why</li>
+<li><strong>Booking Forecast</strong> — covers for the next 7 days against who's on the rota at the peak hour</li>
+<li><strong>No-show Guard</strong> — risky bookings, the reason, and a confirmation message drafted for you to copy</li>
+</ul>
+<p>It suggests; it never sends, publishes or changes anything on its own. And guest and staff names, emails and phone numbers are stripped before anything reaches the AI.</p>
+<p>Included on every plan — Starter €49, Pro €89, Enterprise €215 a month, flat, never per employee. First 3 months free.</p>
+<p><a href="https://rotahr.com/features/manager-copilot" style="${BTN}">See how the Copilot works →</a></p>
+<p>Or open the demo venue and try it yourself: <a href="https://rotahr.com/try">rotahr.com/try</a></p>
+<p>— Gabor, Rotahr</p>
+${FOOT}
+</div>`,
+  },
+  {
+    id: 8,
+    label: "What's new — Manager Copilot (customers)",
+    subject: "New in your Rotahr account: Manager Copilot",
+    previewText: "Already switched on for admins and managers. Here's where to find it.",
+    html: `<div style="${WRAP}">
+<p>Hi {{{contact.first_name|there}}},</p>
+<p>Your account has a new page: <strong>Manager Copilot</strong>, in the sidebar under Daily. It's included on your plan at no extra cost.</p>
+<p>Open it before service and you get today's five priorities, a Tonight panel (covers, busiest hour, allergy tables, occasions) and five read-only checks: Compliance Monitor, Margin Guard, Stock Waste Advisor, Booking Forecast and No-show Guard. Every line links to the screen where you fix it. There's also an Ask box — try "which dishes lost margin?".</p>
+<p><strong>Good to know:</strong></p>
+<ul>
+<li>It never sends, publishes or changes anything itself — you decide.</li>
+<li>Admins and managers see it by default. To give a head chef access, tick the Manager Copilot permission on their employee profile. To switch it off, go to Settings → Features.</li>
+<li>Margin Guard uses a 70% target GP until you change it on the Copilot page.</li>
+<li>Names, emails and phone numbers are stripped before anything reaches the AI.</li>
+</ul>
+<p><strong>Also new:</strong> supplier price history on every stock item, revenue and labour % per venue (assign your POS to a venue in Settings → POS), staff invites by email, and staff now see only their own contact details in the directory.</p>
+<p><a href="https://rotahr.com/copilot" style="${BTN}">Open the Copilot →</a></p>
+<p>Full list of changes: <a href="https://rotahr.com/whats-new">rotahr.com/whats-new</a>. Reply to this email if anything looks off — it comes straight to me.</p>
+<p>— Gabor, Rotahr</p>
+${FOOT}
 </div>`,
   },
 ];

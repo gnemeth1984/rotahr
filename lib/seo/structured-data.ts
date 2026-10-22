@@ -128,6 +128,8 @@ export function softwareApplicationSchema() {
       "Customer relationship management",
       "HACCP food safety compliance records",
       "Reporting and analytics",
+      "Daily operations brief and AI insights",
+      "Supplier price history",
       "Multi-location management",
     ],
     url: SITE_URL,

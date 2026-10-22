@@ -30,6 +30,11 @@ import {
 
 const features = [
   {
+    icon: "🧭",
+    title: "Manager Copilot",
+    desc: "One morning brief: missed HACCP checks, dishes a price rise has hurt, waste, covers vs staffing and likely no-shows. Suggests, never changes anything.",
+  },
+  {
     icon: "📅",
     title: "Rota & Scheduling",
     desc: "Build and publish weekly rotas in minutes. Staff get notified instantly. No more WhatsApp chaos.",
@@ -128,7 +133,7 @@ const landingFaq = [
   },
   {
     q: "Does Rotahr work for a multi-location group?",
-    a: "Yes. Every location sits under one account with its own address, clock-in geofence, timezone, capacity, equipment list and opening, closing and cleaning checklists. Shifts are assigned to a location, so labour cost and overtime break down per site. Enterprise is the multi-location plan at €215 a month for unlimited staff across your venues. One honest limit: revenue is tracked for the business as a whole rather than per site, because POS snapshots arrive business-wide.",
+    a: "Yes. Every location sits under one account with its own address, clock-in geofence, timezone, capacity, equipment list and opening, closing and cleaning checklists. Shifts are assigned to a location, so labour cost and overtime break down per site. Enterprise is the multi-location plan at €215 a month for unlimited staff across your venues. Each POS connection can be assigned to a venue, so daily revenue and labour % show per site too.",
   },
   {
     q: "How much does Rotahr cost?",
@@ -640,6 +645,7 @@ export default async function LandingPage() {
               <li><Link href="/pricing" className="hover:text-slate-900">Pricing</Link></li>
               <li><Link href="/about" className="hover:text-slate-900">About</Link></li>
               <li><Link href="/blog" className="hover:text-slate-900">Blog</Link></li>
+              <li><Link href="/whats-new" className="hover:text-slate-900">What&apos;s new</Link></li>
               {/* Sitewide link to the template library. Its 27 pages are the
                   top of the funnel — a visitor downloading a temperature log is
                   the exact person who later needs the HACCP module. */}

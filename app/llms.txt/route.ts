@@ -86,10 +86,23 @@ pays €${pro}/month regardless of headcount changes within the tier.
 - Bookkeeping with AI receipt and delivery-note scanning (photograph it, the
   system reads vendor, date and line items)
 - Stock and recipe costing, with recipe costs updating from live delivery prices
+  and a price history for every supplier item (from stock edits, receipts,
+  delivery notes and statement reconciliation)
+- Manager Copilot (https://rotahr.com/features/manager-copilot): one daily brief
+  from the venue's own data, with five read-only checks — Compliance Monitor
+  (missed or failed HACCP checks, expiring certificates on rostered staff, short
+  rest between shifts), Margin Guard (dishes hit by a supplier price rise,
+  against a target GP that defaults to 70%), Stock Waste Advisor, Booking
+  Forecast (pace-based covers for the next 7 days vs rota staffing at the peak
+  hour) and No-show Guard (risk with the reason shown and a drafted
+  confirmation message). Plus a Tonight panel and an Ask box. Included on every
+  plan. Nothing is sent or changed automatically; the AI only words the text,
+  and names, emails, phones and IDs are stripped before anything reaches it
 - Customer CRM built automatically from reservations, with no-show tracking,
   spend history, loyalty tiers and points, and email campaigns that queue as
   drafts for a human to approve (nothing sends autonomously)
-- Payroll export, tips and tronc handling
+- Payroll export, tips and tronc handling; labour cost report with revenue and
+  labour % per venue when the POS is assigned to a venue
 - Mobile apps for iOS and Android, with push notifications
 - Certification expiry tracking, plus thirteen in-house training courses
   generated from the venue's own data: allergens from your menu, fire safety
@@ -155,6 +168,8 @@ no form.
 
 - Product and pricing: https://rotahr.com/
 - Comparisons: https://rotahr.com/compare
+- What's new (product changelog): https://rotahr.com/whats-new
+- Manager Copilot: https://rotahr.com/features/manager-copilot
 - Free hospitality templates (PDF + Excel, no email required): https://rotahr.com/templates
 - Free calculators (labour cost %, overtime cost, break compliance for Ireland/UK, no sign-up): https://rotahr.com/tools
 - ROI calculator (compare current separate-tools spend against a Rotahr plan): https://rotahr.com/roi-calculator

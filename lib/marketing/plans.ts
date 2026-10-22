@@ -42,6 +42,7 @@ export const plans: MarketingPlan[] = [
     cta: "Start your 3 months free",
     features: [
       "Rota scheduling & publishing",
+      "Manager Copilot daily brief",
       "Clock in/out with geofencing",
       "Reservations & table management",
       "Menu & specials board",

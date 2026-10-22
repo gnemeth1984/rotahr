@@ -13,19 +13,19 @@ import {
 export const metadata: Metadata = {
   title: "Rotahr Features — Every Module Explained",
   description:
-    "Rota scheduling, clock-in and payroll hours, HACCP food safety, table bookings, bookkeeping, recipe costing, guest CRM with loyalty, in-house staff training and an equipment service register — what each module actually does, and what it doesn't.",
+    "Rota scheduling, clock-in and payroll hours, HACCP food safety, table bookings, bookkeeping, recipe costing, guest CRM with loyalty, in-house staff training, an equipment service register and the Manager Copilot daily brief — what each module actually does, and what it doesn't.",
   alternates: { canonical: "/features" },
   openGraph: {
     title: "Rotahr features — every module explained",
     description:
-      "Nine modules, one app. What each one does, who it's for, and where its limits are.",
+      "Ten modules, one app. What each one does, who it's for, and where its limits are.",
     url: "/features",
   },
 };
 
 export default function FeaturesIndexPage() {
   // ItemList so the module set is machine-readable as a collection rather than
-  // nine pages Google has to infer a relationship between.
+  // ten pages Google has to infer a relationship between.
   const itemList = {
     "@context": "https://schema.org",
     "@type": "ItemList",
@@ -62,11 +62,12 @@ export default function FeaturesIndexPage() {
           Everything Rotahr does, module by module
         </h1>
         <p className="text-lg text-slate-200 mb-6 max-w-2xl">
-          Rotahr is nine modules in one app — scheduling, clock-in and payroll
+          Rotahr is ten modules in one app — scheduling, clock-in and payroll
           hours, HACCP food safety, table bookings, bookkeeping, recipe costing,
-          guest CRM with loyalty, in-house staff training and an equipment
-          service register — sharing one set of staff, venues and data, so the
-          same delivery never gets entered three times.
+          guest CRM with loyalty, in-house staff training, an equipment service
+          register and the Manager Copilot daily brief — sharing one set of
+          staff, venues and data, so the same delivery never gets entered three
+          times.
         </p>
         <p className="text-base text-slate-300 mb-12 max-w-2xl leading-relaxed">
           Each page below covers what the module actually does, who it&apos;s the
@@ -120,7 +121,7 @@ export default function FeaturesIndexPage() {
               },
               {
                 term: "Inventory management",
-                body: "Stock counts, supplier deliveries, and recipe costing that re-prices every dish when an ingredient price moves.",
+                body: "Stock counts, supplier deliveries, a price history for every supplier item, and recipe costing that re-prices every dish when an ingredient price moves.",
                 slug: "stock-recipe-costing",
               },
               {
@@ -140,8 +141,13 @@ export default function FeaturesIndexPage() {
               },
               {
                 term: "Reporting",
-                body: "Labour cost against hours worked, food-safety compliance rates, booking and cover volumes, gross margin per dish.",
+                body: "Labour cost against hours worked, revenue and labour % per venue, food-safety compliance rates, booking and cover volumes, gross margin per dish.",
                 slug: "bookkeeping-receipts",
+              },
+              {
+                term: "Operations insights",
+                body: "The Manager Copilot: one daily brief built from the venue's own rota, bookings, HACCP logs, stock and supplier prices — missed checks, dishes hit by a price rise, waste, covers against staffing and no-show risk. Read-only: it suggests, the manager decides.",
+                slug: "manager-copilot",
               },
               {
                 term: "Compliance records",

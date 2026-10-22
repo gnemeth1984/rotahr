@@ -31,7 +31,7 @@ export const revalidate = 3600;
  *
  * Bump this when you ship a change to a static marketing page.
  */
-const STATIC_UPDATED = new Date('2026-11-18T00:00:00Z');
+const STATIC_UPDATED = new Date('2026-10-22T00:00:00Z');
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const [posts, venues] = await Promise.all([
@@ -74,6 +74,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // we have while there are no customers to point at.
     { url: `${baseUrl}/founding`, lastModified: STATIC_UPDATED, changeFrequency: 'weekly', priority: 0.8 },
     { url: `${baseUrl}/blog`, lastModified: STATIC_UPDATED, changeFrequency: 'daily', priority: 0.8 },
+    // Product changelog. Linked from the footer, the launch emails and the
+    // social posts, so every "what's new" link lands on one durable URL.
+    { url: `${baseUrl}/whats-new`, lastModified: STATIC_UPDATED, changeFrequency: 'weekly', priority: 0.7 },
     // Tutorial videos. Carries VideoObject markup per video, so this is the
     // one page on the site eligible for a video rich result.
     { url: `${baseUrl}/tutorials`, lastModified: STATIC_UPDATED, changeFrequency: 'weekly', priority: 0.8 },

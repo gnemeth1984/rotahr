@@ -28,6 +28,7 @@ SHOTS = [
     ("stock-items", "/stock", "Stock List"),
     ("recipe-costing", "/recipes", None),
     ("rota", "/rota", None),
+    ("copilot", "/copilot", None),
 ]
 
 
