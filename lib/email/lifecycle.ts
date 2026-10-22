@@ -270,12 +270,18 @@ export function decideLifecycle(input: {
  * Covers real (non-demo, non-listing-shell) businesses created in the last
  * `lookbackDays`, which comfortably spans the 90-day trial.
  */
-export async function planLifecycle(opts: { now?: Date; lookbackDays?: number } = {}): Promise<LifecyclePlanItem[]> {
+export async function planLifecycle(
+  opts: { now?: Date; lookbackDays?: number; businessIds?: string[] } = {},
+): Promise<LifecyclePlanItem[]> {
   const now = opts.now ?? new Date();
   const since = new Date(now.getTime() - (opts.lookbackDays ?? 100) * DAY);
 
   const businesses = await prisma.business.findMany({
-    where: { ...REAL_CUSTOMER_WHERE, createdAt: { gte: since } },
+    where: {
+      ...REAL_CUSTOMER_WHERE,
+      createdAt: { gte: since },
+      ...(opts.businessIds ? { id: { in: opts.businessIds } } : {}),
+    },
     select: {
       id: true,
       name: true,
@@ -301,7 +307,10 @@ export async function planLifecycle(opts: { now?: Date; lookbackDays?: number } 
   const items: LifecyclePlanItem[] = [];
   for (const b of businesses) {
     const progress = progressBy.get(b.id)!;
-    const mine = logs.filter((l) => l.businessId === b.id);
+    // A send that failed at Resend doesn't count, so it can be retried.
+    const mine = logs.filter(
+      (l) => l.businessId === b.id && (l.details as { status?: string } | null)?.status !== "failed",
+    );
     const sentKeys = new Set(
       mine.map((l) => (l.details as { key?: string } | null)?.key).filter(Boolean) as LifecycleKey[],
     );
@@ -392,27 +401,79 @@ export async function runLifecycle(opts: { dryRun?: boolean; now?: Date; limit?:
   if (dryRun) return result;
 
   for (const item of due.slice(0, opts.limit ?? 50)) {
-    // Record first so a crash mid-send can't produce a duplicate tomorrow.
-    const log = await prisma.activityLog.create({
-      data: {
-        businessId: item.businessId,
-        action: LOG_ACTION,
-        details: { key: item.key, to: item.to, status: "sending" },
-      },
-    });
-    const res = await sendEmail({
-      context: `lifecycle:${item.key}`,
-      to: item.to!,
-      subject: item.email!.subject,
-      html: item.email!.html,
-      text: item.email!.text,
-    });
-    await prisma.activityLog.update({
-      where: { id: log.id },
-      data: { details: { key: item.key, to: item.to, status: res.ok ? "sent" : "failed", resendId: res.id, error: res.error } },
-    });
+    const res = await deliverPlanItem(item, { via: "cron" });
     if (res.ok) result.sent++;
     else result.failures.push({ businessId: item.businessId, error: res.error ?? "unknown" });
   }
   return result;
+}
+
+/**
+ * Send one planned email and record it. The log row is written BEFORE the send
+ * so a crash mid-send can't lead to a duplicate later, and a second concurrent
+ * attempt at the same key (double click, cron racing a manual send) backs out.
+ */
+async function deliverPlanItem(
+  item: LifecyclePlanItem,
+  meta: { via: "cron" | "manual"; sentBy?: string | null },
+): Promise<{ ok: boolean; error: string | null; resendId: string | null }> {
+  const base = { key: item.key, to: item.to, via: meta.via, sentBy: meta.sentBy ?? null };
+  const log = await prisma.activityLog.create({
+    data: { businessId: item.businessId, action: LOG_ACTION, details: { ...base, status: "sending" } },
+  });
+  const rivals = await prisma.activityLog.findMany({
+    where: { businessId: item.businessId, action: LOG_ACTION, details: { path: ["key"], equals: item.key! } },
+    select: { id: true, details: true, createdAt: true },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+  });
+  const live = rivals.filter((r) => (r.details as { status?: string } | null)?.status !== "failed");
+  if (live[0] && live[0].id !== log.id) {
+    await prisma.activityLog.delete({ where: { id: log.id } });
+    return { ok: false, error: "already sent", resendId: null };
+  }
+
+  const res = await sendEmail({
+    context: `lifecycle:${item.key}`,
+    to: item.to!,
+    subject: item.email!.subject,
+    html: item.email!.html,
+    text: item.email!.text,
+  });
+  await prisma.activityLog.update({
+    where: { id: log.id },
+    data: {
+      details: { ...base, status: res.ok ? "sent" : "failed", resendId: res.id, error: res.error },
+    },
+  });
+  return { ok: res.ok, error: res.error, resendId: res.id };
+}
+
+/**
+ * Manual send from the admin Funnel tab: one business, one email, on an
+ * explicit click. Works whether or not LIFECYCLE_EMAILS_ENABLED is set (that
+ * flag only governs the automatic cron), but every other rule still applies:
+ * the email is re-planned server-side right now and goes only if this exact
+ * key is still due, the address isn't unsubscribed/unroutable, and it hasn't
+ * been sent before.
+ */
+export async function sendLifecycleNow(input: {
+  businessId: string;
+  key: LifecycleKey;
+  sentBy?: string | null;
+}): Promise<{ ok: boolean; error: string | null; to: string | null; subject: string | null }> {
+  const [item] = await planLifecycle({ businessIds: [input.businessId] });
+  if (!item) return { ok: false, error: "business not found or not eligible", to: null, subject: null };
+  if (item.key !== input.key) {
+    return {
+      ok: false,
+      error: item.key ? `no longer due — now due: ${item.key}` : `no longer due (${item.reason})`,
+      to: item.to,
+      subject: null,
+    };
+  }
+  if (item.skip || !item.to || !item.email) {
+    return { ok: false, error: `can't send: ${item.skip ?? "no recipient"}`, to: item.to, subject: null };
+  }
+  const res = await deliverPlanItem(item, { via: "manual", sentBy: input.sentBy });
+  return { ok: res.ok, error: res.error, to: item.to, subject: item.email.subject };
 }

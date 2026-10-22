@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Loader2, CheckCircle2, Circle, Mail, Eye, X, Info, RefreshCw } from "lucide-react";
+import { Loader2, CheckCircle2, Circle, Mail, Eye, X, Info, RefreshCw, Send } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
@@ -87,6 +87,44 @@ export function FunnelTab() {
   const [error, setError] = useState<string | null>(null);
   const [plan, setPlan] = useState<{ enabled: boolean; labels: Record<string, string>; items: PlanItem[] } | null>(null);
   const [preview, setPreview] = useState<PlanItem | null>(null);
+  // Manual send: first click arms it for that business, second click sends.
+  const [armed, setArmed] = useState<string | null>(null);
+  const [sending, setSending] = useState<string | null>(null);
+  const [sendNote, setSendNote] = useState<Record<string, { ok: boolean; text: string }>>({});
+
+  const reloadPlan = useCallback(async () => {
+    const l = await fetch("/api/admin/lifecycle");
+    if (l.ok) setPlan(await l.json());
+  }, []);
+
+  const sendNow = useCallback(
+    async (i: PlanItem) => {
+      if (!i.key) return;
+      setSending(i.businessId);
+      try {
+        const r = await fetch("/api/admin/lifecycle", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ businessId: i.businessId, key: i.key }),
+        });
+        const j = await r.json().catch(() => ({}));
+        setSendNote((n) => ({
+          ...n,
+          [i.businessId]: r.ok
+            ? { ok: true, text: `Sent "${i.key}" to ${j.to ?? i.to}` }
+            : { ok: false, text: j.error ?? `Failed (HTTP ${r.status})` },
+        }));
+        if (r.ok) {
+          setPreview(null);
+          await reloadPlan();
+        }
+      } finally {
+        setSending(null);
+        setArmed(null);
+      }
+    },
+    [reloadPlan],
+  );
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -312,14 +350,15 @@ export function FunnelTab() {
         <Card data-testid="lifecycle-panel">
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2">
-              <Mail className="h-4 w-4 text-slate-500" /> Setup emails — dry run
+              <Mail className="h-4 w-4 text-slate-500" /> Setup emails
             </CardTitle>
             <p className="text-xs text-slate-500 flex gap-1.5">
               <Info className="h-3.5 w-3.5 shrink-0 mt-0.5" />
               {plan.enabled
-                ? "LIFECYCLE_EMAILS_ENABLED is on, but nothing sends from this screen."
-                : "Sending is OFF (LIFECYCLE_EMAILS_ENABLED not set, cron not scheduled). This is who would get what today."}{" "}
-              One email per missing step, trial accounts only, max one every 3 days, unsubscribed and demo addresses skipped.
+                ? "Automatic sending is ON (LIFECYCLE_EMAILS_ENABLED)."
+                : "Automatic sending is OFF — nothing goes out unless you press Send here."}{" "}
+              This is who is due what today. One email per missing step, trial accounts only, max one every 3 days,
+              unsubscribed and demo addresses skipped.
             </p>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -330,6 +369,13 @@ export function FunnelTab() {
                 </span>
               ))}
             </div>
+            {Object.entries(sendNote)
+              .filter(([id, n]) => n.ok && !due.some((d) => d.businessId === id))
+              .map(([id, n]) => (
+                <p key={id} className="text-xs text-emerald-700 flex items-center gap-1.5" data-testid="lifecycle-sent">
+                  <CheckCircle2 className="h-3.5 w-3.5" /> {n.text}
+                </p>
+              ))}
             {due.length === 0 ? (
               <p className="text-sm text-slate-400">Nobody is due a setup email today.</p>
             ) : (
@@ -357,9 +403,20 @@ export function FunnelTab() {
                         {i.skip && <span className="block text-amber-700">skipped: {i.skip}</span>}
                       </td>
                       <td className="py-2 text-right">
-                        <Button variant="outline" size="sm" className="h-7 gap-1 text-xs" onClick={() => setPreview(i)} data-testid="lifecycle-preview">
-                          <Eye className="h-3 w-3" /> Preview
-                        </Button>
+                        <div className="flex flex-wrap justify-end gap-1.5">
+                          <Button variant="outline" size="sm" className="h-7 gap-1 text-xs" onClick={() => setPreview(i)} data-testid="lifecycle-preview">
+                            <Eye className="h-3 w-3" /> Preview
+                          </Button>
+                          {!i.skip && <SendControl i={i} armed={armed} sending={sending} setArmed={setArmed} sendNow={sendNow} />}
+                        </div>
+                        {sendNote[i.businessId] && (
+                          <p
+                            className={`mt-1 text-[11px] ${sendNote[i.businessId].ok ? "text-emerald-700" : "text-red-600"}`}
+                            data-testid="lifecycle-send-note"
+                          >
+                            {sendNote[i.businessId].text}
+                          </p>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -395,14 +452,58 @@ export function FunnelTab() {
                 <p className="text-xs text-slate-500">To: {preview.to} · {preview.key}</p>
                 <p className="text-sm font-semibold text-slate-900">{preview.email.subject}</p>
               </div>
-              <button onClick={() => setPreview(null)} className="text-slate-400 hover:text-slate-600" aria-label="Close">
-                <X className="h-4 w-4" />
-              </button>
+              <div className="flex items-center gap-2 shrink-0">
+                {!preview.skip && (
+                  <SendControl i={preview} armed={armed} sending={sending} setArmed={setArmed} sendNow={sendNow} />
+                )}
+                <button onClick={() => setPreview(null)} className="text-slate-400 hover:text-slate-600" aria-label="Close">
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
             </div>
+            {sendNote[preview.businessId] && !sendNote[preview.businessId].ok && (
+              <p className="px-4 py-2 text-xs text-red-600 border-b">{sendNote[preview.businessId].text}</p>
+            )}
             <iframe title="Email preview" srcDoc={preview.email.html} className="w-full flex-1 min-h-[420px]" sandbox="" />
           </div>
         </div>
       )}
     </div>
+  );
+}
+
+function SendControl({
+  i,
+  armed,
+  sending,
+  setArmed,
+  sendNow,
+}: {
+  i: PlanItem;
+  armed: string | null;
+  sending: string | null;
+  setArmed: (id: string | null) => void;
+  sendNow: (i: PlanItem) => void;
+}) {
+  const busy = sending === i.businessId;
+  if (armed === i.businessId || busy) {
+    return (
+      <span className="inline-flex items-center gap-1">
+        <Button size="sm" className="h-7 gap-1 text-xs" disabled={busy} onClick={() => sendNow(i)} data-testid="lifecycle-send-confirm">
+          {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
+          {busy ? "Sending…" : `Send to ${i.to}`}
+        </Button>
+        {!busy && (
+          <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setArmed(null)}>
+            Cancel
+          </Button>
+        )}
+      </span>
+    );
+  }
+  return (
+    <Button size="sm" className="h-7 gap-1 text-xs" onClick={() => setArmed(i.businessId)} data-testid="lifecycle-send">
+      <Send className="h-3 w-3" /> Send
+    </Button>
   );
 }
