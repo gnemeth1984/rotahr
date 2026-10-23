@@ -119,15 +119,15 @@ export default function TemplatesHubPage() {
                     </p>
                     <div className="flex flex-wrap items-center gap-3 text-sm">
                       <a
-                        href={`/templates/${t.slug}.pdf`}
-                        download
+                        href={`/templates/${t.slug}?download=pdf`}
+                        rel="nofollow"
                         className="rounded-lg bg-gradient-to-r from-[#ff6b35] to-[#e8365d] px-3 py-1.5 font-semibold text-white"
                       >
                         PDF
                       </a>
                       <a
-                        href={`/templates/${t.slug}.xlsx`}
-                        download
+                        href={`/templates/${t.slug}?download=xlsx`}
+                        rel="nofollow"
                         className="rounded-lg border border-white/20 px-3 py-1.5 font-semibold text-white hover:border-white/40"
                       >
                         Excel

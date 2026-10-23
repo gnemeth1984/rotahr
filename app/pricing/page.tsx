@@ -40,7 +40,7 @@ const pricingFaq = [
   },
   {
     q: "Is there a free trial?",
-    a: "Yes. The first 3 months are free on every plan, with no card needed to start. There is no free forever tier for everyone, but the first 20 venues can apply for the founding programme at /founding, which keeps the rota, clock in/out and the staff app free forever after those 3 months, in exchange for a short call once a month. If you only want the free parts, the template library at /templates is completely ungated: no email address, no sign-up.",
+    a: "Yes. The first 3 months are free on every plan, with no card needed to start. There is no free forever tier for everyone, but the first 20 venues can apply for the founding programme at /founding, which keeps the rota, clock in/out and the staff app free forever after those 3 months, in exchange for a short call once a month. If you only want the free parts, the template library at /templates is free: just an email address, no sign-up or card.",
   },
   {
     q: "What is included in the price?",
@@ -265,7 +265,7 @@ export default function PricingPage() {
             <Link href="/templates" className="text-orange-700 underline">
               template library
             </Link>{" "}
-            with no sign-up at all.
+            that only asks for an email address.
           </li>
         </ul>
       </section>

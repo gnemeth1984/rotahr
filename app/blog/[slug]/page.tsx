@@ -223,7 +223,7 @@ export default async function BlogPostPage({ params }: Props) {
               hospitality templates
             </Link>{" "}
             — rotas, temperature logs, cleaning schedules and more, in PDF and
-            Excel. No email needed.
+            Excel. Free with just an email address.
           </p>
         ) : (
           <section className="mt-12 rounded-2xl border border-gray-200 bg-gray-50 p-6">
@@ -231,7 +231,7 @@ export default async function BlogPostPage({ params }: Props) {
               Free templates for this
             </h3>
             <p className="text-gray-600 text-sm mb-4">
-              Printable PDF and editable Excel. No email address, no sign-up.
+              Printable PDF and editable Excel. Free, just enter your email.
             </p>
             <ul className="space-y-3">
               {templates.map((t) => (
@@ -243,15 +243,15 @@ export default async function BlogPostPage({ params }: Props) {
                     {t.name}
                   </Link>
                   <a
-                    href={`/templates/${t.slug}.pdf`}
-                    download
+                    href={`/templates/${t.slug}?download=pdf`}
+                    rel="nofollow"
                     className="text-xs font-semibold text-emerald-700 hover:underline"
                   >
                     PDF
                   </a>
                   <a
-                    href={`/templates/${t.slug}.xlsx`}
-                    download
+                    href={`/templates/${t.slug}?download=xlsx`}
+                    rel="nofollow"
                     className="text-xs font-semibold text-emerald-700 hover:underline"
                   >
                     Excel

@@ -85,7 +85,7 @@ export default function ResourcesHubPage() {
           Everything we publish for restaurant, bar, café and hotel operators —
           free calculators, honest comparisons against other rota software,
           what the rules actually are where you run your venue, free paperwork
-          templates, and the blog. No email required for any of it.
+          templates, and the blog. Everything is free; the templates just ask for an email address.
         </p>
 
         {/* Calculators */}
@@ -222,7 +222,7 @@ export default function ResourcesHubPage() {
           <p className="text-sm text-slate-400 leading-relaxed max-w-2xl">
             Printable PDF and editable Excel paperwork — temperature logs,
             rotas, opening and closing checklists, cleaning schedules, stock
-            counts and more. No email required.
+            counts and more. Free with just an email address.
           </p>
         </section>
 

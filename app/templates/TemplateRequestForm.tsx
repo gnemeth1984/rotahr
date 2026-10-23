@@ -4,7 +4,7 @@ import { useState } from "react";
 
 /**
  * Public template request form. Deliberately three fields — the download itself
- * is ungated, so this is the only place we ask for anything, and a long form
+ * only asks for an email, so this is the only place we ask for anything, and a long form
  * here would just mean no requests.
  */
 export default function TemplateRequestForm() {

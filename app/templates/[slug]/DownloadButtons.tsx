@@ -67,6 +67,7 @@ export default function DownloadButtons({
   const [error, setError] = useState("");
   const [done, setDone] = useState<{ format: Format; emailed: boolean; email: string } | null>(null);
   const emailRef = useRef<HTMLInputElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
 
   const href = (f: Format) => `/templates/${slug}.${f}`;
 
@@ -74,20 +75,55 @@ export default function DownloadButtons({
     if (pending) emailRef.current?.focus();
   }, [pending]);
 
+  function recordKnown(f: Format, stored: Stored) {
+    try {
+      fetch("/api/templates/lead", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slug, format: f, email: stored.email, consent: stored.consent, venueType: stored.venueType }),
+        keepalive: true,
+      }).catch(() => {});
+    } catch {
+      // never block the download
+    }
+  }
+
+  // The library index and blog posts link here as /templates/<slug>?download=pdf
+  // so every download goes through this one email step. Read the param from
+  // window (not useSearchParams) so the page stays statically generated.
+  useEffect(() => {
+    let f: string | null = null;
+    try {
+      f = new URLSearchParams(window.location.search).get("download");
+    } catch {
+      return;
+    }
+    if (f !== "pdf" && f !== "xlsx" && f !== "csv") return;
+    const fmt = f as Format;
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("download");
+      window.history.replaceState(null, "", url.pathname + url.search + url.hash);
+    } catch {
+      // cosmetic only
+    }
+    const stored = readStored();
+    if (stored) {
+      recordKnown(fmt, stored);
+      startDownload(href(fmt));
+      setDone({ format: fmt, emailed: false, email: stored.email });
+      return;
+    }
+    setPending(fmt);
+    rootRef.current?.scrollIntoView({ block: "center" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   function onClick(e: React.MouseEvent, f: Format) {
     const stored = readStored();
     if (stored) {
       // Known visitor: let the link download as normal, record it in the background.
-      try {
-        fetch("/api/templates/lead", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ slug, format: f, email: stored.email, consent: stored.consent, venueType: stored.venueType }),
-          keepalive: true,
-        }).catch(() => {});
-      } catch {
-        // never block the download
-      }
+      recordKnown(f, stored);
       return;
     }
     e.preventDefault();
@@ -135,7 +171,7 @@ export default function DownloadButtons({
   }
 
   return (
-    <div className="mb-10" data-testid="template-download">
+    <div className="mb-10" data-testid="template-download" ref={rootRef}>
       <div className="flex flex-wrap gap-3">
         <a
           href={href("pdf")}
