@@ -5,6 +5,8 @@ import { isSuppressed, normaliseEmail } from "@/lib/email/suppression";
 import { AfterOptOut } from "./AfterOptOut";
 import { ConfirmUnsubscribeButton } from "./ConfirmUnsubscribeButton";
 import { ResubscribeButton } from "./ResubscribeButton";
+import { UnsubscribeFeedback } from "./UnsubscribeFeedback";
+import { freeTemplates } from "@/lib/templates";
 
 export const metadata: Metadata = {
   title: "Unsubscribe · Rotahr",
@@ -72,13 +74,14 @@ export default async function UnsubscribePage({
                 <span className="text-white/90 font-medium break-all">{email}</span>. Nothing more to
                 do.
               </p>
+              <UnsubscribeFeedback email={email} />
               <div className="mt-6 pt-5 border-t border-white/10">
                 <p className="text-xs text-white/40 mb-3">
                   Off the list by mistake, or your mail app opened this for you?
                 </p>
                 <ResubscribeButton email={email} />
               </div>
-              <AfterOptOut />
+              <AfterOptOut templateCount={freeTemplates.length} />
             </>
           ) : (
             <>
@@ -88,7 +91,7 @@ export default async function UnsubscribePage({
                 <span className="text-white/90 font-medium break-all">{email}</span>. No form, no
                 reason needed.
               </p>
-              <ConfirmUnsubscribeButton email={email} />
+              <ConfirmUnsubscribeButton email={email} templateCount={freeTemplates.length} />
               <p className="text-xs text-white/35 leading-relaxed mt-4">
                 We ask because mail security scanners open every link in a message before you see
                 it, and we&apos;d rather not take someone off the list who never asked.

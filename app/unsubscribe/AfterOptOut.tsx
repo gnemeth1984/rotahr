@@ -5,19 +5,21 @@ import Link from "next/link";
  * already been written — the confirm button's `done` state, and the branch a
  * returning visitor lands on.
  *
+ * (The optional "why are you leaving?" question in UnsubscribeFeedback follows
+ * the same rule: it only renders after the opt-out is written.)
+ *
  * Two rules it must keep. Nothing here can gate on an email address, because
  * asking for the address of the person who just removed theirs is how an
  * unsubscribe page earns a spam report. And nothing here can read as a step
  * between the reader and being off the list: the opt-out is finished before a
  * word of this is on screen, and the undo sits above it, not below.
  *
- * Counts are real. 28 templates across lib/templates/data (bar 2, cleaning 2,
- * finance 2, haccp 5, hotel 2, hr 3, open-close 3, rota 3, safety 3, stock 3)
- * and 13 courses in lib/training/courses.ts. If either list changes, change the
- * number here. Never add a customer count, a revenue figure or a "trusted by"
+ * Counts are real. The template count comes from lib/templates (passed in by
+ * the server page); 13 courses in lib/training/courses.ts — if that list
+ * changes, change the number here. Never add a customer count, a revenue figure or a "trusted by"
  * line, and never let the training paragraph lose its last sentence.
  */
-export function AfterOptOut() {
+export function AfterOptOut({ templateCount }: { templateCount: number }) {
   return (
     <div className="mt-6 pt-5 border-t border-white/10">
       <p className="text-[11px] uppercase tracking-wider text-white/35 mb-3">
@@ -25,13 +27,13 @@ export function AfterOptOut() {
       </p>
 
       <p className="text-sm text-white/60 leading-relaxed">
-        <span className="text-white/85 font-medium">28 free templates.</span> Fridge and freezer
+        <span className="text-white/85 font-medium">{templateCount} free templates.</span> Fridge and freezer
         temperature logs, cleaning and opening and closing checklists, rota planners, stocktakes,
         takings and tips sheets, guest incident logs. Each one comes as a printable PDF, an
-        editable Excel sheet and a CSV, and they download on the click — no email address, no
-        sign-up, nothing that puts you back on a list.{" "}
+        editable Excel sheet and a CSV. The download asks for an email address, but yours stays
+        unsubscribed — downloading won&apos;t put you back on the list.{" "}
         <Link href="/templates" className="text-[#FF6B35] hover:underline">
-          Browse all 28
+          Browse all {templateCount}
         </Link>
         .
       </p>

@@ -5,6 +5,7 @@ import { Loader2, CheckCircle2, Circle, Mail, Eye, X, Info, RefreshCw, Send } fr
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { TemplateLeadsCard } from "@/components/admin/template-leads-card";
+import { UnsubscribeFeedbackCard } from "@/components/admin/unsubscribe-feedback-card";
 
 interface Stage {
   key: string;
@@ -442,6 +443,8 @@ export function FunnelTab() {
       )}
 
       <TemplateLeadsCard />
+
+      <UnsubscribeFeedbackCard />
 
       {preview?.email && (
         <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={() => setPreview(null)}>

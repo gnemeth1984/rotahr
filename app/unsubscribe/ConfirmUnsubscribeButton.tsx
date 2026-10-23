@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { AfterOptOut } from "./AfterOptOut";
 import { ResubscribeButton } from "./ResubscribeButton";
+import { UnsubscribeFeedback } from "./UnsubscribeFeedback";
 
 /**
  * The opt-out is written by this button, not by loading the page.
@@ -17,7 +18,7 @@ import { ResubscribeButton } from "./ResubscribeButton";
  * which no scanner performs, and the RFC 8058 POST header still gives Gmail and
  * Outlook their genuine one-click path.
  */
-export function ConfirmUnsubscribeButton({ email }: { email: string }) {
+export function ConfirmUnsubscribeButton({ email, templateCount }: { email: string; templateCount: number }) {
   const [state, setState] = useState<"idle" | "loading" | "done" | "error">("idle");
 
   if (state === "done") {
@@ -32,11 +33,12 @@ export function ConfirmUnsubscribeButton({ email }: { email: string }) {
           If you have a Rotahr account, this doesn&apos;t touch the emails your account needs — rota
           changes, shift alerts, receipts. Only the marketing.
         </p>
+        <UnsubscribeFeedback email={email} />
         <div className="mt-6 pt-5 border-t border-white/10">
           <p className="text-xs text-white/40 mb-3">Changed your mind?</p>
           <ResubscribeButton email={email} />
         </div>
-        <AfterOptOut />
+        <AfterOptOut templateCount={templateCount} />
       </div>
     );
   }
