@@ -101,7 +101,7 @@ US hospitality payroll is a different job: tip credits against minimum wage, tip
 
 *Related: [Irish Restaurant Payroll: Weekly vs Monthly Pay Explained](/blog/irish-restaurant-payroll-weekly-vs-monthly-pay-explained)*
 
-Want accurate hours without the Monday spreadsheet? [See how Rotahr handles clock-in and payroll hours](/features/time-tracking-payroll), or [try it free for 3 months](/landing).`;
+Want accurate hours without the Monday spreadsheet? [See how Rotahr handles clock-in and payroll hours](/features/time-tracking-payroll), or [try it free for 3 months](/).`;
 
 const faq = [
   {
