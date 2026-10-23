@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Loader2, CheckCircle2, Circle, Mail, Eye, X, Info, RefreshCw, Send } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { TemplateLeadsCard } from "@/components/admin/template-leads-card";
 
 interface Stage {
   key: string;
@@ -439,6 +440,8 @@ export function FunnelTab() {
           </CardContent>
         </Card>
       )}
+
+      <TemplateLeadsCard />
 
       {preview?.email && (
         <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={() => setPreview(null)}>

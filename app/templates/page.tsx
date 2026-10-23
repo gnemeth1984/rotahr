@@ -17,12 +17,12 @@ import { AcquisitionBanner } from "@/components/marketing/AcquisitionBanner";
 export const metadata: Metadata = {
   title: "Free Hospitality Templates — PDF & Excel | Rotahr",
   description:
-    "Free restaurant, bar and hotel templates in PDF and Excel — HACCP temperature logs, staff rotas, opening and closing checklists, cleaning schedules, stock counts and tips sheets. No email required.",
+    "Free restaurant, bar and hotel templates in PDF and Excel — HACCP temperature logs, staff rotas, opening and closing checklists, cleaning schedules, stock counts and tips sheets. Free to download.",
   alternates: { canonical: "/templates" },
   openGraph: {
     title: "Free hospitality templates — PDF & Excel",
     description:
-      "The paperwork a restaurant, bar or hotel actually runs on. Free to download, no email required.",
+      "The paperwork a restaurant, bar or hotel actually runs on. Free to download.",
     url: "/templates",
   },
 };
@@ -78,7 +78,7 @@ export default function TemplatesHubPage() {
           Excel sheet.
         </p>
         <p className="text-base text-slate-300 mb-4 max-w-2xl leading-relaxed">
-          Free, one click, no email address, no sign-up. Print them, edit them,
+          Free — just an email address, no sign-up, no card. Print them, edit them,
           put your own logo on them, use them in your venue for as long as you
           like. We build them because we build the app that replaces them — but
           paper works, and a working paper system beats a spreadsheet nobody

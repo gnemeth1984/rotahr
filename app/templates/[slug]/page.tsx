@@ -61,7 +61,7 @@ export default async function TemplatePage({
   const sheet = t.sheet;
 
   // DigitalDocument rather than SoftwareApplication: what's being offered on
-  // this page is the file, and the price is genuinely zero with no gate, so the
+  // this page is the file, and the price is genuinely zero (an email address, no payment), so the
   // Offer says so rather than implying a trial.
   const documentSchema = {
     "@context": "https://schema.org",
@@ -143,7 +143,7 @@ export default async function TemplatePage({
           {t.answer}
         </p>
 
-        <DownloadButtons slug={t.slug} name={t.name} />
+        <DownloadButtons slug={t.slug} name={t.name} category={t.category} />
 
         <div className="space-y-4 mb-12 max-w-2xl">
           {t.body.map((p, i) => (

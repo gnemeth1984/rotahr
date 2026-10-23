@@ -1,4 +1,5 @@
 import { Resend } from "resend";
+import { unstable_noStore as noStore } from "next/cache";
 
 /**
  * Central Resend wrapper.
@@ -95,6 +96,13 @@ function getResend(): Resend | null {
  * Never throws — inspect the returned `ok` / `error`.
  */
 export async function sendEmail(args: SendArgs): Promise<SendResult> {
+  // Next 14 caches fetch() POSTs made from GET route handlers (every Vercel
+  // cron is a GET) in the Data Cache, keyed on URL + body. Without this, a send
+  // identical to an earlier one — same recipient, subject and body — was
+  // answered from the cache with the old message id and never reached Resend.
+  // Found 23 Oct 2026: .next/cache/fetch-cache held Resend /emails responses
+  // with revalidate 31536000. No-op outside a Next request.
+  noStore();
   const resend = getResend();
   if (!resend) {
     const error = "RESEND_API_KEY is not configured";

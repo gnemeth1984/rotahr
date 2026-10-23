@@ -44,6 +44,16 @@ export function unsubscribeUrl(email: string, baseUrl = "https://rotahr.com"): s
   return `${baseUrl}/unsubscribe?email=${encodeURIComponent(e)}&t=${unsubscribeToken(e)}`;
 }
 
+/**
+ * Target for the List-Unsubscribe header (RFC 8058 one-click). Mail clients
+ * POST here; the API route records the opt-out. The /unsubscribe page itself
+ * does not handle POST, so it must not be used in the header.
+ */
+export function oneClickUnsubscribeUrl(email: string, baseUrl = "https://rotahr.com"): string {
+  const e = normaliseEmail(email);
+  return `${baseUrl}/api/unsubscribe?email=${encodeURIComponent(e)}&t=${unsubscribeToken(e)}`;
+}
+
 export async function isSuppressed(email: string): Promise<boolean> {
   const row = await prisma.emailSuppression.findUnique({ where: { email: normaliseEmail(email) } });
   return !!row && row.revokedAt === null;
@@ -97,6 +107,12 @@ async function markLeadUnsubscribed(email: string): Promise<void> {
       data: { status: "unsubscribed" },
     })
     .catch(() => undefined);
+  // Free-template download leads (lib/templates/leads.ts). The series checks
+  // isSuppressed() before every send anyway; this keeps the status honest and
+  // starts the 30-day deletion clock from the privacy policy.
+  await prisma.templateLead
+    .updateMany({ where: { email, status: { not: "unsubscribed" } }, data: { status: "unsubscribed" } })
+    .catch(() => undefined);
 }
 
 export async function unsuppress(email: string): Promise<void> {
@@ -125,6 +141,11 @@ export async function unsuppress(email: string): Promise<void> {
       where: { email: e, status: "unsubscribed", contactCount: 0 },
       data: { status: "new" },
     })
+    .catch(() => undefined);
+  // Template series resumes where it stopped; the usual gap since lastSentAt
+  // still applies, so an undo never triggers an immediate send.
+  await prisma.templateLead
+    .updateMany({ where: { email: e, status: "unsubscribed" }, data: { status: "active" } })
     .catch(() => undefined);
 }
 

@@ -1,4 +1,5 @@
-import { unsubscribeUrl } from "@/lib/email/suppression";
+import { unstable_noStore as noStore } from "next/cache";
+import { oneClickUnsubscribeUrl } from "@/lib/email/suppression";
 
 /**
  * Brevo transactional-email client for cold outreach only.
@@ -120,6 +121,7 @@ export async function sendOutreachEmail(opts: {
   text?: string;
   tags?: string[];
 }): Promise<SendResult> {
+  noStore(); // see lib/email/send.ts: GET cron fetch POSTs are otherwise cached
   const apiKey = process.env.BREVO_API_KEY;
   if (!apiKey) {
     return { ok: false, error: "BREVO_API_KEY is not set", hardBounce: false };
@@ -129,7 +131,9 @@ export async function sendOutreachEmail(opts: {
   // "Unsubscribe" button in Gmail and Outlook. Gmail expects these on bulk mail
   // and treats their absence as a spam signal, so this is deliverability as
   // much as compliance.
-  const unsub = unsubscribeUrl(opts.to);
+  // One-click target must be the API route: the /unsubscribe page ignores
+  // POSTs, so a header pointing there showed a button that recorded nothing.
+  const unsub = oneClickUnsubscribeUrl(opts.to);
 
   const payload = {
     sender: { email: FROM_EMAIL, name: FROM_NAME },

@@ -5,7 +5,7 @@ export default function PrivacyPage() {
     <div className="min-h-screen bg-white">
       <div className="max-w-3xl mx-auto px-6 py-16">
         <h1 className="text-3xl font-bold text-slate-900 mb-2">Privacy Policy</h1>
-        <p className="text-sm text-slate-600 mb-10">Last updated: June 2026</p>
+        <p className="text-sm text-slate-600 mb-10">Last updated: October 2026</p>
 
         <div className="prose prose-slate max-w-none space-y-8 text-sm leading-relaxed text-slate-700">
 
@@ -53,6 +53,12 @@ export default function PrivacyPage() {
               <li>
                 <strong>Usage data:</strong> authentication logs, session tokens, error logs.
               </li>
+              <li>
+                <strong>Free template downloads:</strong> the email address you give to download a template, the
+                venue type you pick (or one guessed from the template), which templates you downloaded and when,
+                whether you agreed to follow-up emails (with the exact wording you saw and the time), the emails we
+                sent you, a one-way hash of your IP address (used only to limit abuse) and your browser&apos;s user agent.
+              </li>
             </ul>
           </section>
 
@@ -88,6 +94,12 @@ export default function PrivacyPage() {
                 Irish Revenue requires retention for a minimum of <strong>6 years</strong> (TCA 1997 s.886).
                 These records are never permanently deleted.
               </li>
+              <li>
+                <strong>Free template downloads</strong> — sending you the file you asked for, and one email with a copy
+                of it, is <strong>GDPR Art.6(1)(f)</strong> (legitimate interest in delivering what you requested).
+                The follow-up emails about Rotahr are sent only with your <strong>consent</strong> (Art.6(1)(a) and
+                S.I. 336/2011 reg.13). You can withdraw it at any time with the one-click unsubscribe link in every email.
+              </li>
             </ul>
           </section>
 
@@ -100,6 +112,7 @@ export default function PrivacyPage() {
               <li><strong>Customer PII (bookings/CRM):</strong> anonymised on deletion — booking record (financial) retained. Full anonymisation available on request to comply with GDPR Art.17.</li>
               <li><strong>Clock-in location data:</strong> purged after 12 months.</li>
               <li><strong>Staff messages:</strong> retained for 12 months, then subject to deletion.</li>
+              <li><strong>Free template download records:</strong> deleted 24 months after our last contact with you (your last download or email), or within 30 days of unsubscribing. Your address stays on our suppression list after that, so we never email you again.</li>
               <li><strong>Account data:</strong> retained for the duration of the business subscription. Deleted within 90 days of confirmed account closure, except where legal retention obligations apply.</li>
             </ul>
           </section>

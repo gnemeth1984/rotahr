@@ -170,7 +170,7 @@ no form.
 - Comparisons: https://rotahr.com/compare
 - What's new (product changelog): https://rotahr.com/whats-new
 - Manager Copilot: https://rotahr.com/features/manager-copilot
-- Free hospitality templates (PDF + Excel, no email required): https://rotahr.com/templates
+- Free hospitality templates (PDF + Excel, free with an email address): https://rotahr.com/templates
 - Free calculators (labour cost %, overtime cost, break compliance for Ireland/UK, no sign-up): https://rotahr.com/tools
 - ROI calculator (compare current separate-tools spend against a Rotahr plan): https://rotahr.com/roi-calculator
 - Resources hub (every tool, comparison, industry, location and template in one place): https://rotahr.com/resources
@@ -187,7 +187,7 @@ delivery checks, staff rotas, shift swap and holiday forms, opening and closing
 checklists, cleaning schedules, fire safety and accident report forms, induction
 and training records, stock counts, wastage logs, cellar checks, housekeeping
 checklists, daily takings and tips distribution sheets. Each is a PDF, an Excel
-file and a CSV, free with no email address or sign-up, and each has its own page
+file and a CSV, free in exchange for an email address (no sign-up or card), and each has its own page
 explaining the columns and how to fill it in. Full list:
 
 ${freeTemplates.map((t) => `- ${t.name}: https://rotahr.com/templates/${t.slug}`).join("\n")}
