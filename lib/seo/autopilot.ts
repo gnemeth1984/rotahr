@@ -16,6 +16,7 @@ import { lazyClient } from "@/lib/lazy-client";
 import { prisma } from "@/lib/prisma";
 import { generateCoverImage, slugify } from "@/lib/blog/cover-image";
 import { submitToIndexNow } from "@/lib/seo/indexnow";
+import { MANUAL_TAG, isManualPost } from "@/lib/seo/manual-posts";
 import {
   gscConfigured,
   queryPerformance,
@@ -711,6 +712,9 @@ async function thickenThinnestPost(): Promise<{
         { OR: [{ wordCount: { lt: MIN_WORDS } }, { wordCount: null }] },
         { OR: [{ refreshedAt: null }, { refreshedAt: { lt: threeWeeksAgo } }] },
       ],
+      // Hand-rewritten posts are never machine-expanded. (Substring match, so
+      // it also skips a tag like "manual-handling"; skipping too many is safe.)
+      NOT: { tags: { contains: MANUAL_TAG } },
     },
     orderBy: [{ wordCount: "asc" }, { createdAt: "asc" }],
   });
@@ -726,7 +730,9 @@ export async function thickenPost(post: {
   content: string;
   keyword: string | null;
   category: string;
+  tags?: string | null;
 }): Promise<{ refreshed: true; slug: string; addedFor: string[] } | null> {
+  if (isManualPost(post.tags)) return null;
   const before = countWords(post.content);
   const expanded = await ensureDepth(
     post.keyword || post.title,
@@ -887,6 +893,9 @@ export async function refreshDecaying(): Promise<
       Date.now() - post.refreshedAt.getTime() < 21 * 24 * 3600 * 1000
     )
       continue;
+
+    // Hand-rewritten posts are left alone.
+    if (isManualPost(post.tags)) continue;
 
     const queries = target.rows.slice(0, 6);
     const prompt = `Below is a published article from Rotahr's blog. Search Console shows real people reach this page with these queries, but it is not winning them:

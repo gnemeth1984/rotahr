@@ -74,6 +74,10 @@ inventing weaknesses:
 Founded by a former chef, self-funded, based in Ireland, selling into Ireland,
 the UK, the US, Canada and Australia.`;
 
+/** Products a sentence may legitimately quote a trial length for. */
+const OTHER_PRODUCTS =
+  /\b(?:Deputy|When I Work|7shifts|Homebase|Sling|Planday|RotaCloud|Rotaready|Bizimply|Ordio|Gusto|QuickBooks|Xero|Sage|BrightPay|Thesaurus|IRIS|Paychex|ADP|Toast|Square|Lightspeed|OpenTable|ResDiary|SevenRooms|Resy|Tock|Collins|Trail|Navitas|Kitchen ?Cut|Apicbase|MarketMan|Nory|Tanda|Fourth|Harri|Connecteam|Shiftbase|Humanity|Zoho|Bamboo ?HR|Breathe|Personio)\b/i;
+
 /**
  * Anything that claims Rotahr bills per person, or attaches a price to Rotahr
  * that isn't one of the real plan prices.
@@ -82,12 +86,24 @@ the UK, the US, Canada and Australia.`;
  */
 export function checkRotahrFacts(markdown: string): string[] {
   const problems: string[] = [];
+  // Normalise ISO currency codes to symbols so "EUR 59" is checked exactly
+  // like "€59". The generator writes both; a live article said "EUR 59/month
+  // (up to 15 staff)" for a plan that costs 49 and passed this guard because
+  // every pattern below only knew the symbols.
+  markdown = markdown.replace(/\b(?:EUR|GBP|USD|CAD|AUD)\s?(?=\d)/g, (c) =>
+    c.startsWith("GBP") ? "£" : c.startsWith("EUR") ? "€" : "$",
+  );
   const valid = new Set(PLANS.map((p) => String(p.price)));
 
+  const CONTRAST = /\b(compared to|versus|vs\.?|unlike|whereas|rather than|instead of|while|but|others?|competitors?)\b/i;
+
   // 1. Per-head pricing attributed to Rotahr, in prose or in a table row.
+  // Skipped when the per-head price belongs to a contrasted competitor:
+  // "Rotahr is EUR 49 a month, while others charge EUR 3 per employee".
   const perHead =
-    /Rotahr[^.\n|]{0,160}?[€$£]\s?\d[\d.,]*\s*(?:\/|\bper\b)\s*(?:employee|user|seat|person|head|staff)/gi;
+    /Rotahr([^.\n|]{0,160}?)[€$£]\s?\d[\d.,]*\s*(?:\/|\bper\b)\s*(?:employee|user|seat|person|head|staff)/gi;
   for (const m of markdown.matchAll(perHead)) {
+    if (CONTRAST.test(m[1])) continue;
     problems.push(`per-employee pricing attributed to Rotahr: "${m[0].replace(/\s+/g, " ").slice(0, 120)}"`);
   }
 
@@ -99,7 +115,6 @@ export function checkRotahrFacts(markdown: string): string[] {
   // ("at $3 per employee that's $30 a month, compared to Rotahr's flat fee"),
   // which is exactly the argument we want made. Flagging that would make the
   // guard cry wolf on the best sentences on the page.
-  const CONTRAST = /\b(compared to|versus|vs\.?|unlike|whereas|rather than|instead of|while|but)\b/i;
   const perHeadReversed =
     /[€$£]\s?\d[\d.,]*\s*(?:\/|\bper\b)\s*(?:employee|user|seat|person|head|staff)([^.\n|]{0,90}?)Rotahr/gi;
   for (const m of markdown.matchAll(perHeadReversed)) {
@@ -124,15 +139,58 @@ export function checkRotahrFacts(markdown: string): string[] {
   }
 
   // 2. A price sitting next to Rotahr that is not a real plan price.
-  const near = /Rotahr[^.\n|]{0,120}?([€$£])\s?(\d[\d.,]*)/gi;
+  // Savings and differences are not prices ("Rotahr saves EUR 31 a month"),
+  // and neither is a competitor's price contrasted against Rotahr.
+  const NOT_A_PRICE = /\b(saves?|saving|savings|extra|difference|cheaper|more|less|translates|worth|reduc\w*|cut|recover\w*)\b/i;
+  const near = /Rotahr([^.\n|]{0,120}?)([€$£])\s?(\d[\d.,]*)/gi;
   for (const m of markdown.matchAll(near)) {
-    const num = m[2].replace(/[.,]$/, "");
+    if (CONTRAST.test(m[1]) || NOT_A_PRICE.test(m[1])) continue;
+    const num = m[3].replace(/[.,]$/, "");
     // Ignore large round numbers that are clearly about something else
     // (fines, revenue, savings) rather than a plan price.
     const asInt = Number(num.replace(/[,.]/g, ""));
     if (valid.has(num)) continue;
     if (asInt >= 1000) continue;
     problems.push(`price near Rotahr that is not a real plan price: "${m[0].replace(/\s+/g, " ").slice(0, 120)}"`);
+  }
+
+  // 3. Trial length. Every plan is 3 months free; "first month free",
+  // "14-day free trial" and the like are invented and contradict the offer.
+  // Checked per sentence, and only where the sentence is about Rotahr or names
+  // no other product: "Deputy has a 30-day free trial" is a competitor fact.
+  const trial =
+    /\b(?:first|1|one|two|2)\s*(?:-\s*)?(?:month|week)s?\s+(?:free|trial)\b|\b\d{1,2}[- ]day (?:free )?trial\b|\bfree for (?:the first )?(?:month|30 days|14 days)\b/i;
+  for (const sentence of markdown.split(/(?<=[.!?])\s+|\n+/)) {
+    const m = sentence.match(trial);
+    if (!m) continue;
+    // Table rows are attributed by column below, not by sentence.
+    if (/^\s*\|/.test(sentence) && !/rotahr/i.test(sentence)) continue;
+    if (!/rotahr/i.test(sentence) && OTHER_PRODUCTS.test(sentence)) continue;
+    problems.push(`trial length that is not "first 3 months free": "${m[0]}"`);
+  }
+
+  // 4. Comparison tables with Rotahr as a COLUMN ("| Feature | Rotahr | Deputy |").
+  // Row-based checks above can't see these: the Rotahr cell never contains the
+  // word Rotahr. Read the header, then check that column's cells.
+  const lines = markdown.split("\n");
+  for (let i = 0; i < lines.length; i++) {
+    if (!/^\s*\|/.test(lines[i]) || (i > 0 && /^\s*\|/.test(lines[i - 1]))) continue;
+    const cells = (row: string) => row.trim().replace(/^\||\|$/g, "").split("|").map((c) => c.trim());
+    const col = cells(lines[i]).findIndex((c) => /^\**\s*rotahr\b/i.test(c));
+    if (col < 0) continue;
+    for (let j = i + 1; j < lines.length && /^\s*\|/.test(lines[j]); j++) {
+      const cell = cells(lines[j])[col] ?? "";
+      const pm = cell.match(/([€$£])\s?(\d[\d.,]*)/);
+      if (pm) {
+        const num = pm[2].replace(/[.,]$/, "");
+        if (!valid.has(num) && Number(num.replace(/[,.]/g, "")) < 1000)
+          problems.push(`price in the Rotahr column that is not a real plan price: "${cell.slice(0, 80)}"`);
+      }
+      if (/per\s*(?:employee|user|seat|head)/i.test(cell))
+        problems.push(`per-employee pricing in the Rotahr column: "${cell.slice(0, 80)}"`);
+      const tm = cell.match(trial);
+      if (tm) problems.push(`trial length in the Rotahr column that is not "first 3 months free": "${tm[0]}"`);
+    }
   }
 
   return problems;
