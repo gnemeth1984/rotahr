@@ -3,7 +3,7 @@
  *
  * Two questions worth answering once a week, and only two:
  *   1. what did people ask for that we don't have?
- *   2. which of the 27 templates are actually being downloaded?
+ *   2. which of the templates are actually being downloaded?
  *
  * Requests are clustered on shared keywords rather than sent through a model —
  * a list of 6 requests does not need an LLM, and a wrong cluster in an email to
@@ -159,7 +159,7 @@ export async function reviewTemplateGaps(
 
       <h3 style="margin:24px 0 6px">No downloads this week (${neverDownloaded.length})</h3>
       <p style="color:#64748b;font-size:13px">${
-        neverDownloaded.map(escapeHtml).join(", ") || "None — all 27 were taken."
+        neverDownloaded.map(escapeHtml).join(", ") || `None — all ${freeTemplates.length} were taken.`
       }</p>
 
       <p style="margin-top:24px">

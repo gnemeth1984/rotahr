@@ -5,20 +5,29 @@
  * generate-blog cron picks up any due unpublished post and publishes it
  * instead of generating an AI article that day.
  *
+ * If the article already exists and is PUBLISHED, it is refreshed in place
+ * instead: title, copy, FAQ and meta are rewritten, but `published` and
+ * `createdAt` are left alone, so the URL, date and ranking history stay put.
+ * The template count comes from the library itself, so re-run this whenever
+ * templates are added.
+ *
  * Run: bun run scripts/queue-free-tools-article.ts
  */
 import { prisma } from "../lib/prisma";
+import { freeTemplates } from "../lib/templates";
+
+const N = freeTemplates.length;
 
 const SLUG = "free-hospitality-templates-download";
 
 const TITLE =
-  "27 Free Hospitality Templates: HACCP Logs, Rotas and Checklists You Can Download Today";
+  `${N} Free Hospitality Templates: HACCP Logs, Rotas and Checklists You Can Download Today`;
 
 const EXCERPT =
-  "Every restaurant, bar and hotel runs on the same paperwork: temperature logs, rotas, opening checklists, stock counts, cash-up sheets. Here are 27 of them, free to download as PDF, Excel or CSV — no email required.";
+  `Every restaurant, bar and hotel runs on the same paperwork: temperature logs, rotas, opening checklists, stock counts, cash-up sheets. Here are ${N} of them, free to download as PDF, Excel or CSV.`;
 
 const META_DESC =
-  "Download 27 free hospitality templates — HACCP temperature logs, staff rotas, opening and closing checklists, cleaning schedules, stock sheets and more. PDF, Excel and CSV, no email needed.";
+  `Download ${N} free hospitality templates — HACCP temperature logs, allergen matrix, staff rotas, opening and closing checklists, cleaning schedules, stock sheets and more. PDF, Excel and CSV.`;
 
 const KEYWORD = "free hospitality templates";
 
@@ -29,15 +38,15 @@ const CONTENT = `Every restaurant, bar and hotel in the world runs on more or le
 
 Most operators end up building these from scratch, or inheriting a photocopy of a photocopy from a previous manager. So we made proper versions of all of them and put them online for free.
 
-There are 27 templates, covering ten areas of day-to-day operations. Every one is available as a printable PDF, an editable Excel file and a CSV. No email address, no signup, no "book a demo to unlock." You click the format you want and the file downloads.
+There are ${N} templates, covering ten areas of day-to-day operations. Every one is available as a printable PDF, an editable Excel file and a CSV. They're free: the first download asks for your email address, then the file downloads straight away. No account, no trial, no "book a demo to unlock."
 
-[Browse all 27 free templates](/templates)
+[Browse all ${N} free templates](/templates)
 
 ## What's in the library
 
-**HACCP and food safety.** The [fridge and freezer temperature log](/templates/fridge-freezer-temperature-log) gives you one page per week with a row for every named unit and space for a morning and evening reading. The [cooking and cooling log](/templates/cooking-cooling-temperature-log) tracks a batch from core temp through to the use-by date that goes on the label. There's a [delivery check record](/templates/delivery-check-record) for goods in, and a [corrective action log](/templates/haccp-corrective-action-log) — the one most kitchens don't have, and the one an inspector will ask for when a reading is out of range.
+**HACCP and food safety.** The [fridge and freezer temperature log](/templates/fridge-freezer-temperature-log) gives you one page per week with a row for every named unit and space for a morning and evening reading. The [cooking and cooling log](/templates/cooking-cooling-temperature-log) tracks a batch from core temp through to the use-by date that goes on the label. A [reheat and hot holding record](/templates/reheat-hot-holding-record) covers food after it leaves the pass. There's a [delivery check record](/templates/delivery-check-record) for goods in, an [allergen matrix](/templates/allergen-matrix) that maps every dish against the allergens on your menu, and a [corrective action log](/templates/haccp-corrective-action-log) — the one most kitchens don't have, and the one an inspector will ask for when a reading is out of range.
 
-**Rotas and scheduling.** A [weekly staff rota](/templates/weekly-staff-rota) that fits on one page, with hours totalled per person and a wage cost column so you can see the labour spend before you publish it. Plus a [shift swap request form](/templates/shift-swap-request-form) and a [holiday request form](/templates/holiday-request-form) with the entitlement maths built in.
+**Rotas and scheduling.** A [weekly staff rota](/templates/weekly-staff-rota) that fits on one page, with hours totalled per person and a wage cost column so you can see the labour spend before you publish it. Plus a [staff availability form](/templates/staff-availability-form) to collect who can work when before you build it, a [shift swap request form](/templates/shift-swap-request-form) and a [holiday request form](/templates/holiday-request-form) with the entitlement maths built in.
 
 **Opening and closing.** Separate checklists for the [kitchen](/templates/kitchen-opening-closing-checklist), the [bar](/templates/bar-opening-closing-checklist) and [front of house](/templates/front-of-house-opening-closing-checklist), because the three jobs have almost nothing in common beyond the lock-up.
 
@@ -69,14 +78,14 @@ Where paper starts to hurt is at the edges. You can't tell from a filing cabinet
 
 That's the gap [Rotahr](/) fills — the same records, logged on a phone, with reminders when a check is due and a searchable history behind it. If you get to the point where the clipboard is costing you more than it saves, it's there.
 
-Until then, take the templates. They're free, they're genuinely useful, and there's nothing to sign up for.
+Until then, take the templates. They're free, they're genuinely useful, and there's no account to create.
 
-[Download any of the 27 free templates](/templates)`;
+[Download any of the ${N} free templates](/templates)`;
 
 const FAQ = [
   {
     q: "Are these hospitality templates really free?",
-    a: "Yes. All 27 templates are free to download with no email address, no account and no trial required. Click the format you want and the file downloads. You can use them in your own venue, edit them, and print as many copies as you need.",
+    a: `Yes. All ${N} templates are free. The first download asks for your email address and the file then downloads straight away; further downloads on the same device don't ask again. There is no account, no trial and no card. You can use them in your own venue, edit them, and print as many copies as you need.`,
   },
   {
     q: "What file formats are the templates available in?",
@@ -120,26 +129,28 @@ async function main() {
     content: CONTENT,
     category: "product",
     tags: TAGS,
-    metaTitle: `27 Free Hospitality Templates (HACCP, Rota, Checklists) | Rotahr`,
+    metaTitle: `${N} Free Hospitality Templates (HACCP, Rota, Checklists) | Rotahr`,
     metaDesc: META_DESC,
     keyword: KEYWORD,
     faq: JSON.stringify(FAQ),
     wordCount,
-    published: false,
-    createdAt,
   };
 
-  if (existing) {
+  if (existing?.published) {
+    // Live article: refresh the copy only. Keep published + createdAt.
     await prisma.blogPost.update({ where: { slug: SLUG }, data });
+    console.log("refreshed live article:", SLUG, `(${N} templates)`);
+  } else if (existing) {
+    await prisma.blogPost.update({ where: { slug: SLUG }, data: { ...data, published: false, createdAt } });
     console.log("updated queued article:", SLUG);
   } else {
-    await prisma.blogPost.create({ data: { slug: SLUG, ...data } });
+    await prisma.blogPost.create({ data: { slug: SLUG, ...data, published: false, createdAt } });
     console.log("queued article:", SLUG);
   }
 
   console.log("  words      :", wordCount);
   console.log("  faq        :", FAQ.length);
-  console.log("  publishes  :", createdAt.toISOString(), "(cron runs 05:00 UTC)");
+  if (!existing?.published) console.log("  publishes  :", createdAt.toISOString(), "(cron runs 05:00 UTC)");
   console.log("  url        : https://rotahr.com/blog/" + SLUG);
 }
 

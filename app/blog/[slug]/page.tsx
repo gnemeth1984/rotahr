@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
 import ReactMarkdown, { type Components } from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import ShareButtons from '@/components/blog/ShareButtons';
 import { suggestTemplates } from '@/lib/templates/suggest';
 import { splitForInlinePromo, suggestFeature } from '@/lib/blog/feature-promo';
@@ -96,7 +97,22 @@ const mdComponents: Components = {
     <img src={typeof src === 'string' ? src : undefined} alt={alt || ''} loading="lazy" className="w-full rounded-xl border border-gray-200 my-6" />
   ),
   hr: () => <hr className="border-gray-100 my-8" />,
+  // Tables need remark-gfm (89 of the first 138 posts have one); without it
+  // they rendered as a run of raw `| a | b |` text. Wrapped so a wide
+  // comparison table scrolls sideways on a phone instead of the page.
+  table: ({ children }) => (
+    <div className="my-6 overflow-x-auto rounded-xl border border-gray-200">
+      <table className="w-full text-sm text-left border-collapse">{children}</table>
+    </div>
+  ),
+  thead: ({ children }) => <thead className="bg-gray-50 text-gray-900">{children}</thead>,
+  th: ({ children }) => (
+    <th className="px-3 py-2 font-semibold border-b border-gray-200 whitespace-nowrap">{children}</th>
+  ),
+  td: ({ children }) => <td className="px-3 py-2 border-b border-gray-100 text-gray-700 align-top">{children}</td>,
 };
+
+const mdPlugins = [remarkGfm];
 
 function formatDate(date: Date) {
   return new Date(date).toLocaleDateString('en-IE', { day: 'numeric', month: 'long', year: 'numeric' });
@@ -196,11 +212,11 @@ export default async function BlogPostPage({ params }: Props) {
 
         {/* Content */}
         <div className="prose prose-gray prose-headings:text-gray-900 prose-h2:text-xl prose-h2:font-bold prose-h2:mt-8 prose-h2:mb-3 prose-p:text-gray-700 prose-p:leading-relaxed prose-li:text-gray-700 prose-strong:text-gray-900 max-w-none">
-          <ReactMarkdown components={mdComponents}>{contentBefore}</ReactMarkdown>
+          <ReactMarkdown remarkPlugins={mdPlugins} components={mdComponents}>{contentBefore}</ReactMarkdown>
           {contentAfter && (
             <>
               <FeaturePromo pitch={pitch} post={post.slug} placement="inline" />
-              <ReactMarkdown components={mdComponents}>{contentAfter}</ReactMarkdown>
+              <ReactMarkdown remarkPlugins={mdPlugins} components={mdComponents}>{contentAfter}</ReactMarkdown>
             </>
           )}
         </div>
