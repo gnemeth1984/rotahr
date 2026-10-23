@@ -3,9 +3,11 @@ import { articleSchema, breadcrumbSchema, faqSchema, jsonLdProps } from "@/lib/s
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
-import ReactMarkdown from 'react-markdown';
+import ReactMarkdown, { type Components } from 'react-markdown';
 import ShareButtons from '@/components/blog/ShareButtons';
 import { suggestTemplates } from '@/lib/templates/suggest';
+import { splitForInlinePromo, suggestFeature } from '@/lib/blog/feature-promo';
+import FeaturePromo from '@/components/blog/FeaturePromo';
 
 export const revalidate = 3600;
 
@@ -60,6 +62,42 @@ const CATEGORY_LABELS: Record<string, string> = {
   management: 'Management', technology: 'Technology', product: 'Rotahr',
 };
 
+const mdComponents: Components = {
+  // The generated body often repeats the title as its own `# H1`,
+  // which gave these pages two H1s. Demote any body H1 to H2 so the
+  // template heading stays the single topical signal.
+  h1: ({ children }) => (
+    <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-3">{children}</h2>
+  ),
+  // The `prose` classes above need @tailwindcss/typography, which
+  // this Tailwind v4 build does not load, so without these the
+  // article body rendered as one run of unstyled text: no heading
+  // sizes, no paragraph gaps, no bullets, links indistinguishable.
+  h2: ({ children }) => (
+    <h2 className="text-xl font-bold text-gray-900 mt-10 mb-3">{children}</h2>
+  ),
+  h3: ({ children }) => (
+    <h3 className="text-lg font-semibold text-gray-900 mt-8 mb-2">{children}</h3>
+  ),
+  p: ({ children }) => <p className="text-gray-700 leading-relaxed my-4">{children}</p>,
+  ul: ({ children }) => <ul className="list-disc pl-6 my-4 space-y-2 text-gray-700">{children}</ul>,
+  ol: ({ children }) => <ol className="list-decimal pl-6 my-4 space-y-2 text-gray-700">{children}</ol>,
+  li: ({ children }) => <li className="leading-relaxed">{children}</li>,
+  a: ({ href, children }) => (
+    <a href={href} className="text-emerald-700 font-medium underline underline-offset-2 hover:text-emerald-800">
+      {children}
+    </a>
+  ),
+  blockquote: ({ children }) => (
+    <blockquote className="border-l-4 border-gray-200 pl-4 my-6 text-gray-600 italic">{children}</blockquote>
+  ),
+  img: ({ src, alt }) => (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={typeof src === 'string' ? src : undefined} alt={alt || ''} loading="lazy" className="w-full rounded-xl border border-gray-200 my-6" />
+  ),
+  hr: () => <hr className="border-gray-100 my-8" />,
+};
+
 function formatDate(date: Date) {
   return new Date(date).toLocaleDateString('en-IE', { day: 'numeric', month: 'long', year: 'numeric' });
 }
@@ -88,6 +126,16 @@ export default async function BlogPostPage({ params }: Props) {
   const templates = suggestTemplates(
     `${post.title} ${post.excerpt ?? ""} ${post.content ?? ""}`
   );
+
+  // The one Rotahr feature this article is really about, promoted halfway
+  // through and at the end. Always returns one (category fallback).
+  const { pitch } = suggestFeature({
+    title: post.title,
+    excerpt: post.excerpt,
+    content: post.content,
+    category: post.category,
+  });
+  const [contentBefore, contentAfter] = splitForInlinePromo(post.content ?? '');
 
   const related = await prisma.blogPost.findMany({
     where: { published: true, category: post.category, slug: { not: post.slug } },
@@ -148,45 +196,13 @@ export default async function BlogPostPage({ params }: Props) {
 
         {/* Content */}
         <div className="prose prose-gray prose-headings:text-gray-900 prose-h2:text-xl prose-h2:font-bold prose-h2:mt-8 prose-h2:mb-3 prose-p:text-gray-700 prose-p:leading-relaxed prose-li:text-gray-700 prose-strong:text-gray-900 max-w-none">
-          <ReactMarkdown
-            components={{
-              // The generated body often repeats the title as its own `# H1`,
-              // which gave these pages two H1s. Demote any body H1 to H2 so the
-              // template heading stays the single topical signal.
-              h1: ({ children }) => (
-                <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-3">{children}</h2>
-              ),
-              // The `prose` classes above need @tailwindcss/typography, which
-              // this Tailwind v4 build does not load, so without these the
-              // article body rendered as one run of unstyled text: no heading
-              // sizes, no paragraph gaps, no bullets, links indistinguishable.
-              h2: ({ children }) => (
-                <h2 className="text-xl font-bold text-gray-900 mt-10 mb-3">{children}</h2>
-              ),
-              h3: ({ children }) => (
-                <h3 className="text-lg font-semibold text-gray-900 mt-8 mb-2">{children}</h3>
-              ),
-              p: ({ children }) => <p className="text-gray-700 leading-relaxed my-4">{children}</p>,
-              ul: ({ children }) => <ul className="list-disc pl-6 my-4 space-y-2 text-gray-700">{children}</ul>,
-              ol: ({ children }) => <ol className="list-decimal pl-6 my-4 space-y-2 text-gray-700">{children}</ol>,
-              li: ({ children }) => <li className="leading-relaxed">{children}</li>,
-              a: ({ href, children }) => (
-                <a href={href} className="text-emerald-700 font-medium underline underline-offset-2 hover:text-emerald-800">
-                  {children}
-                </a>
-              ),
-              blockquote: ({ children }) => (
-                <blockquote className="border-l-4 border-gray-200 pl-4 my-6 text-gray-600 italic">{children}</blockquote>
-              ),
-              img: ({ src, alt }) => (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={typeof src === 'string' ? src : undefined} alt={alt || ''} loading="lazy" className="w-full rounded-xl border border-gray-200 my-6" />
-              ),
-              hr: () => <hr className="border-gray-100 my-8" />,
-            }}
-          >
-            {post.content}
-          </ReactMarkdown>
+          <ReactMarkdown components={mdComponents}>{contentBefore}</ReactMarkdown>
+          {contentAfter && (
+            <>
+              <FeaturePromo pitch={pitch} post={post.slug} placement="inline" />
+              <ReactMarkdown components={mdComponents}>{contentAfter}</ReactMarkdown>
+            </>
+          )}
         </div>
 
         <div className="mt-10 pt-6 border-t border-gray-100">
@@ -268,17 +284,8 @@ export default async function BlogPostPage({ params }: Props) {
           </section>
         )}
 
-        {/* CTA inline */}
-        <div className="mt-12 bg-emerald-50 border border-emerald-200 rounded-2xl p-6">
-          <h3 className="font-bold text-gray-900 text-lg mb-1">Try Rotahr free for 3 months</h3>
-          <p className="text-gray-600 text-sm mb-4">Built for restaurants, bars and hotels. No credit card needed.</p>
-          <Link
-            href="/auth/register"
-            className="inline-block bg-emerald-600 text-white font-semibold px-6 py-2.5 rounded-xl hover:bg-emerald-700 transition-colors text-sm"
-          >
-            Start Free Trial
-          </Link>
-        </div>
+        {/* Feature-specific CTA — replaces the old generic trial box */}
+        <FeaturePromo pitch={pitch} post={post.slug} placement="end" />
       </article>
       </main>
 
