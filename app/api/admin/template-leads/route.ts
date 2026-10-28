@@ -6,20 +6,43 @@ import { isSuperAdminEmail } from "@/lib/auth/super-admins";
 import { prisma } from "@/lib/db";
 import { freeTemplates, getTemplate } from "@/lib/templates";
 import { CONSENT_DEFAULT_CHECKED, CONSENT_TEXT, VENUE_TYPES } from "@/lib/templates/lead-consent";
-import { FINAL_STEP, renderStep, STEP_LABEL, templateEmailsEnabled } from "@/lib/templates/leads";
+import {
+  FINAL_STEP,
+  leadHistory,
+  planLead,
+  renderStep,
+  sendLeadStepNow,
+  skipLeadStep,
+  STEP_LABEL,
+  templateEmailsEnabled,
+} from "@/lib/templates/leads";
+
+async function requireSuperAdmin() {
+  const session = await getServerSession(authOptions);
+  if (!session?.user || !isSuperAdminEmail(session.user.email)) return null;
+  return session;
+}
 
 /**
- * GET /api/admin/template-leads?slug=&venue= — free-template leads and a preview
- * of every email in the follow-up series, rendered for a sample lead. Read-only:
- * there is deliberately no send action here. The series is switched on with
- * TEMPLATE_EMAILS_ENABLED=1 once the emails have been reviewed.
+ * GET /api/admin/template-leads?slug=&venue= — free-template leads, what each
+ * one has been sent and which email is next, plus a preview of every email in
+ * the series rendered for a sample lead.
+ * GET /api/admin/template-leads?lead=<id> — that lead's next email, rendered.
+ * Sending happens only on POST, on an explicit admin click.
  */
 export async function GET(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user || !isSuperAdminEmail(session.user.email)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  if (!(await requireSuperAdmin())) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const url = new URL(req.url);
+
+  const leadId = url.searchParams.get("lead");
+  if (leadId) {
+    const lead = await prisma.templateLead.findUnique({ where: { id: leadId } });
+    if (!lead) return NextResponse.json({ error: "Lead not found" }, { status: 404 });
+    const plan = await planLead(lead);
+    if (plan.nextStep === null) return NextResponse.json({ plan, email: null });
+    return NextResponse.json({ to: lead.email, plan, email: renderStep(plan.nextStep, lead) });
+  }
+
   const slugParam = url.searchParams.get("slug") || "";
   const slug = getTemplate(slugParam) ? slugParam : "weekly-staff-rota";
   const venueParam = url.searchParams.get("venue") || "";
@@ -58,24 +81,7 @@ export async function GET(req: NextRequest) {
       prisma.templateLead.groupBy({ by: ["status"], _count: { _all: true } }),
       prisma.templateLead.groupBy({ by: ["step"], where: { status: "active" }, _count: { _all: true } }),
       prisma.templateLead.groupBy({ by: ["firstSlug"], _count: { _all: true }, orderBy: { _count: { firstSlug: "desc" } }, take: 8 }),
-      prisma.templateLead.findMany({
-        orderBy: { createdAt: "desc" },
-        take: 30,
-        select: {
-          id: true,
-          email: true,
-          marketingConsent: true,
-          firstSlug: true,
-          slugs: true,
-          downloads: true,
-          venueType: true,
-          country: true,
-          step: true,
-          status: true,
-          lastSentAt: true,
-          createdAt: true,
-        },
-      }),
+      prisma.templateLead.findMany({ orderBy: { createdAt: "desc" }, take: 50 }),
     ]);
     stats = {
       total,
@@ -85,7 +91,26 @@ export async function GET(req: NextRequest) {
       byStep: Object.fromEntries(stepRows.map((r) => [String(r.step), r._count._all])),
       topSlugs: slugRows.map((r) => ({ slug: r.firstSlug, leads: r._count._all })),
     };
-    recent = rows;
+    const oldest = rows.length ? rows[rows.length - 1].createdAt : new Date();
+    const history = await leadHistory(rows.map((r) => r.id), oldest);
+    recent = await Promise.all(
+      rows.map(async (r) => ({
+        id: r.id,
+        email: r.email,
+        marketingConsent: r.marketingConsent,
+        firstSlug: r.firstSlug,
+        slugs: r.slugs,
+        downloads: r.downloads,
+        venueType: r.venueType,
+        country: r.country,
+        step: r.step,
+        status: r.status,
+        lastSentAt: r.lastSentAt,
+        createdAt: r.createdAt,
+        plan: await planLead(r),
+        history: history[r.id] ?? [],
+      })),
+    );
   } catch (e) {
     if ((e as { code?: string })?.code !== "P2021") throw e;
     migrated = false;
@@ -105,4 +130,33 @@ export async function GET(req: NextRequest) {
     templates: freeTemplates.map((t) => ({ slug: t.slug, name: t.name })),
     previews,
   });
+}
+
+/**
+ * POST /api/admin/template-leads { action: "send" | "skip", leadId, step, early? }
+ * Send (or skip) ONE lead's next email on an explicit admin click. Re-checks
+ * server-side: refuses if the lead has moved on, is unsubscribed, has no
+ * consent for follow-ups or is already a customer. Sending before the
+ * scheduled day needs early: true.
+ */
+export async function POST(req: NextRequest) {
+  const session = await requireSuperAdmin();
+  if (!session) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const body = (await req.json().catch(() => ({}))) as {
+    action?: unknown;
+    leadId?: unknown;
+    step?: unknown;
+    early?: unknown;
+  };
+  const leadId = typeof body.leadId === "string" ? body.leadId : "";
+  const step = typeof body.step === "number" && Number.isInteger(body.step) ? body.step : -1;
+  if (!leadId || step < 0 || step > FINAL_STEP || (body.action !== "send" && body.action !== "skip")) {
+    return NextResponse.json({ error: "action (send|skip), leadId and step are required" }, { status: 400 });
+  }
+  const sentBy = session.user?.email ?? null;
+  const res =
+    body.action === "send"
+      ? await sendLeadStepNow({ leadId, step, early: body.early === true, sentBy })
+      : await skipLeadStep({ leadId, step, sentBy });
+  return NextResponse.json(res, { status: res.ok ? 200 : 409 });
 }

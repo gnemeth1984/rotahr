@@ -382,7 +382,11 @@ export async function nextStepFor(
  * Send one step to one lead, claiming it first so it can only go once.
  * Caller is responsible for checking templateEmailsEnabled().
  */
-export async function sendStep(lead: LeadRow, step: number): Promise<StepOutcome> {
+export async function sendStep(
+  lead: LeadRow,
+  step: number,
+  meta: { manual?: boolean; sentBy?: string | null } = {},
+): Promise<StepOutcome> {
   const claimed = await prisma.templateLead.updateMany({
     where: { id: lead.id, step, status: "active" },
     data: { step: step + 1, lastSentAt: new Date(), ...(step >= FINAL_STEP ? { status: "done" } : {}) },
@@ -408,7 +412,15 @@ export async function sendStep(lead: LeadRow, step: number): Promise<StepOutcome
     .create({
       data: {
         action: "template_email",
-        details: { leadId: lead.id, email: lead.email, step, ok: res.ok, id: res.id, error: res.error },
+        details: {
+          leadId: lead.id,
+          email: lead.email,
+          step,
+          ok: res.ok,
+          id: res.id,
+          error: res.error,
+          ...(meta.manual ? { manual: true, sentBy: meta.sentBy ?? null } : {}),
+        },
       },
     })
     .catch(() => undefined);
@@ -421,6 +433,139 @@ export async function sendStep(lead: LeadRow, step: number): Promise<StepOutcome
     return { sent: false, step, reason: res.error ?? "send failed" };
   }
   return { sent: true, step, id: res.id };
+}
+
+// ─── Manual sending from the admin ───────────────────────────────────────────
+//
+// While TEMPLATE_EMAILS_ENABLED is off nothing goes out on its own, so the
+// admin can send each lead's next email by hand. It uses the same sendStep()
+// (claim first, give the step back on failure), so a manual send and a later
+// automatic run can never send the same step twice, and switching the series
+// on afterwards carries on from wherever each lead has got to.
+
+export interface LeadPlan {
+  /** The step to send next (0-3), or null when the series is over. */
+  nextStep: number | null;
+  label: string | null;
+  subject: string | null;
+  /** When the schedule says it's due (ISO). Step 0 is due on download. */
+  dueAt: string | null;
+  due: boolean;
+  /** Why it can't be sent at all; null when it can. */
+  blocked: string | null;
+}
+
+export async function planLead(lead: LeadRow, now = new Date()): Promise<LeadPlan> {
+  const none = (blocked: string): LeadPlan => ({ nextStep: null, label: null, subject: null, dueAt: null, due: false, blocked });
+  if (lead.status === "unsubscribed") return none("Unsubscribed");
+  if (lead.status === "customer") return none("Became a customer");
+  if (lead.step > FINAL_STEP) return none("Series finished");
+  if (lead.status === "done") {
+    return none(lead.marketingConsent ? "Series finished" : "No consent for follow-ups (series ends after day 0)");
+  }
+  const step = lead.step;
+  const base = {
+    nextStep: step,
+    label: STEP_LABEL[step] ?? `Step ${step}`,
+    subject: renderStep(step, lead).subject,
+  };
+  const dueAt =
+    step === 0
+      ? lead.createdAt
+      : new Date((lead.lastSentAt ?? lead.createdAt).getTime() + (GAP_DAYS[step] ?? 7) * DAY);
+  const timing = { dueAt: dueAt.toISOString(), due: now.getTime() >= dueAt.getTime() };
+
+  if (await isSuppressed(lead.email)) return { ...base, ...timing, blocked: "Unsubscribed" };
+  if (step >= 1 && !lead.marketingConsent) {
+    return { ...base, ...timing, blocked: "No consent for follow-ups (series ends after day 0)" };
+  }
+  if (step >= 1 && (await isCustomer(lead.email))) return { ...base, ...timing, blocked: "Already a customer" };
+  return { ...base, ...timing, blocked: null };
+}
+
+export type ManualResult =
+  | { ok: true; to: string; step: number; subject: string }
+  | { ok: false; error: string; early?: boolean };
+
+/**
+ * Send one lead's next email on an explicit admin click. Works whether or not
+ * TEMPLATE_EMAILS_ENABLED is set. `step` is the step the admin saw, so a stale
+ * screen can't send the wrong email; sending ahead of schedule needs `early`.
+ */
+export async function sendLeadStepNow(opts: {
+  leadId: string;
+  step: number;
+  early?: boolean;
+  sentBy?: string | null;
+}): Promise<ManualResult> {
+  const lead = await prisma.templateLead.findUnique({ where: { id: opts.leadId } });
+  if (!lead) return { ok: false, error: "Lead not found" };
+  if (lead.step !== opts.step) {
+    return { ok: false, error: `Nothing sent: this lead moved on since the page loaded. Its next email is now ${lead.step > FINAL_STEP ? "none (series finished)" : STEP_LABEL[lead.step] ?? `step ${lead.step}`}.` };
+  }
+  const plan = await planLead(lead);
+  if (plan.blocked || plan.nextStep === null) return { ok: false, error: plan.blocked ?? "Nothing to send" };
+  if (!plan.due && !opts.early) {
+    return { ok: false, early: true, error: `Not due until ${plan.dueAt?.slice(0, 10)}. Confirm to send early.` };
+  }
+  const r = await sendStep(lead, plan.nextStep, { manual: true, sentBy: opts.sentBy });
+  if (!r.sent) return { ok: false, error: r.reason };
+  return { ok: true, to: lead.email, step: plan.nextStep, subject: plan.subject ?? "" };
+}
+
+/** Move a lead past its next email without sending it (e.g. a day-0 copy that's weeks late). */
+export async function skipLeadStep(opts: { leadId: string; step: number; sentBy?: string | null }): Promise<ManualResult> {
+  const lead = await prisma.templateLead.findUnique({ where: { id: opts.leadId } });
+  if (!lead) return { ok: false, error: "Lead not found" };
+  const claimed = await prisma.templateLead.updateMany({
+    where: { id: lead.id, step: opts.step, status: "active" },
+    data: { step: opts.step + 1, ...(opts.step >= FINAL_STEP ? { status: "done" } : {}) },
+  });
+  if (claimed.count !== 1) return { ok: false, error: "Nothing skipped: this lead moved on since the page loaded. The list is now up to date." };
+  await prisma.activityLog
+    .create({
+      data: {
+        action: "template_email_skip",
+        details: { leadId: lead.id, email: lead.email, step: opts.step, sentBy: opts.sentBy ?? null },
+      },
+    })
+    .catch(() => undefined);
+  return { ok: true, to: lead.email, step: opts.step, subject: STEP_LABEL[opts.step] ?? "" };
+}
+
+export interface LeadHistoryItem {
+  step: number;
+  at: string;
+  ok: boolean;
+  manual: boolean;
+  skipped: boolean;
+  error: string | null;
+}
+
+/** What each lead has been sent (or had skipped), oldest first. */
+export async function leadHistory(leadIds: string[], since: Date): Promise<Record<string, LeadHistoryItem[]>> {
+  const out: Record<string, LeadHistoryItem[]> = {};
+  if (!leadIds.length) return out;
+  const ids = new Set(leadIds);
+  const logs = await prisma.activityLog.findMany({
+    where: { action: { in: ["template_email", "template_email_skip"] }, createdAt: { gte: since } },
+    orderBy: { createdAt: "asc" },
+    take: 5000,
+  });
+  for (const l of logs) {
+    const d = (l.details ?? {}) as { leadId?: string; step?: number; ok?: boolean; manual?: boolean; error?: string | null };
+    if (!d.leadId || !ids.has(d.leadId) || typeof d.step !== "number") continue;
+    const skipped = l.action === "template_email_skip";
+    (out[d.leadId] ??= []).push({
+      step: d.step,
+      at: l.createdAt.toISOString(),
+      ok: skipped ? true : !!d.ok,
+      manual: skipped || !!d.manual,
+      skipped,
+      error: d.error ?? null,
+    });
+  }
+  return out;
 }
 
 /** Step 0 straight after capture. Never throws. */
