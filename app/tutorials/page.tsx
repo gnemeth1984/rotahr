@@ -2,11 +2,15 @@ import Link from "next/link";
 import { ArrowRight, Film } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import TutorialGallery, { type TutorialItem } from "@/components/marketing/TutorialGallery";
+import { tutorialPlaybackPath } from "@/lib/tutorials/playback";
 import {
+  SITE_URL,
   jsonLdProps,
   breadcrumbSchema,
   videoSchema,
 } from "@/lib/seo/structured-data";
+
+const absoluteUrl = (u: string) => (u.startsWith("/") ? `${SITE_URL}${u}` : u);
 
 /**
  * /tutorials — short how-to videos, visible to anyone.
@@ -55,7 +59,7 @@ export default async function TutorialsPage() {
     slug: t.slug,
     title: t.title,
     description: t.description,
-    videoUrl: t.videoUrl,
+    videoUrl: tutorialPlaybackPath(t),
     posterUrl: t.posterUrl,
     durationSeconds: t.durationSeconds,
   }));
@@ -65,7 +69,7 @@ export default async function TutorialsPage() {
       { name: "Home", path: "/" },
       { name: "Tutorials", path: "/tutorials" },
     ]),
-    ...tutorials.map((t) => videoSchema(t)),
+    ...tutorials.map((t) => videoSchema({ ...t, videoUrl: absoluteUrl(tutorialPlaybackPath(t)) })),
   ];
 
   return (

@@ -19,6 +19,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 // Must load before @vercel/blob/client (imported dynamically in handleUpload):
 // the blob client captures window.fetch when it first evaluates.
 import { setBlobProbe, type BlobProbeEvent } from "@/lib/blob/fetch-probe";
+import { TUTORIAL_BLOB_ACCESS, tutorialPlaybackPath } from "@/lib/tutorials/playback";
 import {
   Loader2,
   RefreshCw,
@@ -242,7 +243,7 @@ export function TutorialsTab() {
         blockedReason =
           ev.kind === "token"
             ? `Can't reach Rotahr's upload service (${ev.error}). Check your connection and try again.`
-            : `Your browser can't reach Vercel Blob (vercel.com), where the video is uploaded: ${ev.error}. ` +
+            : `The upload to Vercel Blob (vercel.com) keeps failing in the browser: ${ev.error}. ` +
               "This is usually a VPN, an ad-blocker or privacy extension, antivirus web shield / HTTPS scanning, " +
               "or a company network. Try a private window with extensions off, another browser, or another network (e.g. a phone hotspot).";
         controller.abort();
@@ -268,7 +269,10 @@ export function TutorialsTab() {
       lastProgressAt.current = Date.now();
       const { upload } = await import("@vercel/blob/client");
       const blob = await upload(`tutorials/${safeName}`, file, {
-        access: "public",
+        // Must match the store: Rotahr's Blob store is private. Asking for
+        // "public" on a private store is rejected by Vercel, and the browser
+        // usually sees that as a network error, so it looked like a hang.
+        access: TUTORIAL_BLOB_ACCESS,
         handleUploadUrl: "/api/admin/tutorials/upload",
         // Splits the file and retries failed parts. Without this a dropped
         // connection at 90% restarts the whole upload.
@@ -548,7 +552,7 @@ export function TutorialsTab() {
             >
               <div className="flex flex-col gap-4 sm:flex-row">
                 <video
-                  src={row.videoUrl}
+                  src={tutorialPlaybackPath(row)}
                   poster={row.posterUrl || undefined}
                   controls
                   preload="metadata"

@@ -24,6 +24,7 @@ import { del } from "@vercel/blob";
 import { authOptions } from "@/lib/auth/options";
 import { isSuperAdminEmail } from "@/lib/auth/super-admins";
 import { prisma } from "@/lib/db";
+import { isOurBlobUrl } from "@/lib/tutorials/playback";
 
 async function guard() {
   const session = await getServerSession(authOptions);
@@ -84,9 +85,10 @@ export async function POST(req: NextRequest) {
 
   // Only accept URLs we actually put there. Stops a malformed client - or a
   // copy/pasted third party link - from ending up embedded on a public page.
-  if (!/^https:\/\/[a-z0-9-]+\.public\.blob\.vercel-storage\.com\//i.test(videoUrl)) {
+  // Our store is private (<store>.private.blob...), so both kinds are allowed.
+  if (!isOurBlobUrl(videoUrl)) {
     return NextResponse.json(
-      { error: "Video URL must be a public Vercel Blob URL" },
+      { error: "Video URL must be a Vercel Blob URL" },
       { status: 400 }
     );
   }
