@@ -110,6 +110,11 @@ export function TutorialsTab() {
   const [category, setCategory] = useState("general");
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
+  // What the upload is doing right now, so a long wait is never a silent 0%.
+  const [phase, setPhase] = useState<"prepare" | "upload" | "save">("prepare");
+  const [stalled, setStalled] = useState(false);
+  const abortRef = useRef<AbortController | null>(null);
+  const lastProgressAt = useRef(0);
   const fileInput = useRef<HTMLInputElement | null>(null);
 
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -172,19 +177,53 @@ export function TutorialsTab() {
     }
     setUploading(true);
     setProgress(0);
+    setPhase("prepare");
+    setStalled(false);
     setError(null);
+
+    const controller = new AbortController();
+    abortRef.current = controller;
+    let blockedReason: string | null = null;
+
+    // The blob client treats a blocked request as a network error and retries
+    // it ~10 times with backoff (~17 min) with the bar stuck at 0%. If the
+    // browser's CSP is what blocked it (e.g. a tab opened before a CSP change),
+    // say so straight away instead of letting it spin.
+    const onCsp = (e: SecurityPolicyViolationEvent) => {
+      if (e.violatedDirective.startsWith("connect-src") && /vercel/.test(e.blockedURI)) {
+        blockedReason =
+          "Your browser blocked the upload to Vercel Blob. This page is probably an old version — reload it (Cmd/Ctrl+Shift+R) and try again.";
+        controller.abort();
+      }
+    };
+    document.addEventListener("securitypolicyviolation", onCsp);
+
+    // No progress for a minute = something is wrong; offer Cancel.
+    lastProgressAt.current = Date.now();
+    const watchdog = window.setInterval(() => {
+      setStalled(Date.now() - lastProgressAt.current > 60_000);
+    }, 5_000);
+
     try {
       const durationSeconds = await readDuration(file);
 
       const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "-");
+      setPhase("upload");
+      lastProgressAt.current = Date.now();
       const blob = await upload(`tutorials/${safeName}`, file, {
         access: "public",
         handleUploadUrl: "/api/admin/tutorials/upload",
         // Splits the file and retries failed parts. Without this a dropped
         // connection at 90% restarts the whole upload.
         multipart: true,
-        onUploadProgress: (p) => setProgress(Math.round(p.percentage)),
+        abortSignal: controller.signal,
+        onUploadProgress: (p) => {
+          lastProgressAt.current = Date.now();
+          setStalled(false);
+          setProgress(Math.round(p.percentage));
+        },
       });
+      setPhase("save");
 
       const res = await fetch("/api/admin/tutorials", {
         method: "POST",
@@ -208,9 +247,15 @@ export function TutorialsTab() {
       if (fileInput.current) fileInput.current.value = "";
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Upload failed");
+      if (blockedReason) setError(blockedReason);
+      else if (controller.signal.aborted) setError("Upload cancelled.");
+      else setError(err instanceof Error ? err.message : "Upload failed");
     } finally {
+      document.removeEventListener("securitypolicyviolation", onCsp);
+      window.clearInterval(watchdog);
+      abortRef.current = null;
       setUploading(false);
+      setStalled(false);
       setProgress(0);
     }
   }
@@ -373,9 +418,18 @@ export function TutorialsTab() {
                 style={{ width: `${progress}%` }}
               />
             </div>
-            <p className="mt-1.5 text-xs text-slate-500">
-              Uploading {progress}% — keep this tab open until it finishes.
+            <p className="mt-1.5 text-xs text-slate-500" data-testid="tutorial-upload-status">
+              {phase === "prepare"
+                ? "Preparing…"
+                : phase === "save"
+                  ? "Uploaded — saving…"
+                  : `Uploading ${progress}% of ${file ? fmtSize(file.size) : "the file"} — keep this tab open until it finishes.`}
             </p>
+            {stalled && (
+              <p className="mt-1 text-xs text-amber-700" data-testid="tutorial-upload-stalled">
+                No progress for over a minute. Check your connection, or cancel, reload the page and try again.
+              </p>
+            )}
           </div>
         )}
 
@@ -395,6 +449,15 @@ export function TutorialsTab() {
               </>
             )}
           </button>
+          {uploading && (
+            <button
+              onClick={() => abortRef.current?.abort()}
+              className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50"
+              data-testid="tutorial-upload-cancel"
+            >
+              Cancel
+            </button>
+          )}
           <p className="text-xs text-slate-400">
             Uploads as a draft. Hit the eye icon to put it live.
           </p>
