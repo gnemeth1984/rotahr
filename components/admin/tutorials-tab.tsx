@@ -16,7 +16,9 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { upload } from "@vercel/blob/client";
+// Must load before @vercel/blob/client (imported dynamically in handleUpload):
+// the blob client captures window.fetch when it first evaluates.
+import { setBlobProbe, type BlobProbeEvent } from "@/lib/blob/fetch-probe";
 import {
   Loader2,
   RefreshCw,
@@ -198,10 +200,64 @@ export function TutorialsTab() {
     };
     document.addEventListener("securitypolicyviolation", onCsp);
 
+    // Record every request to Vercel Blob (and our token route). The blob
+    // client silently retries network errors / 5xx for ~17 minutes, so stop
+    // after 3 failures in a row and say what actually happened.
+    const startedAt = Date.now();
+    const events: BlobProbeEvent[] = [];
+    let lastProgress = 0;
+    let netFails = 0;
+    let serverFails = 0;
+    const sent = new Set<string>();
+    const sendDiag = (outcome: string, message: string) => {
+      if (sent.has(outcome)) return;
+      sent.add(outcome);
+      void fetch("/api/admin/tutorials/upload-diag", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          outcome,
+          message,
+          fileSize: file.size,
+          fileType: file.type,
+          seconds: Math.round((Date.now() - startedAt) / 1000),
+          progress: lastProgress,
+          events: events.slice(-60),
+        }),
+      }).catch(() => {});
+    };
+    setBlobProbe((ev) => {
+      events.push(ev);
+      if (ev.error) {
+        if (/AbortError/.test(ev.error)) return;
+        netFails++;
+      } else if (ev.status !== undefined && ev.status >= 500) {
+        serverFails++;
+      } else if (ev.status !== undefined && ev.status < 400) {
+        netFails = 0;
+        serverFails = 0;
+      }
+      if (blockedReason) return;
+      if (netFails >= 3) {
+        blockedReason =
+          ev.kind === "token"
+            ? `Can't reach Rotahr's upload service (${ev.error}). Check your connection and try again.`
+            : `Your browser can't reach Vercel Blob (vercel.com), where the video is uploaded: ${ev.error}. ` +
+              "This is usually a VPN, an ad-blocker or privacy extension, antivirus web shield / HTTPS scanning, " +
+              "or a company network. Try a private window with extensions off, another browser, or another network (e.g. a phone hotspot).";
+        controller.abort();
+      } else if (serverFails >= 3) {
+        blockedReason = `Vercel Blob keeps answering HTTP ${ev.status}. It's on their side, try again in a few minutes.`;
+        controller.abort();
+      }
+    });
+
     // No progress for a minute = something is wrong; offer Cancel.
     lastProgressAt.current = Date.now();
     const watchdog = window.setInterval(() => {
-      setStalled(Date.now() - lastProgressAt.current > 60_000);
+      const isStalled = Date.now() - lastProgressAt.current > 60_000;
+      setStalled(isStalled);
+      if (isStalled) sendDiag("stalled", "No progress for 60s");
     }, 5_000);
 
     try {
@@ -210,6 +266,7 @@ export function TutorialsTab() {
       const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "-");
       setPhase("upload");
       lastProgressAt.current = Date.now();
+      const { upload } = await import("@vercel/blob/client");
       const blob = await upload(`tutorials/${safeName}`, file, {
         access: "public",
         handleUploadUrl: "/api/admin/tutorials/upload",
@@ -220,7 +277,8 @@ export function TutorialsTab() {
         onUploadProgress: (p) => {
           lastProgressAt.current = Date.now();
           setStalled(false);
-          setProgress(Math.round(p.percentage));
+          lastProgress = Math.round(p.percentage);
+          setProgress(lastProgress);
         },
       });
       setPhase("save");
@@ -247,10 +305,17 @@ export function TutorialsTab() {
       if (fileInput.current) fileInput.current.value = "";
       await load();
     } catch (err) {
-      if (blockedReason) setError(blockedReason);
-      else if (controller.signal.aborted) setError("Upload cancelled.");
-      else setError(err instanceof Error ? err.message : "Upload failed");
+      const message = blockedReason
+        ? blockedReason
+        : controller.signal.aborted
+          ? "Upload cancelled."
+          : err instanceof Error
+            ? err.message
+            : "Upload failed";
+      setError(message);
+      sendDiag(blockedReason ? "blocked" : controller.signal.aborted ? "cancelled" : "error", message);
     } finally {
+      setBlobProbe(null);
       document.removeEventListener("securitypolicyviolation", onCsp);
       window.clearInterval(watchdog);
       abortRef.current = null;
