@@ -32,7 +32,12 @@ const securityHeaders = [
       // without this line playback is blocked silently.
       "media-src 'self' blob: https://*.vercel-storage.com https://*.public.blob.vercel-storage.com",
       "font-src 'self'",
-      "connect-src 'self' https://*.vercel-storage.com https://api.openai.com https://api.lemonsqueezy.com https://app.lemonsqueezy.com",
+      // https://vercel.com/api/blob/ is where @vercel/blob/client sends browser
+      // uploads (tutorial videos: /api/blob/ for single PUTs, /api/blob/mpu for
+      // multipart). It is NOT on *.vercel-storage.com, so without this entry the
+      // upload is refused by the browser and surfaces as "Failed to fetch".
+      // Path-scoped so it doesn't open the rest of vercel.com.
+      "connect-src 'self' https://*.vercel-storage.com https://vercel.com/api/blob/ https://api.openai.com https://api.lemonsqueezy.com https://app.lemonsqueezy.com",
       // The Lemon Squeezy overlay checkout renders inside an iframe it injects.
       "frame-src 'self' https://app.lemonsqueezy.com https://*.lemonsqueezy.com",
       "frame-ancestors 'none'",
