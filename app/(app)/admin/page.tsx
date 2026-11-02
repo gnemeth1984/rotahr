@@ -31,6 +31,7 @@ import {
   PhoneCall,
   Film,
   Filter,
+  Sparkles,
 } from "lucide-react";
 import { EmailCampaignsTab } from "@/components/admin/email-campaigns-tab";
 import { ActivityTab } from "@/components/admin/activity-tab";
@@ -44,6 +45,8 @@ import { VenueEnrichmentTab } from "@/components/admin/venue-enrichment-tab";
 import { TemplatesTab } from "@/components/admin/templates-tab";
 import { FoundingTab } from "@/components/admin/founding-tab";
 import { LeadFinderTab } from "@/components/admin/lead-finder-tab";
+import { LeadIntelligenceTab } from "@/components/admin/lead-intelligence-tab";
+import { LeadIntelligenceSummary } from "@/components/admin/lead-intelligence-summary";
 import { TutorialsTab } from "@/components/admin/tutorials-tab";
 import { FunnelTab } from "@/components/admin/funnel-tab";
 import { Input } from "@/components/ui/input";
@@ -124,6 +127,7 @@ const ADMIN_TABS = [
   "templates",
   "founding",
   "lead-finder",
+  "lead-intelligence",
   "tutorials",
   "seo",
   "audit",
@@ -409,6 +413,11 @@ export default function AdminPage() {
     return t && ADMIN_TABS.includes(t as AdminTab) ? (t as AdminTab) : "users";
   })();
   const [activeTab, setActiveTab] = useState<AdminTab>(initialTab);
+  // Keep the tab in sync when a sidebar/summary link changes ?tab= while /admin is already open.
+  const tabParam = searchParams.get("tab");
+  useEffect(() => {
+    if (tabParam && ADMIN_TABS.includes(tabParam as AdminTab)) setActiveTab(tabParam as AdminTab);
+  }, [tabParam]);
   const [data, setData] = useState<UserApiResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -492,6 +501,8 @@ export default function AdminPage() {
             ? "Incoming mail to sales@rotahr.com — AI drafts a reply, you review and send"
             : activeTab === "templates"
             ? "Free template library — what people asked for, and what they actually download"
+            : activeTab === "lead-intelligence"
+            ? "Daily hospitality prospect research — evidence-backed scores and drafts, never sent automatically"
             : "Email marketing campaigns & audiences"}
         </p>
       </div>
@@ -679,6 +690,18 @@ export default function AdminPage() {
           </span>
         </button>
         <button
+          onClick={() => setActiveTab("lead-intelligence")}
+          className={`shrink-0 whitespace-nowrap px-3 py-2.5 text-sm font-medium border-b-2 transition-colors sm:px-4 sm:py-2 ${
+            activeTab === "lead-intelligence"
+              ? "border-emerald-600 text-emerald-700"
+              : "border-transparent text-slate-500 hover:text-slate-700"
+          }`}
+        >
+          <span className="flex items-center gap-1.5">
+            <Sparkles className="h-3.5 w-3.5" /> Lead Intelligence
+          </span>
+        </button>
+        <button
           onClick={() => setActiveTab("tutorials")}
           className={`shrink-0 whitespace-nowrap px-3 py-2.5 text-sm font-medium border-b-2 transition-colors sm:px-4 sm:py-2 ${
             activeTab === "tutorials"
@@ -730,12 +753,17 @@ export default function AdminPage() {
       {/* Lead Finder: OSM venues with no website, for cold calling */}
       {activeTab === "lead-finder" && <LeadFinderTab />}
 
+      {/* Lead Intelligence: daily AI-scored hospitality prospects, drafts only */}
+      {activeTab === "lead-intelligence" && <LeadIntelligenceTab />}
+
       {/* Tutorial videos shown on the public /tutorials page */}
       {activeTab === "tutorials" && <TutorialsTab />}
 
       {/* Users tab */}
       {activeTab === "users" && (
         <>
+          {/* Morning prospect summary (platform admin only; never tenant dashboards) */}
+          <LeadIntelligenceSummary />
           {/* Stats */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             <div className="bg-white border border-slate-200 rounded-xl p-4">

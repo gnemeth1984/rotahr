@@ -32,6 +32,7 @@ import {
   Building2,
   CreditCard,
   RadioTower,
+  Radar,
   Settings,
   ShieldCheck,
   ContactRound,
@@ -314,6 +315,16 @@ const navItems = [
     platformAdminOnly: true,
   },
   {
+    href: "/admin?tab=lead-intelligence",
+    label: "Lead Intelligence",
+    icon: Radar,
+    roles: [Role.ADMIN],
+    permission: null,
+    featureKey: null,
+    plans: null,
+    platformAdminOnly: true,
+  },
+  {
     href: "/navigator",
     label: "Navigator",
     icon: Compass,
@@ -420,7 +431,7 @@ const NAV_GROUPS: { id: string; label: string; hrefs: string[] }[] = [
   {
     id: "platform",
     label: "Platform",
-    hrefs: ["/navigator", "/admin", "/admin?tab=outreach"],
+    hrefs: ["/navigator", "/admin", "/admin?tab=outreach", "/admin?tab=lead-intelligence"],
   },
 ];
 

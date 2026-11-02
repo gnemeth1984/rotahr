@@ -3450,3 +3450,97 @@ model CopilotSettings {
   targetGpPct Float    @default(70)
   updatedAt   DateTime @updatedAt
 }
+
+/// Platform sales intelligence only. Deliberately isolated from tenant CRM and
+/// OutreachLead: adding a prospect here must NEVER enqueue an automated send.
+model LeadIntelligenceLead {
+  id                 String   @id @default(cuid())
+  dedupeKey          String   @unique
+  name               String
+  website            String?
+  category           String   @default("hospitality")
+  country            String   @default("ie")
+  county             String   @default("")
+  city               String   @default("")
+  address            String   @default("")
+  sourceUrl          String
+  sourceKind         String   @default("manual")
+  discoveryEvidence  Json?
+  status             String   @default("new")
+  contactedAt        DateTime?
+  notes              String?  @db.Text
+  fitScore           Int?
+  intentScore        Int      @default(0)
+  intentStatus       String   @default("unknown")
+  complexityScore   Int?
+  reachabilityScore Int      @default(0)
+  priorityScore      Float    @default(0)
+  classification     String   @default("UNQUALIFIED")
+  generalEmail       String?
+  reservationsEmail String?
+  managerEmail       String?
+  ownerName          String?
+  phone              String?
+  facebook           String?
+  instagram          String?
+  linkedin           String?
+  contactForm        String?
+  bestContactMethod  String?
+  decisionMaker      String?
+  contactReason      String?  @db.Text
+  analysedAt         DateTime?
+  nextAnalysisAt     DateTime @default(now())
+  lastError          String?  @db.Text
+  analyses           LeadIntelligenceAnalysis[]
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([country, county])
+  @@index([classification, priorityScore])
+  @@index([status, nextAnalysisAt])
+}
+
+/// Immutable evidence/scoring snapshot and draft-only outreach. No send state,
+/// mail-provider identifier or relation to the existing outreach sender.
+model LeadIntelligenceAnalysis {
+  id              String   @id @default(cuid())
+  leadId          String
+  lead            LeadIntelligenceLead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  runId           String?
+  run             LeadIntelligenceRun? @relation(fields: [runId], references: [id], onDelete: SetNull)
+  modelVersion    String
+  facts           Json
+  scores          Json
+  sources         Json
+  reasoning       Json
+  emailSubject    String?
+  emailBody       String?   @db.Text
+  followupSubject String?
+  followupBody    String?   @db.Text
+  phoneOpener     String?   @db.Text
+  createdAt       DateTime @default(now())
+
+  @@index([leadId, createdAt])
+  @@index([runId])
+}
+
+/// Persistent run audit and mutex. Unique activeLock prevents overlapping
+/// workers; unique runKey makes a successful daily UTC run idempotent.
+model LeadIntelligenceRun {
+  id            String   @id @default(cuid())
+  runKey        String   @unique
+  activeLock    String?  @unique
+  trigger       String
+  status        String   @default("running")
+  discovered    Int      @default(0)
+  analysed      Int      @default(0)
+  drafts        Int      @default(0)
+  queries       Int      @default(0)
+  modelCalls    Int      @default(0)
+  errors        Json?
+  startedAt     DateTime @default(now())
+  completedAt   DateTime?
+  analyses      LeadIntelligenceAnalysis[]
+
+  @@index([startedAt])
+}
