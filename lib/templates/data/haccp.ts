@@ -528,4 +528,138 @@ export const haccpTemplates: FreeTemplate[] = [
       "14 allergens menu chart template",
     ],
   },
+  {
+    slug: "haccp-weekly-review-checklist",
+    category: "haccp",
+    name: "End of week HACCP review",
+    h1: "Free end of week HACCP review checklist template",
+    title: "Free End of Week HACCP Review Checklist | Rotahr",
+    metaDescription:
+      "Free end of week HACCP review checklist in PDF and Excel. Check the week's logs for gaps, close off corrective actions and sign off next week's actions.",
+    answer:
+      "This free end of week HACCP review checklist — printable PDF or editable Excel — is the one sheet a manager fills in at the end of each week to confirm the daily logs are complete, every failed check was dealt with, and the weekly controls (cleaning, stock rotation, pests, probes, allergens, staff and suppliers) were actually done, with actions carried into next week and a signature.",
+    body: [
+      "Daily logs show what happened on a shift. The weekly review shows somebody in charge read them. That is the difference an inspector or auditor is looking for: a fridge log with two blank days and no comment says nobody noticed, while the same log with a review note saying the site was closed Monday and Tuesday is a complete record.",
+      "Start with the logs, not the kitchen. Go through the week's fridge and freezer readings, cooking, cooling and reheating records, hot holding checks, deliveries, daily cleaning and opening and closing checks. You are looking for two things: days with nothing recorded, and readings outside your limits. Every gap needs a reason and every out-of-range reading needs a corrective action that has been closed off. If the same unit or the same check fails more than once in a week, that is a maintenance or training problem, not a one-off.",
+      "Then walk the controls that only need checking weekly. Stock rotation and date labels in every fridge and store. Signs of pests, and the state of bait points, fly screens and door seals. Probe thermometers checked against iced and boiling water. The allergen matrix against what is actually on this week's menu and specials board. Staff training records, new starters, and anyone who reported illness before coming back to work. Deliveries that were rejected, short or late.",
+      "Finish with actions. Three specific actions with an owner and a date are worth more than a page of observations, and next week's review starts by checking they were done. Thresholds and record-keeping periods vary between countries and between food safety systems, so set the limits on this sheet to match your own HACCP plan and local rules.",
+    ],
+    sheet: {
+      kind: "checklist",
+      orientation: "portrait",
+      headerFields: ["Venue / site", "Week ending", "Reviewed by", "Manager signature & date"],
+      columns: [
+        { name: "Check", width: 8 },
+        { name: "OK", hint: "✓", width: 1 },
+        { name: "Issue", hint: "✗", width: 1 },
+        { name: "Finding / action", hint: "What, who, by when", width: 4 },
+        { name: "Init.", width: 1 },
+      ],
+      extraColumns: [
+        { name: "Date closed", hint: "dd/mm", width: 2 },
+      ],
+      sections: [
+        {
+          title: "Daily logs — Mon to Sun complete, gaps explained",
+          rows: [
+            "Fridge, cold room and freezer temperatures recorded every day",
+            "Cooking, cooling, reheating, hot holding and delivery records complete",
+            "Daily cleaning and opening / closing checks signed every day",
+          ],
+        },
+        {
+          title: "Out-of-range readings and corrective actions",
+          rows: [
+            "Every out-of-range reading has a closed, signed-off corrective action",
+            "Repeat faults escalated; broken equipment booked for repair",
+          ],
+        },
+        {
+          title: "Weekly cleaning",
+          rows: [
+            "Behind and under equipment; canopy, filters and vents",
+            "Drains and gullies; dry store, cold room and shelving",
+          ],
+        },
+        {
+          title: "Stock rotation and date labels",
+          rows: [
+            "Stock rotated first in, first out; opened food labelled with use-by",
+            "Nothing past its use-by; discarded stock recorded",
+          ],
+        },
+        {
+          title: "Pest control",
+          rows: [
+            "No droppings, gnaw marks, insects or nesting found",
+            "Bait points, fly screens and proofing intact; contractor visit logged",
+          ],
+        },
+        {
+          title: "Equipment and probes",
+          rows: [
+            "Fridge and freezer doors, seals and displays working",
+            "Probes checked in iced water (about 0°C) and boiling water (about 100°C)",
+          ],
+        },
+        {
+          title: "Allergens, staff and suppliers",
+          rows: [
+            "Allergen matrix matches this week's menu, specials and suppliers",
+            "New starters inducted; food safety training records up to date",
+            "Illness and fitness-to-work reports handled before staff returned",
+            "Rejected, short or late deliveries followed up with the supplier",
+          ],
+        },
+        {
+          title: "Actions for next week — owner and due date",
+          rows: ["Action 1", "Action 2", "Action 3"],
+        },
+      ],
+      footerNotes: [
+        "Tick OK or Issue on every row; every Issue needs a finding and action. A day with no record is a gap — write the reason or treat it as missed.",
+        "Set limits to your own HACCP plan and local rules. Start next week's review by checking these three actions were done.",
+      ],
+    },
+    howToUse: [
+      "Pick a fixed slot at the end of each week — after the last service, or before the first delivery on Monday — and do it every week.",
+      "Pull the week's logs together first: temperatures, cooking and cooling, hot holding, deliveries, cleaning and opening/closing checks.",
+      "For each log, look for days with no entry and readings outside your limits. Tick OK or Issue and write the reason for any gap.",
+      "Check every out-of-range reading has a corrective action and that each one has been closed off.",
+      "Walk the kitchen for the weekly controls: cleaning, stock rotation and labels, pests, equipment and probes, the allergen matrix, staff and suppliers.",
+      "Write up to three actions for next week with an owner and a due date, then sign and date the sheet and file it with the week's logs.",
+    ],
+    whatsIncluded: [
+      "Printable PDF, portrait A4, one page per week",
+      "Editable Excel (.xlsx) with a date-closed column, plus a CSV version",
+      "Log review section covering every daily HACCP record",
+      "Corrective action close-off, weekly cleaning, stock, pests, probes, allergens, staff and suppliers",
+      "Three numbered actions for next week, and reviewer and manager sign-off fields",
+    ],
+    faqs: [
+      {
+        q: "What is an end of week HACCP review?",
+        a: "A short weekly check, usually by the head chef or manager, that the week's food safety records are complete, failed checks were dealt with, and the weekly controls were done. It turns a stack of daily logs into evidence that someone is managing the system.",
+      },
+      {
+        q: "Who should complete the weekly review?",
+        a: "Whoever is accountable for food safety on site, normally the head chef, kitchen manager or general manager. Staff fill in the daily logs; the review should be signed by someone who can authorise repairs, retraining or a change to a procedure.",
+      },
+      {
+        q: "What should I do about a day with no record?",
+        a: "Write the reason on the review: the site was closed, the unit was empty or out of service, or the check was missed. A missed check gets an action, such as a reminder at that shift or retraining, so the gap is not repeated next week.",
+      },
+      {
+        q: "How long should I keep weekly HACCP reviews?",
+        a: "Keep them with the logs they cover, for the retention period in your own food safety management system. That is commonly one to two years, but it depends on your country and what you produce, so check your local requirement.",
+      },
+    ],
+    related: ["haccp-corrective-action-log", "fridge-freezer-temperature-log", "allergen-matrix"],
+    keywords: [
+      "weekly haccp review checklist",
+      "end of week food safety checklist template",
+      "haccp weekly sign off sheet",
+      "kitchen weekly food safety review template free",
+    ],
+  },
 ];

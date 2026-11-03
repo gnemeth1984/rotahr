@@ -12,6 +12,7 @@ const VALID_TYPES = [
   "cleaning_deep",
   "opening_checks",
   "closing_checks",
+  "weekly_review",
 ];
 
 // GET /api/haccp/checklist-templates?checkType=cleaning_daily

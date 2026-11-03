@@ -303,6 +303,7 @@ export const HACCP_CHECK_LABELS: Record<string, string> = {
   closing_checks: "Closing checks",
   pest_control: "Pest control log",
   corrective_action: "Corrective action log",
+  weekly_review: "End of week HACCP review",
 };
 
 export interface CourseHaccpUnit {

@@ -14,7 +14,10 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const checkType = searchParams.get("checkType");
     const date = searchParams.get("date"); // YYYY-MM-DD
-    const limit = parseInt(searchParams.get("limit") || "100");
+    const from = searchParams.get("from"); // ISO timestamp, inclusive
+    const to = searchParams.get("to"); // ISO timestamp, inclusive
+    const parsedLimit = parseInt(searchParams.get("limit") || "100");
+    const limit = Number.isFinite(parsedLimit) && parsedLimit > 0 ? Math.min(parsedLimit, 2000) : 100;
 
     const where: Record<string, unknown> = { businessId: session.user.businessId };
     if (checkType) where.checkType = checkType;
@@ -24,6 +27,19 @@ export async function GET(req: NextRequest) {
       const end = new Date(date);
       end.setHours(23, 59, 59, 999);
       where.checkedAt = { gte: start, lte: end };
+    } else if (from || to) {
+      const range: { gte?: Date; lte?: Date } = {};
+      if (from) {
+        const d = new Date(from);
+        if (Number.isNaN(d.getTime())) return NextResponse.json({ error: "Invalid from" }, { status: 400 });
+        range.gte = d;
+      }
+      if (to) {
+        const d = new Date(to);
+        if (Number.isNaN(d.getTime())) return NextResponse.json({ error: "Invalid to" }, { status: 400 });
+        range.lte = d;
+      }
+      where.checkedAt = range;
     }
 
     const records = await prisma.hACCPRecord.findMany({

@@ -31,6 +31,7 @@ export const CHECK_LABELS: Record<string, string> = {
   closing_checks: "Closing checks",
   pest_control: "Pest control",
   corrective_action: "Corrective action",
+  weekly_review: "Weekly HACCP review",
 };
 
 const CRITICAL_CERTS = new Set(["HACCP", "FOOD_SAFETY", "ALCOHOL"]);

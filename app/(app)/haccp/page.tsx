@@ -25,6 +25,7 @@ import {
   Truck,
   ClipboardCheck,
   Bug,
+  CalendarCheck,
   AlertTriangle,
   CheckCircle2,
   XCircle,
@@ -216,6 +217,22 @@ const CHECK_GROUPS = [
         label: "Corrective Action",
         description: "Log when a check fails and what action was taken",
         frequency: "As needed",
+        equipType: null,
+      },
+    ],
+  },
+  {
+    label: "Weekly Review",
+    icon: CalendarCheck,
+    color: "text-violet-500",
+    bgColor: "bg-violet-50",
+    borderColor: "border-violet-200",
+    checks: [
+      {
+        type: "weekly_review",
+        label: "End of Week HACCP Review",
+        description: "Manager sign-off: log gaps, corrective actions and weekly controls",
+        frequency: "Weekly",
         equipType: null,
       },
     ],
@@ -734,6 +751,18 @@ const OPENING_ITEMS = [
   "Pest check — no signs of activity",
   "Equipment working correctly (no faults)",
 ];
+const WEEKLY_REVIEW_ITEMS = [
+  "Daily logs reviewed Mon–Sun — any gaps have a reason recorded",
+  "Every out-of-range reading has a corrective action that is closed off",
+  "Weekly cleaning completed and signed",
+  "Stock rotated and date labels checked — nothing past its use-by",
+  "Pest control checked — no activity, proofing intact, visits logged",
+  "Equipment working and probe thermometers checked",
+  "Allergen matrix matches this week's menu and specials",
+  "Staff training up to date; illness / fitness-to-work reports handled",
+  "Supplier and delivery issues followed up",
+  "Actions for next week agreed (owner and due date in notes) — manager sign-off",
+];
 const CLOSING_ITEMS = [
   "All food stored, covered and labelled",
   "Cooking equipment switched off and cleaned",
@@ -820,6 +849,116 @@ function ChecklistForm({
         {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
         Save Record ({checkedCount}/{items.length})
       </Button>
+    </div>
+  );
+}
+
+// ─── Weekly log summary (shown above the weekly review checklist) ────────────
+
+// Checks expected every day; anything else is only counted.
+const WEEKLY_DAILY_TYPES = [
+  "fridge_temp",
+  "freezer_temp",
+  "cleaning_daily",
+  "opening_checks",
+  "closing_checks",
+];
+const WEEKLY_SUMMARY_TYPES = [
+  ...WEEKLY_DAILY_TYPES,
+  "hot_holding",
+  "cooking_temp",
+  "cooling",
+  "delivery",
+  "cleaning_weekly",
+  "pest_control",
+  "corrective_action",
+];
+
+function localDayKey(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function WeeklyLogSummary() {
+  const [rows, setRows] = useState<
+    { type: string; label: string; days: number; total: number; issues: number; daily: boolean }[] | null
+  >(null);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    // Last 7 local days including today.
+    const end = new Date();
+    const start = new Date();
+    start.setDate(start.getDate() - 6);
+    start.setHours(0, 0, 0, 0);
+    fetch(`/api/haccp?from=${encodeURIComponent(start.toISOString())}&to=${encodeURIComponent(end.toISOString())}&limit=2000`)
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+      .then((d: { records: { checkType: string; status: string; checkedAt: string }[] }) => {
+        if (cancelled) return;
+        const out = WEEKLY_SUMMARY_TYPES.map((type) => {
+          const recs = d.records.filter((r) => r.checkType === type);
+          const days = new Set(recs.map((r) => localDayKey(new Date(r.checkedAt)))).size;
+          const issues = recs.filter((r) => r.status === "fail" || r.status === "corrective").length;
+          return {
+            type,
+            label: getCheckConfig(type)?.label ?? type,
+            days,
+            total: recs.length,
+            issues,
+            daily: WEEKLY_DAILY_TYPES.includes(type),
+          };
+        });
+        setRows(out);
+      })
+      .catch(() => !cancelled && setError(true));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (error) {
+    return <p className="text-xs text-slate-500">Couldn&apos;t load this week&apos;s logs. You can still complete the review.</p>;
+  }
+  if (!rows) {
+    return (
+      <div className="flex items-center gap-2 text-xs text-slate-500">
+        <Loader2 className="h-3 w-3 animate-spin" /> Loading the last 7 days of logs…
+      </div>
+    );
+  }
+
+  const gaps = rows.filter((r) => r.daily && r.days < 7).length;
+  const issues = rows.reduce((n, r) => (r.type === "corrective_action" ? n : n + r.issues), 0);
+
+  return (
+    <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-2">
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">Last 7 days</p>
+        <p className="text-xs text-slate-500">
+          {gaps > 0 ? `${gaps} daily check${gaps > 1 ? "s" : ""} with gaps` : "No daily gaps"}
+          {" · "}
+          {issues > 0 ? `${issues} failed / corrective` : "no failed checks"}
+        </p>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1">
+        {rows.map((r) => (
+          <div key={r.type} className="flex items-center justify-between text-xs">
+            <span className="text-slate-700 truncate">{r.label}</span>
+            <span className="flex items-center gap-2 shrink-0">
+              {r.daily ? (
+                <span className={cn("font-medium", r.days < 7 ? "text-amber-600" : "text-green-600")}>
+                  {r.days}/7 days
+                </span>
+              ) : (
+                <span className="text-slate-500">{r.total} logged</span>
+              )}
+              {r.type !== "corrective_action" && r.issues > 0 && (
+                <span className="font-medium text-red-600">{r.issues} issue{r.issues > 1 ? "s" : ""}</span>
+              )}
+            </span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -1238,6 +1377,7 @@ export default function HACCPPage() {
     "cleaning_deep",
     "opening_checks",
     "closing_checks",
+    "weekly_review",
   ];
 
   const DEFAULT_ITEMS: Record<string, string[]> = {
@@ -1246,6 +1386,7 @@ export default function HACCPPage() {
     cleaning_deep: DEEP_CLEAN_ITEMS,
     opening_checks: OPENING_ITEMS,
     closing_checks: CLOSING_ITEMS,
+    weekly_review: WEEKLY_REVIEW_ITEMS,
   };
 
   const getChecklistItems = (checkType: string | null): string[] => {
@@ -2053,6 +2194,7 @@ export default function HACCPPage() {
                     </Button>
                   </div>
                 )}
+                {activeModal === "weekly_review" && <WeeklyLogSummary />}
                 <ChecklistForm
                   items={getChecklistItems(activeModal)}
                   onSubmit={(data, status, notes) => handleSave(activeModal, data, status, notes)}

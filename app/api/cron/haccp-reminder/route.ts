@@ -39,6 +39,7 @@ const CHECK_LABELS: Record<string, string> = {
   closing_checks: "Closing Checks",
   pest_control: "Pest Control Log",
   corrective_action: "Corrective Action Log",
+  weekly_review: "End of Week HACCP Review",
 };
 
 async function __cronHandler(req: NextRequest) {
