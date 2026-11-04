@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const MODEL_VERSION = "rotahr-lead-intelligence-v1";
+export const MODEL_VERSION = "rotahr-lead-intelligence-v2";
 export const SIGNAL_KEYS = [
   "hospitality", "food", "shiftStaff", "events", "functions", "entertainment",
   "beverage", "departments", "sevenDays", "multiLocations", "recruitment",
@@ -19,6 +19,8 @@ export type SourceDocument = {
   text: string;
   kind: "website" | "search" | "maps" | "existing";
   fetchedAt: string;
+  /** Result date reported by the search provider ("3 days ago", "Oct 28, 2026"), when given. */
+  date?: string;
 };
 const evidenceSchema = z.object({
   sourceUrl: z.string().max(2000),

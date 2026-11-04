@@ -6,6 +6,7 @@ import { adminGuard, apiError, mutationGuard } from "@/lib/lead-intelligence/aut
 import { configuration } from "@/lib/lead-intelligence/providers";
 import { saveSeed } from "@/lib/lead-intelligence/service";
 import { LEAD_STATUSES, canonicalUrl } from "@/lib/lead-intelligence/types";
+import { PURSUED_GRADES } from "@/lib/lead-intelligence/signals";
 import { allowedUrl } from "@/lib/lead-intelligence/crawl";
 
 export const dynamic = "force-dynamic";
@@ -18,13 +19,20 @@ export async function GET(req: NextRequest) {
     const p = req.nextUrl.searchParams;
     const id = p.get("id");
     if (id) {
-      const lead = await prisma.leadIntelligenceLead.findUnique({where:{id},include:{analyses:{orderBy:{createdAt:"desc"},take:5}}});
+      const lead = await prisma.leadIntelligenceLead.findUnique({where:{id},include:{analyses:{orderBy:{createdAt:"desc"},take:5},triggerSignals:{orderBy:[{points:"desc"},{observedAt:"desc"}],take:50}}});
       return lead ? NextResponse.json({lead}) : NextResponse.json({error:"Lead not found"},{status:404});
     }
     const where:Prisma.LeadIntelligenceLeadWhereInput = {};
     if (["ie","uk"].includes(p.get("country")??"")) where.country=p.get("country")!;
     if (p.get("county")) where.county={equals:p.get("county")!.slice(0,100),mode:"insensitive"};
     if (["A+","A","B","C","UNQUALIFIED"].includes(p.get("classification")??"")) where.classification=p.get("classification")!;
+    if (["A+","A","B","C","D"].includes(p.get("grade")??"")) where.grade=p.get("grade")!;
+    if (p.get("grade")==="pursued") where.grade={in:[...PURSUED_GRADES]};
+    const minScore=p.get("leadScore"); if (minScore && Number.isFinite(Number(minScore))) where.leadScore={gte:Math.max(0,Math.floor(Number(minScore)))};
+    if (["hiring","fhrs","fsai","multi_site"].includes(p.get("signal")??"")) {
+      const sig=p.get("signal")!;
+      where.triggerSignals={some:sig==="hiring"?{type:{startsWith:"hiring_"}}:sig==="fhrs"?{type:"fhrs_rating"}:sig==="fsai"?{type:{startsWith:"fsai_"}}:{type:"multi_site"}};
+    }
     const q = p.get("q")?.slice(0,150);
     if (q) where.OR=[{name:{contains:q,mode:"insensitive"}},{city:{contains:q,mode:"insensitive"}}];
     for (const [param,field] of [["fit","fitScore"],["intent","intentScore"],["priority","priorityScore"]] as const) {
@@ -38,13 +46,17 @@ export async function GET(req: NextRequest) {
     if (p.get("view")==="ready") {where.bestContactMethod={not:null};where.status={notIn:["suppressed","converted","not_interested"]};where.contactedAt=null;}
     if (p.get("view")==="drafts") {where.analyses={some:{emailBody:{not:null}}};where.contactedAt=null;}
     if (p.get("view")==="recent") where.analysedAt={gte:new Date(Date.now()-7*86400000)};
-    const page=Math.max(1,Math.min(10000,Math.floor(Number(p.get("page"))||1)));
+    // "Top 50 to buy this month": pursued grades (A+/A/B) that are still open, highest trigger score first.
+    const buy = p.get("view")==="buy";
+    if (buy) {where.grade={in:[...PURSUED_GRADES]};where.status={notIn:["suppressed","converted","not_interested"]};}
+    const size = buy ? 50 : 25;
+    const page=buy ? 1 : Math.max(1,Math.min(10000,Math.floor(Number(p.get("page"))||1)));
     const [leads,total,counties] = await Promise.all([
-      prisma.leadIntelligenceLead.findMany({where,orderBy:[{priorityScore:"desc"},{fitScore:"desc"},{id:"asc"}],take:25,skip:(page-1)*25}),
-      prisma.leadIntelligenceLead.count({where}),
+      prisma.leadIntelligenceLead.findMany({where,orderBy:[{leadScore:"desc"},{priorityScore:"desc"},{fitScore:{sort:"desc",nulls:"last"}},{id:"asc"}],take:size,skip:(page-1)*size}),
+      buy ? prisma.leadIntelligenceLead.count({where}).then(n=>Math.min(n,50)) : prisma.leadIntelligenceLead.count({where}),
       prisma.leadIntelligenceLead.findMany({select:{county:true},distinct:["county"],where:{county:{not:""}},take:200,orderBy:{county:"asc"}}),
     ]);
-    return NextResponse.json({leads,total,page,pages:Math.ceil(total/25),counties:counties.map(c=>c.county),config:configuration()});
+    return NextResponse.json({leads,total,page,pages:Math.ceil(total/size),counties:counties.map(c=>c.county),config:configuration()});
   } catch(e) { return apiError(e); }
 }
 

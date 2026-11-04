@@ -1,3 +1,4 @@
+import { FORBIDDEN_DRAFT_TERMS, classifyRole } from "./signals";
 import { CONTACT_KEYS, SIGNAL_KEYS, canonicalUrl, isFirstPartyRotahr, type Extraction, type LeadSeed, type SourceDocument } from "./types";
 
 const compact = (s: string) => s.toLowerCase().replace(/\s+/g, " ").trim();
@@ -149,12 +150,21 @@ export function scoreLead(f: Extraction, now = new Date()) {
 }
 
 /** Draft wording is composed from validated facts, never unverified model prose. */
-export function generateDrafts(seed: LeadSeed, f: Extraction) {
+/**
+ * Drafts may mention an observed hiring advert ("noticed you're hiring a Head Chef"). They never cite a
+ * hygiene rating, inspection or enforcement order; any such wording outside the venue name is rejected.
+ */
+export function generateDrafts(seed: LeadSeed, f: Extraction, hiring?: { role: string }) {
   const has = (k: keyof Extraction["signals"]) => f.signals[k]?.value === true;
   const observation = has("functions") ? "you cater for private functions" : has("entertainment") ? "you host live entertainment" : has("food") ? "you serve food" : "your hospitality business";
   const greeting = f.contacts.ownerName ? `Hi ${f.contacts.ownerName.value.split(" ")[0]} and team,` : `Hi ${seed.name} team,`;
-  const intro = observation === "your hospitality business" ? `I came across ${seed.name}${seed.city ? ` in ${seed.city}` : ""}.` : `I came across ${seed.name}${seed.city ? ` in ${seed.city}` : ""} and noticed ${observation}.`;
-  const angle = has("events") || has("functions") ? "Coordinating staff cover around events can add work for whoever manages the rota." : "Keeping shift cover and staff updates organised can mean extra work for hospitality managers.";
+  const cls = hiring ? classifyRole(hiring.role) : null;
+  const role = !cls ? null : cls.group === "hiring_compliance" ? "for a food safety role" : `a ${cls.role}`;
+  const where = `${seed.name}${seed.city ? ` in ${seed.city}` : ""}`;
+  const intro = role ? `I came across ${where} and noticed you're hiring ${role}.`
+    : observation === "your hospitality business" ? `I came across ${where}.` : `I came across ${where} and noticed ${observation}.`;
+  const angle = role ? "Bringing a new senior hire on board usually means rota changes, handovers and getting them up to speed on your checks."
+    : has("events") || has("functions") ? "Coordinating staff cover around events can add work for whoever manages the rota." : "Keeping shift cover and staff updates organised can mean extra work for hospitality managers.";
   let emailBody = `${greeting}\n\n${intro}\n\n${angle}\n\nRotahr brings staff scheduling, team communication${has("food") ? " and HACCP records" : ""} into one place.\n\nWould you be open to a quick look to see whether it could suit your team?\n\nKind regards,\nGabor\nFounder, Rotahr`;
   const followupBody = `${greeting}\n\nJust following up on my note about ${seed.name}. If managing rotas${has("events") || has("functions") ? " around functions and events" : " and staff updates"} is something you would like to simplify, I would be happy to show you Rotahr.\n\nIf it is not a priority, no problem.\n\nKind regards,\nGabor\nFounder, Rotahr`;
   const phoneOpener = `Hi, it's Gabor from Rotahr. We help hospitality venues manage staff rotas and team communication${has("functions") ? ", including cover for functions and events" : ""}. Who would be the best person to speak to about that at ${seed.name}?`;
@@ -162,5 +172,14 @@ export function generateDrafts(seed: LeadSeed, f: Extraction) {
   // Long business names can push the email over 120 words; drop the optional angle sentence first.
   if (count(emailBody) > 120) emailBody = emailBody.replace(`${angle}\n\n`, "");
   if (count(emailBody) > 120 || count(followupBody) > 120) throw new Error("Draft exceeds 120-word limit; review business name length.");
-  return { emailSubject: `Staff rotas at ${seed.name}`, emailBody, followupSubject: `Following up: ${seed.name}`, followupBody, phoneOpener };
+  const drafts = { emailSubject: `Staff rotas at ${seed.name}`, emailBody, followupSubject: `Following up: ${seed.name}`, followupBody, phoneOpener };
+  assertNoForbiddenTerms(drafts, seed.name);
+  return drafts;
+}
+/** Throws if any draft cites hygiene ratings, inspections or enforcement (the venue's own name is exempt). */
+export function assertNoForbiddenTerms(drafts: Record<string, string>, venueName: string) {
+  for (const [k, v] of Object.entries(drafts)) {
+    const text = venueName ? v.split(venueName).join(" ") : v;
+    if (FORBIDDEN_DRAFT_TERMS.test(text)) throw new Error(`Draft ${k} mentions a hygiene/enforcement term; not saved.`);
+  }
 }

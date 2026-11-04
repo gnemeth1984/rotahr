@@ -10,7 +10,15 @@ automated outreach sequence, so nothing follows up on its own.
 
 ## What runs, and when
 
-`GET /api/cron/lead-intelligence` is scheduled in `vercel.json` as `0 6 * * *`.
+Two crons, both in `vercel.json`:
+
+| Route | Schedule (UTC) | What it does | Paid calls |
+|---|---|---|---|
+| `GET /api/cron/lead-intelligence-sources` | `30 5 * * *` | Free trigger sources: FSAI enforcement orders (weekly) and UK FHRS hygiene ratings (daily, 3 authorities) | none |
+| `GET /api/cron/lead-intelligence` | `0 6 * * *` | Job-advert discovery, Maps discovery, analysis and drafts | Serper + OpenAI, within the caps |
+
+The sources run goes first so its leads are already scored when the paid run picks its analysis
+queue (highest lead score first).
 
 - Vercel cron runs in **UTC**, so this is 06:00 UTC: 07:00 in Ireland/UK during summer time and
   06:00 in winter. Vercel crons cannot follow DST. For a fixed 06:00 local time all year, change
@@ -23,15 +31,24 @@ automated outreach sequence, so nothing follows up on its own.
 
 Each run has these steps:
 
-1. **Discover.** Discovery uses Serper Maps (one Irish and one UK city per day, rotating) and two
-   Serper web searches (directories and job/new-opening listings). One `gpt-4o-mini` call pulls
-   named venues out of the search snippets.
-   - A Maps result is kept only if its address can be shown to be in the requested country
-     (Eircode, county, `BT` or UK postcode, or a country name).
+1. **Discover (trigger first).**
+   - **Job adverts:** four Serper Google searches limited to the last month (`tbs: qdr:m`),
+     rotating towns by UTC day: chef roles and management roles in an Irish town, chef roles in a
+     UK town, then either UK management roles or (every other day) a national HACCP / food-safety
+     role search. One `gpt-4o-mini` call extracts named employers from the snippets. Every advert
+     is then verified in code: the quote, venue name and role must appear in the snippet, and
+     agencies, job boards and "our client" employers are dropped. Job-board pages themselves are
+     never fetched. Each verified advert becomes a lead (`sourceKind: job_advert`) with a dated
+     hiring signal.
+   - **Maps:** one Serper Maps search per day, alternating Ireland and the UK. A result is kept
+     only if its address can be shown to be in the requested country (Eircode, county, `BT` or
+     UK postcode, or a country name).
+   - The old "directories" web search was removed in v2 to pay for the job searches.
    - Seeds are also read, **read-only**, from the existing `CallLead`, `VenueCandidate` and
      `OutreachLead` tables. Email addresses from those tables are not reused as evidence.
 2. **Save.** New venues are written to `LeadIntelligenceLead`, with deduplication (see below).
-3. **Analyse.** The queue holds leads due for analysis, never-analysed first, up to 5 per run.
+3. **Analyse.** The queue holds leads due for analysis, **highest lead score first**, then
+   never-analysed first, up to 5 per run.
    Suppressed, converted and not-interested leads are skipped. For each lead the run does the
    following:
    - one web search;
@@ -44,7 +61,94 @@ Each run has these steps:
    sources and reasoning. The lead row gets its latest scores, and the next analysis is due in
    7 days. The run summary is stored in `LeadIntelligenceRun`.
 
-## Scoring
+## Lead score and grades (Lead Engine v2)
+
+The lead score answers "how likely is this venue to buy this month". It is built only from dated,
+sourced **trigger signals** (`LeadIntelligenceSignal`), one row per signal with points, event date
+and source URL. It is separate from the fit/intent/priority scores below, which still describe the
+analysis.
+
+| Signal | Points | Source | Counts for |
+|---|---|---|---|
+| Hiring a compliance role (HACCP, Food Safety, Quality Manager) | 50 | job advert | 60 days |
+| Hiring a chef role (Head/Executive/Sous Chef, Kitchen Manager) | 40 | job advert | 60 days |
+| Hiring a management role (Restaurant/General/Duty/Operations Manager) | 35 | job advert | 60 days |
+| FHRS rating 0, 1 or 2 | 70 | FHRS API | latest inspection |
+| FHRS rating 3 | 40 | FHRS API | latest inspection |
+| FHRS rating 4 / 5 | 10 / 0 | FHRS API | latest inspection |
+| FSAI Closure Order | 100 | FSAI list | 180 days |
+| FSAI Prohibition Order | 90 | FSAI list | 180 days |
+| FSAI Improvement Order | 75 | FSAI list | 180 days |
+| Multiple sites (observed in the analysis) | 20 | analysis | while observed |
+
+- Signals are grouped (chef, management, compliance, hygiene, enforcement, multi-site). **Only
+  the strongest active signal per group counts**, so two chef adverts are still 40. For hygiene
+  the latest inspection wins even if an older one scored higher.
+- Groups add up: a Head Chef advert plus a Closure Order is 140.
+- Output stored on the lead (`leadScore`, `grade`, `signalSummary`):
+  `{"lead_score":110,"signals":["Food Hygiene Rating 2","Hiring Head Chef"]}`.
+
+| Grade | Lead score | Pursued |
+|---|---|---|
+| `A+` | ≥ 90 | yes |
+| `A` | 70–89 | yes |
+| `B` | 40–69 | yes |
+| `C` | 20–39 | no |
+| `D` | < 20 | no |
+
+Pursued means A+, A and B. The **Top 50 to buy this month** view (`view=buy`) lists pursued
+leads that are still open (not contacted-closed, suppressed, converted or not interested),
+ordered by lead score, then priority, then fit.
+
+The FHRS reason shown in the UI is: "Poor hygiene rating. Rotahr HACCP records may help support
+future inspections."
+
+### Free trigger sources
+
+**FHRS (UK Food Hygiene Rating Scheme).** `lib/lead-intelligence/fhrs.ts`, public API
+`api.ratings.food.gov.uk` (no key).
+
+- England, Wales and Northern Ireland only (FHRS-scheme authorities). Scotland uses FHIS
+  (Pass / Improvement Required) and is excluded; Scottish towns are covered by job searches only.
+- Business types (`FHRS_BUSINESS_TYPES`): Restaurant/Cafe/Canteen (1), Hotel/B&B/guest house
+  (7842), Pub/bar/nightclub (7843) and Other catering premises (7841). Takeaways (7844) and
+  mobile caterers (7846) are excluded.
+- Each run takes the next 3 (town, authority) units from `FHRS_UNITS` (42 UK towns; London is 9
+  boroughs), fetches every venue rated 0–3, stores them in `LeadIntelligenceFhrs`, and promotes up
+  to 40 records rated within the last 3 years to leads (`sourceKind: fhrs`). The cursor is in
+  `LeadIntelligenceSourceSync` (`source: fhrs`).
+- A venue that disappears from a complete authority list has been re-rated 4–5 or closed. Its
+  record becomes `rating: "superseded"` and its signal is deleted, so the score drops. A failed
+  page never supersedes anything.
+
+**FSAI (Ireland enforcement orders).** `lib/lead-intelligence/fsai.ts`, the public Closure,
+Prohibition and Improvement PDFs linked from `fsai.ie/enforcement-and-legislation/enforcement`.
+
+- Runs **weekly** (the admin button can force it). FSAI removes lifted orders from its lists, so
+  every order is persisted in `LeadIntelligenceFsaiOrder` on first sight.
+- PDFs are parsed with `unpdf` text coordinates against the column header. A page whose layout is
+  not recognised is skipped and reported in the run status; it is never guessed.
+- Only hospitality business types (restaurant, café, takeaway, hotel, pub, bar, caterer, service
+  sector, mobile) are promoted to leads (`sourceKind: fsai`). Retailers, manufacturers and
+  distributors are stored but never promoted.
+- The **Served On** column (often a private person's name) is never stored.
+
+**Cross-matching.** When a lead arrives from a job advert or Maps, `attachKnownRecords` looks for
+the same normalised name in the same UK town (FHRS, postcode must match when both have one) or the
+same Irish county (FSAI). Ambiguous matches (two same-name premises) are skipped.
+
+**Locking.** `runSourceImports` holds a lease on the `lock` row of `LeadIntelligenceSourceSync`;
+an overlapping call returns `{skipped:true}`. A lease older than 10 minutes is taken over.
+
+### Hygiene and enforcement never appear in outreach
+
+AI evidence for FHRS and FSAI leads contains identity only (name, address, business type), never
+the rating or the order. Drafts may mention hiring ("noticed you're hiring a Head Chef"), but
+`assertNoForbiddenTerms` rejects any draft that mentions hygiene, ratings, inspections,
+enforcement, closure, prohibition, FSAI or FHRS (the venue's own name is exempt). The detail page
+shows these signals with a "never mention in outreach" note.
+
+## Fit, intent and priority (analysis scores)
 
 | Score | Range | Built from |
 |---|---|---|
@@ -133,6 +237,8 @@ resets status, notes or contact state.
 |---|---|
 | Run deadline | 240 s (the function's `maxDuration` is 300 s) |
 | Per run | 10 searches, 6 AI calls, ≤5 analyses, ≤30 discoveries saved |
+| Per-run split | 4 job searches + 1 Maps search + 1 per analysis; 1 advert-extraction AI call + 1 per analysis |
+| Free sources | FHRS and FSAI make no paid calls and are outside these caps |
 | Per UTC day, across cron, retries and manual runs | 30 searches, 18 AI calls by default |
 | Model input | ≤42,000 characters per analysis, ≤12,000 per document |
 
@@ -159,7 +265,7 @@ Set these in the deployment environment. Names only; values are never logged or 
 | `LEAD_INTELLIGENCE_ENABLED` | yes (`true`) | Opt-in switch. Anything else disables cron and manual runs. |
 | `SERPER_API_KEY` | yes | Serper Maps and web search |
 | `OPENAI_API_KEY` | yes | `gpt-4o-mini` JSON extraction |
-| `CRON_SECRET` | yes | Bearer token Vercel sends to cron routes. Already used by the existing crons. |
+| `CRON_SECRET` | yes | Bearer token Vercel sends to cron routes. Already used by the existing crons. The sources cron needs only this and `LEAD_INTELLIGENCE_ENABLED`. |
 | `DATABASE_URL` | yes | Existing |
 | `LEAD_INTELLIGENCE_ANALYSIS_LIMIT` | no | Analyses per run, 1–5 (default 5) |
 | `LEAD_INTELLIGENCE_DISCOVERY_LIMIT` | no | Discoveries saved per run, 1–30 (default 20) |
@@ -176,14 +282,20 @@ APIs. Mutations also get same-origin checks.
   - four stat cards that double as view filters: Hot Prospects, Recently Qualified (last 7
     days), Ready To Contact and Email Drafts Ready;
   - today's summary with the top 10 prospects;
-  - a table sorted by priority and filterable by search, country, county, classification,
-    minimum fit, intent and priority, intent status, and contacted;
-  - "Add business" and "Run now" buttons;
+  - a **Top 50 to buy this month** card (grades A+/A/B, open leads, by lead score);
+  - grade counts and FHRS / FSAI source status (last run, result) in the summary;
+  - a table sorted by lead score, with Lead score, Grade and Signals columns, filterable by
+    search, country, county, grade (or "pursued"), trigger signal (hiring, FHRS, FSAI,
+    multi-site), classification, minimum fit, intent and priority, intent status, and contacted;
+  - "Add business", "Run now" and **Import FSAI / FHRS** buttons (the import button calls the
+    free sources only and forces the weekly FSAI check);
   - run history (discovered, analysed, draft sets, searches, AI calls, notices and errors).
 - **`/admin?tab=users`** (the default admin landing tab) has a compact **morning summary** card at
   the top: today's counts, whether the daily job is enabled, and the top 3 prospects. It links
   to the full top 10 in the Lead Intelligence tab.
 - **`/admin/lead-intelligence/[id]`** is the detail page and holds the **AI Analysis** view:
+  - **Buying triggers**: each signal with points, event date and source link, the FHRS reason
+    text, and a "never mention in outreach" note for hygiene and enforcement signals;
   - score breakdowns and reasoning;
   - verified facts with quotes and source links (http/https only, `nofollow`);
   - public contacts with their sources;
@@ -196,9 +308,21 @@ The APIs are:
 - `GET`, `POST` and `PATCH` on `/api/admin/lead-intelligence`;
 - `GET /api/admin/lead-intelligence/summary`;
 - `POST /api/admin/lead-intelligence/run` (manual run, or analysis of a single lead);
-- `GET /api/cron/lead-intelligence`.
+- `POST /api/admin/lead-intelligence/sources` (`{forceFsai?}`; free sources only);
+- `GET /api/cron/lead-intelligence` and `GET /api/cron/lead-intelligence-sources`.
+
+List filters on `GET /api/admin/lead-intelligence`: `grade` (`A+`…`D` or `pursued`), `leadScore`
+(minimum), `signal` (`hiring`, `fhrs`, `fsai`, `multi_site`) and `view=buy`.
 
 ## Data model and migration
+
+**Lead Engine v2** (`prisma/migrations/20261105060000_lead_engine_v2/migration.sql`, additive):
+adds `leadScore`, `grade` and `signalSummary` to `LeadIntelligenceLead`, and four tables:
+`LeadIntelligenceSignal`, `LeadIntelligenceFhrs`, `LeadIntelligenceFsaiOrder` and
+`LeadIntelligenceSourceSync`. Applied to production with `psql --single-transaction` after a
+fresh backup, then recorded with `prisma migrate resolve --applied`.
+
+**Original release:**
 
 The migration is additive only. It creates three new tables and does not touch existing ones:
 
@@ -229,7 +353,8 @@ the morning summary shows the same message.
 # Offline: scoring, evidence validation, drafts, SSRF/robots/redirect policy, Maps parsing, cron auth
 npx tsx --test tests/lead-intelligence/*.test.ts
 
-# Plus DB integration (dedupe, mutex, idempotency, lease expiry, daily caps, human-status wins, cron route).
+# Plus DB integration (dedupe, mutex, idempotency, lease expiry, daily caps, human-status wins, cron routes,
+# FHRS import/supersede/cursor, FSAI import from a synthetic PDF, weekly gate, cross-matching, source lock).
 # Local throwaway Postgres only: host must be localhost and the database name must end in _test.
 # Providers are faked in-process; no network calls are made.
 LI_TEST_DATABASE_URL=postgresql://USER:PASS@localhost:5432/rotahr_li_test \
@@ -257,7 +382,12 @@ LI_TEST_DATABASE_URL=postgresql://USER:PASS@localhost:5432/rotahr_li_test \
   - Pages that need JavaScript to render produce little text.
 - **Estimates.** Staff counts, locations, the decision maker and response likelihood are
   estimates, not verified data.
-- **Discovery breadth.** Discovery is deliberately small: two cities a day, within paid-call caps.
-  Increase it through the env caps only after reviewing provider costs.
+- **Discovery breadth.** Discovery is deliberately small: four job searches and one Maps search a
+  day, within paid-call caps. Increase it through the env caps only after reviewing provider costs.
+- **Job adverts** come from Google snippets via Serper only; job boards are never scraped. An
+  advert without a named employer, or from an agency, is dropped.
+- **FSAI parsing** depends on the PDF layout. If FSAI changes it, pages are skipped and reported,
+  not misread. Most FSAI orders are retailers, which are not promoted.
+- **FHRS** covers England, Wales and Northern Ireland, for the business types listed above.
 - **Coverage gaps are not negatives.** An empty or failed analysis keeps the previous one and
   records `lastError`. The lead is retried after 24 hours.

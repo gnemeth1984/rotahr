@@ -2,7 +2,9 @@ import { randomUUID } from "node:crypto";
 import { Prisma, type LeadIntelligenceLead } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { crawlWebsite } from "./crawl";
-import { BudgetError, ProviderBudget, discoverLeads, extractFacts, requireConfiguration, search } from "./providers";
+import { BudgetError, ProviderBudget, discoverLeads, extractFacts, requireConfiguration, search, type JobAdvert } from "./providers";
+import { MULTI_SITE_POINTS, ROLE_GROUPS, nameKey } from "./signals";
+import { attachKnownRecords, recomputeLeadScore, saveSignal } from "./sources";
 import { generateDrafts, scoreLead, validateEvidence } from "./scoring";
 import { CONTACT_KEYS, MODEL_VERSION, canonicalUrl, dedupeKey, normaliseCountry, type LeadSeed, type SourceDocument } from "./types";
 
@@ -88,7 +90,10 @@ export async function analyseLead(lead: LeadIntelligenceLead, budget: ProviderBu
   if (!facts.identityConfirmed) throw new Error("Venue identity/location could not be confirmed; previous analysis preserved.");
   const scores = scoreLead(facts);
   // No outreach copy for a venue whose hospitality fit is not established.
-  const drafts = scores.fit === null ? null : generateDrafts(seed,facts);
+  // Drafts may mention an observed, active hiring advert. Hygiene/enforcement signals are never passed in.
+  const hiring = await prisma.leadIntelligenceSignal.findFirst({where:{leadId:lead.id,type:{startsWith:"hiring_"},
+    OR:[{eventDate:{gte:new Date(Date.now()-60*86400000)}},{eventDate:null,observedAt:{gte:new Date(Date.now()-60*86400000)}}]},orderBy:{points:"desc"}});
+  const drafts = scores.fit === null ? null : generateDrafts(seed,facts,hiring ? {role:hiring.detail} : undefined);
   const contacts = Object.fromEntries(CONTACT_KEYS.map(k => [k,facts.contacts[k]?.value ?? null]));
   const saved = await prisma.$transaction(async tx => {
     // A contact-state change made by a human during analysis must survive it.
@@ -106,7 +111,23 @@ export async function analyseLead(lead: LeadIntelligenceLead, budget: ProviderBu
     }});
     return true;
   });
+  if (saved && facts.signals.multiLocations?.value === true && facts.signals.multiLocations.confidence === "observed") {
+    const m = facts.signals.multiLocations;
+    await saveSignal(lead.id,{type:"multi_site",label:"Multi-site operator",points:MULTI_SITE_POINTS,sourceUrl:m.sourceUrl,detail:m.quote.slice(0,300),fingerprint:`multi:${lead.id}`});
+  }
+  if (saved) await recomputeLeadScore(lead.id);
   return {id:lead.id,name:lead.name,saved,drafted:saved && drafts !== null,...scores};
+}
+
+/** A verified job advert becomes a lead (or enriches an existing one) with a dated hiring signal. */
+export async function saveJobAdvert(a: JobAdvert) {
+  const saved = await saveSeed(a.seed);
+  await saveSignal(saved.id,{type:a.group,label:`Hiring ${a.role}`,points:ROLE_GROUPS[a.group].points,sourceUrl:a.advertUrl,detail:a.role,eventDate:a.datePosted,
+    fingerprint:`job:${nameKey(a.seed.name)}:${a.role.toLowerCase().replace(/\s+/g,"-")}:${a.seed.city.toLowerCase()}`,
+    data:{venueName:a.seed.name,location:a.seed.city,role:a.role,advertUrl:a.advertUrl,datePosted:a.datePosted?.toISOString().slice(0,10) ?? null,title:a.title}});
+  await attachKnownRecords(saved.id,a.seed);
+  await recomputeLeadScore(saved.id);
+  return saved;
 }
 
 async function importExistingSeeds(limit: number): Promise<LeadSeed[]> {
@@ -161,11 +182,16 @@ export async function runIntelligence(trigger: "cron" | "manual", leadId?: strin
   try {
     if (!leadId) {
       const outcome = await discoverLeads(budget); errors.push(...outcome.warnings); failures += outcome.failures;
+      for (const advert of outcome.adverts) {
+        if (budget.deadline-Date.now()<30000) {errors.push("Notice: time budget reached while saving job adverts."); break;}
+        try { const r = await saveJobAdvert(advert); if (r.created) discovered++; }
+        catch(e) { failures++; errors.push(`Save advert ${advert.seed.name}: ${errorText(e)}`); }
+      }
       const existing = await importExistingSeeds(5);
       const candidates = [...outcome.leads,...existing].slice(0,config.discoveryLimit);
       for (const seed of candidates) {
         if (budget.deadline-Date.now()<30000) {errors.push("Notice: time budget reached while saving discoveries."); break;}
-        try { if ((await saveSeed(seed)).created) discovered++; }
+        try { const r = await saveSeed(seed); if (r.created) discovered++; await attachKnownRecords(r.id,seed); }
         catch(e) { failures++; errors.push(`Save ${seed.name}: ${errorText(e)}`); }
       }
       await prisma.leadIntelligenceRun.update({where:{id:run.id},data:{discovered,...usage(),errors:asJson(errors)}});
@@ -173,7 +199,7 @@ export async function runIntelligence(trigger: "cron" | "manual", leadId?: strin
     const leads = await prisma.leadIntelligenceLead.findMany({where:{
       ...(leadId?{id:leadId}:{nextAnalysisAt:{lte:new Date()}}),
       status:{notIn:["suppressed","not_interested","converted"]},
-    },orderBy:[{analysedAt:{sort:"asc",nulls:"first"}},{nextAnalysisAt:"asc"},{createdAt:"asc"}],take:leadId?1:config.analysisLimit});
+    },orderBy:[{leadScore:"desc"},{analysedAt:{sort:"asc",nulls:"first"}},{nextAnalysisAt:"asc"},{createdAt:"asc"}],take:leadId?1:config.analysisLimit});
     if (leadId && !leads.length) throw new Error("Lead not found or suppressed.");
     for (const lead of leads) {
       if (budget.deadline-Date.now()<30000) {errors.push("Time budget reached; remaining leads stay queued."); break;}

@@ -68,6 +68,12 @@
     },
     "app/api/admin/lead-intelligence/run/route.ts": {
       "maxDuration": 300
+    },
+    "app/api/cron/lead-intelligence-sources/route.ts": {
+      "maxDuration": 300
+    },
+    "app/api/admin/lead-intelligence/sources/route.ts": {
+      "maxDuration": 300
     }
   },
   "crons": [
@@ -157,6 +163,7 @@
     { "path": "/api/cron/course-assignments", "schedule": "30 7 * * *" },
     { "path": "/api/cron/crm-automations", "schedule": "50 7 * * *" },
     { "path": "/api/cron/template-emails", "schedule": "20 8-19 * * *" },
-    { "path": "/api/cron/lead-intelligence", "schedule": "0 6 * * *" }
+    { "path": "/api/cron/lead-intelligence", "schedule": "0 6 * * *" },
+    { "path": "/api/cron/lead-intelligence-sources", "schedule": "30 5 * * *" }
   ]
 }

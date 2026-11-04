@@ -2,11 +2,13 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import type { SignalSummary } from "./lead-signal-chips";
 
 export type IntelligenceSummary = {
   date:string;timezone:string;newLeads:number;analysed:number;emailDrafts:number;phoneFirst:number;
   hot:number;recent:number;ready:number;draftsReady:number;
-  top10:{id:string;name:string;fitScore:number|null;priorityScore:number;bestContactMethod:string|null}[];
+  top10:{id:string;name:string;fitScore:number|null;priorityScore:number;bestContactMethod:string|null;leadScore?:number;grade?:string;signalSummary?:SignalSummary|null}[];
+  grades?:Record<string,number>;triggerLeads?:number;sources?:{source:string;lastRunAt:string|null;lastStatus:string;details:unknown}[];
   runs:{id:string;status:string;startedAt:string;discovered:number;analysed:number;drafts:number;queries:number;modelCalls:number;errors:unknown}[];
   config:{enabled:boolean;enabledVarPresent?:boolean;searchConfigured:boolean;aiConfigured:boolean;cronConfigured:boolean;schedule:string;analysisLimit:number};
 };
@@ -31,6 +33,6 @@ export function LeadIntelligenceSummary() {
     <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
       {[["New leads",data.newLeads],["Leads analysed",data.analysed],["Email drafts",data.emailDrafts],["Phone-first opportunities",data.phoneFirst]].map(([label,value])=><div key={String(label)}><p className="text-xs text-slate-500">{label}</p><p className="text-xl font-semibold text-slate-900">{value}</p></div>)}
     </div>
-    {data.top10.length>0 && <div className="mt-3 flex flex-wrap gap-2"><span className="text-xs font-medium text-slate-600">Top prospects:</span>{data.top10.slice(0,3).map(l=><Link key={l.id} href={`/admin/lead-intelligence/${l.id}`} className="text-xs text-emerald-800 underline">{l.name} · {l.priorityScore.toFixed(1)}</Link>)}</div>}
+    {data.top10.length>0 && <div className="mt-3 flex flex-wrap gap-2"><span className="text-xs font-medium text-slate-600">Top prospects:</span>{data.top10.slice(0,3).map(l=><Link key={l.id} href={`/admin/lead-intelligence/${l.id}`} className="text-xs text-emerald-800 underline">{l.name} · {l.grade?`${l.grade} ${l.leadScore}`:(l.priorityScore??0).toFixed(1)}</Link>)}</div>}
   </section>;
 }

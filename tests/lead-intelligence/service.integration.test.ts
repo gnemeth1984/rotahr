@@ -8,6 +8,8 @@
 import { after, before, beforeEach, describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { NextRequest } from "next/server";
+import { buildPdf, fsaiPage } from "./pdf-fixture";
+import { nameKey } from "../../lib/lead-intelligence/signals";
 
 const url = process.env.LI_TEST_DATABASE_URL ?? "";
 const parsed = (() => { try { return new URL(url); } catch { return null; } })();
@@ -19,6 +21,12 @@ type Call = { host: string; path: string; body: any };
 const calls: Call[] = [];
 const blocked: string[] = [];
 let onExtraction: ((business: any) => Promise<void>) | null = null;
+// Free-source fakes (FHRS API, FSAI site). Tests replace these per case.
+let fhrsData: Record<string, any[]> = {};
+let fsaiPdfs: Record<string, Uint8Array> = {};
+const fhrsEst = (id: number, name: string, rating: string, date: string, typeId = 1) => ({ FHRSID: id, BusinessName: name, BusinessType: "Restaurant/Cafe/Canteen",
+  BusinessTypeID: typeId, AddressLine1: `${id} High Street`, AddressLine2: "London", AddressLine3: null, AddressLine4: null, PostCode: "W1 1AA",
+  RatingValue: rating, RatingDate: `${date}T00:00:00`, LocalAuthorityName: "Westminster", Phone: null, SchemeType: "FHRS" });
 const realFetch = globalThis.fetch;
 const json = (v: unknown) => new Response(JSON.stringify(v), { status: 200, headers: { "content-type": "application/json" } });
 
@@ -30,13 +38,22 @@ async function fakeFetch(input: string | URL | Request, init?: RequestInit): Pro
     calls.push({ host: u.hostname, path: u.pathname, body });
     const q: string = body.q;
     if (u.pathname === "/maps") {
-      const m = q.match(/ in ([A-Za-z]+) (Ireland|United Kingdom)$/)!;
+      const m = q.match(/ in (.+) (Ireland|United Kingdom)$/)!;
       const [city, country] = [m[1], m[2]];
       const tail = country === "Ireland" ? "Ireland" : "United Kingdom";
       return json({ places: [
         { title: `Harbour Kitchen ${city}`, address: `1 Quay Street, ${city}, ${tail}`, category: "Restaurant", cid: `${city}-1` },
         { title: `Oak Room ${city}`, address: `22 Main Street, ${city}, ${tail}`, category: "Hotel", cid: `${city}-2` },
         { title: `Elsewhere Bar`, address: `5 Rue de Paris, Paris, France`, category: "Bar", cid: `${city}-3` },
+      ] });
+    }
+    if (body.tbs === "qdr:m") {
+      // Job-board searches (Google results only). One named venue advert in the Irish chef search, plus an agency aggregate.
+      const town = q.match(/job (.+) Ireland$/)?.[1];
+      if (!town || !q.includes('"Head Chef"')) return json({ organic: [] });
+      return json({ organic: [
+        { title: "Head Chef - The Anchor Bistro", link: "https://www.irishjobs.ie/job/anchor-1", snippet: `The Anchor Bistro, ${town} is hiring a Head Chef to lead our kitchen.`, date: "3 days ago" },
+        { title: `Sous Chef jobs in ${town}`, link: "https://ie.indeed.com/q-sous-chef", snippet: `25 Sous Chef jobs in ${town} from Hays Recruitment and others.` },
       ] });
     }
     const [, name, city] = q.match(/^"([^"]+)" (\S+)/) ?? [];
@@ -51,7 +68,15 @@ async function fakeFetch(input: string | URL | Request, init?: RequestInit): Pro
     const system: string = body.messages[0].content;
     const user = JSON.parse(body.messages[1].content);
     let content: unknown;
-    if (system.startsWith("Extract named hospitality businesses")) content = { leads: [] };
+    if (system.startsWith("Extract hospitality job adverts")) {
+      content = { adverts: user.documents.flatMap((d: any) => {
+        const m = d.text.match(/(The Anchor Bistro, \S+ is hiring a Head Chef)/);
+        return [
+          ...(m ? [{ venueName: "The Anchor Bistro", town: "", role: "Head Chef", sourceUrl: d.url, quote: m[1] }] : []),
+          ...(/Hays Recruitment/.test(d.text) ? [{ venueName: "Hays Recruitment", town: "", role: "Sous Chef", sourceUrl: d.url, quote: "from Hays Recruitment" }] : []),
+        ];
+      }) };
+    }
     else {
       const business = user.business; await onExtraction?.(business);
       const doc = user.documents.find((d: any) => d.url.startsWith("https://example.org/") && d.text.includes(business.name));
@@ -66,6 +91,19 @@ async function fakeFetch(input: string | URL | Request, init?: RequestInit): Pro
     return json({ id: "fake", object: "chat.completion", created: 0, model: "gpt-4o-mini",
       choices: [{ index: 0, finish_reason: "stop", message: { role: "assistant", content: JSON.stringify(content) } }],
       usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 } });
+  }
+  if (u.hostname === "api.ratings.food.gov.uk") {
+    calls.push({ host: u.hostname, path: u.pathname, body: {} });
+    assert.equal(u.searchParams.get("ratingKey"), "3"); assert.equal(u.searchParams.get("ratingOperatorKey"), "LessThanOrEqual");
+    const list = fhrsData[`${u.searchParams.get("localAuthorityId")}:${u.searchParams.get("businessTypeId")}`] ?? [];
+    return json({ establishments: list, meta: { totalPages: 1, pageNumber: 1 } });
+  }
+  if (u.hostname === "www.fsai.ie") {
+    calls.push({ host: u.hostname, path: u.pathname, body: {} });
+    if (u.pathname === "/enforcement-and-legislation/enforcement") return new Response(`<html><a href="/getmedia/a1/Closure-Orders-Served_30.pdf">Closure</a>
+      <a href="/getmedia/b2/Enforcement-Orders-Prohibition.pdf">Prohibition</a><a href="/getmedia/c3/Enforcement-Orders-Improvement.pdf">Improvement</a></html>`, { status: 200, headers: { "content-type": "text/html" } });
+    const type = /closure/i.test(u.pathname) ? "closure" : /prohibition/i.test(u.pathname) ? "prohibition" : "improvement";
+    return new Response(Buffer.from(fsaiPdfs[type] ?? buildPdf([fsaiPage([])])), { status: 200, headers: { "content-type": "application/pdf" } });
   }
   if (u.hostname === "dns.google") {
     calls.push({ host: u.hostname, path: u.pathname, body: {} });
@@ -86,12 +124,15 @@ const count = (host: string) => calls.filter(c => c.host === host).length;
 let prisma: typeof import("../../lib/db").prisma;
 let service: typeof import("../../lib/lead-intelligence/service");
 let providers: typeof import("../../lib/lead-intelligence/providers");
+let sources: typeof import("../../lib/lead-intelligence/sources");
 let seedCounts: number[] = [];
 const env = { LEAD_INTELLIGENCE_ENABLED: "true", SERPER_API_KEY: "offline-placeholder", OPENAI_API_KEY: "offline-placeholder", CRON_SECRET: "offline-cron-secret" };
 const tableCounts = () => Promise.all([prisma.outreachLead.count(), prisma.callLead.count(), prisma.venueCandidate.count()]);
 async function reset() {
-  await prisma.leadIntelligenceAnalysis.deleteMany(); await prisma.leadIntelligenceRun.deleteMany(); await prisma.leadIntelligenceLead.deleteMany();
-  calls.length = 0; blocked.length = 0; onExtraction = null;
+  await prisma.leadIntelligenceAnalysis.deleteMany(); await prisma.leadIntelligenceRun.deleteMany();
+  await prisma.leadIntelligenceSignal.deleteMany(); await prisma.leadIntelligenceFhrs.deleteMany(); await prisma.leadIntelligenceFsaiOrder.deleteMany();
+  await prisma.leadIntelligenceSourceSync.deleteMany(); await prisma.leadIntelligenceLead.deleteMany();
+  calls.length = 0; blocked.length = 0; onExtraction = null; fhrsData = {}; fsaiPdfs = {};
   for (const k of ["LEAD_INTELLIGENCE_DAILY_QUERY_CAP", "LEAD_INTELLIGENCE_DAILY_MODEL_CAP"]) delete process.env[k];
   Object.assign(process.env, env);
 }
@@ -107,6 +148,7 @@ describe("Lead Intelligence service (local DB)", { skip, concurrency: false }, (
     ({ prisma } = await import("../../lib/db"));
     service = await import("../../lib/lead-intelligence/service");
     providers = await import("../../lib/lead-intelligence/providers");
+    sources = await import("../../lib/lead-intelligence/sources");
     seedCounts = await tableCounts();
   });
   beforeEach(reset);
@@ -162,20 +204,33 @@ describe("Lead Intelligence service (local DB)", { skip, concurrency: false }, (
       assert.equal(run.status, "completed", JSON.stringify(run.errors));
       assert.equal(run.activeLock, null);
       assert.equal(run.runKey, `daily:${new Date().toISOString().slice(0, 10)}`);
-      assert.equal(run.discovered, 4, "2 venues per country; the France result is rejected");
-      assert.equal(run.analysed, 4); assert.equal(run.drafts, 4);
+      assert.equal(run.discovered, 3, "1 job-advert venue + 2 Maps venues; the France result is rejected");
+      assert.equal(run.analysed, 3); assert.equal(run.drafts, 3);
       assert.equal(run.queries, count("google.serper.dev")); assert.equal(run.modelCalls, count("api.openai.com"));
+      assert.equal(calls.filter(c => c.host === "google.serper.dev" && c.body.tbs === "qdr:m").length, 4, "4 job-board searches");
+      assert.equal(calls.filter(c => c.path === "/maps").length, 1, "1 Maps search");
       assert.ok(run.queries <= 10 && run.modelCalls <= 6);
+      // The advert became a scored lead with a dated hiring signal; the agency was rejected.
+      const anchor = await prisma.leadIntelligenceLead.findFirstOrThrow({ where: { name: "The Anchor Bistro" }, include: { triggerSignals: true, analyses: true } });
+      assert.equal(await prisma.leadIntelligenceLead.count({ where: { name: { contains: "Hays" } } }), 0);
+      assert.equal(anchor.leadScore, 40); assert.equal(anchor.grade, "B"); assert.equal(anchor.sourceKind, "job_advert");
+      assert.deepEqual((anchor.signalSummary as any).signals, ["Hiring Head Chef"]);
+      assert.equal(anchor.triggerSignals[0].type, "hiring_chef"); assert.equal(anchor.triggerSignals[0].sourceUrl, "https://www.irishjobs.ie/job/anchor-1");
+      assert.ok(anchor.triggerSignals[0].eventDate && anchor.triggerSignals[0].eventDate < new Date());
+      assert.match(anchor.analyses[0].emailBody!, /noticed you're hiring a Head Chef/);
       assert.deepEqual(blocked, []);
       assert.ok((run.errors as string[]).some(e => /Notice: 1 .* skipped/.test(e)));
       const leads = await prisma.leadIntelligenceLead.findMany();
+      // Highest trigger score is analysed first.
+      const order = (await prisma.leadIntelligenceAnalysis.findMany({ orderBy: { createdAt: "asc" }, include: { lead: true } })).map(a => a.lead.name);
+      assert.equal(order[0], "The Anchor Bistro");
       for (const l of leads) {
         assert.equal(l.status, "qualified"); assert.equal(l.intentStatus, "unknown"); assert.equal(l.intentScore, 0);
         assert.equal(l.phone, "066 712 3456"); assert.equal(l.generalEmail, null, "contacts are never invented");
         assert.ok(l.nextAnalysisAt! > new Date(Date.now() + 6 * 86400000));
       }
       const analyses = await prisma.leadIntelligenceAnalysis.findMany();
-      assert.equal(analyses.length, 4);
+      assert.equal(analyses.length, 3);
       for (const a of analyses) assert.ok(a.emailBody && a.emailBody.split(/\s+/).length <= 120);
 
       const before = calls.length;
@@ -350,6 +405,139 @@ describe("Lead Intelligence service (local DB)", { skip, concurrency: false }, (
       const lead = await send.logLeadCall(id, "Spoke to Mary, send demo link");
       assert.equal(lead.status, "contacted");
       assert.match(lead.notes ?? "", /Phone call to 066 712 3456: Spoke to Mary, send demo link/);
+    });
+  });
+
+  describe("free sources (fake FHRS API, fake FSAI site)", () => {
+    const daysAgo = (n: number) => new Date(Date.now() - n * 86400000);
+    const ymd = (d: Date) => d.toISOString().slice(0, 10);
+    const deadline = () => Date.now() + 120000;
+    const paid = () => count("google.serper.dev") + count("api.openai.com");
+
+    test("FHRS: stores records, promotes recent 0-3 ratings with a scored signal, and advances the cursor", async () => {
+      fhrsData["120:1"] = [fhrsEst(5001, "Grill House", "1", ymd(daysAgo(40))), fhrsEst(5002, "Corner Cafe", "3", ymd(daysAgo(90))),
+        fhrsEst(5003, "Old Tavern", "2", ymd(daysAgo(4 * 365)))];
+      const stats = await sources.importFhrs(service.saveSeed, deadline());
+      assert.deepEqual(stats.errors, []);
+      assert.equal(stats.units.length, 3); assert.equal(count("api.ratings.food.gov.uk"), 12, "3 units x 4 business types");
+      assert.equal(stats.stored, 3); assert.equal(stats.promoted, 2, "a rating older than 3 years is stored but not promoted");
+      const grill = await prisma.leadIntelligenceLead.findFirstOrThrow({ where: { name: "Grill House" }, include: { triggerSignals: true } });
+      assert.deepEqual([grill.country, grill.city, grill.sourceKind, grill.leadScore, grill.grade], ["uk", "London", "fhrs", 70, "A"]);
+      assert.deepEqual((grill.signalSummary as any).signals, ["Food Hygiene Rating 1"]);
+      assert.equal(grill.triggerSignals[0].sourceUrl, "https://ratings.food.gov.uk/business/5001");
+      assert.doesNotMatch((grill.discoveryEvidence as any[]).map(d => d.text).join(" "), /rating|hygiene/i, "AI evidence carries identity only");
+      const cafe = await prisma.leadIntelligenceLead.findFirstOrThrow({ where: { name: "Corner Cafe" } });
+      assert.deepEqual([cafe.leadScore, cafe.grade], [40, "B"]);
+      assert.equal(await prisma.leadIntelligenceLead.count({ where: { name: "Old Tavern" } }), 0);
+      const rec = await prisma.leadIntelligenceFhrs.findUniqueOrThrow({ where: { fhrsId: 5001 } });
+      assert.deepEqual([rec.localAuthority, rec.businessTypeId, rec.town, rec.leadId], ["Westminster", 1, "London", grill.id]);
+      const state = await prisma.leadIntelligenceSourceSync.findUniqueOrThrow({ where: { source: "fhrs" } });
+      assert.equal(state.cursor, 3); assert.equal(state.lastStatus, "completed");
+      assert.equal(paid(), 0); assert.deepEqual(blocked, []);
+    });
+
+    test("FHRS: a venue that drops off its authority list is superseded and its signal retired", async () => {
+      fhrsData["120:1"] = [fhrsEst(5001, "Grill House", "1", ymd(daysAgo(40))), fhrsEst(5002, "Corner Cafe", "3", ymd(daysAgo(90)))];
+      await sources.importFhrs(service.saveSeed, deadline());
+      await prisma.leadIntelligenceSourceSync.update({ where: { source: "fhrs" }, data: { cursor: 0 } });
+      fhrsData["120:1"] = [fhrsEst(5002, "Corner Cafe", "2", ymd(daysAgo(5)))];
+      const stats = await sources.importFhrs(service.saveSeed, deadline());
+      assert.equal(stats.superseded, 1);
+      assert.equal((await prisma.leadIntelligenceFhrs.findUniqueOrThrow({ where: { fhrsId: 5001 } })).rating, "superseded");
+      const grill = await prisma.leadIntelligenceLead.findFirstOrThrow({ where: { name: "Grill House" }, include: { triggerSignals: true } });
+      assert.equal(grill.triggerSignals.length, 0); assert.deepEqual([grill.leadScore, grill.grade], [0, "D"]);
+      const cafe = await prisma.leadIntelligenceLead.findFirstOrThrow({ where: { name: "Corner Cafe" } });
+      assert.deepEqual([cafe.leadScore, cafe.grade], [70, "A"], "a re-inspection refreshes the existing signal");
+      assert.equal(await prisma.leadIntelligenceSignal.count({ where: { fingerprint: "fhrs:5002" } }), 1);
+    });
+
+    test("FSAI: stores every order, promotes hospitality only, never stores Served On, and is gated weekly", async () => {
+      fsaiPdfs.closure = buildPdf([fsaiPage([
+        { served: daysAgo(10), premises: ["Harbour", "Kitchen"], address: ["1 Quay Street", "Galway"], county: "Galway", servedOn: ["Harbour Kitchen", "Limited"],
+          businessType: ["Restaurant/", "Café"], orderUrl: "https://www.fsai.ie/orders/CO-001.pdf" },
+        { served: daysAgo(20), premises: ["Corner Shop"], address: ["5 Main Street"], county: "Dublin 8", servedOn: ["A Person"], businessType: ["Retailer -", "Other"] },
+      ])]);
+      const stats = await sources.importFsai(service.saveSeed, deadline());
+      assert.equal(stats.skipped, false); assert.deepEqual(stats.errors, []);
+      assert.equal(stats.stored, 2); assert.equal(stats.promoted, 1);
+      const orders = await prisma.leadIntelligenceFsaiOrder.findMany({ orderBy: { dateServed: "desc" } });
+      assert.deepEqual(orders.map(o => [o.premises, o.hospitality]), [["Harbour Kitchen", true], ["Corner Shop", false]]);
+      assert.doesNotMatch(JSON.stringify(orders), /A Person|Limited/, "Served On is never stored");
+      const lead = await prisma.leadIntelligenceLead.findFirstOrThrow({ where: { name: "Harbour Kitchen" }, include: { triggerSignals: true } });
+      assert.deepEqual([lead.country, lead.city, lead.county, lead.sourceKind, lead.leadScore, lead.grade], ["ie", "Galway", "Co. Galway", "fsai", 100, "A+"]);
+      assert.equal(lead.triggerSignals[0].type, "fsai_closure"); assert.equal(lead.triggerSignals[0].sourceUrl, "https://www.fsai.ie/orders/CO-001.pdf");
+      assert.doesNotMatch(JSON.stringify(lead.discoveryEvidence) + JSON.stringify(lead.triggerSignals), /A Person|Limited/);
+      assert.doesNotMatch((lead.discoveryEvidence as any[]).map(d => d.text).join(" "), /closure|order|enforcement/i);
+      assert.equal(await prisma.leadIntelligenceLead.count({ where: { name: "Corner Shop" } }), 0);
+      const fsaiCalls = count("www.fsai.ie");
+      assert.equal(fsaiCalls, 4, "index + 3 PDFs");
+      assert.equal((await sources.importFsai(service.saveSeed, deadline())).skipped, true);
+      assert.equal(count("www.fsai.ie"), fsaiCalls, "weekly gate makes no request");
+      const forced = await sources.importFsai(service.saveSeed, deadline(), true);
+      assert.equal(forced.skipped, false); assert.equal(forced.stored, 0, "orders are idempotent on fingerprint");
+      assert.equal(await prisma.leadIntelligenceLead.count({ where: { name: "Harbour Kitchen" } }), 1);
+      assert.equal(paid(), 0); assert.deepEqual(blocked, []);
+    });
+
+    const order = (premises: string, address: string, served = daysAgo(15)) => prisma.leadIntelligenceFsaiOrder.create({ data: {
+      fingerprint: `closure:${premises}:${address}`, orderType: "closure", premises, nameKey: nameKey(premises), address, county: "Galway",
+      businessType: "Restaurant/Café", dateServed: served, sourceUrl: "https://www.fsai.ie/getmedia/a1/Closure.pdf", hospitality: true } });
+    const advert = (name: string, country: "ie" | "uk", city: string, county: string, address: string) => ({
+      seed: { name, website: null, category: "Restaurant", country, county, city, address, sourceUrl: "https://www.irishjobs.ie/job/x", sourceKind: "job_advert" },
+      role: "Head Chef", group: "hiring_chef" as const, advertUrl: "https://www.irishjobs.ie/job/x", datePosted: daysAgo(3), title: "Head Chef" });
+
+    test("a job-advert lead gains a matching FSAI order or FHRS record and scores both", async () => {
+      await order("Harbour Kitchen", "1 Quay Street Galway");
+      const ie = await service.saveJobAdvert(advert("Harbour Kitchen", "ie", "Galway", "", ""));
+      const a = await prisma.leadIntelligenceLead.findUniqueOrThrow({ where: { id: ie.id } });
+      assert.deepEqual([a.leadScore, a.grade], [140, "A+"]);
+      assert.deepEqual((a.signalSummary as any).signals, ["FSAI Closure Order (" + ymd(daysAgo(15)) + ")", "Hiring Head Chef"]);
+      assert.equal((await prisma.leadIntelligenceFsaiOrder.findFirstOrThrow()).leadId, ie.id);
+
+      await prisma.leadIntelligenceFhrs.create({ data: { fhrsId: 7001, businessName: "Oak Room", nameKey: "oakroom", address: "1 High Street, London, W1 1AA",
+        postcode: "W1 1AA", town: "London", localAuthority: "Westminster", rating: "2", ratingDate: daysAgo(100), businessType: "Restaurant/Cafe/Canteen", businessTypeId: 1 } });
+      const uk = await service.saveJobAdvert(advert("Oak Room", "uk", "London", "", "1 High Street, London W1 1AA"));
+      const b = await prisma.leadIntelligenceLead.findUniqueOrThrow({ where: { id: uk.id } });
+      assert.deepEqual([b.leadScore, b.grade], [110, "A+"]);
+      assert.equal((await prisma.leadIntelligenceFhrs.findUniqueOrThrow({ where: { fhrsId: 7001 } })).leadId, uk.id);
+    });
+
+    test("an ambiguous name (two premises in the county) or an old order is not attached", async () => {
+      await order("Harbour Kitchen", "1 Quay Street Galway"); await order("Harbour Kitchen", "9 Shop Street Galway");
+      await order("Anchor Grill", "2 Dock Road Galway", daysAgo(200));
+      const a = await service.saveJobAdvert(advert("Harbour Kitchen", "ie", "Galway", "Co. Galway", ""));
+      const b = await service.saveJobAdvert(advert("Anchor Grill", "ie", "Galway", "Co. Galway", ""));
+      for (const id of [a.id, b.id]) {
+        const l = await prisma.leadIntelligenceLead.findUniqueOrThrow({ where: { id } });
+        assert.deepEqual([l.leadScore, l.grade], [40, "B"]);
+      }
+      assert.equal(await prisma.leadIntelligenceFsaiOrder.count({ where: { leadId: { not: null } } }), 0);
+    });
+
+    test("runSourceImports holds a single lease; a stale lease (>10 min) is taken over and released", async () => {
+      await prisma.leadIntelligenceSourceSync.create({ data: { source: "lock", lastStatus: "running", lastRunAt: new Date() } });
+      const held = await sources.runSourceImports(service.saveSeed);
+      assert.equal(held.skipped, true); assert.equal(calls.length, 0);
+      await prisma.leadIntelligenceSourceSync.update({ where: { source: "lock" }, data: { lastRunAt: new Date(Date.now() - 11 * 60000) } });
+      const run = await sources.runSourceImports(service.saveSeed);
+      assert.equal(run.skipped, false);
+      assert.equal((await prisma.leadIntelligenceSourceSync.findUniqueOrThrow({ where: { source: "lock" } })).lastStatus, "idle");
+      assert.ok(count("www.fsai.ie") > 0 && count("api.ratings.food.gov.uk") > 0); assert.equal(paid(), 0);
+    });
+
+    test("sources cron route: 401 without auth, skipped when disabled, runs without paid keys", async () => {
+      const { GET } = await import("../../app/api/cron/lead-intelligence-sources/route");
+      const req = (auth?: string) => new NextRequest("http://localhost/api/cron/lead-intelligence-sources", { headers: auth ? { authorization: auth } : {} });
+      assert.equal((await GET(req())).status, 401);
+      assert.equal((await GET(req("Bearer wrong"))).status, 401);
+      process.env.LEAD_INTELLIGENCE_ENABLED = "false";
+      const off = await GET(req(`Bearer ${env.CRON_SECRET}`));
+      assert.equal(off.status, 200); assert.equal((await off.json()).skipped, true); assert.equal(calls.length, 0);
+      process.env.LEAD_INTELLIGENCE_ENABLED = "true"; delete process.env.SERPER_API_KEY; delete process.env.OPENAI_API_KEY;
+      const on = await GET(req(`Bearer ${env.CRON_SECRET}`));
+      assert.equal(on.status, 200); const body = await on.json();
+      assert.equal(body.skipped, false); assert.equal(body.fsai.skipped, false); assert.equal(body.fhrs.units.length, 3);
+      assert.equal(paid(), 0); assert.deepEqual(blocked, []);
     });
   });
 

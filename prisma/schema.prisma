@@ -3491,13 +3491,101 @@ model LeadIntelligenceLead {
   analysedAt         DateTime?
   nextAnalysisAt     DateTime @default(now())
   lastError          String?  @db.Text
+  /// Lead Engine v2 trigger score: sum of active signal points (see lib/lead-intelligence/signals.ts).
+  leadScore          Int      @default(0)
+  /// A+ >= 90, A 70-89, B 40-69, C 20-39, D < 20. Only A+/A/B are actively pursued.
+  grade              String   @default("D")
+  /// Snapshot {lead_score, signals[]} of the active signals, for list views.
+  signalSummary      Json?
   analyses           LeadIntelligenceAnalysis[]
+  triggerSignals     LeadIntelligenceSignal[]
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
   @@index([country, county])
   @@index([classification, priorityScore])
   @@index([status, nextAnalysisAt])
+  @@index([grade, leadScore])
+  @@index([leadScore])
+}
+
+/// One buying trigger (job advert, hygiene rating, enforcement order, multi-site).
+/// fingerprint makes re-imports idempotent. Never used to contact anyone.
+model LeadIntelligenceSignal {
+  id          String               @id @default(cuid())
+  leadId      String
+  lead        LeadIntelligenceLead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  /// hiring_chef | hiring_management | hiring_compliance | fhrs_rating | fsai_closure | fsai_prohibition | fsai_improvement | multi_site
+  type        String
+  label       String
+  points      Int
+  sourceUrl   String
+  /// Role title for adverts, rating for FHRS, order type for FSAI.
+  detail      String               @default("")
+  /// Date posted / inspection date / date served. Null when the source gives none.
+  eventDate   DateTime?
+  data        Json?
+  fingerprint String               @unique
+  observedAt  DateTime             @default(now())
+  createdAt   DateTime             @default(now())
+
+  @@index([leadId, type])
+  @@index([type, eventDate])
+}
+
+/// UK Food Hygiene Rating Scheme records (free public API), kept for cross-source matching.
+model LeadIntelligenceFhrs {
+  id             String    @id @default(cuid())
+  fhrsId         Int       @unique
+  businessName   String
+  nameKey        String
+  address        String    @default("")
+  postcode       String    @default("")
+  town           String
+  localAuthority String    @default("")
+  rating         String
+  ratingDate     DateTime?
+  businessType   String    @default("")
+  businessTypeId Int?
+  phone          String?
+  leadId         String?
+  fetchedAt      DateTime  @default(now())
+
+  @@index([nameKey, town])
+  @@index([leadId])
+}
+
+/// FSAI enforcement orders, persisted because FSAI drops them from its lists after they are lifted.
+model LeadIntelligenceFsaiOrder {
+  id           String    @id @default(cuid())
+  fingerprint  String    @unique
+  orderType    String
+  premises     String
+  nameKey      String
+  address      String    @default("")
+  county       String    @default("")
+  businessType String    @default("")
+  dateServed   DateTime
+  dateLifted   DateTime?
+  orderUrl     String?
+  sourceUrl    String
+  hospitality  Boolean   @default(false)
+  leadId       String?
+  firstSeenAt  DateTime  @default(now())
+  lastSeenAt   DateTime  @default(now())
+
+  @@index([nameKey])
+  @@index([orderType, dateServed])
+}
+
+/// Cursor/last-run state for the free source importers (FHRS town rotation, FSAI weekly).
+model LeadIntelligenceSourceSync {
+  source     String    @id
+  cursor     Int       @default(0)
+  lastRunAt  DateTime?
+  lastStatus String    @default("never")
+  details    Json?
+  updatedAt  DateTime  @updatedAt
 }
 
 /// Immutable evidence/scoring snapshot and draft-only outreach. No send state,
