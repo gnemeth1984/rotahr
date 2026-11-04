@@ -8,7 +8,7 @@ export type IntelligenceSummary = {
   hot:number;recent:number;ready:number;draftsReady:number;
   top10:{id:string;name:string;fitScore:number|null;priorityScore:number;bestContactMethod:string|null}[];
   runs:{id:string;status:string;startedAt:string;discovered:number;analysed:number;drafts:number;queries:number;modelCalls:number;errors:unknown}[];
-  config:{enabled:boolean;searchConfigured:boolean;aiConfigured:boolean;cronConfigured:boolean;schedule:string;analysisLimit:number};
+  config:{enabled:boolean;enabledVarPresent?:boolean;searchConfigured:boolean;aiConfigured:boolean;cronConfigured:boolean;schedule:string;analysisLimit:number};
 };
 export function LeadIntelligenceSummary() {
   const [data,setData]=useState<IntelligenceSummary|null>(null);

@@ -17,9 +17,21 @@ export class ProviderBudget {
     return remaining;
   }
 }
+/**
+ * Opt-in switch. Tolerates the ways a value gets mangled when pasted into a
+ * hosting dashboard: surrounding whitespace/newlines, quotes and capitals.
+ * Anything other than "true" (after that normalisation) stays disabled.
+ */
+export function enabledFlag(raw: string | undefined): boolean {
+  if (raw === undefined) return false;
+  return raw.trim().replace(/^["']|["']$/g, "").trim().toLowerCase() === "true";
+}
+
 export function configuration() {
   return {
-    enabled: process.env.LEAD_INTELLIGENCE_ENABLED === "true",
+    enabled: enabledFlag(process.env.LEAD_INTELLIGENCE_ENABLED),
+    // Whether the variable reached this deployment at all (value never exposed).
+    enabledVarPresent: process.env.LEAD_INTELLIGENCE_ENABLED !== undefined,
     searchConfigured: !!process.env.SERPER_API_KEY,
     aiConfigured: !!process.env.OPENAI_API_KEY,
     cronConfigured: !!process.env.CRON_SECRET,

@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import http from "node:http";
 import type { AddressInfo } from "node:net";
 import { allowedUrl, crawlWebsite, fetchRobots, isPublicIPv4, normaliseRobotsPath, parsePage, pinnedLookup, robotsAllows, readBody, robotsPolicyFromStatus, safeGet, ROBOTS_MAX_BYTES, TooManyRedirectsError, type FetchOptions, type Fetcher } from "../../lib/lead-intelligence/crawl";
-import { BudgetError, ProviderBudget, isPlatformHost, looksLikeOwnWebsite, mapsSeed, townFromAddress } from "../../lib/lead-intelligence/providers";
+import { BudgetError, ProviderBudget, enabledFlag, isPlatformHost, looksLikeOwnWebsite, mapsSeed, townFromAddress } from "../../lib/lead-intelligence/providers";
 import { validCronAuth } from "../../lib/lead-intelligence/cron-auth";
 
 describe("SSRF guards", () => {
@@ -315,5 +315,14 @@ describe("budgets and cron auth", () => {
     assert.equal(validCronAuth("Bearer s3cret", undefined), false);
     assert.equal(validCronAuth(null, "s3cret"), false);
     assert.equal(validCronAuth("Bearer ", ""), false);
+  });
+});
+
+describe("LEAD_INTELLIGENCE_ENABLED parsing", () => {
+  test("accepts true with pasted whitespace, quotes or capitals", () => {
+    for (const v of ["true", "TRUE", "True", " true", "true\n", "\"true\"", "'true'", " \"True\" \r\n"]) assert.equal(enabledFlag(v), true, JSON.stringify(v));
+  });
+  test("anything else stays disabled", () => {
+    for (const v of [undefined, "", "false", "1", "yes", "on", "truee", "t rue"]) assert.equal(enabledFlag(v), false, JSON.stringify(v));
   });
 });
