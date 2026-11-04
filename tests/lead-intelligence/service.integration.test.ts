@@ -67,6 +67,16 @@ async function fakeFetch(input: string | URL | Request, init?: RequestInit): Pro
       choices: [{ index: 0, finish_reason: "stop", message: { role: "assistant", content: JSON.stringify(content) } }],
       usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 } });
   }
+  if (u.hostname === "dns.google") {
+    calls.push({ host: u.hostname, path: u.pathname, body: {} });
+    const name = u.searchParams.get("name");
+    return json(name === "nomail.ie" ? { Status: 3 } : { Status: 0, Answer: [{ type: 15, data: "10 mx.example.org." }] });
+  }
+  if (u.hostname === "api.brevo.com") {
+    calls.push({ host: u.hostname, path: u.pathname, body });
+    if (body.to?.[0]?.email === "reject@venue.ie") return new Response(JSON.stringify({ message: "email is not valid" }), { status: 400 });
+    return json({ messageId: `<fake-${calls.length}@brevo>` });
+  }
   blocked.push(u.href);
   throw new Error(`Offline test: network access to ${u.hostname} blocked`);
 }
@@ -257,6 +267,89 @@ describe("Lead Intelligence service (local DB)", { skip, concurrency: false }, (
       await prisma.leadIntelligenceLead.update({ where: { id }, data: { status: "suppressed" } });
       await assert.rejects(service.runIntelligence("manual", id), /not found or suppressed/);
       assert.equal(calls.length, 0);
+    });
+  });
+
+  describe("Send now (fake Brevo, fake DNS)", () => {
+    const today = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Dublin", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+    let send: typeof import("../../lib/lead-intelligence/send");
+    const mk = async (over: Record<string, unknown> = {}, name = "Christy's Bar") => {
+      const { id } = await service.saveSeed(seed({ name, sourceUrl: `https://example.org/${encodeURIComponent(name)}` }));
+      await prisma.leadIntelligenceLead.update({ where: { id }, data: { managerEmail: "manager@venue.ie", phone: "066 712 3456", ...over } });
+      return id;
+    };
+    const input = (leadId: string, over: Record<string, unknown> = {}) => ({ leadId, kind: "cold" as const, to: "manager@venue.ie", subject: "Rotas at Christy's", body: "Hi Mary,\n\nQuick question about your rotas.\n\nKind regards,\nGabor", ...over });
+    before(async () => { send = await import("../../lib/lead-intelligence/send"); });
+    beforeEach(async () => {
+      process.env.BREVO_API_KEY = "offline-placeholder";
+      await prisma.emailSuppression.deleteMany({ where: { email: { endsWith: "@venue.ie" } } });
+      await prisma.outreachDailyCount.deleteMany({ where: { date: today() } });
+    });
+    after(async () => {
+      delete process.env.BREVO_API_KEY;
+      await prisma.emailSuppression.deleteMany({ where: { email: { endsWith: "@venue.ie" } } });
+      await prisma.outreachDailyCount.deleteMany({ where: { date: today() } });
+    });
+
+    test("sends once with demo + tutorial links, unsubscribe headers, counts toward the cap and logs to the lead", async () => {
+      const id = await mk();
+      const r = await send.sendLeadEmail(input(id));
+      assert.equal(r.ok, true); assert.equal(r.sentToday, 1);
+      const brevo = calls.filter(c => c.host === "api.brevo.com");
+      assert.equal(brevo.length, 1);
+      const p = brevo[0].body;
+      assert.equal(p.to[0].email, "manager@venue.ie");
+      assert.match(p.textContent, /rotahr\.com\/try\?utm_source=lead-intelligence/);
+      assert.match(p.textContent, /rotahr\.com\/tutorials\?utm_source=lead-intelligence/);
+      assert.match(p.htmlContent, /Unsubscribe<\/a>/);
+      assert.match(p.headers["List-Unsubscribe"], /api\/unsubscribe\?email=manager%40venue\.ie/);
+      assert.deepEqual(p.tags, ["lead-intelligence", "cold", "ie"]);
+      const lead = await prisma.leadIntelligenceLead.findUniqueOrThrow({ where: { id } });
+      assert.equal(lead.status, "contacted"); assert.ok(lead.contactedAt);
+      assert.match(lead.notes ?? "", /Cold email sent to manager@venue\.ie: "Rotas at Christy's" \(Brevo <fake-/);
+      assert.equal((await prisma.outreachDailyCount.findUniqueOrThrow({ where: { date: today() } })).count, 1);
+    });
+    test("second cold email needs force; follow-up does not", async () => {
+      const id = await mk();
+      await send.sendLeadEmail(input(id));
+      await assert.rejects(send.sendLeadEmail(input(id)), (e: any) => e.code === "already_contacted" && e.status === 409);
+      assert.equal((await send.sendLeadEmail(input(id, { force: true }))).ok, true);
+      assert.equal((await send.sendLeadEmail(input(id, { kind: "followup" }))).ok, true);
+      assert.equal(calls.filter(c => c.host === "api.brevo.com").length, 3);
+    });
+    test("refuses suppressed addresses, closed leads, bad and dead domains without calling Brevo", async () => {
+      const id = await mk();
+      await prisma.emailSuppression.create({ data: { email: "manager@venue.ie", source: "unsubscribe_link" } });
+      await assert.rejects(send.sendLeadEmail(input(id)), (e: any) => e.code === "suppressed");
+      await assert.rejects(send.sendLeadEmail(input(id, { to: "not-an-email" })), (e: any) => e.code === "bad_address");
+      await assert.rejects(send.sendLeadEmail(input(id, { to: "x@venue.example" })), (e: any) => e.code === "bad_address");
+      await assert.rejects(send.sendLeadEmail(input(id, { to: "x@nomail.ie" })), (e: any) => e.code === "no_mx");
+      const closed = await mk({ status: "not_interested" }, "Oak Room");
+      assert.notEqual(closed, id);
+      await assert.rejects(send.sendLeadEmail(input(closed, { to: "other@venue.ie" })), (e: any) => e.code === "closed");
+      assert.equal(calls.filter(c => c.host === "api.brevo.com").length, 0);
+      assert.equal((await prisma.leadIntelligenceLead.findUniqueOrThrow({ where: { id } })).contactedAt, null);
+    });
+    test("shared daily cap blocks the send; missing key reports not configured", async () => {
+      const id = await mk();
+      await prisma.outreachDailyCount.create({ data: { date: today(), count: send.sendConfiguration().dailyLimit } });
+      await assert.rejects(send.sendLeadEmail(input(id)), (e: any) => e.code === "daily_cap" && e.status === 429);
+      delete process.env.BREVO_API_KEY;
+      assert.equal(send.sendConfiguration().configured, false);
+      await assert.rejects(send.sendLeadEmail(input(id)), (e: any) => e.code === "not_configured");
+      assert.equal(calls.filter(c => c.host === "api.brevo.com").length, 0);
+    });
+    test("a Brevo hard rejection suppresses the address and leaves the lead uncontacted", async () => {
+      const id = await mk();
+      await assert.rejects(send.sendLeadEmail(input(id, { to: "reject@venue.ie" })), (e: any) => e.code === "send_failed");
+      assert.equal(await prisma.emailSuppression.count({ where: { email: "reject@venue.ie", revokedAt: null } }), 1);
+      assert.equal((await prisma.leadIntelligenceLead.findUniqueOrThrow({ where: { id } })).status, "new");
+    });
+    test("Log call marks contacted and appends the outcome", async () => {
+      const id = await mk();
+      const lead = await send.logLeadCall(id, "Spoke to Mary, send demo link");
+      assert.equal(lead.status, "contacted");
+      assert.match(lead.notes ?? "", /Phone call to 066 712 3456: Spoke to Mary, send demo link/);
     });
   });
 

@@ -56,7 +56,7 @@ export async function getSentToday(): Promise<number> {
   return row?.count ?? 0;
 }
 
-async function incrementSentToday(): Promise<void> {
+export async function incrementSentToday(): Promise<void> {
   const date = dublinDateKey();
   await prisma.outreachDailyCount.upsert({
     where: { date },

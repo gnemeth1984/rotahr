@@ -3,8 +3,10 @@
 A daily, super-admin-only research assistant that finds Irish and UK hospitality venues, analyses
 public evidence about them, scores them, and prepares **draft** outreach for a human to review.
 
-It never contacts anyone. No email is sent and no call is placed. Records are never copied into
-`OutreachLead` or handed to the automated outreach sender.
+The automated run never contacts anyone. An email goes out only when a super-admin presses
+**Send now** on one lead and confirms (see *Send now* below). Calls are placed by the admin from
+their own phone and logged by hand. Records are never copied into `OutreachLead` or handed to the
+automated outreach sequence, so nothing follows up on its own.
 
 ## What runs, and when
 
@@ -84,7 +86,32 @@ and Hot. Unknown intent is never shown as Cold, and it never lowers fit.
 ### Drafts
 
 Each analysed lead gets a cold email (≤120 words), a follow-up (≤120 words) and a phone opener,
-written from validated facts only. They are drafts with copy buttons. **There is no send action.**
+written from validated facts only. Each has a Copy button; the two emails also have **Send now**.
+
+### Send now
+
+`POST /api/admin/lead-intelligence/send` (super-admin, same-origin) sends one email to one lead via
+the existing Brevo outreach sender (`lib/outreach/brevo.ts`, From `OUTREACH_FROM_EMAIL`, default
+`gabornemeth@rotahr.com`, which forwards into sales@). The composer lets the admin pick a published
+address (manager, general, reservations) or type one, and edit the subject and body before a
+confirm step. Server-side, in order (`lib/lead-intelligence/send.ts`):
+
+1. `BREVO_API_KEY` must be set, otherwise 503 `not_configured` and the button is disabled.
+2. The lead must not be `suppressed`, `not_interested` or `converted`.
+3. The address must be valid, routable and not on the suppression list (`EmailSuppression`).
+4. The live demo (`rotahr.com/try`) and tutorials (`rotahr.com/tutorials`) links, with UTM tags,
+   are inserted above the sign-off if the body doesn't already link to them.
+5. A second **cold** email to an already-contacted lead needs an explicit "Send anyway" (`force`).
+6. The daily cap (`OUTREACH_DAILY_LIMIT`, default 25) is **shared** with the automated outreach
+   through `OutreachDailyCount`.
+7. MX check (`lib/outreach/mx-check.ts`); a domain with no mail route is refused.
+8. Sent with an unsubscribe footer and List-Unsubscribe / one-click headers. A permanent Brevo
+   rejection suppresses the address.
+
+On success the lead becomes `contacted`, `contactedAt` is stamped and a line with the Brevo
+message id is appended to Notes. `{action:"call", leadId, outcome}` on the same route logs a phone
+call the same way. `GET` on the route returns `{configured, from, dailyLimit, sentToday}` and sends
+nothing.
 
 ### Deduplication
 
@@ -160,7 +187,7 @@ APIs. Mutations also get same-origin checks.
   - score breakdowns and reasoning;
   - verified facts with quotes and source links (http/https only, `nofollow`);
   - public contacts with their sources;
-  - drafts with copy buttons;
+  - drafts with Copy, **Send now** (emails) and a `tel:` link plus **Log call** (phone opener);
   - status and notes editing;
   - analysis history.
 
